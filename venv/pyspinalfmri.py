@@ -1,0 +1,2524 @@
+"""
+pyspinalfmri.py
+version 0.0.0
+
+Created on Tue Apr 21 16:16:09 2020
+Last edited  10:33 am Saturday, April 25, 2020
+
+@author: Patrick W. Stroman, Queen's University, Kingston
+
+This module organizes inputs to functions to load, pre-process, and analyze 
+functional MRI data from the brainstem and spinal cord
+
+Jobs to do:  (not entirely complete yet)
+1) Specify database file (done, excepting for creating new database file, and functions to read the database)
+2) Specify database entry numbers to work on (done)
+3) Conversion from DICOM to NIfTI format (done)
+4) Calculation of normalization parameters (done)
+5) Pre-processing of data (done)
+6) Model-driven fit of predicted BOLD responses to voxel data (GLM)) (done, except for creating results figure)
+7) Definition of region clusters, and extraction of cluster data
+8) Data-driven connectivity analysis, using structural equation modeling (SEM))
+9) Bayesian regression analysis of cluster data
+10) Visualization of results
+
+"""
+
+# import necessary modules 
+import tkinter as tk
+import tkinter.filedialog as tkf
+from tkinter import ttk
+import os
+import numpy as np
+import re
+import pandas as pd
+import dicom_conversion
+import time
+import pynormalization
+from PIL import Image, ImageTk
+import load_templates
+import nibabel as nib
+import matplotlib.pyplot as plt
+import matplotlib
+import image_operations_3D as i3d
+import pypreprocess
+import openpyxl
+import pydatabase
+import GLMfit
+import py_fmristats
+import configparser as cp
+import pyclustering
+from scipy import stats
+import pydisplay
+# import scipy
+
+matplotlib.use('TkAgg')   # explicitly set this - it might help with displaying figures in different environments
+
+# save some colors for consistent layout, and make them easy to change
+fgcol1 = 'navy'
+fgcol2 = 'gold2'
+fgcol3 = 'firebrick4'
+bgcol = 'grey94'
+
+bigbigbuttonsize = 21
+bigbuttonsize = 14
+smallbuttonsize = 9
+
+# define a single place for saving setup parameters for ease of retrieving, updating, etc.
+basedir = os.getcwd()
+settingsfile = os.path.join(basedir,'base_settings_file.npy')
+
+#-----load the preferences file and information in it --------------------
+# preferencesfile = os.path.join(basedir,'preferences.ini')
+# preferences = cp.ConfigParser()
+# preferences.read(preferencesfile)
+# fields = preferences.options('OPTIONAL_FIELDS')
+# optional_db_fields = [preferences['OPTIONAL_FIELDS'][fields[aa]] for aa in range(len(fields))]
+# optional_db_fields
+#-------------------------------------------------------------------------
+
+if os.path.isfile(settingsfile):
+    print('name of the settings file is : ', settingsfile)
+    settings = np.load(settingsfile, allow_pickle = True).flat[0]
+else:
+    settings = {'DBname':'none',
+            'DBnum':'none',
+            'DBnumstring':'none',
+            'NIbasename':'Series',
+            'CRprefix':'',
+            'NCparameters':[50,50,5,6,-10,20,-10,10],
+            'NCsavename':'normdata',
+            'coreg_choice':'Yes.',
+            'slicetime_choice':'Yes.',
+            'norm_choice':'Yes.',
+            'smooth_choice':'Yes.',
+            'define_choice':'Yes.',
+            'clean_choice':'Yes.',
+            'sliceorder':'Inc,Alt,Odd',
+            'sliceaxis':0,
+            'refslice':1,
+            'smoothwidth':3,
+            'GLM1_option':'group_average',
+            'GLMprefix':'ptc',
+            'GLMndrop':2,
+            'GLMcontrast':[1,0],
+            'GLMresultsdir':basedir,
+            'networkmodel':'none',
+            'CLprefix':'xptc',
+            'CLclustername':'notdefined',
+            'CLregionname':'notdefined',
+            'CLresultsdir':basedir,
+            'last_folder':basedir,
+            'SEMprefix':'xptc',
+            'SEMclustername':'notdefined',
+            'SEMregionname':'notdefined',
+            'SEMresultsdir':basedir}
+    np.save(settingsfile,settings)
+
+# ------Create the Base Window that will hold everything, widgets, etc.---------------------
+class mainspinalfmri_window:
+    # defines the main window, and other windows for functions are defined in separate classes
+
+    def __init__(self, master):
+        # tk.Frame.__init__(self, master)
+        self.master = master
+
+        # need to initialize these here and use them later to save some display items
+        self.photo1 = []
+        self.photo2 = []
+
+        # first create the frames that do not move
+        self.frames = {}  # this is to keep a record of the frame names, so that one can be moved to the top when wanted
+        # create an initial fixed frame with labels etc
+        # The frame with pictures, labels, etc, is Fbase and is on the top row
+        Fbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol2)
+        Fbase.grid(row=0, column=1)
+        BaseFrame(Fbase, self)
+        page_name = BaseFrame.__name__
+        self.frames[page_name] = Fbase
+
+        # The Optionsbase frome contains the buttons with the choice of which sections to show
+        # and is on the left side of the base window, spanning two rows
+        Optionsbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
+        Optionsbase.grid(row=0, column=0, rowspan=2)
+        OptionsFrame(Optionsbase, self)
+        page_name = OptionsFrame.__name__
+        self.frames[page_name] = Optionsbase
+
+        # The remaining frames are on the bottom of the main window, and are on top of each other
+        # All of these frames are defined at the same time, but only the top one is visible
+        DBbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
+        DBbase.grid(row=1, column=1, sticky="nsew")
+        DBFrame(DBbase, self)
+        page_name = DBFrame.__name__
+        self.frames[page_name] = DBbase
+
+        NIbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
+        NIbase.grid(row=1, column=1, sticky="nsew")
+        NIFrame(NIbase, self)
+        page_name = NIFrame.__name__
+        self.frames[page_name] = NIbase
+
+        PPbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
+        PPbase.grid(row=1, column=1, sticky="nsew")
+        PPFrame(PPbase, self)
+        page_name = PPFrame.__name__
+        self.frames[page_name] = PPbase
+
+        NCbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
+        NCbase.grid(row=1, column=1, sticky="nsew")
+        NCFrame(NCbase, self)
+        page_name = NCFrame.__name__
+        self.frames[page_name] = NCbase
+
+        GLMbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
+        GLMbase.grid(row=1, column=1, sticky="nsew")
+        GLMFrame(GLMbase, self)
+        page_name = GLMFrame.__name__
+        self.frames[page_name] = GLMbase
+
+        CLbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
+        CLbase.grid(row=1, column=1, sticky="nsew")
+        CLFrame(CLbase, self)
+        page_name = CLFrame.__name__
+        self.frames[page_name] = CLbase
+
+
+        # start with the Database information frame on top
+        self.show_frame('DBFrame')
+
+
+    # Definition of the function to choose which frame is on top
+    def show_frame(self, page_name):
+        '''Show a frame for the given page name'''
+        frame = self.frames[page_name]
+        frame.tkraise()
+
+
+# ------Create the Window for displaying images, results, etc.---------------------
+class imagedisplay_window:
+    # defines the image display window, separate from the main window so the main window is not too bulky
+    def __init__(self, parent, controller):
+        # tk.Frame.__init__(self, master)
+        self.parent = parent
+        self.displaycontroller = controller
+
+        # need to initialize these here and use them later to save some display items
+        self.photo1 = []
+        self.photo2 = []
+
+        # first create the frames that do not move
+        self.frames = {}  # this is to keep a record of the frame names, so that one can be moved to the top when wanted
+        # create an initial fixed frame with labels etc
+        # The frame with pictures, labels, etc, is Fbase and is on the top row
+        Fbasew = tk.Frame(self.parent, relief='raised', bd=5, highlightcolor=fgcol2)
+        Fbasew.grid(row=0, column=0, columnspan=2)
+        BaseFrame2(Fbasew, self)
+        page_name = BaseFrame2.__name__
+
+        # create the display windows - 4 of them, for displaying images, results, etc...
+        # make objects in the display frame - for testing as place holders
+        # load in a picture, for no good reason, and display it in the window to look nice :)
+        photo1 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
+        controller.photod1 = photo1  # need to keep a copy so it is not cleared from memory
+        # put this figure, in the 1st row, 1st column, of a grid layout for the window
+        # and make the background black
+        self.W1 = tk.Canvas(master = self.parent, width=photo1.width(), height=photo1.height(), bg='black')
+        self.W1.grid(row=1, column=0, sticky='W')
+        self.image_in_W1 = self.W1.create_image(0, 0, image=photo1, anchor = tk.NW)
+        # self.W1 = W1
+        self.frames['window1'] = self.W1
+        self.frames['image_in_window1'] = self.image_in_W1
+
+        # load in another picture, because if one picture is good, two is better
+        photo2 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
+        controller.photod2 = photo2  # need to keep a copy so it is not cleared from memory
+        # put in another figure, for pure artistic value, in the 1st row, 2nd column, of a grid layout for the window
+        # and make the background black
+        self.W2 = tk.Canvas(master=self.parent, width=photo2.width(), height=photo2.height(), bg='black')
+        self.W2.grid(row=1, column=1, sticky='W')
+        self.image_in_W2 = self.W2.create_image(0, 0, image=photo2, anchor=tk.NW)
+        self.frames['window2'] = self.W2
+        self.frames['image_in_window2'] = self.image_in_W2
+
+        photo3 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
+        controller.photod3 = photo3  # need to keep a copy so it is not cleared from memory
+        self.W3 = tk.Canvas(master=self.parent, width=photo3.width(), height=photo3.height(), bg='black')
+        self.W3.grid(row=2, column=0, sticky='W')
+        self.image_in_W3 = self.W3.create_image(0, 0, image=photo3, anchor=tk.NW)
+        self.frames['window3'] = self.W3
+        self.frames['image_in_window3'] = self.image_in_W3
+
+        photo4 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
+        controller.photod4 = photo4  # need to keep a copy so it is not cleared from memory
+        self.W4 = tk.Canvas(master=self.parent, width=photo4.width(), height=photo4.height(), bg='black')
+        self.W4.grid(row=2, column=1, sticky='W')
+        self.image_in_W4 = self.W4.create_image(0, 0, image=photo4, anchor = tk.NW)
+        self.frames['window4'] = self.W4
+        self.frames['image_in_window4'] = self.image_in_W4
+
+
+    def get_window(self, window_number):
+        if window_number == 1:
+            window = self.frames['window1']
+            image_in_window = self.frames['image_in_window1']
+            print('returning window number 1')
+        if window_number == 2:
+            window = self.frames['window2']
+            image_in_window = self.frames['image_in_window2']
+            print('returning window number 2')
+        if window_number == 3:
+            window = self.frames['window3']
+            image_in_window = self.frames['image_in_window3']
+            print('returning window number 3')
+        if window_number == 4:
+            window = self.frames['window4']
+            image_in_window = self.frames['image_in_window4']
+            print('returning window number 4')
+        return window, image_in_window
+
+
+# --------------------DISPLAY FRAME---------------------------------------------------------------
+# Definition of the frame that holds image display windows
+class DisplayFrame:
+    # initialize the values, keeping track of the frame this definition works on (parent), and
+    # also the main window containing that frame (controller)
+    def __init__(self, parent, controller):
+        parent.configure(relief='raised', bd=5, highlightcolor=fgcol2)  # just defining some visual features
+        self.parent = parent
+        self.controller = controller
+
+        # make objects in the display frame - for testing as place holders
+        # load in a picture, for no good reason, and display it in the window to look nice :)
+        photo1 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
+        controller.photod1 = photo1  # need to keep a copy so it is not cleared from memory
+        # put this figure, in the 1st row, 1st column, of a grid layout for the window
+        # and make the background black
+        self.W1 = tk.Label(self.parent, image=photo1, bg='grey94').grid(row=0, column=0, sticky='W')
+
+        # load in another picture, because if one picture is good, two is better
+        photo2 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
+        controller.photod2 = photo2  # need to keep a copy so it is not cleared from memory
+        # put in another figure, for pure artistic value, in the 1st row, 2nd column, of a grid layout for the window
+        # and make the background black
+        self.W2 = tk.Label(self.parent, image=photo2, bg='grey94').grid(row=0, column=1, sticky='W')
+
+        photo3 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
+        controller.photod3 = photo3  # need to keep a copy so it is not cleared from memory
+        self.W3 = tk.Label(self.parent, image=photo3, bg='grey94').grid(row=1, column=0, sticky='W')
+
+        photo4 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
+        controller.photod4 = photo4  # need to keep a copy so it is not cleared from memory
+        self.W4 = tk.Label(self.parent, image=photo2, bg='grey94').grid(row=1, column=1, sticky='W')
+
+
+#--------------------BASE FRAME---------------------------------------------------------------
+# Definition of the frame that holds pictures, labels, etc.
+class BaseFrame:
+    # initialize the values, keeping track of the frame this definition works on (parent), and 
+    # also the main window containing that frame (controller)
+    def __init__(self, parent, controller):
+        parent.configure(relief='raised', bd = 5, highlightcolor = fgcol2)  # just defining some visual features
+        self.parent = parent
+        self.controller = controller
+        
+        # make objects in the base frame
+        # load in a picture, for no good reason, and display it in the window to look nice :)
+        photo1 = tk.PhotoImage(file = os.path.join(basedir,'queens_flag2.gif'))
+        controller.photo1 = photo1   # need to keep a copy so it is not cleared from memory
+        # put this figure, in the 1st row, 1st column, of a grid layout for the window
+        # and make the background black
+        self.P1=tk.Label(self.parent, image = photo1, bg='grey94').grid(row=0, column=0, sticky = 'W')
+        
+        # load in another picture, because if one picture is good, two is better
+        photo2 = tk.PhotoImage(file = os.path.join(basedir,'lablogo.gif'))
+        controller.photo2 = photo2   # need to keep a copy so it is not cleared from memory
+        # put in another figure, for pure artistic value, in the 1st row, 2nd column, of a grid layout for the window
+        # and make the background black
+        self.P2=tk.Label(self.parent, image = photo2, bg='grey94').grid(row=0, column=1, sticky = 'W')
+
+        # create a label under the pictures (row 2), spanning two columns, to tell the user what they are running
+        # specify a black background and white letters, with 12 point bold font
+        self.L0 = tk.Label(self.parent, text = "SC/BS fMRI Analysis", bg = bgcol, fg = fgcol1, font = "none 16 bold")
+        self.L0.grid(row=1, column = 0, columnspan = 2, sticky = 'W')
+
+
+# --------------------BASE FRAME2---------------------------------------------------------------
+# Definition of the frame that holds pictures, labels, etc.
+class BaseFrame2:
+    # initialize the values, keeping track of the frame this definition works on (parent), and
+    # also the main window containing that frame (controller)
+    def __init__(self, parent, controller):
+        parent.configure(relief='raised', bd=5, highlightcolor=fgcol2)  # just defining some visual features
+        self.parent = parent
+        self.controller = controller
+
+        # make objects in the base frame
+        # load in a picture, for no good reason, and display it in the window to look nice :)
+        photo1 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
+        controller.photob1 = photo1  # need to keep a copy so it is not cleared from memory
+        # put this figure, in the 1st row, 1st column, of a grid layout for the window
+        # and make the background black
+        self.B1 = tk.Label(self.parent, image=photo1, bg='grey94').grid(row=0, column=0, sticky='W')
+
+        # load in another picture, because if one picture is good, two is better
+        photo2 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
+        controller.photob2 = photo2  # need to keep a copy so it is not cleared from memory
+        # put in another figure, for pure artistic value, in the 1st row, 2nd column, of a grid layout for the window
+        # and make the background black
+        self.B2 = tk.Label(self.parent, image=photo2, bg='grey94').grid(row=0, column=1, sticky='W')
+
+        # create a label under the pictures (row 2), spanning two columns, to tell the user what they are running
+        # specify a black background and white letters, with 12 point bold font
+        self.L1 = tk.Label(self.parent, text="SC/BS fMRI Analysis", bg=bgcol, fg=fgcol1, font="none 16 bold")
+        self.L1.grid(row=1, column=0, columnspan=2, sticky='W')
+
+        
+        
+        
+#--------------------OPTIONS FRAME---------------------------------------------------------------
+# Definition of the frame that holds the buttons for choosing which frame to have visible
+class OptionsFrame:
+    # initialize the values, keeping track of the frame this definition works on (parent), and 
+    # also the main window containing that frame (controller)
+    def __init__(self, parent, controller):
+        parent.configure(relief='raised', bd = 5, highlightcolor = fgcol1)
+        self.parent = parent
+        self.controller = controller
+
+        # button for running the conversion to NIfTI format step
+        self.setdb = tk.Button(self.parent, text = 'Database', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('DBFrame'), relief='raised', bd = 5)
+        self.setdb.grid(row = 0, column = 0)
+        
+        # button for running the conversion to NIfTI format step
+        self.writenifti = tk.Button(self.parent, text = 'Write NIfTI', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('NIFrame'), relief='raised', bd = 5)
+        self.writenifti.grid(row = 1, column = 0)
+
+        # button for calculating the normalization parameters for each data set
+        self.normalizationcalc = tk.Button(self.parent, text = 'Norm. Calc.', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('NCFrame'), relief='raised', bd = 5)
+        self.normalizationcalc.grid(row = 2, column = 0)
+
+        # button for selecting and running the pre-processing steps
+        self.preprocess = tk.Button(self.parent, text = 'Pre-Process', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('PPFrame'), relief='raised', bd = 5)
+        self.preprocess.grid(row = 3, column = 0)
+
+        # button for selecting and running the GLM analysis steps
+        self.glmanalysis = tk.Button(self.parent, text = 'GLM 1', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('GLMFrame'), relief='raised', bd = 5)
+        self.glmanalysis.grid(row = 4, column = 0)
+
+        # button for selecting and running the GLM analysis steps
+        self.clustering = tk.Button(self.parent, text = 'Cluster', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('CLFrame'), relief='raised', bd = 5)
+        self.clustering.grid(row = 5, column = 0)
+        
+        # define a button to exit the GUI
+        # also, define the function for what to do when this button is pressed
+        self.exit_button = tk.Button(self.parent, text = 'Exit', width = smallbuttonsize, bg = 'grey80', fg = 'black', font = "none 9 bold", command = self.close_window, relief='sunken', bd = 5)
+        self.exit_button.grid(row = 6, column = 0)
+            
+    # exit function
+    def close_window(self):
+        self.controller.master.destroy()
+        
+        
+#--------------------DATABASE FRAME---------------------------------------------------------------
+# Definition of the frame that has inputs for the database name, and entry numbers to use
+class DBFrame:
+    # inputs to search database, and create/save dbnum lists
+    def get_DB_fields(self):
+        if os.path.isfile(self.DBname):
+            xls = pd.ExcelFile(self.DBname, engine = 'openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
+            del df1['Unnamed: 0']  # get rid of the unwanted header column
+            fields = list(df1.keys())
+        else:
+            fields = 'empty'
+        return fields
+
+    # inputs to search database, and create/save dbnum lists
+    def get_DB_field_values(self):
+        if os.path.isfile(self.DBname):
+            xls = pd.ExcelFile(self.DBname, engine = 'openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
+            del df1['Unnamed: 0']  # get rid of the unwanted header column
+            fieldvalues = df1.loc[:,self.field_var.get()]
+        else:
+            fieldvalues = 'empty'
+
+        ufieldvalues = []
+        for value in fieldvalues:
+            if value not in ufieldvalues:
+                ufieldvalues.append(value)
+        return ufieldvalues
+
+    # initialize the values, keeping track of the frame this definition works on (parent), and 
+    # also the main window containing that frame (controller)
+    def __init__(self, parent, controller):
+        parent.configure(relief='raised', bd = 5, highlightcolor = fgcol3)
+        self.parent = parent
+        self.controller = controller
+        self.searchkeys = {}
+        self.DBname = settings['DBname']
+        
+        # create an entry box so that the user can specify the database file to use
+        # first make a title for the box, in row 3, column 1 of the grid for the main window
+        self.DBL1 = tk.Label(self.parent, text = "Database name:")
+        self.DBL1.grid(row=0,column=0, sticky='W')
+        
+        # make a label to show the current setting of the database name
+        self.DBnametext = tk.StringVar()
+        self.DBnametext.set(self.DBname)
+        self.DBnamelabel2 = tk.Label(self.parent, textvariable = self.DBnametext, bg = bgcol, fg = "black", font = "none 10", wraplength = 200, justify = 'left')
+        self.DBnamelabel2.grid(row=0, column = 1, sticky = 'W')
+        
+        # define a button to browse and select an existing database file, and write out the selected name
+        # also, define the function for what to do when this button is pressed
+        self.DBsubmit = tk.Button(self.parent, text = 'Browse', width = smallbuttonsize, bg = fgcol1, fg = 'white', command = self.DBbrowseclick, relief='raised', bd = 5)
+        self.DBsubmit.grid(row = 0, column = 2)
+        
+        # define a button to select a new database file
+        # also, define the function for what to do when this button is pressed
+        self.DBnew = tk.Button(self.parent, text = 'New', width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.DBnewclick, relief='raised', bd = 5)
+        self.DBnew.grid(row = 0, column = 3)
+        
+        # now define an Entry box so that the user can enter database numbers
+        # give it a label first
+        self.DBL2 = tk.Label(self.parent, text = "Database numbers:")
+        self.DBL2.grid(row=1,column=0, sticky='W')
+        
+        # create the Entry box, and put it next to the label, 4th row, 2nd column
+        self.DBnumenter = tk.Entry(self.parent, width = 20, bg="white")
+        self.DBnumenter.grid(row=1, column = 1, sticky = "W")
+        self.DBnumenter.insert(0,settings['DBnumstring'])
+        
+        # the entry box needs a "submit" button so that the program knows when to take the entered values
+        self.DBnumsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol1, fg = 'white', command = self.DBnumsubmitclick, relief='raised', bd = 5)
+        self.DBnumsubmit.grid(row = 1, column = 2)
+
+        # the entry box needs a "submit" button so that the program knows when to take the entered values
+        self.DBnumload = tk.Button(self.parent, text = "Load", width = smallbuttonsize, bg = fgcol1, fg = 'white', command = self.DBnumlistload, relief='raised', bd = 5)
+        self.DBnumload.grid(row = 1, column = 3)
+
+        # add a button to clear the entered values
+        self.DBnumsubmit = tk.Button(self.parent, text = "Clear", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.DBnumclear, relief='raised', bd = 5)
+        self.DBnumsubmit.grid(row = 1, column = 4)
+
+        # put a separator for readability
+        ttk.Separator(self.parent).grid(row=2, column=1, columnspan=6, sticky="nswe", padx=2, pady=5)
+
+        # add label, and pull-down menu for selected database values for searching
+        self.DBL3 = tk.Label(self.parent, text = "Database search:")
+        self.DBL3.grid(row=3,column=0,columnspan = 2, sticky='W')
+
+        # add a button to clear the search values
+        self.DBsearchclear = tk.Button(self.parent, text = "Clear Search", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.DBsearchclear, relief='raised', bd = 5)
+        self.DBsearchclear.grid(row = 3, column = 3)
+
+        # add a button to run the search
+        self.DBrunsearch = tk.Button(self.parent, text = "Run Search", width = smallbuttonsize, bg = fgcol1, fg = 'white', command = self.DBrunsearch, relief='raised', bd = 5)
+        self.DBrunsearch.grid(row = 3, column = 2)
+
+        self.DBL5 = tk.Label(self.parent, text = "Value:")
+        self.DBL5.grid(row=4,column=2, sticky='W')
+        # fieldvalues = DBFrame.get_DB_field_values(self)
+        fields = self.get_DB_fields()
+        self.field_var = tk.StringVar()
+        if len(fields) > 0:
+            self.field_var.set(fields[0])
+        else:
+            self.field_var.set('empty')
+        fieldvalues = self.get_DB_field_values()
+        self.fieldvalue_var = tk.StringVar()
+        if len(fieldvalues)>0:
+            self.fieldvalue_var.set(fieldvalues[0])
+        else:
+            self.fieldvalue_var.set('empty')
+        fieldvalue_menu = tk.OptionMenu(self.parent, self.fieldvalue_var, *fieldvalues, command = self.DBfieldvaluechoice)
+        fieldvalue_menu.grid(row=4, column=3, sticky='EW')
+        self.fieldvaluesearch_opt = fieldvalue_menu   # save this way so that values are not cleared
+
+        self.DBL4 = tk.Label(self.parent, text = "Keyword:")
+        self.DBL4.grid(row=4,column=0, sticky='W')
+        # fields = DBFrame.get_DB_fields(self)
+        field_menu = tk.OptionMenu(self.parent, self.field_var, *fields, command = self.DBfieldchoice)
+        field_menu.grid(row=4, column=1, sticky='EW')
+        self.fieldsearch_opt = field_menu   # save this way so that values are not cleared
+
+        # add information to show the current search terms
+        self.searchterm_text = tk.StringVar()
+        self.searchterm_text.set('Database search keys:  empty')
+        self.DBsearchtext = tk.Label(self.parent, text = self.searchterm_text.get())
+        self.DBsearchtext.grid(row=5,column=1,columnspan = 2, sticky='W')
+
+        # add information to show the current search terms
+        self.searchresult_text = tk.StringVar()
+        self.searchresult_text.set('Database search results:  empty')
+        self.DBsearchresult = tk.Label(self.parent, text = self.searchresult_text.get())
+        self.DBsearchresult.grid(row=5,column=3,columnspan = 3, sticky='W')
+
+
+    # define functions before they are used in the database frame------------------------------------------
+    # action when the button to browse for a DB fie is pressed
+    def DBbrowseclick(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
+        filename =  tkf.askopenfilename(title = "Select file",filetypes = (("excel files","*.xlsx"),("all files","*.*")))
+        print('filename = ',filename)
+        # save the selected file name in the settings
+        settings['DBname'] = filename
+        self.DBname = filename
+        # write the result to the label box for display
+        self.DBnametext.set(settings['DBname'])
+
+        # update search menus
+        fields = self.get_DB_fields()
+        self.field_var = tk.StringVar()
+        self.field_var.set(fields[0])
+        fieldvalues = self.get_DB_field_values()
+        self.fieldvalue_var = tk.StringVar()
+        self.fieldvalue_var.set(fieldvalues[0])
+
+        fieldvalue_menu = tk.OptionMenu(self.parent, self.fieldvalue_var, *fieldvalues, command = self.DBfieldvaluechoice)
+        fieldvalue_menu.grid(row=4, column=3, sticky='EW')
+        self.fieldvaluesearch_opt = fieldvalue_menu   # save this way so that values are not cleared
+
+        field_menu = tk.OptionMenu(self.parent, self.field_var, *fields, command = self.DBfieldchoice)
+        field_menu.grid(row=4, column=1, sticky='EW')
+        self.fieldsearch_opt = field_menu   # save this way so that values are not cleared
+
+        # change the current working directory to the folder where the database file is, for future convenience
+        pathsections = os.path.split(filename)
+        os.chdir(pathsections[0])
+        # save the updated settings file again
+        np.save(settingsfile,settings)
+
+
+    # action when the button to select a new DB file
+    def DBnewclick(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
+        filechoice =  tkf.asksaveasfilename(title = "Select file",filetypes = (("excel files","*.xlsx"),("all files","*.*")))
+        # save the selected file name in the settings
+        settings['DBname'] = filechoice
+        self.DBname = filechoice
+        # write the result to the label box for display
+        self.DBnametext.set(settings['DBname'])
+        # change the current working directory to the folder where the database file is, for future convenience
+        pathsections = os.path.split(filechoice)
+        os.chdir(pathsections[0])
+        # save the updated settings file again
+        np.save(settingsfile,settings)
+
+        #
+        #-----------initialize a database file in excel----------------------------------------
+        # ---------the user still needs to fill in the information in the database--------------
+        required_db_sheets = ['datarecord','paradigm']
+        required_db_fields = ['datadir','patientid','studygroup','pname','seriesnumber','niftiname','TR','normdataname','normtemplatename','paradigms']
+        optional_db_fields = ['pulsefilename','sex','age','painrating','temperature']  # examples that can be changed
+        db_fields = required_db_fields + optional_db_fields
+
+        # initialize the database sheet
+        initial_entries = ['root directory', 'person name', 'condition name', 'directory under root', 'series no.', 'img file name', 'repetition time', 'leave blank', 'leave blank', 'name of excel sheet']
+        optional_entries = ['blank' for aa in range(len(optional_db_fields))]
+        db_entries = np.array(initial_entries + optional_entries)
+
+        df1 = pd.DataFrame(columns=db_fields,data = [])
+        for aa,colname in enumerate(db_fields):
+            df1.loc[0,colname] = db_entries[aa]
+
+        # DBname = settings['DBname']
+        # write it to the database by appending a sheet to the excel file
+        with pd.ExcelWriter(settings['DBname']) as writer:
+            df1.to_excel(writer, sheet_name='datarecord')
+
+        # initialize the paradigm sheet
+        required_pd_sheets = ['dt','paradigm']
+        sample_paradigm = list(zip(5*np.ones(12),[0,0,0,1,1,1,0,0,0,1,1,1]))
+        df2 = pd.DataFrame(columns=required_pd_sheets, data=sample_paradigm)
+        with pd.ExcelWriter(settings['DBname'], mode='a') as writer:
+            df2.to_excel(writer, sheet_name='paradigm')
+
+
+    def DBnumlistload(self):
+        # prompt for a name for loading the list
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        last_folder = settings['last_folder']
+
+        file_path = tkf.askopenfilename(title = "Select database list file", initialdir = last_folder, filetypes = (("npy","*.npy"),("all files","*.*")))
+        print('loading list from ',file_path)
+        dblist = np.load(file_path, allow_pickle = True).flat[0]
+        dbnumlist = dblist['dbnumlist']
+        print('database number list: ',dbnumlist)
+
+        # convert list to text
+        entered_text = ''
+        if len(dbnumlist) > 0:
+            entered_text = str(dbnumlist[0])
+            for value in dbnumlist[1:]:
+                termtext = ',{}'.format(value)
+                entered_text += termtext
+        self.DBnumsave_text = entered_text
+
+        # copy the text to the dbnum entry box as well
+        self.DBnumenter.delete(0, 'end')
+        self.DBnumenter.insert(0, entered_text)
+
+        settings['DBnum'] = dbnumlist
+        settings['DBnumstring'] = self.DBnumsave_text
+
+        # save the updated settings file again
+        save_folder = os.path.dirname(file_path)
+        settings['last_folder'] = save_folder
+        np.save(settingsfile,settings)
+        
+        
+    # action when the button is pressed to submit the DB entry number list
+    def DBnumsubmitclick(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        
+        entered_text = self.DBnumenter.get()  # collect the text from the text entry box
+        # need to make sure we are working with numbers, not text
+        # first, replace any double spaces with single spaces, and then replace spaces with commas
+        entered_text = re.sub('\ +',',',entered_text)
+        entered_text = re.sub('\,\,+',',',entered_text)
+        # remove any leading or trailing commas
+        if entered_text[0] is ',': entered_text = entered_text[1:]
+        if entered_text[-1] is ',': entered_text = entered_text[:-1]
+        
+        self.DBnumsave_text = entered_text
+        
+        # fix up the text bit, allow the user to specify ranges of numbers with a colon
+        # need to change the text to write out the range
+        # first see if there are any colons included in the text
+        # this part is complicated - need to find any pairs of numbers separated by a colon, to indicate a range
+        m = re.search(r'\d*:\d*', entered_text)
+        while m:
+            # m[0] is the string that matches what we are looking for - two numbers separated by a colon
+            # in m[0] we find where there is the colon, with m[0].find(':')
+            # so, within m[0] everything in the range of :m[0].find(':') is the first number
+            # and everything in the range of (m[0].find(':')+1): is the second number
+            num1 = int(m[0][:m[0].find(':')])
+            num2 = int(m[0][(m[0].find(':')+1):])
+            # now create the long string that we need to replace the short form indicated with the colon
+            numbers = np.arange(num1,num2+1)
+            numtext = ''
+            for n in numbers:
+                numtext1 = '{:d},'.format(n)
+                numtext += numtext1
+            # now insert this where the colon separated pair of number came out
+            new_text = entered_text[:m.start()] + numtext + entered_text[(m.end()+1):]
+            entered_text = new_text
+            m = re.search(r'\d*:\d*', entered_text)
+            
+        entered_values = np.fromstring( entered_text, dtype=np.float, sep=',')
+        # parse the entered text into values
+        print(entered_values)
+        
+        settings['DBnum'] = entered_values
+        settings['DBnumstring'] = self.DBnumsave_text
+        self.DBnumenter.delete(0,'end')
+        self.DBnumenter.insert(0,settings['DBnumstring'])
+        # save the updated settings file again
+        np.save(settingsfile,settings)
+        
+        
+    # action when the button is pressed to clear the DB entry number list
+    def DBnumclear(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        settings['DBnum'] = 'none'
+        settings['DBnumstring'] = 'none'
+        self.DBnumenter.delete(0,'end')
+        self.DBnumenter.insert(0,settings['DBnumstring'])
+        # save the updated settings file again
+        np.save(settingsfile,settings)
+
+
+    def DBsearchclear(self):
+        self.searchkeys = {}
+        print('search values have been cleared ...')
+        searchtext = ''
+        self.searchterm_text.set(searchtext)
+        self.DBsearchtext.configure(text = self.searchterm_text.get())
+        return self
+
+
+    def DBrunsearch(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        last_folder  = settings['last_folder']
+
+        self.searchkeys
+        print('search values are: ',self.searchkeys)
+        dbnumlist = pydatabase.get_dbnumlists_by_keyword(self.DBname, self.searchkeys)
+        self.dbnumlist = dbnumlist
+
+        # write out the dbnumlist ....
+        print('dbnumlist = ',dbnumlist)
+
+        dbnumtext = ''
+        if len(dbnumlist) > 0:
+            dbnumtext = str(dbnumlist[0])
+            for value in dbnumlist[1:]:
+                termtext = ',{}'.format(value)
+                dbnumtext += termtext
+        print(dbnumtext)
+        self.searchresult_text.set(dbnumtext)
+        self.DBsearchresult.configure(text=self.searchresult_text.get())
+
+        # prompt for a name for saving the list
+        filechoice = tkf.asksaveasfilename(title = "Select file", initialdir = last_folder, filetypes = (("npy","*.npy"),("all files","*.*")))
+        list = {'dbnumlist':dbnumlist}
+        print('list = ',list)
+        print('saving database list saved to ',filechoice)
+        np.save(filechoice,list)
+        print('database number list saved to ',filechoice)
+
+        # save a record for convenience, for next time
+        save_folder = os.path.dirname(filechoice)
+        settings['last_folder'] = save_folder
+        np.save(settingsfile,settings)
+
+        return self
+
+    def DBfieldchoice(self,value):
+        # get the field value choices for the selected field
+        self.field_var.set(value)
+        fieldvalues = DBFrame.get_DB_field_values(self)
+
+        # destroy the old pulldown menu and create a new one with the new choices
+        self.fieldvaluesearch_opt.destroy()  # remove it
+        fieldvalue_menu = tk.OptionMenu(self.parent, self.fieldvalue_var, *fieldvalues, command = self.DBfieldvaluechoice)
+        fieldvalue_menu.grid(row=4, column=3, sticky='EW')
+        self.fieldvaluesearch_opt = fieldvalue_menu   # save this way so that values are not cleared
+
+        return self
+
+
+    def DBfieldvaluechoice(self,value):
+        self.fieldvalue_var.set(value)
+        self.searchkeys[self.field_var.get()] = self.fieldvalue_var.get()
+
+        print('Search keys are: ', self.searchkeys)
+        searchtext = ''
+        for keyname in self.searchkeys:
+            termtext = '{}:{}\n'.format(keyname,self.searchkeys[keyname])
+            searchtext += termtext
+        print(searchtext)
+        self.searchterm_text.set(searchtext)
+        self.DBsearchtext.configure(text = self.searchterm_text.get())
+
+        return self
+
+
+
+
+#--------------------NIFTI conversion FRAME---------------------------------------------------------------
+# Definition of the frame that will have inputs and options for converting DICOM images to NIfTI format
+class NIFrame:
+    # initialize the values, keeping track of the frame this definition works on (parent), and 
+    # also the main window containing that frame (controller)
+    def __init__(self, parent, controller):
+        parent.configure(relief='raised', bd = 5, highlightcolor = fgcol3)
+        self.parent = parent
+        self.controller = controller
+        
+        # initialize some values
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.NIdatabasename = settings['DBname']
+        self.NIdatabasenum = settings['DBnum']
+        self.NIpname = 'not yet defined'
+        self.NIbasename = settings['NIbasename']  # 'Series'   # default base name
+        
+        # put some text as a place-holder
+        self.NIlabel1 = tk.Label(self.parent, text = "1) Organize data into\none series per folder", fg = 'gray')
+        self.NIlabel1.grid(row=0,column=0, sticky='W')
+        
+        self.NIlabel1 = tk.Label(self.parent, text = "2) Convert each series\ninto one NIfTI file", fg = 'gray')
+        self.NIlabel1.grid(row=1,column=0, sticky='W')
+        
+                # now define an Entry box so that the user can enter database numbers
+        # give it a label first
+        self.NIinfo1 = tk.Label(self.parent, text = "Base name:")
+        self.NIinfo1.grid(row=0,column=1, sticky='E')
+        
+        # create the Entry box, and put it next to the label, 4th row, 2nd column
+        self.NInameenter = tk.Entry(self.parent, width = 20, bg="white")
+        self.NInameenter.grid(row=0, column = 2, sticky = "W")
+        self.NInameenter.insert(0,settings['NIbasename'])
+        
+        # the entry box needs a "submit" button so that the program knows when to take the entered values
+        self.NInamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.NInamesubmitclick, relief='raised', bd = 5)
+        self.NInamesubmit.grid(row = 0, column = 3)
+        
+        # for now, just put a button that will eventually call the NIfTI conversion program
+        self.NIorganizedata = tk.Button(self.parent, text = 'Organize Data', width = bigbuttonsize, bg = fgcol1, fg = 'white', command = self.NIorganizeclick, font = "none 9 bold", relief='raised', bd = 5)
+        self.NIorganizedata.grid(row = 1, column = 1, columnspan = 2)
+
+        # for now, just put a button that will eventually call the NIfTI conversion program
+        self.NIrunconvert = tk.Button(self.parent, text = 'Convert', width = bigbuttonsize, bg = fgcol1, fg = 'white', command = self.NIconversionclick, font = "none 9 bold", relief='raised', bd = 5)
+        self.NIrunconvert.grid(row = 2, column = 1, columnspan = 2)
+
+
+    # action when the button is pressed to submit the DB entry number list
+    def NInamesubmitclick(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        
+        entered_text = self.NInameenter.get()  # collect the text from the text entry box
+        # remove any spaces
+        entered_text = re.sub('\ +','',entered_text)
+        print(entered_text)
+        
+        # update the text in the box, in case it has changed
+        settings['NIbasename'] = entered_text
+        self.NInameenter.delete(0,'end')
+        self.NInameenter.insert(0,settings['NIbasename'])
+        # save the updated settings file again
+        np.save(settingsfile,settings)
+        
+        
+    # action when the button is pressed to organize dicom data into folders based on series numbers
+    def NIorganizeclick(self):
+        # first get necessary the input data
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.NIdatabasename = settings['DBname']
+        self.NIdatabasenum = settings['DBnum']
+        # BASEdir = os.path.dirname(self.NIdatabasename)
+        xls = pd.ExcelFile(self.NIdatabasename, engine = 'openpyxl')
+        df1 = pd.read_excel(xls, 'datarecord')
+        
+        print('File organization: databasename ',self.NIdatabasename)
+        print('File organization: started organizing at ', time.ctime(time.time()))
+        
+        for nn, dbnum in enumerate(self.NIdatabasenum):
+            print('NIorganizeclick: databasenum ',dbnum)
+            pname = df1.loc[dbnum, 'pname']
+            dbhome = df1.loc[dbnum, 'datadir']
+            self.NIpname = os.path.join(dbhome, pname)
+            dicom_conversion.move_files_and_update_database(self.NIdatabasename, dbhome, self.NIpname)
+            
+        print('File organization: finished organizing data ...', time.ctime(time.time()))
+                
+        
+    # action when the button is pressed to convert dicom data into NIfTI format
+    def NIconversionclick(self):
+        # first get necessary the input data
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.NIdatabasename = settings['DBname']
+        self.NIdatabasenum = settings['DBnum']
+        self.NIbasename = settings['NIbasename']
+        print('NIfTI conversion: databasename ',self.NIdatabasename)
+        print('NIfTI conversion: started organizing at ', time.ctime(time.time()))
+        
+        for nn, dbnum in enumerate(self.NIdatabasenum):
+            niiname = dicom_conversion.convert_dicom_folder(self.NIdatabasename, dbnum, self.NIbasename)
+            print('NIfTI conversion: converted ',dbnum,' : ',niiname)
+            
+        print('NIfTI conversion: finished converted data to NIfTI ...', time.ctime(time.time()))
+              
+
+
+# --------------------Calculate Normalization Parameters FRAME---------------------------------------------------------------
+# Definition of the frame that will have inputs and options for normalizing NIfTI format data
+class NCFrame:
+    # initialize the values, keeping track of the frame this definition works on (parent), and
+    # also the main window containing that frame (controller)
+    def __init__(self, parent, controller):
+        parent.configure(relief='raised', bd=5, highlightcolor=fgcol3)
+        self.parent = parent
+        self.controller = controller
+
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.normdatasavename = settings['NCsavename']  # default prefix value
+        self.fitparameters = settings['NCparameters'] #  [50,50,5,6,-10,20,-10,10]  # default prefix value
+        self.fitp0 = self.fitparameters[0]
+        self.fitp1 = self.fitparameters[1]
+        self.fitp2 = self.fitparameters[2]
+        self.fitp3 = self.fitparameters[3]
+        self.fitp45 = '{},{}'.format(self.fitparameters[4],self.fitparameters[5])
+        self.fitp67 = '{},{}'.format(self.fitparameters[6],self.fitparameters[7])
+        self.roughnorm = 0
+        self.finetune = 0
+
+        # initialize some values
+        self.NCdatabasename = settings['DBname']
+
+        # put some text as a place-holder
+        self.NClabel1 = tk.Label(self.parent, text = "1) Calculate normalization\nparameters", fg = 'gray')
+        self.NClabel1.grid(row=0,column=0, sticky='W')
+        self.NClabel2 = tk.Label(self.parent, text = "2) Save for next steps", fg = 'gray')
+        self.NClabel2.grid(row=1,column=0, sticky='W')
+
+        # now define an Entry box so that the user can indicate the prefix name of the data to normalize
+        # give it a label first
+        self.NCinfo1 = tk.Label(self.parent, text = "Save name base:")
+        self.NCinfo1.grid(row=0,column=1, sticky='E')
+
+        # create the Entry box, and put it next to the label
+        self.NCsavename = tk.Entry(self.parent, width = 20, bg="white")
+        self.NCsavename.grid(row=0, column = 2, sticky = "W")
+        self.NCsavename.insert(0,self.normdatasavename)
+
+        # the entry box needs a "submit" button so that the program knows when to take the entered values
+        self.NCsavenamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.NCsavenamesubmit, relief='raised', bd = 5)
+        self.NCsavenamesubmit.grid(row = 0, column = 3)
+
+        # need entry boxes for "fit_parameters"
+        # fit_parameters: 0 position stiffness upper  1 position stiffness lower  2 angle_stiffness upper 3 angle stiffness lower
+        # 4 anglestart, 5 anglestop 6 anglestart lower 7 anglestop lower
+        # these parameters are scaled by [1e-4, 1e-4, 1e-4, 1, 1, 1, 1, 1] before use  so the inputs are more intuitive values
+
+        # label the columns
+        self.NCupper_label = tk.Label(self.parent, text = "Upper Regions")
+        self.NCupper_label.grid(row=1,column=2, sticky='W')
+        self.NClower_label = tk.Label(self.parent, text = "Lower Regions")
+        self.NClower_label.grid(row=1,column=3, sticky='W')
+
+        # define an Entry box for each fit_parameters value
+        # give it a label -- position stiffness
+        self.NCfitp0_label = tk.Label(self.parent, text = "Position Stiffness (0-100):")
+        self.NCfitp0_label.grid(row=2,column=1, sticky='E')
+        # create the Entry box, for position stiffness upper
+        self.NCfitp0 = tk.Entry(self.parent, width = 8, bg="white")
+        self.NCfitp0.grid(row=2, column = 2, sticky = "W")
+        self.NCfitp0.insert(0,self.fitp0)
+        # create the Entry box, for position stiffness lower
+        self.NCfitp1 = tk.Entry(self.parent, width = 8, bg="white")
+        self.NCfitp1.grid(row=2, column = 3, sticky = "W")
+        self.NCfitp1.insert(0,self.fitp1)
+
+        # define an Entry box for each fit_parameters value
+        # give it a label -- angle stiffness
+        self.NCfitp2_label = tk.Label(self.parent, text="Angle Stiffness (0-100):")
+        self.NCfitp2_label.grid(row=3, column=1, sticky='E')
+        # create the Entry box, for position stiffness upper
+        self.NCfitp2 = tk.Entry(self.parent, width=8, bg="white")
+        self.NCfitp2.grid(row=3, column=2, sticky="W")
+        self.NCfitp2.insert(0, self.fitp2)
+        # create the Entry box, for position stiffness lower
+        self.NCfitp3 = tk.Entry(self.parent, width=8, bg="white")
+        self.NCfitp3.grid(row=3, column=3, sticky="W")
+        self.NCfitp3.insert(0, self.fitp3)
+
+        # define an Entry box for each fit_parameters value
+        # give it a label -- angle stiffness
+        self.NCfitp4_label = tk.Label(self.parent, text="Angle Start,Stop (degrees):")
+        self.NCfitp4_label.grid(row=4, column=1, sticky='E')
+        # create the Entry box, for position stiffness upper
+        self.NCfitp45 = tk.Entry(self.parent, width=8, bg="white")
+        self.NCfitp45.grid(row=4, column=2, sticky="W")
+        self.NCfitp45.insert(0, self.fitp45)
+        # create the Entry box, for position stiffness lower
+        self.NCfitp67 = tk.Entry(self.parent, width=8, bg="white")
+        self.NCfitp67.grid(row=4, column=3, sticky="W")
+        self.NCfitp67.insert(0, self.fitp67)
+
+        # the entry box needs a "submit" button so that the program knows when to take the entered values
+        self.NCfitparamsubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg='black',
+                                          command=self.NCfitparamsubmit, relief='raised', bd=5)
+        self.NCfitparamsubmit.grid(row=2, column=4, rowspan=3)
+
+        # checkboxes to indicate 1) do rough normalization, 2) do fine-tuning normalization
+        self.var1 = tk.IntVar()
+        self.NCroughnorm = tk.Checkbutton(self.parent, text = 'Rough Norm.', width = smallbuttonsize, fg = 'black',
+                                          command = self.NCcheckboxes, variable = self.var1)
+        self.NCroughnorm.grid(row = 3, column = 0, sticky="E")
+        self.var2 = tk.IntVar()
+        self.NCfinetune = tk.Checkbutton(self.parent, text = 'Fine-Tune', width = smallbuttonsize, fg = 'black',
+                                          command = self.NCcheckboxes, variable = self.var2)
+        self.NCfinetune.grid(row = 4, column = 0, sticky="E")
+
+        # button to call the normalization program
+        self.NCrun = tk.Button(self.parent, text = 'Calculate Normalization', width = bigbigbuttonsize, bg = fgcol1, fg = 'white', command = self.NCrunclick, font = "none 9 bold", relief='raised', bd = 5)
+        self.NCrun.grid(row = 5, column = 1)
+
+        # button to run program to manually adjust rough normalization sections
+        self.NCmano = tk.Button(self.parent, text = 'Manual Over-ride', width = bigbuttonsize, bg = fgcol3, fg = 'white', command = self.NCmanoclick, font = "none 9 bold", relief='raised', bd = 5)
+        self.NCmano.grid(row = 5, column = 2)
+
+
+    # action when the button is pressed to submit the DB entry number list
+    def NCsavenamesubmit(self):
+        entered_text = self.NCsavename.get()  # collect the text from the text entry box
+        # remove any spaces
+        entered_text = re.sub('\ +', '', entered_text)
+        print(entered_text)
+
+        # update the text in the box, in case it has changed
+        self.normdatasavename = entered_text
+
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        settings['NCsavename'] = entered_text
+        np.save(settingsfile,settings)
+
+        return self
+
+
+    # action when the button is pressed to submit the fit_parameters
+    def NCfitparamsubmit(self):
+        text0 = self.NCfitp0.get()  # collect the text from the text entry box
+        print(text0)
+        p0 = float(text0)
+
+        # # remove any spaces
+        # entered_text0 = re.sub('\ +','',entered_text0)
+
+        text1 = self.NCfitp1.get()  # collect the text from the text entry box
+        p1 = float(text1)
+
+        text2 = self.NCfitp2.get()  # collect the text from the text entry box
+        p2 = float(text2)
+
+        text3 = self.NCfitp3.get()  # collect the text from the text entry box
+        p3 = float(text3)
+
+        text45 = self.NCfitp45.get()  # collect the text from the text entry box
+        c = text45.find(',')
+        p4 = float(text45[:c])
+        p5 = float(text45[c+1:])
+
+        text67 = self.NCfitp67.get()  # collect the text from the text entry box
+        c = text67.find(',')
+        p6 = float(text67[:c])
+        p7 = float(text67[c+1:])
+
+        # update the text in the box, in case it has changed
+        self.fitparameters = [p0,p1,p2,p3,p4,p5,p6,p7]
+        print('fit parameters: ',self.fitparameters)
+
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        settings['NCparameters'] = self.fitparameters
+        np.save(settingsfile,settings)
+
+        return self
+
+
+    # action when checkboxes are selected/deselected
+    def NCcheckboxes(self):
+        self.roughnorm = self.var1.get()
+        self.finetune = self.var2.get()
+        return self
+
+
+    # action when the button is pressed to organize dicom data into folders based on series numbers
+    def NCrunclick(self):
+        # first get the necessary input data
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.NCdatabasename = settings['DBname']
+        self.NCdatabasenum = settings['DBnum']
+        # BASEdir = os.path.dirname(self.NCdatabasename)
+        xls = pd.ExcelFile(self.NCdatabasename, engine = 'openpyxl')
+        df1 = pd.read_excel(xls, 'datarecord')
+        fit_parameters = self.fitparameters
+        normdatasavename = self.normdatasavename
+
+        print('Normalization: databasename ',self.NCdatabasename)
+        print('Normalization: started organizing at ', time.ctime(time.time()))
+
+        # assume that all the data sets being normalized in a group are from the same region
+        # and have the same template and anatomical region - no need to load these for each dbnum
+
+        for nn, dbnum in enumerate(self.NCdatabasenum):
+            print('NCrunclick: databasenum ',dbnum)
+            dbhome = df1.loc[dbnum, 'datadir']
+            fname = df1.loc[dbnum, 'niftiname']
+            seriesnumber = df1.loc[dbnum, 'seriesnumber']
+            normtemplatename = df1.loc[dbnum, 'normtemplatename']
+            niiname = os.path.join(dbhome, fname)
+            fullpath, filename = os.path.split(niiname)
+            # prefix_niiname = os.path.join(fullpath,self.prefix+filename)
+            tag = '_s'+str(seriesnumber)
+            normdataname_full  = os.path.join(fullpath,normdatasavename+tag+'.npy')
+
+            resolution = 1
+            template_img, regionmap_img, template_affine, anatlabels = load_templates.load_template(normtemplatename, resolution)
+            # still need to write the resulting normdata file name to the database excel file
+
+            # run the rough normalization
+            print('self.roughnorm = ', self.roughnorm)
+            if self.roughnorm == 1:
+                # set the cursor to reflect being busy ...
+                self.controller.master.config(cursor = "wait")
+                self.controller.master.update()
+                # display_window1, image_in_W1 = self.controller.DisplayWindow.get_window(1)
+                # display_window2, image_in_W2 = self.controller.DisplayWindow.get_window(2)
+                # print('display_window1 = ', display_window1)
+                # print('display_window2 = ', display_window2)
+                T, warpdata, reverse_map_image = pynormalization.run_rough_normalization_calculations(niiname, normtemplatename,
+                                    template_img, fit_parameters)  # , display_window1, image_in_W1, display_window2, image_in_W2
+                Tfine = 'none'
+                norm_image_fine = 'none'
+                self.controller.master.config(cursor = "")
+                self.controller.master.update()
+
+                # normdata = {'T':T,'warpdata':warpdata, 'reverse_map_image':reverse_map_image, 'Tfine':Tfine, 'norm_image_fine':norm_image_fine}
+
+            else:
+                # if rough norm is not being run, then assume that it has already been done and the results need to be loaded
+                normdata = np.load(normdataname_full, allow_pickle=True).flat[0]
+                T = normdata['T']
+                warpdata = normdata['warpdata']
+                reverse_map_image = normdata['reverse_map_image']
+                Tfine = normdata['Tfine']
+                norm_image_fine = normdata['norm_image_fine']
+
+            # manual over-ride?
+
+            # run the normalization fine-tuning
+            print('self.finetune = ', self.finetune)
+            if self.finetune == 1:
+                Tfine, norm_image_fine = pynormalization.py_norm_fine_tuning(reverse_map_image, template_img, T, input_type = 'normalized')
+
+            # now write the new database values
+            xls = pd.ExcelFile(self.NCdatabasename, engine = 'openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
+            df1.pop('Unnamed: 0')   # remove this blank field from the beginning
+            normdataname_small = normdataname_full.replace(dbhome, '')  # need to strip off dbhome before writing the name
+            df1.loc[dbnum.astype('int'), 'normdataname'] = normdataname_small[1:]
+
+            # need to delete the existing sheet before writing the new version
+            existing_sheet_names = xls.sheet_names
+            if 'datarecord' in existing_sheet_names:
+                # delete sheet - need to use openpyxl
+                workbook = openpyxl.load_workbook(self.NCdatabasename)
+                std = workbook.get_sheet_by_name('datarecord')
+                workbook.remove_sheet(std)
+                workbook.save(self.NCdatabasename)
+                # xls = pd.ExcelFile(self.NCdatabasename, engine = 'openpyxl')
+                # df1 = pd.read_excel(xls, 'datarecord')   # reload the value in df1 to use the pandas structure
+
+            # write it to the database by appending a sheet to the excel file
+            # remove old version of datarecord first
+            with pd.ExcelWriter(self.NCdatabasename, mode='a') as writer:
+                df1.to_excel(writer, sheet_name='datarecord')
+
+            normdata = {'T':T, 'Tfine':Tfine, 'warpdata':warpdata, 'reverse_map_image':reverse_map_image, 'norm_image_fine':norm_image_fine, 'template_affine':template_affine}
+            np.save(normdataname_full, normdata)
+            print('normalization data saved in ',normdataname_full)
+
+            # check the results --------------------------
+            # load the nifti data and scale to 1mm voxels
+            input_data = i3d.load_and_scale_nifti(niiname)
+            print('niiname = ',niiname)
+
+            norm_image = pynormalization.py_apply_normalization(input_data[:,:,:,2], T, Tfine)
+            xs,ys,zs = np.shape(norm_image)
+            x0 = np.round(xs/2).astype('int')   # find the mid-slice for display
+            display_image = norm_image[x0, :, :]
+
+            fig = plt.figure(1), plt.imshow(display_image, 'gray')
+            plt.show(block = False)
+
+
+        print('Normalization: finished processing data ...', time.ctime(time.time()))
+
+    # options for manual correction of rough normalization?
+    # action when the button is pressed to run the manual over-ride function
+    def NCmanoclick(self):
+        # first get the necessary input data
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.NCdatabasename = settings['DBname']
+        self.NCdatabasenum = settings['DBnum']
+        # BASEdir = os.path.dirname(self.NCdatabasename)
+        xls = pd.ExcelFile(self.NCdatabasename, engine = 'openpyxl')
+        df1 = pd.read_excel(xls, 'datarecord')
+        fit_parameters = self.fitparameters
+        normdatasavename = self.normdatasavename
+
+        print('Normalization: manual over-ride does not work yet - check back tomorrow ', time.ctime(time.time()))
+
+        
+#--------------------Image Pre-Processing FRAME---------------------------------------------------------------
+# Definition of the frame that will have inputs and options for co-registering NIfTI format data
+# this should become the preprocessing frame, and include coregistration, applying normalization, slice-timing correction
+# smoothing, basis set definitions for GLM fit and noise modeling, data cleaning, and cluster definition
+#
+class PPFrame:
+    # initialize the values, keeping track of the frame this definition works on (parent), and 
+    # also the main window containing that frame (controller)
+    def __init__(self, parent, controller):
+        parent.configure(relief='raised', bd = 5, highlightcolor = fgcol3)
+        self.parent = parent
+        self.controller = controller
+        
+        # initialize some values
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.PPdatabasename = settings['DBname']
+        self.prefix = settings['CRprefix']   # default prefix value
+        self.coreg_choice = settings['coreg_choice']
+        self.slicetime_choice = settings['slicetime_choice']
+        self.norm_choice = settings['norm_choice']
+        self.smooth_choice = settings['smooth_choice']
+        self.define_choice = settings['define_choice']
+        self.clean_choice = settings['clean_choice']
+
+        self.sliceorder = settings['sliceorder']
+        self.refslice = settings['refslice']
+        self.sliceaxis = settings['sliceaxis']
+        self.smoothwidth = settings['smoothwidth']
+        
+        # put some text as a place-holder
+        self.PPlabel1 = tk.Label(self.parent, text = "1) Select pre-processing options", fg = 'gray')
+        self.PPlabel1.grid(row=0,column=0, sticky='W')
+        self.PPlabel2 = tk.Label(self.parent, text = "2) Data name prefixes indicate\nthe applied processing", fg = 'gray')
+        self.PPlabel2.grid(row=1,column=0, sticky='W')
+        
+        # now define entry boxes so that the user can indicate the slice timing parameters
+        # give the group of boxes a label first
+        srow = 0;  scol = 1;
+        self.PPinfo1 = tk.Label(self.parent, text = "Slice timing information:")
+        self.PPinfo1.grid(row=srow,column=scol, columnspan = 4, sticky='NSEW')
+
+        orderoptions = {'Inc,Alt,Odd','Inc,Alt,Even','Dec,Alt,N','Dec,Alt,N-1','Inc,Seq.','Dec,Seq.'}
+
+        self.PPslicelabel1 = tk.Label(self.parent, text="Slice Order:").grid(row=1, column=1, sticky='E')
+        self.sliceorder_var = tk.StringVar()
+        self.sliceorder_var.set(self.sliceorder)
+        self.sliceorder_opt = tk.OptionMenu(self.parent, self.sliceorder_var, *orderoptions, command = self.PPsliceorderchoice).grid(
+            row=srow+1, column=scol+1, sticky='EW')
+        # tk.CreateToolTip(self.sliceorder_opt, text='Inc,Alt,Odd = 1,3,5...2,4,6...\n'
+        #                                            'Inc,Alt,Even = 2,4,6...1,3,5...\n'
+        #                                            'Dec,Alt,N = N,N-2,...N-1,N-3,...\n'
+        #                                            'Dec,Alt,N-1 = N-1,N-3,...N,N-2,...\n'
+        #                                            'Inc,Seq. = 1,2,3,...\n'
+        #                                            'Dec,Seq. = N,N-1,N-2...\n')
+
+        self.PPslicelabel2 = tk.Label(self.parent, text = "Ref. Slice:")
+        self.PPslicelabel2.grid(row=srow+1, column=scol+2, sticky='E')
+        # create entry box, and put it next to the label
+        self.PPrefslice = tk.Entry(self.parent, width = 8, bg="white")
+        self.PPrefslice.grid(row=srow+1, column=scol+3, sticky = "W")
+        self.PPrefslice.insert(0,self.refslice)
+
+        self.PPslicelabel3 = tk.Label(self.parent, text = "Slice Axis:")
+        self.PPslicelabel3.grid(row=srow+1, column=scol+4, sticky='E')
+        # create entry box, and put it next to the label
+        self.PPsliceaxis = tk.Entry(self.parent, width = 8, bg="white")
+        self.PPsliceaxis.grid(row=srow+1, column=scol+5, sticky = "W")
+        self.PPsliceaxis.insert(0,self.sliceaxis)
+
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.PPslicesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.PPslicesubmit, relief='raised', bd = 5)
+        self.PPslicesubmit.grid(row=srow+1, column=scol+6, columnspan = 4)
+        ttk.Separator(self.parent).grid(row=srow+2, column=scol, columnspan=6, sticky="nswe", padx=2, pady=5)
+
+
+        # now define entry boxes so that the user can indicate the smoothing parameters
+        # give the group of boxes a label first
+        srow = 3; scol = 1;
+        self.PPinfo2 = tk.Label(self.parent, text = "Smoothing Width:")
+        self.PPinfo2.grid(row=srow, column=scol+1, sticky='NSEW')
+        self.PPsmoothing = tk.Entry(self.parent, width = 8, bg="white")
+        self.PPsmoothing.grid(row=srow, column=scol+2, sticky = "W")
+        self.PPsmoothing.insert(0,self.smoothwidth)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.PPsmoothsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.PPsmoothsubmit, relief='raised', bd = 5)
+        self.PPsmoothsubmit.grid(row=srow, column=scol+3)
+        ttk.Separator(self.parent).grid(row=srow+1, column=scol, columnspan=6, sticky="nswe", padx=2, pady=5)
+
+        # setup the choices for which pre-processing steps to run
+        # create pull-down lists
+        options = {'Yes.', '.No.', 'Done'}
+        srow = 5;  scol = 1;   # positions to begin this set of checkboxes (to make it easy to move later)
+        # coregistration
+        self.coreg_label = tk.Label(self.parent, text="Coregister:").grid(row=srow, column=scol, sticky='E')
+        self.coreg_var = tk.StringVar()
+        self.coreg_var.set(self.coreg_choice)
+        self.coreg_opt = tk.OptionMenu(self.parent, self.coreg_var, *options, command = self.PPcoregchoice).grid(
+            row=srow, column=scol+1, sticky='EW')
+        # slice-time correction
+        self.slicetime_label = tk.Label(self.parent, text="Slice-timing:").grid(row=srow, column=scol+2, sticky='E')
+        self.slicetime_var = tk.StringVar()
+        self.slicetime_var.set(self.slicetime_choice)
+        self.slicetime_opt = tk.OptionMenu(self.parent, self.slicetime_var, *options, command = self.PPslicetimechoice).grid(
+            row=srow, column=scol+3, sticky='EW')
+        # apply normalization
+        self.norm_label = tk.Label(self.parent, text="Normalize:").grid(row=srow, column=scol+4, sticky='E')
+        self.norm_var = tk.StringVar()
+        self.norm_var.set(self.norm_choice)
+        self.norm_opt = tk.OptionMenu(self.parent, self.norm_var, *options, command = self.PPnormchoice).grid(
+            row=srow, column=scol+5, sticky='EW')
+        # apply smoothing
+        self.smooth_label = tk.Label(self.parent, text="Smooth:").grid(row=srow+1, column=scol, sticky='E')
+        self.smooth_var = tk.StringVar()
+        self.smooth_var.set(self.smooth_choice)
+        self.norm_opt = tk.OptionMenu(self.parent, self.smooth_var, *options, command=self.PPsmoothchoice).grid(
+            row=srow+1, column=scol + 1, sticky='EW')
+        # define basis sets
+        self.define_label = tk.Label(self.parent, text="Define basis sets:").grid(row=srow+1, column=scol+2, sticky='E')
+        self.define_var = tk.StringVar()
+        self.define_var.set(self.define_choice)
+        self.define_opt = tk.OptionMenu(self.parent, self.define_var, *options, command=self.PPdefinechoice).grid(
+            row=srow+1, column=scol+3, sticky='EW')
+        # clean the data
+        self.clean_label = tk.Label(self.parent, text="Clean data:").grid(row=srow+1, column=scol+4, sticky='E')
+        self.clean_var = tk.StringVar()
+        self.clean_var.set(self.clean_choice)
+        self.clean_opt = tk.OptionMenu(self.parent, self.clean_var, *options, command=self.PPcleanchoice).grid(
+            row=srow+1, column=scol+5, sticky='EW')
+
+        # button to run the selected-preprocessing
+        self.PPrun = tk.Button(self.parent, text = 'Process Data', width = bigbuttonsize, bg = fgcol1, fg = 'white', command = self.PPrunclick, font = "none 9 bold", relief='raised', bd = 5)
+        self.PPrun.grid(row = srow+2, column = 1, columnspan = 2)
+
+        # text to show the resulting prefix for the data that will be created
+        self.predictedprefixtext = tk.StringVar()
+        prefix_list = pypreprocess.setprefixlist(settingsfile)
+        self.predictedprefixtext.set(prefix_list[-1])
+        self.PPprefixdisplaytitle = tk.Label(self.parent, text = "output nifti prefix: ", fg = 'gray')
+        self.PPprefixdisplaytitle.grid(row=srow+2, column=3, sticky='E')
+        self.PPprefixdisplay = tk.Label(self.parent, textvariable = self.predictedprefixtext, fg = 'gray')
+        self.PPprefixdisplay.grid(row=srow+2, column=4, sticky='W')
+
+        # self.DBnametext = tk.StringVar()
+        # self.DBnametext.set(self.DBname)
+        # self.DBnamelabel2 = tk.Label(self.parent, textvariable=self.DBnametext, bg=bgcol, fg="black", font="none 10",
+        #                              wraplength=200, justify='left')
+
+
+    def PPsliceorderchoice(self,value):
+        self.sliceorder = value
+        print('Slice order set to ',self.sliceorder)
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        settings['sliceorder'] = self.sliceorder
+        np.save(settingsfile,settings)
+        # update output prefix information
+        prefix_list = pypreprocess.setprefixlist(settingsfile)
+        self.predictedprefixtext.set(prefix_list[-1])
+        return self
+
+    def PPcoregchoice(self, value):
+        # action when checkboxes are selected/deselected
+        self.coreg_choice = value
+        print('Co-registration set to ',self.coreg_choice)
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        settings['coreg_choice'] = self.coreg_choice
+        np.save(settingsfile,settings)
+        # update output prefix information
+        prefix_list = pypreprocess.setprefixlist(settingsfile)
+        self.predictedprefixtext.set(prefix_list[-1])
+        return self
+
+    def PPslicetimechoice(self, value):
+        # action when checkboxes are selected/deselected
+        self.slicetime_choice = value
+        print('Slice time correction set to ',self.slicetime_choice)
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        settings['slicetime_choice'] = self.slicetime_choice
+        np.save(settingsfile,settings)
+        # update output prefix information
+        prefix_list = pypreprocess.setprefixlist(settingsfile)
+        self.predictedprefixtext.set(prefix_list[-1])
+        return self
+
+    def PPnormchoice(self, value):
+        # action when checkboxes are selected/deselected
+        self.norm_choice = value
+        print('Apply normalization set to ',self.norm_choice)
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        settings['norm_choice'] = self.norm_choice
+        np.save(settingsfile,settings)
+        # update output prefix information
+        prefix_list = pypreprocess.setprefixlist(settingsfile)
+        self.predictedprefixtext.set(prefix_list[-1])
+        return self
+
+    def PPsmoothchoice(self, value):
+        # action when checkboxes are selected/deselected
+        self.smooth_choice = value
+        print('Apply smoothing set to ',self.smooth_choice)
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        settings['smooth_choice'] = self.smooth_choice
+        np.save(settingsfile,settings)
+        # update output prefix information
+        prefix_list = pypreprocess.setprefixlist(settingsfile)
+        self.predictedprefixtext.set(prefix_list[-1])
+        return self
+
+    def PPdefinechoice(self, value):
+        # action when checkboxes are selected/deselected
+        self.define_choice = value
+        print('Define basis sets set to ',self.define_choice)
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        settings['define_choice'] = self.define_choice
+        np.save(settingsfile,settings)
+        # update output prefix information
+        prefix_list = pypreprocess.setprefixlist(settingsfile)
+        self.predictedprefixtext.set(prefix_list[-1])
+        return self
+
+    def PPcleanchoice(self, value):
+        # action when checkboxes are selected/deselected
+        self.clean_choice = value
+        print('Clean the data set to ',self.clean_choice)
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        settings['clean_choice'] = self.clean_choice
+        np.save(settingsfile,settings)
+        # update output prefix information
+        prefix_list = pypreprocess.setprefixlist(settingsfile)
+        self.predictedprefixtext.set(prefix_list[-1])
+        return self
+
+    # action when the button is pressed to submit the slice information
+    def PPslicesubmit(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        entered_text = self.PPrefslice.get()
+        refslice = int(entered_text)
+        entered_text = self.PPsliceaxis.get()
+        sliceaxis = int(entered_text)
+        settings['refslice'] = refslice
+        settings['sliceaxis'] = sliceaxis
+        np.save(settingsfile,settings)
+        # update the text in the box, in case it has changed
+        self.refslice = refslice
+        self.sliceaxis = sliceaxis
+        return self
+
+    # action when the button is pressed to submit the slice information
+    def PPsmoothsubmit(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        entered_text = self.PPsmoothing.get()
+        smoothwidth = float(entered_text)
+        settings['smoothwidth'] = smoothwidth
+        np.save(settingsfile,settings)
+        # update the text in the box, in case it has changed
+        self.smoothwidth = smoothwidth
+        return self
+        
+        
+    # action when the button is pressed to organize dicom data into folders based on series numbers
+    def PPrunclick(self):
+        sucessflag = pypreprocess.run_preprocessing(settingsfile)
+
+
+
+#-----------GLMfit FRAME--------------------------------------------------
+# Definition of the frame that has inputs for the database name, and entry numbers to use
+class GLMFrame:
+    # initialize the values, keeping track of the frame this definition works on (parent), and
+    # also the main window containing that frame (controller)
+    def __init__(self, parent, controller):
+        parent.configure(relief='raised', bd=5, highlightcolor=fgcol3)
+        self.parent = parent
+        self.controller = controller
+        self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
+        self.GLM1_option = settings['GLM1_option']
+        self.GLMprefix = settings['GLMprefix']
+        self.GLMndrop = settings['GLMndrop']
+        self.GLMcontrast = settings['GLMcontrast']
+        self.GLMresultsdir = settings['GLMresultsdir']
+
+        # put some text as a place-holder
+        self.GLMlabel1 = tk.Label(self.parent, text = "1) Select GLM analysis options", fg = 'gray')
+        self.GLMlabel1.grid(row=0,column=0, sticky='W')
+        self.GLMlabel1 = tk.Label(self.parent, text = "2) Specify database numbers,\ncontrast, and analysis mode", fg = 'gray')
+        self.GLMlabel1.grid(row=1,column=0, sticky='W')
+
+        GLMoptions = {'concatenate_group', 'group_concatenate_by_person_avg', 'avg_by_person',
+                        'concatenate_by_person', 'group_average'}
+
+        self.GLMoptionlabel1 = tk.Label(self.parent, text="GLM Method:").grid(row=0, column=1, sticky='E')
+        self.GLMoption_var = tk.StringVar()
+        self.GLMoption_var.set(self.GLM1_option)
+        self.GLMoption_opt = tk.OptionMenu(self.parent, self.GLMoption_var, *GLMoptions, command = self.GLMoptionchoice).grid(
+            row=0, column=2, sticky='EW')
+
+        # set the data prefix for analysis
+        self.GLMlabel2 = tk.Label(self.parent, text = 'Data prefix:').grid(row=1, column=1, sticky='NSEW')
+        self.GLMprefixbox = tk.Entry(self.parent, width = 8, bg="white")
+        self.GLMprefixbox.grid(row=1, column=2, sticky="W")
+        self.GLMprefixbox.insert(0,self.GLMprefix)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.GLMprefixsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.GLMprefixsubmit, relief='raised', bd = 5)
+        self.GLMprefixsubmit.grid(row=1, column=3)
+
+
+        # set the number of initial volumes to drop, or mask, for each data set
+        self.GLMlabel3 = tk.Label(self.parent, text = 'Initial volumes to drop/mask:').grid(row=2, column=1, sticky='NSEW')
+        self.GLMndropbox = tk.Entry(self.parent, width = 8, bg="white")
+        self.GLMndropbox.grid(row=2, column=2, sticky = "W")
+        self.GLMndropbox.insert(0,self.GLMndrop)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.GLMndropsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.GLMndropsubmit, relief='raised', bd = 5)
+        self.GLMndropsubmit.grid(row=2, column=3)
+
+        # indicate the contrast to use for analysis
+        self.GLMlabel4 = tk.Label(self.parent, text = 'Contrast between basis elements:').grid(row=3, column=1, sticky='NSEW')
+        self.GLMcontrastbox = tk.Entry(self.parent, width = 8, bg="white")
+        self.GLMcontrastbox.grid(row=3, column=2, sticky = "W")
+        self.GLMcontrastbox.insert(0,self.GLMcontrast)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.GLMcontrastsubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.GLMcontrastsubmit, relief='raised', bd = 5)
+        self.GLMcontrastsubmitbut.grid(row=3, column=3)
+
+        # ttk.Separator(self.parent).grid(row=srow+1, column=scol, columnspan=6, sticky="nswe", padx=2, pady=5)
+
+        # entry box for specifying folder for saving results
+        # create an entry box so that the user can specify the results folder to use
+        self.GLML2 = tk.Label(self.parent, text="Results folder:")
+        self.GLML2.grid(row=4, column=1, sticky='W')
+
+        # make a label to show the current setting of the results folder name
+        self.GLMresultstext = tk.StringVar()
+        self.GLMresultstext.set(self.GLMresultsdir)
+        self.GLMresultsinfo = tk.Label(self.parent, textvariable=self.GLMresultstext, bg=bgcol, fg="black", font="none 10",
+                                     wraplength=200, justify='left')
+        self.GLMresultsinfo.grid(row=4, column=2, sticky='W')
+
+        # define a button to browse and select a location for saving the GLM results, and write out the selected name
+        # also, define the function for what to do when this button is pressed
+        self.GLMfolderbrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg=fgcol2, fg='black',
+                                  command=self.GLMresultsbrowseclick, relief='raised', bd=5)
+        self.GLMfolderbrowse.grid(row=4, column=3)
+
+
+
+        # label, button, and information box for compiling the basis sets
+        self.GLMbasisbutton = tk.Button(self.parent, text="Compile Basis Sets", width=bigbigbuttonsize, bg=fgcol1, fg='white',
+                                        command=self.GLMbasissetup, relief='raised', bd=5)
+        self.GLMbasisbutton.grid(row=5, column=1)
+        self.GLMbasisbutton2 = tk.Button(self.parent, text="Load Basis Sets", width=bigbigbuttonsize, bg=fgcol2, fg='black',
+                                        command=self.GLMbasisload, relief='raised', bd=5)
+        self.GLMbasisbutton2.grid(row=5, column=2)
+        self.GLMbasisinfo= tk.Label(self.parent, text='basis set information ...')
+        self.GLMbasisinfo.grid(row=5, column=3, columnspan = 2, sticky='E')
+
+
+        # label, button, and information box for compiling the data sets
+        self.GLMdatabutton = tk.Button(self.parent, text="Compile Data Sets", width=bigbigbuttonsize, bg=fgcol1, fg='white',
+                                        command=self.GLMdatasetup, relief='raised', bd=5)
+        self.GLMdatabutton.grid(row=6, column=1)
+        self.GLMdatabutton2 = tk.Button(self.parent, text="Load Data Sets", width=bigbigbuttonsize, bg=fgcol2, fg='black',
+                                        command=self.GLMdataload, relief='raised', bd=5)
+        self.GLMdatabutton2.grid(row=6, column=2)
+        self.GLMdatainfo = tk.Label(self.parent, text='data set information ...')
+        self.GLMdatainfo.grid(row=6, column=3, columnspan = 2, sticky='E')
+
+        # setup input for contrast
+        # label, button, and information box for running the GLM analysis
+        self.GLMrunbutton = tk.Button(self.parent, text="Run GLM", width=bigbigbuttonsize, bg=fgcol1, fg='white',
+                                        command=self.GLMrun1, relief='raised', bd=5)
+        self.GLMrunbutton.grid(row=7, column=1)
+        self.GLMruninfo= tk.Label(self.parent, text='GLM results information ...')
+        self.GLMruninfo.grid(row=7, column=2, columnspan = 2, sticky='E')
+
+
+    def GLMoptionchoice(self,value):
+        # select the method for GLM analysis
+        self.GLM1_option = value
+        print('GLM method set to ',self.GLM1_option)
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        settings['GLM1_option'] = self.GLM1_option
+        np.save(settingsfile,settings)
+        return self
+
+    def GLMprefixsubmit(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        GLMprefix = self.GLMprefixbox.get()
+        settings['GLMprefix'] = GLMprefix
+        np.save(settingsfile,settings)
+        # update the text in the box, in case it has changed
+        self.GLMprefix = GLMprefix
+        print('prefix for GLM analysis set to ',self.GLMprefix)
+        return self
+
+    def GLMndropsubmit(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        GLMndrop = int(self.GLMndropbox.get())
+        settings['GLMndrop'] = GLMndrop
+        np.save(settingsfile,settings)
+        # update the text in the box, in case it has changed
+        self.GLMndrop = GLMndrop
+        print('no. of volumes to drop for GLM analysis set to ',self.GLMndrop)
+        return self
+
+    def GLMcontrastsubmit(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        entered_text = self.GLMcontrastbox.get()
+        # parse the string into a list of integers
+        # first,  replace commas with spaces, and then replace any double spaces with single spaces
+        entered_text = re.sub('\,+',' ',entered_text)
+        entered_text = re.sub('\ \ +',' ',entered_text)
+        entered_text = entered_text.split()
+        GLMcontrast = list(map(int, entered_text))
+
+        settings['GLMcontrast'] = GLMcontrast
+        np.save(settingsfile,settings)
+        # update the text in the box, in case it has changed
+        self.GLMcontrast = GLMcontrast
+        self.GLMcontrastbox.delete(0, 'end')
+        self.GLMcontrastbox.insert(0, self.GLMcontrast)
+
+        print('contrast for GLM analysis set to ',self.GLMcontrast)
+        return self
+
+
+    def GLMbasissetup(self):
+        # select the method for GLM analysis
+        self.GLMbasisinfo.configure(text = 'Compiling basis set ...')
+
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.DBname = settings['DBname']
+        self.dbnumlist = settings['DBnum']
+        self.prefix = settings['GLMprefix']
+        self.ndrop = settings['GLMndrop']
+
+        basisset, paradigm_names = GLMfit.compile_basis_sets(self.DBname, self.dbnumlist, self.prefix, mode=self.GLM1_option, nvolmask=ndrop)
+        self.basisset = basisset
+        self.paradigm_names = paradigm_names
+
+        bshape = np.shape(basisset)
+        basisinfo = 'basis set, size {}'.format(bshape[0])
+        for val in bshape[1:]:
+            infotext = ' x {}'.format(val)
+            basisinfo += infotext
+        nameline = '\nParadigms: {}'.format(paradigm_names[0])
+        basisinfo += nameline
+        linelength = len(nameline)
+        for val in paradigm_names[1:]:
+            if linelength > 25:
+                infotext = ',\n{}'.format(val)
+                linelength = len(infotext)
+            else:
+                infotext = ', {}'.format(val)
+                linelength += len(infotext)
+            basisinfo += infotext
+        self.GLMbasisinfo.configure(text = basisinfo)
+
+        # prompt for a filename for saving the basis set
+        filechoice = tkf.asksaveasfilename(title="Save basis set as:",
+                        filetypes=(("npy files", "*.npy"), ("all files", "*.*")))
+        basisdata = {'basisset':basisset, 'paradigm_names':paradigm_names}
+        np.save(filechoice, basisdata)
+        print('Finished saving  basis set to ',filechoice)
+
+        return self
+
+
+    def GLMbasisload(self):
+        # prompt for a filename for loading the basis set
+        self.GLMbasisinfo.configure(text='Loading basis set...')
+
+        filename = tkf.askopenfilename(title="Load basis set from:",
+                        filetypes=(("npy files", "*.npy"), ("all files", "*.*")))
+        basisdata = np.load(filename,allow_pickle = True).flat[0]
+        basisset = basisdata['basisset']
+        paradigm_names = basisdata['paradigm_names']
+
+        self.basisset = basisset
+        self.paradigm_names = paradigm_names
+
+        bshape = np.shape(basisset)
+        basisinfo = 'basis set, size {}'.format(bshape[0])
+        for val in bshape[1:]:
+            infotext = ' x {}'.format(val)
+            basisinfo += infotext
+        nameline = '\nParadigms: {}'.format(paradigm_names[0])
+        basisinfo += nameline
+        linelength = len(nameline)
+        for val in paradigm_names[1:]:
+            if linelength > 25:
+                infotext = ',\n{}'.format(val)
+                linelength = len(infotext)
+            else:
+                infotext = ', {}'.format(val)
+                linelength += len(infotext)
+            basisinfo += infotext
+        self.GLMbasisinfo.configure(text = basisinfo)
+        print('Finished loading basis set from ',filename)
+
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        settings['GLMbasisset'] = basisset
+        settings['GLMparadigmnames'] = paradigm_names
+        np.save(settingsfile,settings)
+
+        return self
+
+
+
+    # define functions before they are used in the database frame------------------------------------------
+    # action when the button to browse for a DB fie is pressed
+    def GLMresultsbrowseclick(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
+        dirname =  tkf.askdirectory(title = "Select folder")
+        print('dirname = ',dirname)
+        # save the selected file name in the settings
+        settings['GLMresultsdir'] = dirname
+        self.GLMresultsdir = dirname
+        # write the result to the label box for display
+        self.GLMresultstext.set(settings['GLMresultsdir'])
+
+        # save the updated settings file again
+        np.save(settingsfile,settings)
+
+
+    def GLMdatasetup(self):
+        self.GLMdatainfo.configure(text = 'Compiling data ...')
+
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        # select the method for GLM analysis
+        self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
+        self.prefix = settings['GLMprefix']
+        self.ndrop = settings['GLMndrop']
+
+        dataset = GLMfit.compile_data_sets(self.DBname, self.DBnum, self.prefix, mode=self.GLM1_option, nvolmask=ndrop)
+        self.dataset = dataset
+
+        bshape = np.shape(dataset)
+        datainfo = 'data set, size {}'.format(bshape[0])
+        for val in bshape[1:]:
+            infotext = ' x {}'.format(val)
+            datainfo += infotext
+
+        self.GLMdatainfo.configure(text = datainfo)
+
+        # prompt for a filename for saving the data
+        filechoice = tkf.asksaveasfilename(title="Save data as:",
+                        filetypes=(("npy files", "*.npy"), ("all files", "*.*")))
+        np.save(filechoice,dataset)
+        print('Finished saving  data to ',filechoice)
+
+        settings['GLMdata'] = dataset
+        settings['GLMdataname'] = filechoice
+        np.save(settingsfile,settings)
+
+        return self
+
+
+    def GLMdataload(self):
+        self.GLMdatainfo.configure(text = 'Loading data ...')
+        # select the method for GLM analysis
+        # prompt for a filename for loading the basis set
+        filename = tkf.askopenfilename(title="Load data set from:",
+                                                 filetypes=(("npy files", "*.npy"), ("all files", "*.*")))
+        dataset = np.load(filename, allow_pickle=True)
+        self.dataset = dataset
+
+        print('size of dataset = ',np.shape(dataset))
+
+        bshape = np.shape(dataset)
+        datainfo = 'data set, size {}'.format(bshape[0])
+        for val in bshape[1:]:
+            infotext = ' x {}'.format(val)
+            datainfo += infotext
+
+        self.GLMdatainfo.configure(text=datainfo)
+        print('Finished loading  data from ',filename)
+
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        settings['GLMdata'] = dataset
+        settings['GLMdataname'] = filename
+        np.save(settingsfile,settings)
+
+        return self
+
+
+    def GLMrun1(self):
+        # select the method for GLM analysis
+        # GLMoptions = {'concatenate_group', 'group_concatenate_by_person_avg', 'avg_by_person',
+        #               'concatenate_by_person', 'group_average'}
+
+        # dataset = self.dataset
+        # basisset = self.basisset
+
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        DBname = settings['DBname']
+        DBnum = settings['DBnum']
+        dataset = settings['GLMdata']
+        basisset = settings['GLMbasisset']
+
+        # for consistency with other program components - update these
+        self.DBname = DBname
+        self.DBnum = DBnum
+        self.dataset = dataset
+        self.basisset = basisset
+
+        per_person_modes = ['avg_by_person', 'concatenate_by_person']
+        runmode = settings['GLM1_option']
+        contrast = settings['GLMcontrast']
+
+        # some run modes need to be run person-by-person
+        if runmode in per_person_modes:
+            xs, ys, zs, ts, NP = np.shape(dataset)
+            for nn in range(NP):
+                persondata = dataset[:,:,:,:,nn]
+                personbasis = basisset[:,:,nn]
+                print('GLM mode: ',runmode)
+                print('person ',nn,' size of dataset ',np.shape(persondata),' size of basisset ',np.shape(personbasis), 'contrast = ',contrast)
+                Bperson, semperson, Tperson = GLMfit.GLMfit(persondata, personbasis, contrast, add_constant=True, ndrop=0)
+
+                # compile results together across people
+                if nn == 0:
+                    B = Bperson[:,:,:,np.newaxis]
+                    sem = semperson[:,:,:,np.newaxis]
+                    T = Tperson[:,:,:,np.newaxis]
+                else:
+                    B = np.concatenate((B,Bperson[:,:,:,np.newaxis]),axis = 3)
+                    sem = np.concatenate((sem,semperson[:,:,:,np.newaxis]),axis = 3)
+                    T = np.concatenate((T,Tperson[:,:,:,np.newaxis]),axis = 3)
+
+        else:
+            xs, ys, zs, ts = np.shape(dataset)
+            print('GLM mode: ',runmode)
+            print(' size of dataset ',np.shape(dataset),' size of basisset ',np.shape(basisset), 'contrast = ',contrast)
+            B, sem, T = GLMfit.GLMfit(dataset, basisset, contrast, add_constant=True, ndrop=0)
+
+        # now do something with B, sem, and T
+        # prompt for a filename for saving the data
+        results = {'B':B,'sem':sem,'T':T}
+        filechoice = tkf.asksaveasfilename(title="Save results as:",
+                        filetypes=(("npy files", "*.npy"), ("all files", "*.*")))
+        np.save(filechoice,results)
+
+        # write out information about the results
+        # bshape = np.shape(B)
+        bshape = np.shape(B)
+        GLMinfo = 'GLM results: dimensions of beta map are {}'.format(bshape[0])
+        for v in bshape[1:]:
+            addtext = ' x {}'.format(v)
+            GLMinfo += addtext
+
+        self.GLMruninfo.configure(text=GLMinfo)
+
+        #-----------create outputs------------------------------------
+        # choose a statistical threshold and create a results figure
+        xls = pd.ExcelFile(DBname, engine = 'openpyxl')
+        df1 = pd.read_excel(xls, 'datarecord')
+        normtemplatename = df1.loc[DBnum[0], 'normtemplatename']
+        resolution = 1
+        template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map = load_templates.load_template_and_masks(normtemplatename, resolution)
+
+        p_corr = 0.05   # corrected p-value threshold
+        # correct using gaussian random field theory
+        search_mask = roi_map
+        if np.ndim(dataset) > 4:
+            residual_data = dataset[:,:,:,:,0]  # take data from one person, as an example
+        else:
+            residual_data = dataset
+        p_unc, FWHM, R = py_fmristats.py_GRFcorrected_pthreshold(p_corr, residual_data, search_mask, df=0)
+
+        # convert p-threshol (p_unc) to T-threshold
+        degrees_of_freedom = ts-1
+        Tthresh = stats.t.ppf(1-p_unc,degrees_of_freedom)
+
+        if runmode in per_person_modes:
+            Tthresh_per_person = stats.t.ppf(1-p_unc,degrees_of_freedom*NP)
+
+        print('ready for displaying GLM results, with p_unc = ',p_unc,', T-treshold = ',Tthresh)
+
+        # find all the values in T that exceed the threshold, and create a figure with these voxels
+        # overlying template_img
+        outputimg = pydisplay.pydisplaystatmap(T,Tthresh,template_img,roi_map,normtemplatename)
+        # fig = plt.figure(77), plt.imshow(outputimg)
+
+        # save the image for later use
+        pname,fname = os.path.split(filechoice)
+        fname,ext = os.path.splitext(fname)
+        outputname = os.path.join(pname,fname+'.png')
+
+        print('size of output image: ',outputimg.shape)
+        print('image output name: ',outputname)
+
+        # im = Image.fromarray(outputimg)
+        # im.save(outputname)
+
+        # scipy.misc.imsave(outputname, outputimg)   # alternative way of writing image to file
+
+        matplotlib.image.imsave(outputname, outputimg)
+
+        return self
+
+
+
+#-----------Clustering FRAME--------------------------------------------------
+# Definition of the frame that has inputs for the database name, and entry numbers to use
+class CLFrame:
+
+    # define functions before they are used in the database frame------------------------------------------
+    # action when the button to browse for a DB fie is pressed
+    def CLnetbrowseclick(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
+        filename =  tkf.askopenfilename(title = "Select file",filetypes = (("excel files","*.xlsx"),("all files","*.*")))
+        print('filename = ',filename)
+        # save the selected file name in the settings
+        settings['networkmodel'] = filename
+        self.networkmodel = filename
+
+        # write the result to the label box for display
+        npname, nfname = os.path.split(self.networkmodel)
+        self.CLnetnametext.set(nfname)
+        self.CLnetdirtext.set(npname)
+        np.save(settingsfile,settings)
+
+    def CLprefixsubmit(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        CLprefix = self.CLprefixbox.get()
+        settings['CLprefix'] = CLprefix
+        np.save(settingsfile,settings)
+        # update the text in the box, in case it has changed
+        self.CLprefix = CLprefix
+        print('prefix for clustering analysis set to ',self.CLprefix)
+        return self
+
+
+    # define functions before they are used in the database frame------------------------------------------
+    # action when the button to browse for a DB fie is pressed
+    def CLclusternamebrowse(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
+        filechoice =  tkf.asksaveasfilename(title = "Select file",filetypes = (("npy files","*.npy"),("all files","*.*")))
+        print('cluster definition name = ',filechoice)
+        # save the selected file name in the settings
+        CLclustername = filechoice
+
+        npname, nfname = os.path.split(CLclustername)
+        nfname,ext = os.path.splitext(nfname)
+        settings['CLresultsdir'] = npname
+        self.CLresultsdir = npname
+
+        CLclustername = os.path.join(npname,nfname+'.npy')
+
+        settings['CLclustername'] = CLclustername
+        self.CLclustername = CLclustername
+
+        # write the result to the label box for display
+        self.CLclusternamebox.delete(0, 'end')
+        self.CLclusternamebox.insert(0,CLclustername)
+
+        np.save(settingsfile,settings)
+
+
+    def CLclusternamesubmit(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        CLclustername = self.CLclusternamebox.get()
+
+        # check if chosen name includes the full directory path, or the extension
+        npname, nfname = os.path.split(CLclustername)
+        nfname, ext = os.path.splitext(nfname)
+
+        if os.path.isdir(npname):
+            settings['CLresultsdir'] = npname
+            self.CLresultsdir = npname
+        else:
+            # select a directory
+            npname = settings['CLresultsdir']
+
+        # join up the name parts
+        CLclustername = os.path.join(npname,nfname+'.npy')
+
+        settings['CLclustername'] = CLclustername
+        self.CLclustername = CLclustername
+
+        # write the result to the label box for display
+        self.CLclusternamebox.delete(0, 'end')
+        self.CLclusternamebox.insert(0, self.CLclustername)
+
+        np.save(settingsfile, settings)
+
+
+    # define functions before they are used in the database frame------------------------------------------
+    # action when the button to browse for a DB fie is pressed
+    def CLregionnamebrowse(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
+        filechoice =  tkf.asksaveasfilename(title = "Select file",filetypes = (("npy files","*.npy"),("all files","*.*")))
+        print('region/cluster data name = ',filechoice)
+        CLregionname = filechoice
+
+        npname, nfname = os.path.split(CLregionname)
+        fname, ext = os.path.splitext(nfname)
+        settings['CLresultsdir'] = npname
+        self.CLresultsdir = npname
+
+        CLregionname = os.path.join(npname,fname+'.npy')
+
+        # write the result to the label box for display
+        self.CLregionnamebox.delete(0, 'end')
+        self.CLregionnamebox.insert(0,CLregionname)
+
+        # save the selected file name in the settings
+        settings['CLregionname'] = CLregionname
+        self.CLregionname = CLregionname
+
+        np.save(settingsfile,settings)
+
+    def CLregionnamesubmit(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        CLregionname = self.CLregionnamebox.get()
+
+        # check if chosen name includes the full directory path, or the extension
+        npname, nfname = os.path.split(CLregionname)
+        nfname, ext = os.path.splitext(nfname)
+
+        if os.path.isdir(npname):
+            settings['CLresultsdir'] = npname
+            self.CLresultsdir = npname
+        else:
+            # select a directory
+            npname = settings['CLresultsdir']
+
+        # join up the name parts
+        CLregionname = os.path.join(npname,nfname+'.npy')
+
+        settings['CLregionname'] = CLregionname
+        self.CLregionname = CLregionname
+
+        # write the result to the label box for display
+        self.CLregionnamebox.delete(0, 'end')
+        self.CLregionnamebox.insert(0, self.CLregionname)
+
+        np.save(settingsfile, settings)
+
+
+    def CLdefineandload(self):
+        # define the clusters and load the data
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
+        self.CLprefix = settings['CLprefix']
+        self.networkmodel = settings['networkmodel']
+        self.CLclustername = settings['CLclustername']
+        self.CLregionname = settings['CLregionname']
+
+        xls = pd.ExcelFile(self.DBname, engine = 'openpyxl')
+        df1 = pd.read_excel(xls, 'datarecord')
+
+        normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
+        resolution = 1
+        template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map = \
+            load_templates.load_template_and_masks(normtemplatename, resolution)
+
+        cluster_properties, region_properties = \
+            pyclustering.define_clusters_and_load_data(self.DBname, self.DBnum, self.CLprefix, self.networkmodel, regionmap_img, anatlabels)
+
+        cluster_definition = {'cluster_properties':cluster_properties}
+        region_data = {'region_properties':region_properties}
+
+        # save the results
+        np.save(self.CLclustername,cluster_definition)
+        np.save(self.CLregionname,region_data)
+        messagetext = 'defining clusters and loading data \ncompleted: ' + time.ctime(time.time())
+        self.CLdefinebuttontext.set(messagetext)
+
+    def CLload(self):
+        # load the data using previous cluster definitions
+        # need a better way of saving/loading data
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.CLclustername = settings['CLclustername']
+        self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
+        self.CLprefix = settings['CLprefix']
+        self.networkmodel = settings['networkmodel']
+
+        cluster_data = np.load(self.CLclustername, allow_pickle=True).flat[0]
+        cluster_properties = cluster_data['cluster_properties']
+
+        print('CLload:  DBname = ', self.DBname)
+        region_properties = pyclustering.load_cluster_data(cluster_properties, self.DBname, self.DBnum, self.CLprefix, self.networkmodel)
+        region_data = {'region_properties':region_properties}
+
+        np.save(self.CLregionname,region_data)
+        messagetext = 'loading cluster data completed: \n' + time.ctime(time.time())
+        self.CLloadbuttontext.set(messagetext)
+
+    # initialize the values, keeping track of the frame this definition works on (parent), and
+    # also the main window containing that frame (controller)
+    def __init__(self, parent, controller):
+        parent.configure(relief='raised', bd=5, highlightcolor=fgcol3)
+        self.parent = parent
+        self.controller = controller
+        self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
+        self.CLprefix = settings['CLprefix']
+        self.networkmodel = settings['networkmodel']
+        self.CLclustername = settings['CLclustername']
+        self.CLregionname = settings['CLregionname']
+
+        # put some text as a place-holder
+        self.CLabel1 = tk.Label(self.parent, text = "1) Select clustering options", fg = 'gray', justify = 'left')
+        self.CLabel1.grid(row=0,column=0, sticky='W')
+        self.CLabel2 = tk.Label(self.parent, text = "   Choices are: define new clusters\nand load data, or load data using\nexisting cluster definition", fg = 'gray', justify = 'left')
+        self.CLabel2.grid(row=1,column=0, sticky='W')
+        self.CLabel3 = tk.Label(self.parent, text = "2) Run selected options", fg = 'gray', justify = 'left')
+        self.CLabel3.grid(row=2,column=0, sticky='W')
+
+        # create an entry box so that the user can specify the network file to use
+        # first make a title for the box, in row 3, column 1 of the grid for the main window
+        self.CLL1 = tk.Label(self.parent, text="Network Model:")
+        self.CLL1.grid(row=0, column=1, sticky='SW')
+
+        # make a label to show the current setting of the network definition file name
+        npname, nfname = os.path.split(self.networkmodel)
+        self.CLnetnametext = tk.StringVar()
+        self.CLnetnametext.set(nfname)
+        self.CLfnamelabel = tk.Label(self.parent, textvariable=self.CLnetnametext, bg=bgcol, fg="#4B4B4B", font="none 10",
+                                     wraplength=300, justify='left')
+        self.CLfnamelabel.grid(row=0, column=2, sticky='S')
+
+        # make a label to show the current setting of the network definition file directory name
+        self.CLnetdirtext = tk.StringVar()
+        self.CLnetdirtext.set(npname)
+        self.CLdnamelabel = tk.Label(self.parent, textvariable=self.CLnetdirtext, bg=bgcol, fg="#4B4B4B", font="none 8",
+                                     wraplength=300, justify='left')
+        self.CLdnamelabel.grid(row=1, column=2, sticky='N')
+
+        # define a button to browse and select an existing network definition file, and write out the selected name
+        # also, define the function for what to do when this button is pressed
+        self.CLnetworkbrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg = fgcol2, fg = 'black',
+                                  command=self.CLnetbrowseclick, relief='raised', bd=5)
+        self.CLnetworkbrowse.grid(row=0, column=3)
+
+        # create entry box for the nifti data name prefix (indicates which preprocessing steps were done)
+        self.CLpreflabel = tk.Label(self.parent, text = 'Data name prefix:')
+        self.CLpreflabel.grid(row=2, column=1, sticky='N')
+        self.CLprefixbox = tk.Entry(self.parent, width = 8, bg="white")
+        self.CLprefixbox.grid(row=2, column=2, sticky='N')
+        self.CLprefixbox.insert(0,self.CLprefix)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.CLprefixsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.CLprefixsubmit, relief='raised', bd = 5)
+        self.CLprefixsubmit.grid(row=2, column=3, sticky='N')
+
+        # need an input for the cluster definition name - save to it, or read from it
+        self.CLclusternamelabel = tk.Label(self.parent, text = 'Cluster definition name:')
+        self.CLclusternamelabel.grid(row=3, column=1, sticky='N')
+        self.CLclusternamebox = tk.Entry(self.parent, width = 30, bg="white",justify = 'right')
+        self.CLclusternamebox.grid(row=3, column=2, sticky='N')
+        self.CLclusternamebox.insert(0,self.CLclustername)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.CLclusternamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.CLclusternamesubmit, relief='raised', bd = 5)
+        self.CLclusternamesubmit.grid(row=3, column=3, sticky='N')
+        # the entry boxes need a "browse" button to allow selection of existing cluster definition file
+        self.CLclusternamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.CLclusternamebrowse, relief='raised', bd = 5)
+        self.CLclusternamebrowse.grid(row=3, column=4, sticky='N')
+
+        # box etc for entering the name for saving the region data
+        self.CLregionnamelabel = tk.Label(self.parent, text = 'Region/cluster data name:')
+        self.CLregionnamelabel.grid(row=4, column=1, sticky='N')
+        self.CLregionnamebox = tk.Entry(self.parent, width = 30, bg="white",justify = 'right')
+        self.CLregionnamebox.grid(row=4, column=2, sticky='N')
+        self.CLregionnamebox.insert(0,self.CLregionname)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.CLregionnamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.CLregionnamesubmit, relief='raised', bd = 5)
+        self.CLregionnamesubmit.grid(row=4, column=3, sticky='N')
+        # the entry boxes need a "browse" button to allow selection of existing cluster definition file
+        self.CLregionnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.CLregionnamebrowse, relief='raised', bd = 5)
+        self.CLregionnamebrowse.grid(row=4, column=4, sticky='N')
+
+
+        # label, button, for running the definition of clusters, and loading data
+        self.CLdefineandloadbutton = tk.Button(self.parent, text="Define Clusters", width=bigbigbuttonsize, bg=fgcol1, fg='white',
+                                        command=self.CLdefineandload, relief='raised', bd=5)
+        self.CLdefineandloadbutton.grid(row=5, column=2)
+
+        self.CLdefinebuttontext = tk.StringVar()
+        self.CLdefinebuttonlabel = tk.Label(self.parent, textvariable=self.CLdefinebuttontext, bg=bgcol, fg="#4B4B4B", font="none 10",
+                                     wraplength=200, justify='left')
+        self.CLdefinebuttonlabel.grid(row=5, column=3, sticky='N')
+
+        # label, button, for running the definition of clusters, and loading data
+        self.CLloadbutton = tk.Button(self.parent, text="Load Data", width=bigbigbuttonsize, bg=fgcol1, fg='white',
+                                        command=self.CLload, relief='raised', bd=5)
+        self.CLloadbutton.grid(row=6, column=2)
+
+        self.CLloadbuttontext = tk.StringVar()
+        self.CLloadbuttonlabel = tk.Label(self.parent, textvariable=self.CLloadbuttontext, bg=bgcol, fg="#4B4B4B", font="none 10",
+                                     wraplength=200, justify='left')
+        self.CLloadbuttonlabel.grid(row=6, column=3, sticky='N')
+
+
+# inputs needed:   network model definition, existing cluster definition (if needed), run buttons
+
+
+
+
+
+#-----------SEM FRAME--------------------------------------------------
+# Definition of the frame that has inputs for the database name, and entry numbers to use
+class SEMFrame:
+
+    # define functions before they are used in the database frame------------------------------------------
+    # action when the button to browse for a DB fie is pressed
+    def SEMnetbrowseclick(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
+        filename =  tkf.askopenfilename(title = "Select file",filetypes = (("excel files","*.xlsx"),("all files","*.*")))
+        print('filename = ',filename)
+        # save the selected file name in the settings
+        settings['networkmodel'] = filename
+        self.networkmodel = filename
+
+        # write the result to the label box for display
+        npname, nfname = os.path.split(self.networkmodel)
+        self.SEMnetnametext.set(nfname)
+        self.SEMnetdirtext.set(npname)
+        np.save(settingsfile,settings)
+
+    def SEMprefixsubmit(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        SEMprefix = self.SEMprefixbox.get()
+        settings['SEMprefix'] = SEMprefix
+        np.save(settingsfile,settings)
+        # update the text in the box, in case it has changed
+        self.SEMprefix = SEMprefix
+        print('prefix for SEM analysis set to ',self.SEMprefix)
+        return self
+
+
+    # define functions before they are used in the database frame------------------------------------------
+    # action when the button to browse for a DB fie is pressed
+    def SEMclusternamebrowse(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
+        filechoice =  tkf.asksaveasfilename(title = "Select file",filetypes = (("npy files","*.npy"),("all files","*.*")))
+        print('cluster definition name = ',filechoice)
+        # save the selected file name in the settings
+        SEMclustername = filechoice
+
+        npname, nfname = os.path.split(SEMclustername)
+        nfname,ext = os.path.splitext(nfname)
+        settings['SEMresultsdir'] = npname
+        self.SEMresultsdir = npname
+
+        SEMclustername = os.path.join(npname,nfname+'.npy')
+
+        settings['SEMclustername'] = SEMclustername
+        self.SEMclustername = SEMclustername
+
+        # write the result to the label box for display
+        self.SEMclusternamebox.delete(0, 'end')
+        self.SEMclusternamebox.insert(0,SEMclustername)
+
+        np.save(settingsfile,settings)
+
+
+    def SEMclusternamesubmit(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        SEMclustername = self.SEMclusternamebox.get()
+
+        # check if chosen name includes the full directory path, or the extension
+        npname, nfname = os.path.split(SEMclustername)
+        nfname, ext = os.path.splitext(nfname)
+
+        if os.path.isdir(npname):
+            settings['SEMresultsdir'] = npname
+            self.SEMresultsdir = npname
+        else:
+            # select a directory
+            npname = settings['SEMresultsdir']
+
+        # join up the name parts
+        SEMclustername = os.path.join(npname,nfname+'.npy')
+
+        settings['SEMclustername'] = SEMclustername
+        self.SEMclustername = SEMclustername
+
+        # write the result to the label box for display
+        self.SEMclusternamebox.delete(0, 'end')
+        self.SEMclusternamebox.insert(0, self.SEMclustername)
+
+        np.save(settingsfile, settings)
+
+
+    # define functions before they are used in the database frame------------------------------------------
+    # action when the button to browse for a DB fie is pressed
+    def SEMregionnamebrowse(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
+        filechoice =  tkf.asksaveasfilename(title = "Select file",filetypes = (("npy files","*.npy"),("all files","*.*")))
+        print('region/cluster data name = ',filechoice)
+        SEMregionname = filechoice
+
+        npname, nfname = os.path.split(SEMregionname)
+        fname, ext = os.path.splitext(nfname)
+        settings['SEMresultsdir'] = npname
+        self.SEMresultsdir = npname
+
+        SEMregionname = os.path.join(npname,fname+'.npy')
+
+        # write the result to the label box for display
+        self.SEMregionnamebox.delete(0, 'end')
+        self.SEMregionnamebox.insert(0,SEMregionname)
+
+        # save the selected file name in the settings
+        settings['SEMregionname'] = SEMregionname
+        self.SEMregionname = SEMregionname
+
+        np.save(settingsfile,settings)
+
+    def SEMregionnamesubmit(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        SEMregionname = self.SEMregionnamebox.get()
+
+        # check if chosen name includes the full directory path, or the extension
+        npname, nfname = os.path.split(SEMregionname)
+        nfname, ext = os.path.splitext(nfname)
+
+        if os.path.isdir(npname):
+            settings['SEMresultsdir'] = npname
+            self.SEMresultsdir = npname
+        else:
+            # select a directory
+            npname = settings['SEMresultsdir']
+
+        # join up the name parts
+        SEMregionname = os.path.join(npname,nfname+'.npy')
+
+        settings['SEMregionname'] = SEMregionname
+        self.SEMregionname = SEMregionname
+
+        # write the result to the label box for display
+        self.SEMregionnamebox.delete(0, 'end')
+        self.SEMregionnamebox.insert(0, self.SEMregionname)
+
+        np.save(settingsfile, settings)
+
+
+    def SEMtwosource(self):
+        # define the clusters and load the data
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
+        self.SEMprefix = settings['SEMprefix']
+        self.networkmodel = settings['networkmodel']
+        self.SEMclustername = settings['SEMclustername']
+        self.SEMregionname = settings['SEMregionname']
+
+        xls = pd.ExcelFile(self.DBname, engine = 'openpyxl')
+        df1 = pd.read_excel(xls, 'datarecord')
+
+        normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
+        resolution = 1
+        template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map = \
+            load_templates.load_template_and_masks(normtemplatename, resolution)
+
+        print('2-source SEM is not ready to run yet ....')
+
+
+    # initialize the values, keeping track of the frame this definition works on (parent), and
+    # also the main window containing that frame (controller)
+    def __init__(self, parent, controller):
+        parent.configure(relief='raised', bd=5, highlightcolor=fgcol3)
+        self.parent = parent
+        self.controller = controller
+        self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
+        self.SEMprefix = settings['SEMprefix']
+        self.networkmodel = settings['networkmodel']
+        self.SEMclustername = settings['SEMclustername']
+        self.SEMregionname = settings['SEMregionname']
+
+        # put some text as a place-holder
+        self.SEMLabel1 = tk.Label(self.parent, text = "1) Select clustering options", fg = 'gray', justify = 'left')
+        self.SEMLabel1.grid(row=0,column=0, sticky='W')
+        self.SEMLabel2 = tk.Label(self.parent, text = "   Choices are: define new clusters\nand load data, or load data using\nexisting cluster definition", fg = 'gray', justify = 'left')
+        self.SEMLabel2.grid(row=1,column=0, sticky='W')
+        self.SEMLabel3 = tk.Label(self.parent, text = "2) Run selected options", fg = 'gray', justify = 'left')
+        self.SEMLabel3.grid(row=2,column=0, sticky='W')
+
+        # create an entry box so that the user can specify the network file to use
+        # first make a title for the box, in row 3, column 1 of the grid for the main window
+        self.SEML1 = tk.Label(self.parent, text="Network Model:")
+        self.SEML1.grid(row=0, column=1, sticky='SW')
+
+        # make a label to show the current setting of the network definition file name
+        npname, nfname = os.path.split(self.networkmodel)
+        self.SEMnetnametext = tk.StringVar()
+        self.SEMnetnametext.set(nfname)
+        self.SEMfnamelabel = tk.Label(self.parent, textvariable=self.SEMnetnametext, bg=bgcol, fg="#4B4B4B", font="none 10",
+                                     wraplength=300, justify='left')
+        self.SEMfnamelabel.grid(row=0, column=2, sticky='S')
+
+        # make a label to show the current setting of the network definition file directory name
+        self.SEMnetdirtext = tk.StringVar()
+        self.SEMnetdirtext.set(npname)
+        self.SEMdnamelabel = tk.Label(self.parent, textvariable=self.SEMnetdirtext, bg=bgcol, fg="#4B4B4B", font="none 8",
+                                     wraplength=300, justify='left')
+        self.SEMdnamelabel.grid(row=1, column=2, sticky='N')
+
+        # define a button to browse and select an existing network definition file, and write out the selected name
+        # also, define the function for what to do when this button is pressed
+        self.SEMnetworkbrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg = fgcol2, fg = 'black',
+                                  command=self.SEMnetbrowseclick, relief='raised', bd=5)
+        self.SEMnetworkbrowse.grid(row=0, column=3)
+
+        # create entry box for the nifti data name prefix (indicates which preprocessing steps were done)
+        self.SEMpreflabel = tk.Label(self.parent, text = 'Data name prefix:')
+        self.SEMpreflabel.grid(row=2, column=1, sticky='N')
+        self.SEMprefixbox = tk.Entry(self.parent, width = 8, bg="white")
+        self.SEMprefixbox.grid(row=2, column=2, sticky='N')
+        self.SEMprefixbox.insert(0,self.CLprefix)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SEMprefixsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.CLprefixsubmit, relief='raised', bd = 5)
+        self.SEMprefixsubmit.grid(row=2, column=3, sticky='N')
+
+        # need an input for the cluster definition name - save to it, or read from it
+        self.SEMclusternamelabel = tk.Label(self.parent, text = 'Cluster definition name:')
+        self.SEMclusternamelabel.grid(row=3, column=1, sticky='N')
+        self.SEMclusternamebox = tk.Entry(self.parent, width = 30, bg="white",justify = 'right')
+        self.SEMclusternamebox.grid(row=3, column=2, sticky='N')
+        self.SEMclusternamebox.insert(0,self.SEMclustername)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SEMclusternamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.SEMclusternamesubmit, relief='raised', bd = 5)
+        self.SEMclusternamesubmit.grid(row=3, column=3, sticky='N')
+        # the entry boxes need a "browse" button to allow selection of existing cluster definition file
+        self.SEMclusternamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.SEMclusternamebrowse, relief='raised', bd = 5)
+        self.SEMclusternamebrowse.grid(row=3, column=4, sticky='N')
+
+        # box etc for entering the name for saving the region data
+        self.SEMregionnamelabel = tk.Label(self.parent, text = 'Region/cluster data name:')
+        self.SEMregionnamelabel.grid(row=4, column=1, sticky='N')
+        self.SEMregionnamebox = tk.Entry(self.parent, width = 30, bg="white",justify = 'right')
+        self.SEMregionnamebox.grid(row=4, column=2, sticky='N')
+        self.SEMregionnamebox.insert(0,self.SEMregionname)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SEMregionnamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.SEMregionnamesubmit, relief='raised', bd = 5)
+        self.SEMregionnamesubmit.grid(row=4, column=3, sticky='N')
+        # the entry boxes need a "browse" button to allow selection of existing cluster definition file
+        self.SEMregionnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.SEMregionnamebrowse, relief='raised', bd = 5)
+        self.SEMregionnamebrowse.grid(row=4, column=4, sticky='N')
+
+
+        # label, button, for running the definition of clusters, and loading data
+        self.SEMrun2sourcebutton = tk.Button(self.parent, text="2-source SEM", width=bigbigbuttonsize, bg=fgcol1, fg='white',
+                                        command=self.SEMtwosource, relief='raised', bd=5)
+        self.SEMrun2sourcebutton.grid(row=5, column=2)
+
+        self.SEMrun2buttontext = tk.StringVar()
+        self.SEMrun2buttonlabel = tk.Label(self.parent, textvariable=self.SEMrun2buttontext, bg=bgcol, fg="#4B4B4B", font="none 10",
+                                     wraplength=200, justify='left')
+        self.SEMrun2buttonlabel.grid(row=5, column=3, sticky='N')
+
+
+
+
+#----------MAIN calling function----------------------------------------------------
+# the main function that starts everything running
+def main():
+    root = tk.Tk()
+    root.title('FMRI Analysis')
+    tk.Tk.iconbitmap(root, default='lablogoicon.ico')
+    app = mainspinalfmri_window(root)
+
+    root.mainloop()
+
+if __name__ == '__main__':
+    main()
+    
+    
