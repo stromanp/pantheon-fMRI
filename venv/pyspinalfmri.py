@@ -183,6 +183,11 @@ class mainspinalfmri_window:
         page_name = CLFrame.__name__
         self.frames[page_name] = CLbase
 
+        SEMbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
+        SEMbase.grid(row=1, column=1, sticky="nsew")
+        SEMFrame(SEMbase, self)
+        page_name = SEMFrame.__name__
+        self.frames[page_name] = SEMbase
 
         # start with the Database information frame on top
         self.show_frame('DBFrame')
@@ -403,17 +408,21 @@ class OptionsFrame:
         self.preprocess.grid(row = 3, column = 0)
 
         # button for selecting and running the GLM analysis steps
-        self.glmanalysis = tk.Button(self.parent, text = 'GLM 1', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('GLMFrame'), relief='raised', bd = 5)
+        self.glmanalysis = tk.Button(self.parent, text = 'GLM fit', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('GLMFrame'), relief='raised', bd = 5)
         self.glmanalysis.grid(row = 4, column = 0)
 
         # button for selecting and running the GLM analysis steps
         self.clustering = tk.Button(self.parent, text = 'Cluster', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('CLFrame'), relief='raised', bd = 5)
         self.clustering.grid(row = 5, column = 0)
+
+        # button for selecting and running the GLM analysis steps
+        self.clustering = tk.Button(self.parent, text = 'SEM', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('SEMFrame'), relief='raised', bd = 5)
+        self.clustering.grid(row = 6, column = 0)
         
         # define a button to exit the GUI
         # also, define the function for what to do when this button is pressed
         self.exit_button = tk.Button(self.parent, text = 'Exit', width = smallbuttonsize, bg = 'grey80', fg = 'black', font = "none 9 bold", command = self.close_window, relief='sunken', bd = 5)
-        self.exit_button.grid(row = 6, column = 0)
+        self.exit_button.grid(row = 7, column = 0)
             
     # exit function
     def close_window(self):
@@ -2283,7 +2292,7 @@ class SEMFrame:
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
-        filechoice =  tkf.asksaveasfilename(title = "Select file",filetypes = (("npy files","*.npy"),("all files","*.*")))
+        filechoice =  tkf.askopenfilename(title = "Select file",filetypes = (("npy files","*.npy"),("all files","*.*")))
         print('cluster definition name = ',filechoice)
         # save the selected file name in the settings
         SEMclustername = filechoice
@@ -2340,7 +2349,7 @@ class SEMFrame:
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
-        filechoice =  tkf.asksaveasfilename(title = "Select file",filetypes = (("npy files","*.npy"),("all files","*.*")))
+        filechoice =  tkf.askopenfilename(title = "Select file",filetypes = (("npy files","*.npy"),("all files","*.*")))
         print('region/cluster data name = ',filechoice)
         SEMregionname = filechoice
 
@@ -2425,11 +2434,9 @@ class SEMFrame:
         self.SEMregionname = settings['SEMregionname']
 
         # put some text as a place-holder
-        self.SEMLabel1 = tk.Label(self.parent, text = "1) Select clustering options", fg = 'gray', justify = 'left')
+        self.SEMLabel1 = tk.Label(self.parent, text = "1) Select SEM options\nChoices are: 1- and 2-source SEM,\nor SEM based on a network", fg = 'gray', justify = 'left')
         self.SEMLabel1.grid(row=0,column=0, sticky='W')
-        self.SEMLabel2 = tk.Label(self.parent, text = "   Choices are: define new clusters\nand load data, or load data using\nexisting cluster definition", fg = 'gray', justify = 'left')
-        self.SEMLabel2.grid(row=1,column=0, sticky='W')
-        self.SEMLabel3 = tk.Label(self.parent, text = "2) Run selected options", fg = 'gray', justify = 'left')
+        self.SEMLabel3 = tk.Label(self.parent, text = "2) Run selected SEM", fg = 'gray', justify = 'left')
         self.SEMLabel3.grid(row=2,column=0, sticky='W')
 
         # create an entry box so that the user can specify the network file to use
@@ -2463,9 +2470,9 @@ class SEMFrame:
         self.SEMpreflabel.grid(row=2, column=1, sticky='N')
         self.SEMprefixbox = tk.Entry(self.parent, width = 8, bg="white")
         self.SEMprefixbox.grid(row=2, column=2, sticky='N')
-        self.SEMprefixbox.insert(0,self.CLprefix)
+        self.SEMprefixbox.insert(0,self.SEMprefix)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.SEMprefixsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.CLprefixsubmit, relief='raised', bd = 5)
+        self.SEMprefixsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.SEMprefixsubmit, relief='raised', bd = 5)
         self.SEMprefixsubmit.grid(row=2, column=3, sticky='N')
 
         # need an input for the cluster definition name - save to it, or read from it
