@@ -102,9 +102,6 @@ def gradient_descent_fullinfo(b0, y, X, Lweight, alpha, deltab, tol=1e-6, maxite
     N = len(b0)
     fit0 = b0 @ X
 
-    # fit0 = np.matmul(b0,X)
-    # fit0 = b0 @ X
-
     err0 = y - fit0
     ssqd_0 = np.sum(err0**2)
 
@@ -609,13 +606,5 @@ def pysem_network(cluster_properties, region_properties, networkmodel, timepoint
         np.save(outputname, sem_one_target_results)
 
     return outputnamelist
-                # # store the results ....
-                # Z = np.arctanh(np.sqrt(np.abs(R2))) * np.sqrt(imgdata_nruns[nn] * epoch - 3)
-                # Z_1 = np.arctanh(np.sqrt(np.abs(R21))) * np.sqrt(imgdata_nruns[nn] * epoch - 3)
-                # Z_2 = np.arctanh(np.sqrt(np.abs(R22))) * np.sqrt(imgdata_nruns[nn] * epoch - 3)
-                #
-                # beta2[tc, s1c, s2c, source2, ttime, nn, :] = b
-                # beta1[tc, s1c, s2c, source2, ttime, nn, :] = [b1, b2]
-                # Zgrid2[tc, s1c, s2c, source2, ttime, nn] = Z
-                # Zgrid1_1[tc, s1c, s2c, source2, ttime, nn] = Z_1
-                # Zgrid1_2[tc, s1c, s2c, source2, ttime, nn] = Z_2
+
+    # now a function is needed to look at group characteristics etc of the results...

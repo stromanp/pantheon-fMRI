@@ -112,7 +112,10 @@ else:
             'SEMprefix':'xptc',
             'SEMclustername':'notdefined',
             'SEMregionname':'notdefined',
-            'SEMresultsdir':basedir}
+            'SEMresultsdir':basedir,
+            'SEMsavetag':'base',
+            'SEMtimepoints':[11,18],
+            'SEMepoch':7}
     np.save(settingsfile,settings)
 
 # ------Create the Base Window that will hold everything, widgets, etc.---------------------
@@ -1793,7 +1796,7 @@ class GLMFrame:
         np.save(filechoice,dataset)
         print('Finished saving  data to ',filechoice)
 
-        settings['GLMdata'] = dataset
+        # settings['GLMdata'] = dataset
         settings['GLMdataname'] = filechoice
         np.save(settingsfile,settings)
 
@@ -1801,6 +1804,9 @@ class GLMFrame:
 
 
     def GLMdataload(self):
+        # this function is useless except for checking the data shape/size
+        # it makes the base_setup_file very large
+        # it will be replaced in future versions
         self.GLMdatainfo.configure(text = 'Loading data ...')
         # select the method for GLM analysis
         # prompt for a filename for loading the basis set
@@ -1821,7 +1827,7 @@ class GLMFrame:
         print('Finished loading  data from ',filename)
 
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
-        settings['GLMdata'] = dataset
+        # settings['GLMdata'] = dataset
         settings['GLMdataname'] = filename
         np.save(settingsfile,settings)
 
@@ -1839,8 +1845,21 @@ class GLMFrame:
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         DBname = settings['DBname']
         DBnum = settings['DBnum']
-        dataset = settings['GLMdata']
+        # dataset = settings['GLMdata']
+        filename = settings['GLMdataname']
         basisset = settings['GLMbasisset']
+
+        # actually load the data here
+        dataset = np.load(filename, allow_pickle=True)
+        self.dataset = dataset
+        bshape = np.shape(dataset)
+        datainfo = 'data set, size {}'.format(bshape[0])
+        for val in bshape[1:]:
+            infotext = ' x {}'.format(val)
+            datainfo += infotext
+        self.GLMdatainfo.configure(text=datainfo)
+        print('Finished loading  data from ',filename)
+
 
         # for consistency with other program components - update these
         self.DBname = DBname
@@ -1967,7 +1986,7 @@ class CLFrame:
         self.CLnetdirtext.set(npname)
         np.save(settingsfile,settings)
 
-    def CLprefixsubmit(self):
+    def CLprefixsubmitaction(self):
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         CLprefix = self.CLprefixbox.get()
         settings['CLprefix'] = CLprefix
@@ -1980,7 +1999,7 @@ class CLFrame:
 
     # define functions before they are used in the database frame------------------------------------------
     # action when the button to browse for a DB fie is pressed
-    def CLclusternamebrowse(self):
+    def CLclusternamebrowseaction(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
@@ -2006,7 +2025,7 @@ class CLFrame:
         np.save(settingsfile,settings)
 
 
-    def CLclusternamesubmit(self):
+    def CLclusternamesubmitaction(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
         CLclustername = self.CLclusternamebox.get()
@@ -2037,7 +2056,7 @@ class CLFrame:
 
     # define functions before they are used in the database frame------------------------------------------
     # action when the button to browse for a DB fie is pressed
-    def CLregionnamebrowse(self):
+    def CLregionnamebrowseaction(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
@@ -2062,7 +2081,7 @@ class CLFrame:
 
         np.save(settingsfile,settings)
 
-    def CLregionnamesubmit(self):
+    def CLregionnamesubmitaction(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
         CLregionname = self.CLregionnamebox.get()
@@ -2196,7 +2215,7 @@ class CLFrame:
         self.CLprefixbox.grid(row=2, column=2, sticky='N')
         self.CLprefixbox.insert(0,self.CLprefix)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.CLprefixsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.CLprefixsubmit, relief='raised', bd = 5)
+        self.CLprefixsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.CLprefixsubmitaction, relief='raised', bd = 5)
         self.CLprefixsubmit.grid(row=2, column=3, sticky='N')
 
         # need an input for the cluster definition name - save to it, or read from it
@@ -2206,10 +2225,10 @@ class CLFrame:
         self.CLclusternamebox.grid(row=3, column=2, sticky='N')
         self.CLclusternamebox.insert(0,self.CLclustername)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.CLclusternamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.CLclusternamesubmit, relief='raised', bd = 5)
+        self.CLclusternamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.CLclusternamesubmitaction, relief='raised', bd = 5)
         self.CLclusternamesubmit.grid(row=3, column=3, sticky='N')
         # the entry boxes need a "browse" button to allow selection of existing cluster definition file
-        self.CLclusternamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.CLclusternamebrowse, relief='raised', bd = 5)
+        self.CLclusternamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.CLclusternamebrowseaction, relief='raised', bd = 5)
         self.CLclusternamebrowse.grid(row=3, column=4, sticky='N')
 
         # box etc for entering the name for saving the region data
@@ -2219,10 +2238,10 @@ class CLFrame:
         self.CLregionnamebox.grid(row=4, column=2, sticky='N')
         self.CLregionnamebox.insert(0,self.CLregionname)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.CLregionnamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.CLregionnamesubmit, relief='raised', bd = 5)
+        self.CLregionnamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.CLregionnamesubmitaction, relief='raised', bd = 5)
         self.CLregionnamesubmit.grid(row=4, column=3, sticky='N')
         # the entry boxes need a "browse" button to allow selection of existing cluster definition file
-        self.CLregionnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.CLregionnamebrowse, relief='raised', bd = 5)
+        self.CLregionnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.CLregionnamebrowseaction, relief='raised', bd = 5)
         self.CLregionnamebrowse.grid(row=4, column=4, sticky='N')
 
 
@@ -2275,7 +2294,7 @@ class SEMFrame:
         self.SEMnetdirtext.set(npname)
         np.save(settingsfile,settings)
 
-    def SEMprefixsubmit(self):
+    def SEMprefixsubmitaction(self):
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         SEMprefix = self.SEMprefixbox.get()
         settings['SEMprefix'] = SEMprefix
@@ -2288,7 +2307,7 @@ class SEMFrame:
 
     # define functions before they are used in the database frame------------------------------------------
     # action when the button to browse for a DB fie is pressed
-    def SEMclusternamebrowse(self):
+    def SEMclusternamebrowseaction(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
@@ -2314,7 +2333,7 @@ class SEMFrame:
         np.save(settingsfile,settings)
 
 
-    def SEMclusternamesubmit(self):
+    def SEMclusternamesubmitaction(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
         SEMclustername = self.SEMclusternamebox.get()
@@ -2343,9 +2362,25 @@ class SEMFrame:
         np.save(settingsfile, settings)
 
 
+
+    def SEMsavetagsubmitaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        SEMsavetag = self.SEMsavetagbox.get()
+
+        settings['SEMsavetag'] = SEMsavetag
+        self.SEMsavetag = SEMsavetag
+
+        # write the result to the label box for display
+        self.SEMsavetagbox.delete(0, 'end')
+        self.SEMsavetagbox.insert(0, self.SEMsavetagbox)
+
+        np.save(settingsfile, settings)
+
+
     # define functions before they are used in the database frame------------------------------------------
     # action when the button to browse for a DB fie is pressed
-    def SEMregionnamebrowse(self):
+    def SEMregionnamebrowseaction(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
@@ -2370,7 +2405,8 @@ class SEMFrame:
 
         np.save(settingsfile,settings)
 
-    def SEMregionnamesubmit(self):
+
+    def SEMregionnamesubmitaction(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
         SEMregionname = self.SEMregionnamebox.get()
@@ -2399,6 +2435,23 @@ class SEMFrame:
         np.save(settingsfile, settings)
 
 
+
+    def SEMresultsdirbrowseaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        SEMresultsdir = settings['SEMresultsdir']
+        # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
+        folderchoice =  tkf.askdirectory(title = "Select folder for saving results")
+        print('save folder name = ',folderchoice)
+
+        self.SEMresultsdir = folderchoice
+        self.SEMresultsdirtext.set(self.SEMresultsdir)
+
+        settings['SEMresultsdir'] = folderchoice
+        np.save(settingsfile,settings)
+
+
+
     def SEMtwosource(self):
         # define the clusters and load the data
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
@@ -2417,7 +2470,54 @@ class SEMFrame:
         template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map = \
             load_templates.load_template_and_masks(normtemplatename, resolution)
 
+        region_data = np.load(self.SEMregionname, allow_pickle=True).flat[0]
+        region_properties = region_data['region_properties']
+
+        cluster_data = np.load(self.SEMclustername, allow_pickle=True).flat[0]
+        cluster_properties = cluster_data['cluster_properties']
+
+        # need inputs for timepoints and epoch
+        timepoints = [11, 18]
+        epoch = 7
+
         print('2-source SEM is not ready to run yet ....')
+        CCrecord, beta2, beta1, Zgrid2, Zgrid1_1, Zgrid1_2 = pysem(cluster_properties, region_properties, timepoints, epoch)
+        # save the results somehow
+
+
+    def SEMrunnetwork(self):
+        # define the clusters and load the data
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
+        self.SEMprefix = settings['SEMprefix']
+        self.networkmodel = settings['networkmodel']
+        self.SEMclustername = settings['SEMclustername']
+        self.SEMregionname = settings['SEMregionname']
+
+        xls = pd.ExcelFile(self.DBname, engine='openpyxl')
+        df1 = pd.read_excel(xls, 'datarecord')
+
+        normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
+        resolution = 1
+        template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map = \
+            load_templates.load_template_and_masks(normtemplatename, resolution)
+
+        region_data = np.load(self.SEMregionname, allow_pickle=True).flat[0]
+        region_properties = region_data['region_properties']
+
+        cluster_data = np.load(self.SEMclustername, allow_pickle=True).flat[0]
+        cluster_properties = cluster_data['cluster_properties']
+
+        # need inputs for timepoints and epoch
+        timepoints = [11, 18]
+        epoch = 7
+        savedirectory = 'C:\sample_data'
+        savenamelabel = 'testing'
+
+        print('network SEM is not ready to run yet ....')
+        outputnamelist = pysem_network(cluster_properties, region_properties, networkmodel, timepoints, epoch, savedirectory, savenamelabel)
+        # save the results somehow
 
 
     # initialize the values, keeping track of the frame this definition works on (parent), and
@@ -2432,6 +2532,10 @@ class SEMFrame:
         self.networkmodel = settings['networkmodel']
         self.SEMclustername = settings['SEMclustername']
         self.SEMregionname = settings['SEMregionname']
+        self.SEMresultsdir = settings['SEMresultsdir']
+        self.SEMsavetag = settings['SEMsavetag']
+        self.SEMtimepoints = settings['SEMtimepoints']
+        self.SEMepoch = settings['SEMepoch']
 
         # put some text as a place-holder
         self.SEMLabel1 = tk.Label(self.parent, text = "1) Select SEM options\nChoices are: 1- and 2-source SEM,\nor SEM based on a network", fg = 'gray', justify = 'left')
@@ -2472,7 +2576,7 @@ class SEMFrame:
         self.SEMprefixbox.grid(row=2, column=2, sticky='N')
         self.SEMprefixbox.insert(0,self.SEMprefix)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.SEMprefixsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.SEMprefixsubmit, relief='raised', bd = 5)
+        self.SEMprefixsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.SEMprefixsubmitaction, relief='raised', bd = 5)
         self.SEMprefixsubmit.grid(row=2, column=3, sticky='N')
 
         # need an input for the cluster definition name - save to it, or read from it
@@ -2482,10 +2586,10 @@ class SEMFrame:
         self.SEMclusternamebox.grid(row=3, column=2, sticky='N')
         self.SEMclusternamebox.insert(0,self.SEMclustername)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.SEMclusternamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.SEMclusternamesubmit, relief='raised', bd = 5)
+        self.SEMclusternamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.SEMclusternamesubmitaction, relief='raised', bd = 5)
         self.SEMclusternamesubmit.grid(row=3, column=3, sticky='N')
         # the entry boxes need a "browse" button to allow selection of existing cluster definition file
-        self.SEMclusternamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.SEMclusternamebrowse, relief='raised', bd = 5)
+        self.SEMclusternamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.SEMclusternamebrowseaction, relief='raised', bd = 5)
         self.SEMclusternamebrowse.grid(row=3, column=4, sticky='N')
 
         # box etc for entering the name for saving the region data
@@ -2495,24 +2599,57 @@ class SEMFrame:
         self.SEMregionnamebox.grid(row=4, column=2, sticky='N')
         self.SEMregionnamebox.insert(0,self.SEMregionname)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.SEMregionnamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.SEMregionnamesubmit, relief='raised', bd = 5)
+        self.SEMregionnamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.SEMregionnamesubmitaction, relief='raised', bd = 5)
         self.SEMregionnamesubmit.grid(row=4, column=3, sticky='N')
         # the entry boxes need a "browse" button to allow selection of existing cluster definition file
-        self.SEMregionnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.SEMregionnamebrowse, relief='raised', bd = 5)
+        self.SEMregionnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.SEMregionnamebrowseaction, relief='raised', bd = 5)
         self.SEMregionnamebrowse.grid(row=4, column=4, sticky='N')
+
+
+        # box etc for entering the name of the directory for saving the results
+        # make a label to show the current setting of the network definition file directory name
+        self.SEMresultsdirlabel = tk.Label(self.parent, text = 'Results save folder:')
+        self.SEMresultsdirlabel.grid(row=5, column=1, sticky='N')
+        self.SEMresultsdirtext = tk.StringVar()
+        self.SEMresultsdirtext.set(self.SEMresultsdir)
+        self.SEMresultsdirdisplay = tk.Label(self.parent, textvariable=self.SEMresultsdirtext, bg=bgcol, fg="#4B4B4B", font="none 10",
+                                     wraplength=300, justify='left')
+        self.SEMresultsdirdisplay.grid(row=5, column=2, sticky='N')
+        # the entry boxes need a "browse" button to allow selection of existing cluster definition file
+        self.SEMresultsdirbrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.SEMresultsdirbrowseaction, relief='raised', bd = 5)
+        self.SEMresultsdirbrowse.grid(row=5, column=3, sticky='N')
+
+
+        # box etc for entering the name used in labeling the results files
+        self.SEMsavetaglabel = tk.Label(self.parent, text = 'tag for results names:')
+        self.SEMsavetaglabel.grid(row=6, column=1, sticky='N')
+        self.SEMsavetagbox = tk.Entry(self.parent, width = 30, bg="white",justify = 'right')
+        self.SEMsavetagbox.grid(row=6, column=2, sticky='N')
+        self.SEMsavetagbox.insert(0,self.SEMsavetag)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SEMsavetagsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.SEMsavetagsubmitaction, relief='raised', bd = 5)
+        self.SEMsavetagsubmit.grid(row=6, column=3, sticky='N')
 
 
         # label, button, for running the definition of clusters, and loading data
         self.SEMrun2sourcebutton = tk.Button(self.parent, text="2-source SEM", width=bigbigbuttonsize, bg=fgcol1, fg='white',
                                         command=self.SEMtwosource, relief='raised', bd=5)
-        self.SEMrun2sourcebutton.grid(row=5, column=2)
-
-        self.SEMrun2buttontext = tk.StringVar()
-        self.SEMrun2buttonlabel = tk.Label(self.parent, textvariable=self.SEMrun2buttontext, bg=bgcol, fg="#4B4B4B", font="none 10",
-                                     wraplength=200, justify='left')
-        self.SEMrun2buttonlabel.grid(row=5, column=3, sticky='N')
+        self.SEMrun2sourcebutton.grid(row=8, column=2)
 
 
+        # label, button, for running the definition of clusters, and loading data
+        self.SEMrunnetworkbutton = tk.Button(self.parent, text="network SEM", width=bigbigbuttonsize, bg=fgcol1, fg='white',
+                                        command=self.SEMrunnetwork, relief='raised', bd=5)
+        self.SEMrunnetworkbutton.grid(row=9, column=2)
+
+
+
+
+        # # need inputs for timepoints and epoch
+        # timepoints = [11, 18]
+        # epoch = 7
+        # savedirectory = 'C:\sample_data'
+        # savenamelabel = 'testing'
 
 
 #----------MAIN calling function----------------------------------------------------

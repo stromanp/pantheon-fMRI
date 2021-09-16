@@ -1,6 +1,7 @@
 # set of functions for displaying fMRI results in various forms
 import numpy as np
 import copy
+import load_templates
 import scipy.ndimage as nd
 
 # setup color scales for displays
@@ -153,7 +154,7 @@ def pydisplayanatregions(templatename, anatnames, colorlist = []):
             print('pydisplayanatregions: region ',name,' is not in the anatomical map (ignoring this region)')
             rnum = 0
 
-    background = template.astype('double')
+    background = template_img.astype('double')
     background = background/np.max(background)
     red = copy.deepcopy(background)
     green = copy.deepcopy(background)
@@ -166,6 +167,87 @@ def pydisplayanatregions(templatename, anatnames, colorlist = []):
             red[cx,cy,cz] = colorlist[0,nn]
             green[cx,cy,cz] = colorlist[1,nn]
             blue[cx,cy,cz] = colorlist[2,nn]
+
+    # slice results and put them into a mosaic format image
+    xs,ys,zs = np.shape(template_img)
+    ncols = (np.sqrt(zs)).astype(int)
+    nrows = np.ceil(zs/ncols).astype(int)
+
+    # this might work for brain regions as well
+    if templatename == 'brain':
+        # display brain data
+        outputimg = np.zeros([nrows*ys,ncols*xs,3])
+
+        for zz in range(zs):
+            colnum = zz % ncols
+            rownum = np.floor(zz/ncols)
+            x1 = rownum*xs
+            x2 = (rownum+1)*xs-1
+            y1 = colnum*ys
+            y2 = (colnum+1)*ys-1
+            redrot = red[:,yc1:yc2,zz];  redrot = redrot[:,::-1].T
+            greenrot = green[:,yc1:yc2,zz];  greenrot = greenrot[:,::-1].T
+            bluerot = blue[:,yc1:yc2,zz];  bluerot = bluerot[:,::-1].T
+            outputimg[y1:y2,x1:x2,0:3] = np.dstack((redrot,greenrot,bluerot))
+
+    if templatename == 'ccbs':
+        # display brainstem/cord
+        yc1 = 20;  yc2 = 76;  ys2 = yc2-yc1
+        outputimg = np.zeros([nrows*ys2,ncols*xs,3])
+
+        for zz in range(zs):
+            colnum = zz % ncols
+            rownum = np.floor(zz/ncols).astype(int)
+            x1 = colnum*xs
+            x2 = (colnum+1)*xs
+            y1 = rownum*ys2
+            y2 = (rownum+1)*ys2
+            # need to rotate each from by 90 degrees
+            redrot = red[:,yc1:yc2,zz];  redrot = redrot[:,::-1].T
+            greenrot = green[:,yc1:yc2,zz];  greenrot = greenrot[:,::-1].T
+            bluerot = blue[:,yc1:yc2,zz];  bluerot = bluerot[:,::-1].T
+            outputimg[y1:y2,x1:x2,0:3] = np.dstack((redrot,greenrot,bluerot))
+
+    if templatename != 'brain' and templatename != 'ccbs':
+        # do the other thing
+        yc1 = 20;  yc2 = 41;  ys2 = yc2-yc1
+        outputimg = np.zeros([nrows*ys2,ncols*xs,3])
+
+        for zz in range(zs):
+            colnum = zz % ncols
+            rownum = np.floor(zz/ncols).astype(int)
+            x1 = colnum*xs
+            x2 = (colnum+1)*xs
+            y1 = rownum*ys2
+            y2 = (rownum+1)*ys2
+            # need to rotate each from by 90 degrees
+            redrot = red[:,yc1:yc2,zz];  redrot = redrot[:,::-1].T
+            greenrot = green[:,yc1:yc2,zz];  greenrot = greenrot[:,::-1].T
+            bluerot = blue[:,yc1:yc2,zz];  bluerot = bluerot[:,::-1].T
+            outputimg[y1:y2,x1:x2,0:3] = np.dstack((redrot,greenrot,bluerot))
+
+    outputimg[outputimg>1.] = 1.0
+    outputimg[outputimg<0.] = 0.0
+
+    return outputimg
+
+
+
+# display named regions in different colors
+def pydisplayvoxels(templatename, cx,cy,cz, colorlist = [1,0,0]):
+    resolution = 1
+    template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = load_templates.load_template_and_masks(templatename, resolution)
+
+    background = template_img.astype('double')
+    background = background/np.max(background)
+    red = copy.deepcopy(background)
+    green = copy.deepcopy(background)
+    blue = copy.deepcopy(background)
+
+    # color the voxels
+    red[cx,cy,cz] = colorlist[0]
+    green[cx,cy,cz] = colorlist[1]
+    blue[cx,cy,cz] = colorlist[2]
 
     # slice results and put them into a mosaic format image
     xs,ys,zs = np.shape(template_img)

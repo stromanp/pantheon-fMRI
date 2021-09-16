@@ -255,8 +255,8 @@ def load_template_and_masks(region_name, resolution, verbose=False):
     template_folder = os.path.join(workingdir, 'templates')
     print('Loading template from ', template_folder)
 
-    if 'to' in region_name:  # a range of cord segments is specified
-        a = region_name.find('to')
+    a = region_name.find('to')
+    if a > 0:  # a range of cord segments is specified
         region_name2 = region_name[a + 2:]
         region_name = region_name[:2]
     else:
@@ -281,12 +281,14 @@ def load_template_and_masks(region_name, resolution, verbose=False):
                 template_file = 'brain_template_aligned_with_stitched_PAM50_icbm152_T2.nii.gz'
                 regionmap_file = 'wholeCNS_region_map_cordsegments.nii.gz'
                 wmmap_file = 'wholeCNS_wm_map.nii.gz'
+                gm_wm_mask_file = 'none'
                 match_affine = True
                 crop = False
             else:
                 template_file = 'brain_template_aligned_with_stitched_PAM50_icbm152_T2_1mm.nii.gz'
                 regionmap_file = 'wholeCNS_region_map_cordsegments_1mm.nii.gz'
                 wmmap_file = 'wholeCNS_wm_map_1mm.nii.gz'
+                gm_wm_mask_file = 'none'
                 match_affine = True
                 crop = False
 
@@ -295,12 +297,14 @@ def load_template_and_masks(region_name, resolution, verbose=False):
                 template_file = 'CCBS_template_aligned_with_stitched_PAM50_icbm152.nii.gz'
                 regionmap_file = 'CCBS_region_map_cordsegments.nii.gz'
                 wmmap_file = 'CCBS_wm_map.nii.gz'
+                gm_wm_mask_file = 'CCBS_cord_wm_gm_mask.nii.gz'
                 match_affine = False
                 crop = False
             else:
                 template_file = 'CCBS_template_aligned_with_stitched_PAM50_icbm152_1mm.nii.gz'
                 regionmap_file = 'CCBS_region_map_cordsegments_1mm.nii.gz'
                 wmmap_file = 'CCBS_wm_map_1mm.nii.gz'
+                gm_wm_mask_file = 'CCBS_cord_wm_gm_mask_1mm.nii.gz'
                 match_affine = False
                 crop = False
 
@@ -310,12 +314,14 @@ def load_template_and_masks(region_name, resolution, verbose=False):
             template_file = 'stitched_PAM50_icbm152_May2020_T2.nii.gz'
             regionmap_file = 'wholeCNS_region_map_cordsegments.nii.gz'
             wmmap_file = 'wholeCNS_wm_map.nii.gz'
+            gm_wm_mask_file = 'CNS_cord_wm_gm_mask.nii.gz'
             match_affine = False
             crop = True
         else:
             template_file = 'stitched_PAM50_icbm152_May2020_T2_1mm.nii.gz'
             regionmap_file = 'wholeCNS_region_map_cordsegments_1mm.nii.gz'
             wmmap_file = 'wholeCNS_wm_map_1mm.nii.gz'
+            gm_wm_mask_file = 'CNS_cord_wm_gm_mask_1mm.nii.gz'
             match_affine = False
             crop = True
 
@@ -337,8 +343,20 @@ def load_template_and_masks(region_name, resolution, verbose=False):
     wmmap_img = wmmap_data.get_data()
     wmmap_affine = wmmap_data.affine
 
+    if region_name.lower() != 'brain':
+        gm_wm_mask_file = os.path.join(template_folder, gm_wm_mask_file)
+        gmwm_data = nib.load(gm_wm_mask_file)
+        gmwm_img = gmwm_data.get_data()
+        gmwm_size = np.shape(gmwm_img)
+        gmwm_affine = gmwm_data.affine
+    else:
+        gmwm_img = []
+        gmwm_affine = []
+
     namelist = df1['abbreviation']
     numberlist = df1['number']
+
+    print('load_templates:   GMWM mask file is: ',gm_wm_mask_file)
 
     if match_affine:
         # adjust the regionmap to match the affine matrix of the template
@@ -352,7 +370,15 @@ def load_template_and_masks(region_name, resolution, verbose=False):
         wmmap_img = np.round(wmmap_img).astype('int')
         wmmap_affine = template_affine
 
+        if region_name.lower() != 'brain':
+            gmwm_img = i3d.convert_affine_matrices_nearest(gmwm_img, gmwm_affine, template_affine,
+                                                                template_size)
+            gmwm_img = np.round(gmwm_img).astype('int')
+            gmwm_affine = template_affine
+
+
     if crop:
+        # cropping images to correct region sizes
         # crop the regionmap and template to match the size/shape of the coordinates provided
         # calculate the new affine matrix to go with the cropped image
         check1 = tagfind(region_name, namelist)
@@ -362,6 +388,10 @@ def load_template_and_masks(region_name, resolution, verbose=False):
         listn2 = np.max([check1, check2])
         rn1 = df1['number'][listn1]
         rn2 = df1['number'][listn2]
+
+        print('rn1 = {}   rn2 = {}'.format(rn1,rn2))
+        print('size of regionmap_img is ',np.shape(regionmap_img))
+
         a = np.where((regionmap_img >= rn1) & (regionmap_img <= rn2))
         # now get the range of z coordinates:
         z1 = np.min(a[2])
@@ -380,7 +410,7 @@ def load_template_and_masks(region_name, resolution, verbose=False):
         x0 = np.round(xs / 2).astype('int')
         # define the range for cropping:
         cc = [x0 - RLrange, x0 + RLrange, APcenter - APrange, APcenter + APrange, z1, z2]
-        # and crop the maps:
+
         regionmap_img = regionmap_img[cc[0]:cc[1], cc[2]:cc[3], cc[4]:cc[5]]
         template_img = template_img[cc[0]:cc[1], cc[2]:cc[3], cc[4]:cc[5]]
         wmmap_img = wmmap_img[cc[0]:cc[1], cc[2]:cc[3], cc[4]:cc[5]]
@@ -389,6 +419,10 @@ def load_template_and_masks(region_name, resolution, verbose=False):
         template_affine[0:3, 3] = corner_position[0:3]
         regionmap_affine = template_affine
         wmmap_affine = template_affine
+        gmwm_img = gmwm_img[cc[0]:cc[1], cc[2]:cc[3], cc[4]:cc[5]]
+        gmwm_affine = template_affine
+
+
 
     v = np.unique(regionmap_img)
     print('found {num} unique values in region map'.format(num=np.size(v)))
@@ -437,7 +471,7 @@ def load_template_and_masks(region_name, resolution, verbose=False):
 
     anatlabels = {'names': namelist, 'numbers': numberlist}
     roi_map = (regionmap_img > 0) | (wmmap_img > 0)
-    return template_img, regionmap_img, template_affine, anatlabels, wmmap_img, roi_map
+    return template_img, regionmap_img, template_affine, anatlabels, wmmap_img, roi_map, gmwm_img
 
 
 
@@ -480,12 +514,14 @@ def load_wm_maps(region_name, resolution, verbose=False):
                 template_file = 'brain_template_aligned_with_stitched_PAM50_icbm152_T2.nii.gz'
                 regionmap_file = 'wholeCNS_region_map_cordsegments.nii.gz'
                 wmmap_file = 'wholeCNS_wm_map.nii.gz'
+                gm_wm_mask_file = 'none'
                 match_affine = True
                 crop = False
             else:
                 template_file = 'brain_template_aligned_with_stitched_PAM50_icbm152_T2_1mm.nii.gz'
                 regionmap_file = 'wholeCNS_region_map_cordsegments.nii.gz'
                 wmmap_file = 'wholeCNS_wm_map_1mm.nii.gz'
+                gm_wm_mask_file = 'none'
                 match_affine = True
                 crop = False
 
@@ -494,12 +530,14 @@ def load_wm_maps(region_name, resolution, verbose=False):
                 template_file = 'CCBS_template_aligned_with_stitched_PAM50_icbm152.nii.gz'
                 regionmap_file = 'CCBS_region_map_cordsegments.nii.gz'
                 wmmap_file = 'CCBS_wm_map.nii.gz'
+                gm_wm_mask_file = 'CCBS_cord_wm_gm_mask.nii.gz'
                 match_affine = False
                 crop = False
             else:
                 template_file = 'CCBS_template_aligned_with_stitched_PAM50_icbm152_1mm.nii.gz'
                 regionmap_file = 'CCBS_region_map_cordsegments_1mm.nii.gz'
                 wmmap_file = 'CCBS_wm_map_1mm.nii.gz'
+                gm_wm_mask_file = 'CCBS_cord_wm_gm_mask_1mm.nii.gz'
                 match_affine = False
                 crop = False
 
@@ -509,12 +547,14 @@ def load_wm_maps(region_name, resolution, verbose=False):
             template_file = 'stitched_PAM50_icbm152_May2020_T2.nii.gz'
             regionmap_file = 'wholeCNS_region_map_cordsegments.nii.gz'
             wmmap_file = 'wholeCNS_wm_map.nii.gz'
+            gm_wm_mask_file = 'CNS_cord_wm_gm_mask.nii.gz'
             match_affine = False
             crop = True
         else:
             template_file = 'stitched_PAM50_icbm152_May2020_T2_1mm.nii.gz'
             regionmap_file = 'wholeCNS_region_map_cordsegments_1mm.nii.gz'
             wmmap_file = 'wholeCNS_wm_map_1mm.nii'
+            gm_wm_mask_file = 'CNS_cord_wm_gm_mask_1mm.nii.gz'
             match_affine = False
             crop = True
 
@@ -536,8 +576,20 @@ def load_wm_maps(region_name, resolution, verbose=False):
     wmmap_img = wmmap_data.get_data()
     wmmap_affine = wmmap_data.affine
 
+    if region_name.lower() != 'brain':
+        gm_wm_mask_file = os.path.join(template_folder, gm_wm_mask_file)
+        gmwm_data = nib.load(gm_wm_mask_file)
+        gmwm_img = gmwm_data.get_data()
+        gmwm_size = np.shape(gmwm_img)
+        gmwm_affine = gmwm_data.affine
+    else:
+        gmwm_img = []
+        gmwm_affine = []
+
     namelist = df1['abbreviation']
     numberlist = df1['number']
+
+    print('load_templates:   GMWM mask file is: ',gm_wm_mask_file)
 
     if match_affine:
         # adjust the regionmap to match the affine matrix of the template
@@ -550,6 +602,12 @@ def load_wm_maps(region_name, resolution, verbose=False):
                                                             template_size)
         wmmap_img = np.round(wmmap_img).astype('int')
         wmmap_affine = template_affine
+
+        if region_name.lower() != 'brain':
+            gmwm_img = i3d.convert_affine_matrices_nearest(gmwm_img, gmwm_affine, template_affine,
+                                                                template_size)
+            gmwm_img = np.round(gmwm_img).astype('int')
+            gmwm_affine = template_affine
 
     if crop:
         # crop the regionmap and template to match the size/shape of the coordinates provided
@@ -580,7 +638,8 @@ def load_wm_maps(region_name, resolution, verbose=False):
         x0 = np.round(xs / 2).astype('int')
         # define the range for cropping:
         cc = [x0 - RLrange, x0 + RLrange, APcenter - APrange, APcenter + APrange, z1, z2]
-        # and crop the maps:
+
+        # and crop the remaining maps if needed:
         regionmap_img = regionmap_img[cc[0]:cc[1], cc[2]:cc[3], cc[4]:cc[5]]
         template_img = template_img[cc[0]:cc[1], cc[2]:cc[3], cc[4]:cc[5]]
         wmmap_img = wmmap_img[cc[0]:cc[1], cc[2]:cc[3], cc[4]:cc[5]]
@@ -589,6 +648,8 @@ def load_wm_maps(region_name, resolution, verbose=False):
         template_affine[0:3, 3] = corner_position[0:3]
         regionmap_affine = template_affine
         wmmap_affine = template_affine
+        gmwm_img = gmwm_img[cc[0]:cc[1], cc[2]:cc[3], cc[4]:cc[5]]
+        gmwm_affine = template_affine
 
 
     stop_time = time.time()
@@ -596,4 +657,5 @@ def load_wm_maps(region_name, resolution, verbose=False):
     print('loaded wm map in {h} hours {m} minutes {s} seconds'.format(h=np.floor(run_time / 3600),
                             m=np.floor(np.mod(run_time / 60, 60)), s=np.round(np.mod(run_time, 60))))
 
-    return wmmap_img, template_img, template_affine, roi_map
+    roi_map = (regionmap_img > 0) | (wmmap_img > 0)
+    return wmmap_img, template_img, template_affine, roi_map, gmwm_img
