@@ -356,7 +356,7 @@ def load_template_and_masks(region_name, resolution, verbose=False):
     namelist = df1['abbreviation']
     numberlist = df1['number']
 
-    print('load_templates:   GMWM mask file is: ',gm_wm_mask_file)
+    # print('load_templates:   GMWM mask file is: ',gm_wm_mask_file)
 
     if match_affine:
         # adjust the regionmap to match the affine matrix of the template
@@ -389,8 +389,8 @@ def load_template_and_masks(region_name, resolution, verbose=False):
         rn1 = df1['number'][listn1]
         rn2 = df1['number'][listn2]
 
-        print('rn1 = {}   rn2 = {}'.format(rn1,rn2))
-        print('size of regionmap_img is ',np.shape(regionmap_img))
+        # print('rn1 = {}   rn2 = {}'.format(rn1,rn2))
+        # print('size of regionmap_img is ',np.shape(regionmap_img))
 
         a = np.where((regionmap_img >= rn1) & (regionmap_img <= rn2))
         # now get the range of z coordinates:
@@ -425,7 +425,7 @@ def load_template_and_masks(region_name, resolution, verbose=False):
 
 
     v = np.unique(regionmap_img)
-    print('found {num} unique values in region map'.format(num=np.size(v)))
+    # print('found {num} unique values in region map'.format(num=np.size(v)))
     #    print('values are ',v)
 
     if verbose:

@@ -50,6 +50,7 @@ import configparser as cp
 import pyclustering
 from scipy import stats
 import pydisplay
+import pysem
 # import scipy
 
 matplotlib.use('TkAgg')   # explicitly set this - it might help with displaying figures in different environments
@@ -80,6 +81,9 @@ settingsfile = os.path.join(basedir,'base_settings_file.npy')
 if os.path.isfile(settingsfile):
     print('name of the settings file is : ', settingsfile)
     settings = np.load(settingsfile, allow_pickle = True).flat[0]
+    # set some defaults
+    settings['GLMpvalue_unc'] = settings['GLMpvalue']
+    settings['GRPanalysistype'] = 'Sig1'
 else:
     settings = {'DBname':'none',
             'DBnum':'none',
@@ -103,6 +107,9 @@ else:
             'GLMndrop':2,
             'GLMcontrast':[1,0],
             'GLMresultsdir':basedir,
+            'GLMpvalue':0.05,
+            'GLMpvalue_unc':0.05,
+            'GLMvoxvolume':1.0,
             'networkmodel':'none',
             'CLprefix':'xptc',
             'CLclustername':'notdefined',
@@ -115,8 +122,17 @@ else:
             'SEMresultsdir':basedir,
             'SEMsavetag':'base',
             'SEMtimepoints':[11,18],
-            'SEMepoch':7}
-    np.save(settingsfile,settings)
+            'SEMepoch':7,
+            'SEMresumerun':False,
+            'GRPresultsname':'notdefined',
+            'GRPresultsname2':'notdefined',
+            'GRPcharacteristicscount':0,
+            'GRPcharacteristicslist':[],
+            'GRPcharacteristicsvalues':[],
+            'GRPanalysistype':'undefined',
+            'GRPdatafiletype1':0,
+            'GRPdatafiletype2':0}
+np.save(settingsfile,settings)
 
 # ------Create the Base Window that will hold everything, widgets, etc.---------------------
 class mainspinalfmri_window:
@@ -191,6 +207,12 @@ class mainspinalfmri_window:
         SEMFrame(SEMbase, self)
         page_name = SEMFrame.__name__
         self.frames[page_name] = SEMbase
+
+        GRPbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
+        GRPbase.grid(row=1, column=1, sticky="nsew")
+        GRPFrame(GRPbase, self)
+        page_name = GRPFrame.__name__
+        self.frames[page_name] = GRPbase
 
         # start with the Database information frame on top
         self.show_frame('DBFrame')
@@ -347,7 +369,7 @@ class BaseFrame:
 
         # create a label under the pictures (row 2), spanning two columns, to tell the user what they are running
         # specify a black background and white letters, with 12 point bold font
-        self.L0 = tk.Label(self.parent, text = "SC/BS fMRI Analysis", bg = bgcol, fg = fgcol1, font = "none 16 bold")
+        self.L0 = tk.Label(self.parent, text = "Whole CNS fMRI Analysis", bg = bgcol, fg = fgcol1, font = "none 16 bold")
         self.L0.grid(row=1, column = 0, columnspan = 2, sticky = 'W')
 
 
@@ -414,18 +436,22 @@ class OptionsFrame:
         self.glmanalysis = tk.Button(self.parent, text = 'GLM fit', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('GLMFrame'), relief='raised', bd = 5)
         self.glmanalysis.grid(row = 4, column = 0)
 
-        # button for selecting and running the GLM analysis steps
+        # button for selecting and running the data clustering steps
         self.clustering = tk.Button(self.parent, text = 'Cluster', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('CLFrame'), relief='raised', bd = 5)
         self.clustering.grid(row = 5, column = 0)
 
-        # button for selecting and running the GLM analysis steps
+        # button for selecting and running the SEM analysis steps
         self.clustering = tk.Button(self.parent, text = 'SEM', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('SEMFrame'), relief='raised', bd = 5)
         self.clustering.grid(row = 6, column = 0)
+
+        # button for selecting and running the group-level analysis steps
+        self.clustering = tk.Button(self.parent, text = 'Group-level', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('GRPFrame'), relief='raised', bd = 5)
+        self.clustering.grid(row = 7, column = 0)
         
         # define a button to exit the GUI
         # also, define the function for what to do when this button is pressed
         self.exit_button = tk.Button(self.parent, text = 'Exit', width = smallbuttonsize, bg = 'grey80', fg = 'black', font = "none 9 bold", command = self.close_window, relief='sunken', bd = 5)
-        self.exit_button.grid(row = 7, column = 0)
+        self.exit_button.grid(row = 8, column = 0)
             
     # exit function
     def close_window(self):
@@ -497,7 +523,7 @@ class DBFrame:
         self.DBL2 = tk.Label(self.parent, text = "Database numbers:")
         self.DBL2.grid(row=1,column=0, sticky='W')
         
-        # create the Entry box, and put it next to the label, 4th row, 2nd column
+        # create the Entry box
         self.DBnumenter = tk.Entry(self.parent, width = 20, bg="white")
         self.DBnumenter.grid(row=1, column = 1, sticky = "W")
         self.DBnumenter.insert(0,settings['DBnumstring'])
@@ -1522,6 +1548,9 @@ class GLMFrame:
         self.GLMndrop = settings['GLMndrop']
         self.GLMcontrast = settings['GLMcontrast']
         self.GLMresultsdir = settings['GLMresultsdir']
+        self.GLMpvalue = settings['GLMpvalue']
+        self.GLMpvalue_unc = settings['GLMpvalue_unc']
+        self.GLMvoxvolume = settings['GLMvoxvolume']
 
         # put some text as a place-holder
         self.GLMlabel1 = tk.Label(self.parent, text = "1) Select GLM analysis options", fg = 'gray')
@@ -1566,56 +1595,184 @@ class GLMFrame:
         self.GLMcontrastsubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.GLMcontrastsubmit, relief='raised', bd = 5)
         self.GLMcontrastsubmitbut.grid(row=3, column=3)
 
-        # ttk.Separator(self.parent).grid(row=srow+1, column=scol, columnspan=6, sticky="nswe", padx=2, pady=5)
+        # put in choices for statistical threshold
+        self.GLMlabel5 = tk.Label(self.parent, text = 'p-value threhold:').grid(row=4, column=1, sticky='NSEW')
+        self.GLMpvaluebox = tk.Entry(self.parent, width = 8, bg="white")
+        self.GLMpvaluebox.grid(row=4, column=2, sticky = "W")
+        self.GLMpvaluebox.insert(0,self.GLMpvalue)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.GLMpvaluesubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.GLMpvaluesubmit, relief='raised', bd = 5, state = tk.DISABLED)
+        self.GLMpvaluesubmitbut.grid(row=4, column=3)
+
+        # put in choices for voxel volume
+        self.GLMlabel6 = tk.Label(self.parent, text = 'voxel volume (mm3):').grid(row=5, column=1, sticky='NSEW')
+        self.GLMvvolumebox = tk.Entry(self.parent, width = 8, bg="white")
+        self.GLMvvolumebox.grid(row=5, column=2, sticky = "W")
+        self.GLMvvolumebox.insert(0,self.GLMvoxvolume)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.GLMvvolumesubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.GLMvvolumesubmit, relief='raised', bd = 5)
+        self.GLMvvolumesubmitbut.grid(row=5, column=3)
+
+
+        # radioboxes to indicate stats correction choices
+        self.GLML7 = tk.Label(self.parent, text="Correction for multiple comparisons:")
+        self.GLML7.grid(row=6, column=1, sticky='W')
+        self.GLMpcorrectionmethod = tk.IntVar(None,1)
+        self.GLMcorr1 = tk.Radiobutton(self.parent, text = 'no correction', width = smallbuttonsize, fg = 'black',
+                                          command = self.GLMsetcorrtype, variable = self.GLMpcorrectionmethod, value = 1, state = tk.DISABLED)
+        self.GLMcorr1.grid(row = 6, column = 2, sticky="E")
+        self.GLMcorr2 = tk.Radiobutton(self.parent, text = 'GRF', width = smallbuttonsize, fg = 'black',
+                                          command = self.GLMsetcorrtype, variable = self.GLMpcorrectionmethod, value = 2, state = tk.DISABLED)
+        self.GLMcorr2.grid(row = 6, column = 3, sticky="E")
+        self.GLMcorr3 = tk.Radiobutton(self.parent, text = 'Bonferroni', width = smallbuttonsize, fg = 'black',
+                                          command = self.GLMsetcorrtype, variable = self.GLMpcorrectionmethod, value = 3, state = tk.DISABLED)
+        self.GLMcorr3.grid(row = 6, column = 4, sticky="E")
+
+
+        ttk.Separator(self.parent).grid(row=7, column=1, columnspan=6, sticky="nswe", padx=2, pady=5)
 
         # entry box for specifying folder for saving results
         # create an entry box so that the user can specify the results folder to use
         self.GLML2 = tk.Label(self.parent, text="Results folder:")
-        self.GLML2.grid(row=4, column=1, sticky='W')
+        self.GLML2.grid(row=8, column=1, sticky='W')
 
         # make a label to show the current setting of the results folder name
         self.GLMresultstext = tk.StringVar()
         self.GLMresultstext.set(self.GLMresultsdir)
         self.GLMresultsinfo = tk.Label(self.parent, textvariable=self.GLMresultstext, bg=bgcol, fg="black", font="none 10",
-                                     wraplength=200, justify='left')
-        self.GLMresultsinfo.grid(row=4, column=2, sticky='W')
+                                     wraplength=150, justify='left')
+        self.GLMresultsinfo.grid(row=8, column=2, sticky='W')
 
         # define a button to browse and select a location for saving the GLM results, and write out the selected name
         # also, define the function for what to do when this button is pressed
         self.GLMfolderbrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg=fgcol2, fg='black',
                                   command=self.GLMresultsbrowseclick, relief='raised', bd=5)
-        self.GLMfolderbrowse.grid(row=4, column=3)
-
-
+        self.GLMfolderbrowse.grid(row=8, column=3)
 
         # label, button, and information box for compiling the basis sets
         self.GLMbasisbutton = tk.Button(self.parent, text="Compile Basis Sets", width=bigbigbuttonsize, bg=fgcol1, fg='white',
                                         command=self.GLMbasissetup, relief='raised', bd=5)
-        self.GLMbasisbutton.grid(row=5, column=1)
+        self.GLMbasisbutton.grid(row=9, column=1)
         self.GLMbasisbutton2 = tk.Button(self.parent, text="Load Basis Sets", width=bigbigbuttonsize, bg=fgcol2, fg='black',
                                         command=self.GLMbasisload, relief='raised', bd=5)
-        self.GLMbasisbutton2.grid(row=5, column=2)
+        self.GLMbasisbutton2.grid(row=9, column=2)
         self.GLMbasisinfo= tk.Label(self.parent, text='basis set information ...')
-        self.GLMbasisinfo.grid(row=5, column=3, columnspan = 2, sticky='E')
+        self.GLMbasisinfo.grid(row=9, column=3, columnspan = 4, sticky='E')
 
 
         # label, button, and information box for compiling the data sets
         self.GLMdatabutton = tk.Button(self.parent, text="Compile Data Sets", width=bigbigbuttonsize, bg=fgcol1, fg='white',
                                         command=self.GLMdatasetup, relief='raised', bd=5)
-        self.GLMdatabutton.grid(row=6, column=1)
+        self.GLMdatabutton.grid(row=10, column=1)
         self.GLMdatabutton2 = tk.Button(self.parent, text="Load Data Sets", width=bigbigbuttonsize, bg=fgcol2, fg='black',
                                         command=self.GLMdataload, relief='raised', bd=5)
-        self.GLMdatabutton2.grid(row=6, column=2)
+        self.GLMdatabutton2.grid(row=10, column=2)
         self.GLMdatainfo = tk.Label(self.parent, text='data set information ...')
-        self.GLMdatainfo.grid(row=6, column=3, columnspan = 2, sticky='E')
+        self.GLMdatainfo.grid(row=10, column=3, columnspan = 4, sticky='E')
 
         # setup input for contrast
         # label, button, and information box for running the GLM analysis
         self.GLMrunbutton = tk.Button(self.parent, text="Run GLM", width=bigbigbuttonsize, bg=fgcol1, fg='white',
                                         command=self.GLMrun1, relief='raised', bd=5)
-        self.GLMrunbutton.grid(row=7, column=1)
+        self.GLMrunbutton.grid(row=11, column=1)
         self.GLMruninfo= tk.Label(self.parent, text='GLM results information ...')
-        self.GLMruninfo.grid(row=7, column=2, columnspan = 2, sticky='E')
+        self.GLMruninfo.grid(row=11, column=2, columnspan = 4, sticky='E')
+
+
+    def GLMpvaluesubmit(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        GLMpvalue = float(self.GLMpvaluebox.get())
+        settings['GLMpvalue'] = GLMpvalue
+        np.save(settingsfile,settings)
+        # update the text in the box, in case it has changed
+        self.GLMpvalue = GLMpvalue
+        print('p-value for GLM analysis set to ',self.GLMpvalue)
+
+        # update uncorrected p-value as well
+        # value = self.GLMpcorrectionmethod.get()
+        self.GLMsetcorrtype()
+
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.GLMpvalue_unc = settings['GLMpvalue_unc']
+        print('uncorrected p-value for GLM analysis set to {:0.3e}'.format(self.GLMpvalue_unc))
+
+        return self
+
+    def GLMvvolumesubmit(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        GLMvoxvolume = float(self.GLMvvolumebox.get())
+        settings['GLMvoxvolume'] = GLMvoxvolume
+        np.save(settingsfile,settings)
+        # update the text in the box, in case it has changed
+        self.GLMvoxvolume = GLMvoxvolume
+        print('voxel volume for estimating family-wise error correction for GLM analysis set to ',self.GLMvoxvolume)
+
+        # update uncorrected p-value as well
+        # value = self.GLMpcorrectionmethod.get()
+        self.GLMsetcorrtype()
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.GLMpvalue_unc = settings['GLMpvalue_unc']
+        print('uncorrected p-value for GLM analysis set to {:0.3e}'.format(self.GLMpvalue_unc))
+
+        return self
+
+
+    def GLMsetcorrtype(self):
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        DBname = settings['DBname']
+        DBnum = settings['DBnum']
+        GLMpvalue = settings['GLMpvalue']
+        GLMvoxvolume = settings['GLMvoxvolume']
+
+        self.GLMpvalue = settings['GLMpvalue']
+        print('GLMsetcorrtype: corrected p-value set to ',self.GLMpvalue)
+
+        value = self.GLMpcorrectionmethod.get()
+        if value == 1:
+            self.GLMcorrmethod = 'none'
+            p_unc = self.GLMpvalue
+
+        if value == 2:
+            self.GLMcorrmethod = 'GRF'
+            xls = pd.ExcelFile(DBname, engine='openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
+            normtemplatename = df1.loc[DBnum[0], 'normtemplatename']
+            resolution = 1
+            template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = load_templates.load_template_and_masks(
+                normtemplatename, resolution)
+
+            # correct using gaussian random field theory
+            search_mask = roi_map
+            if np.ndim(self.dataset) > 4:
+                residual_data = self.dataset[:, :, :, :, 0]  # take data from one person, as an example
+                xs,ys,zs,ts = np.shape(self.dataset)
+                degrees_of_freedom = ts - 1
+            else:
+                residual_data = self.dataset
+                degrees_of_freedom = 0
+            p_unc, FWHM, R = py_fmristats.py_GRFcorrected_pthreshold(self.GLMpvalue, residual_data, roi_map, degrees_of_freedom)
+
+        if value == 3:
+            self.GLMcorrmethod = 'Bonferroni'
+            xls = pd.ExcelFile(DBname, engine='openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
+            normtemplatename = df1.loc[DBnum[0], 'normtemplatename']
+            resolution = 1
+            template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = load_templates.load_template_and_masks(
+                normtemplatename, resolution)
+            p_unc, nvox = py_fmristats.py_Bonferonni_corrected_pthreshold(self.GLMpvalue, roi_map, GLMvoxvolume)
+
+        settings['GLMpvalue_unc'] = p_unc
+        self.GLMpvalue_unc = p_unc
+        # convert p-threshol (p_unc) to T-threshold
+        # Tthresh = stats.t.ppf(1 - p_unc, degrees_of_freedom)
+
+        print('Family-wise error correction method set: ',self.GLMcorrmethod)
+        print('  corrected p-value: {:0.3e}    uncorrected p-value: {:0.3e}'.format(self.GLMpvalue,self.GLMpvalue_unc))
+
+        np.save(settingsfile,settings)
+
+        return self
 
 
     def GLMoptionchoice(self,value):
@@ -1800,6 +1957,11 @@ class GLMFrame:
         settings['GLMdataname'] = filechoice
         np.save(settingsfile,settings)
 
+        self.GLMpvaluesubmitbut['state'] = tk.NORMAL
+        self.GLMcorr1['state'] = tk.NORMAL
+        self.GLMcorr2['state'] = tk.NORMAL
+        self.GLMcorr3['state'] = tk.NORMAL
+
         return self
 
 
@@ -1831,6 +1993,11 @@ class GLMFrame:
         settings['GLMdataname'] = filename
         np.save(settingsfile,settings)
 
+        self.GLMpvaluesubmitbut['state'] = tk.NORMAL
+        self.GLMcorr1['state'] = tk.NORMAL
+        self.GLMcorr2['state'] = tk.NORMAL
+        self.GLMcorr3['state'] = tk.NORMAL
+
         return self
 
 
@@ -1848,6 +2015,8 @@ class GLMFrame:
         # dataset = settings['GLMdata']
         filename = settings['GLMdataname']
         basisset = settings['GLMbasisset']
+        GLMpvalue = settings['GLMpvalue']
+        GLMpvalue_unc = settings['GLMpvalue_unc']
 
         # actually load the data here
         dataset = np.load(filename, allow_pickle=True)
@@ -1916,29 +2085,29 @@ class GLMFrame:
 
         #-----------create outputs------------------------------------
         # choose a statistical threshold and create a results figure
-        xls = pd.ExcelFile(DBname, engine = 'openpyxl')
-        df1 = pd.read_excel(xls, 'datarecord')
-        normtemplatename = df1.loc[DBnum[0], 'normtemplatename']
-        resolution = 1
-        template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map = load_templates.load_template_and_masks(normtemplatename, resolution)
-
-        p_corr = 0.05   # corrected p-value threshold
-        # correct using gaussian random field theory
-        search_mask = roi_map
-        if np.ndim(dataset) > 4:
-            residual_data = dataset[:,:,:,:,0]  # take data from one person, as an example
-        else:
-            residual_data = dataset
-        p_unc, FWHM, R = py_fmristats.py_GRFcorrected_pthreshold(p_corr, residual_data, search_mask, df=0)
+        # xls = pd.ExcelFile(DBname, engine = 'openpyxl')
+        # df1 = pd.read_excel(xls, 'datarecord')
+        # normtemplatename = df1.loc[DBnum[0], 'normtemplatename']
+        # resolution = 1
+        # template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = load_templates.load_template_and_masks(normtemplatename, resolution)
+        #
+        # p_corr = 0.05   # corrected p-value threshold
+        # # correct using gaussian random field theory
+        # search_mask = roi_map
+        # if np.ndim(dataset) > 4:
+        #     residual_data = dataset[:,:,:,:,0]  # take data from one person, as an example
+        # else:
+        #     residual_data = dataset
+        # p_unc, FWHM, R = py_fmristats.py_GRFcorrected_pthreshold(p_corr, residual_data, search_mask, df=0)
 
         # convert p-threshol (p_unc) to T-threshold
         degrees_of_freedom = ts-1
-        Tthresh = stats.t.ppf(1-p_unc,degrees_of_freedom)
+        Tthresh = stats.t.ppf(1-GLMpvalue_unc,degrees_of_freedom)
 
         if runmode in per_person_modes:
-            Tthresh_per_person = stats.t.ppf(1-p_unc,degrees_of_freedom*NP)
+            Tthresh_per_person = stats.t.ppf(1-GLMpvalue_unc,degrees_of_freedom*NP)
 
-        print('ready for displaying GLM results, with p_unc = ',p_unc,', T-treshold = ',Tthresh)
+        print('ready for displaying GLM results, with p_unc = ',GLMpvalue_unc,', T-treshold = ',Tthresh)
 
         # find all the values in T that exceed the threshold, and create a figure with these voxels
         # overlying template_img
@@ -2125,7 +2294,7 @@ class CLFrame:
 
         normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
         resolution = 1
-        template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map = \
+        template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = \
             load_templates.load_template_and_masks(normtemplatename, resolution)
 
         cluster_properties, region_properties = \
@@ -2270,8 +2439,6 @@ class CLFrame:
 
 
 
-
-
 #-----------SEM FRAME--------------------------------------------------
 # Definition of the frame that has inputs for the database name, and entry numbers to use
 class SEMFrame:
@@ -2362,7 +2529,6 @@ class SEMFrame:
         np.save(settingsfile, settings)
 
 
-
     def SEMsavetagsubmitaction(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
@@ -2373,7 +2539,7 @@ class SEMFrame:
 
         # write the result to the label box for display
         self.SEMsavetagbox.delete(0, 'end')
-        self.SEMsavetagbox.insert(0, self.SEMsavetagbox)
+        self.SEMsavetagbox.insert(0, SEMsavetag)
 
         np.save(settingsfile, settings)
 
@@ -2435,21 +2601,63 @@ class SEMFrame:
         np.save(settingsfile, settings)
 
 
-
-    def SEMresultsdirbrowseaction(self):
+    def SEMtimesubmitclick(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
-        SEMresultsdir = settings['SEMresultsdir']
-        # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
-        folderchoice =  tkf.askdirectory(title = "Select folder for saving results")
-        print('save folder name = ',folderchoice)
+        SEMtimepoints = settings['SEMtimepoints']
 
-        self.SEMresultsdir = folderchoice
-        self.SEMresultsdirtext.set(self.SEMresultsdir)
+        entered_text = self.SEMtimeenter.get()  # collect the text from the text entry box
+        # first, replace any double spaces with single spaces, and then replace spaces with commas
+        entered_text = re.sub('\ +', ',', entered_text)
+        entered_text = re.sub('\,\,+', ',', entered_text)
+        SEMtimepoints = np.fromstring(entered_text, dtype=np.int, sep=',')
 
-        settings['SEMresultsdir'] = folderchoice
+        print(SEMtimepoints)
+
+        timetext = ''
+        for val in SEMtimepoints: timetext += (str(val) + ',')
+        timetext = timetext[:-1]
+        self.SEMtimetext = timetext
+
+        settings['SEMtimepoints'] = SEMtimepoints
+        self.SEMtimeenter.delete(0, 'end')
+        self.SEMtimeenter.insert(0, self.SEMtimetext)
+        # save the updated settings file again
+        np.save(settingsfile, settings)
+
+
+    def SEMepochsubmitclick(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        SEMepoch = settings['SEMepoch']
+
+        entered_text = self.SEMepochenter.get()  # collect the text from the text entry box
+        SEMepoch = int(entered_text)
+
+        print('Epoch set at ',SEMepoch)
+
+        epochtext = str(SEMepoch)
+        settings['SEMepoch'] = SEMepoch
+        self.SEMepochenter.delete(0, 'end')
+        self.SEMepochenter.insert(0, epochtext)
+        # save the updated settings file again
+        np.save(settingsfile, settings)
+
+
+    def SEMresultsdirbrowseaction(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.SEMresultsdir = settings['SEMresultsdir']
+        # browse for new name
+        dirname =  tkf.askdirectory(title = "Select folder")
+        print('SEM results save directory name = ',dirname)
+        # save the selected file name in the settings
+        settings['SEMresultsdir'] = dirname
+        self.SEMresultsdir = dirname
+        # write the result to the label box for display
+        self.SEMresultsdirtext.set(settings['SEMresultsdir'])
+
+        # save the updated settings file again
         np.save(settingsfile,settings)
-
 
 
     def SEMtwosource(self):
@@ -2461,13 +2669,17 @@ class SEMFrame:
         self.networkmodel = settings['networkmodel']
         self.SEMclustername = settings['SEMclustername']
         self.SEMregionname = settings['SEMregionname']
+        self.SEMresultsdir = settings['SEMresultsdir']
+        self.SEMsavetag = settings['SEMsavetag']
+        self.SEMtimepoints = settings['SEMtimepoints']
+        self.SEMepoch = settings['SEMepoch']
 
         xls = pd.ExcelFile(self.DBname, engine = 'openpyxl')
         df1 = pd.read_excel(xls, 'datarecord')
 
         normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
         resolution = 1
-        template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map = \
+        template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = \
             load_templates.load_template_and_masks(normtemplatename, resolution)
 
         region_data = np.load(self.SEMregionname, allow_pickle=True).flat[0]
@@ -2476,13 +2688,12 @@ class SEMFrame:
         cluster_data = np.load(self.SEMclustername, allow_pickle=True).flat[0]
         cluster_properties = cluster_data['cluster_properties']
 
-        # need inputs for timepoints and epoch
-        timepoints = [11, 18]
-        epoch = 7
+        CCrecord, beta2, beta1, Zgrid2, Zgrid1_1, Zgrid1_2 = pysem.pysem(cluster_properties, region_properties, self.SEMtimepoints, self.SEMepoch)
 
-        print('2-source SEM is not ready to run yet ....')
-        CCrecord, beta2, beta1, Zgrid2, Zgrid1_1, Zgrid1_2 = pysem(cluster_properties, region_properties, timepoints, epoch)
         # save the results somehow
+        results = {'type':'2source','CCrecord':CCrecord, 'beta2':beta2, 'beta1':beta1, 'Zgrid2':Zgrid2, 'Zgrid1_1':Zgrid1_1,'Zgrid1_2':Zgrid1_2, 'DBname':self.DBname, 'DBnum':self.DBnum, 'cluster_properties':cluster_properties}
+        resultsrecordname = os.path.join(self.SEMresultsdir, 'SEMresults_2source_record_' + self.SEMsavetag + '.npy')
+        np.save(resultsrecordname, results)
 
 
     def SEMrunnetwork(self):
@@ -2494,13 +2705,18 @@ class SEMFrame:
         self.networkmodel = settings['networkmodel']
         self.SEMclustername = settings['SEMclustername']
         self.SEMregionname = settings['SEMregionname']
+        self.SEMresultsdir = settings['SEMresultsdir']
+        self.SEMsavetag = settings['SEMsavetag']
+        self.SEMtimepoints = settings['SEMtimepoints']
+        self.SEMepoch = settings['SEMepoch']
+        self.SEMresumerun = settings['SEMresumerun']
 
         xls = pd.ExcelFile(self.DBname, engine='openpyxl')
         df1 = pd.read_excel(xls, 'datarecord')
 
         normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
         resolution = 1
-        template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map = \
+        template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = \
             load_templates.load_template_and_masks(normtemplatename, resolution)
 
         region_data = np.load(self.SEMregionname, allow_pickle=True).flat[0]
@@ -2509,15 +2725,27 @@ class SEMFrame:
         cluster_data = np.load(self.SEMclustername, allow_pickle=True).flat[0]
         cluster_properties = cluster_data['cluster_properties']
 
-        # need inputs for timepoints and epoch
-        timepoints = [11, 18]
-        epoch = 7
-        savedirectory = 'C:\sample_data'
-        savenamelabel = 'testing'
-
         print('network SEM is not ready to run yet ....')
-        outputnamelist = pysem_network(cluster_properties, region_properties, networkmodel, timepoints, epoch, savedirectory, savenamelabel)
+        outputnamelist = pysem.pysem_network(cluster_properties, region_properties, self.networkmodel, self.SEMtimepoints, self.SEMepoch, self.SEMresultsdir, self.SEMsavetag, self.SEMresumerun)
+
         # save the results somehow
+        results = {'type':'network','resultsnames':outputnamelist, 'network':self.networkmodel, 'regionname':self.SEMregionname, 'clustername':self.SEMclustername, 'DBname':self.DBname, 'DBnum':self.DBnum}
+        resultsrecordname = os.path.join(self.SEMresultsdir, 'SEMresults_network_record_' + self.SEMsavetag + '.npy')
+        np.save(resultsrecordname, results)
+
+
+    # action when checkboxes are selected/deselected
+    def SEMresumecheck(self):
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        self.SEMresumerun = self.var1.get() == 1
+        settings['SEMresumerun'] = self.SEMresumerun
+        np.save(settingsfile, settings)
+        if self.SEMresumerun:
+            print('choice to resume previous run set to ',self.SEMresumerun)
+            print('     previous in-progress data will be reloaded and run will be resumed from closest possible point')
+        else:
+            print('choice to resume previous run set to ',self.SEMresumerun)
+        return self
 
 
     # initialize the values, keeping track of the frame this definition works on (parent), and
@@ -2536,6 +2764,12 @@ class SEMFrame:
         self.SEMsavetag = settings['SEMsavetag']
         self.SEMtimepoints = settings['SEMtimepoints']
         self.SEMepoch = settings['SEMepoch']
+
+        timetext = ''
+        for val in self.SEMtimepoints: timetext += (str(val) + ',')
+        timetext = timetext[:-1]
+        self.SEMtimetext = timetext
+
 
         # put some text as a place-holder
         self.SEMLabel1 = tk.Label(self.parent, text = "1) Select SEM options\nChoices are: 1- and 2-source SEM,\nor SEM based on a network", fg = 'gray', justify = 'left')
@@ -2606,50 +2840,541 @@ class SEMFrame:
         self.SEMregionnamebrowse.grid(row=4, column=4, sticky='N')
 
 
+        # create the SEM timepoints entry box
+        self.SEMtimelabel = tk.Label(self.parent, text = 'Epoch center times:')
+        self.SEMtimelabel.grid(row=5, column=1, sticky='N')
+        self.SEMtimeenter = tk.Entry(self.parent, width=20, bg="white")
+        self.SEMtimeenter.grid(row=5, column=2, sticky="W")
+        self.SEMtimeenter.insert(0, self.SEMtimetext)
+        # the entry box needs a "submit" button so that the program knows when to take the entered values
+        self.SEMtimesubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg = fgcol2, fg = 'black',
+                                     command=self.SEMtimesubmitclick, relief='raised', bd=5)
+        self.SEMtimesubmit.grid(row=5, column=3)
+
+
+        # create the SEM epoch entry box
+        self.SEMepochlabel = tk.Label(self.parent, text = 'Epoch length:')
+        self.SEMepochlabel.grid(row=6, column=1, sticky='N')
+        self.SEMepochenter = tk.Entry(self.parent, width=20, bg="white")
+        self.SEMepochenter.grid(row=6, column=2, sticky="W")
+        self.SEMepochenter.insert(0, self.SEMepoch)
+        # the entry box needs a "submit" button so that the program knows when to take the entered values
+        self.SEMepochsubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg = fgcol2, fg = 'black',
+                                     command=self.SEMepochsubmitclick, relief='raised', bd=5)
+        self.SEMepochsubmit.grid(row=6, column=3)
+
+
         # box etc for entering the name of the directory for saving the results
         # make a label to show the current setting of the network definition file directory name
         self.SEMresultsdirlabel = tk.Label(self.parent, text = 'Results save folder:')
-        self.SEMresultsdirlabel.grid(row=5, column=1, sticky='N')
+        self.SEMresultsdirlabel.grid(row=7, column=1, sticky='N')
         self.SEMresultsdirtext = tk.StringVar()
         self.SEMresultsdirtext.set(self.SEMresultsdir)
         self.SEMresultsdirdisplay = tk.Label(self.parent, textvariable=self.SEMresultsdirtext, bg=bgcol, fg="#4B4B4B", font="none 10",
                                      wraplength=300, justify='left')
-        self.SEMresultsdirdisplay.grid(row=5, column=2, sticky='N')
+        self.SEMresultsdirdisplay.grid(row=7, column=2, sticky='N')
         # the entry boxes need a "browse" button to allow selection of existing cluster definition file
         self.SEMresultsdirbrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.SEMresultsdirbrowseaction, relief='raised', bd = 5)
-        self.SEMresultsdirbrowse.grid(row=5, column=3, sticky='N')
+        self.SEMresultsdirbrowse.grid(row=7, column=3, sticky='N')
 
 
         # box etc for entering the name used in labeling the results files
         self.SEMsavetaglabel = tk.Label(self.parent, text = 'tag for results names:')
-        self.SEMsavetaglabel.grid(row=6, column=1, sticky='N')
+        self.SEMsavetaglabel.grid(row=8, column=1, sticky='N')
         self.SEMsavetagbox = tk.Entry(self.parent, width = 30, bg="white",justify = 'right')
-        self.SEMsavetagbox.grid(row=6, column=2, sticky='N')
+        self.SEMsavetagbox.grid(row=8, column=2, sticky='N')
         self.SEMsavetagbox.insert(0,self.SEMsavetag)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
         self.SEMsavetagsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.SEMsavetagsubmitaction, relief='raised', bd = 5)
-        self.SEMsavetagsubmit.grid(row=6, column=3, sticky='N')
+        self.SEMsavetagsubmit.grid(row=8, column=3, sticky='N')
 
 
         # label, button, for running the definition of clusters, and loading data
         self.SEMrun2sourcebutton = tk.Button(self.parent, text="2-source SEM", width=bigbigbuttonsize, bg=fgcol1, fg='white',
                                         command=self.SEMtwosource, relief='raised', bd=5)
-        self.SEMrun2sourcebutton.grid(row=8, column=2)
+        self.SEMrun2sourcebutton.grid(row=9, column=2)
+
+        # check to indicate to resume a failed run
+        self.var1 = tk.IntVar()
+        self.SEMresumebox = tk.Checkbutton(self.parent, text = 'Resume previous', width = bigbigbuttonsize, fg = 'black',
+                                          command = self.SEMresumecheck, variable = self.var1)
+        self.SEMresumebox.grid(row = 10, column = 1, sticky="E")
+
+        # label, button, for running the definition of clusters, and loading data
+        self.SEMrunnetworkbutton = tk.Button(self.parent, text="Network SEM", width=bigbuttonsize, bg=fgcol1, fg='white',
+                                        command=self.SEMrunnetwork, relief='raised', bd=5)
+        self.SEMrunnetworkbutton.grid(row=10, column=2)
+
+
+
+
+#-----------Group-level analysis FRAME--------------------------------------------------
+# Definition of the frame that has inputs for the database name, and entry numbers to use
+class GRPFrame:
+
+    def GRPcharacteristicslistclear(self):
+        self.GRPcharacteristicscount = 0
+        self.GRPcharacteristicslist = []
+        self.GRPcharacteristicstext.set('empty')
+
+        # in case the database has been updated
+        # destroy the old pulldown menu and create a new one with the new choices
+        print('Clearing the data base field choice list ....')
+        self.fields = self.get_DB_fields()
+
+        print('  new fields are:  ', self.fields)
+
+        self.GRPfield_menu.destroy()
+        self.fieldsearch_opt.destroy()  # remove it
+
+        self.field_var = tk.StringVar()
+        if len(self.fields) > 0:
+            self.field_var.set(self.fields[0])
+        else:
+            self.field_var.set('empty')
+
+        self.GRPfield_menu = tk.OptionMenu(self.parent, self.field_var, *self.fields, command=self.DBfieldchoice)
+        self.GRPfield_menu.grid(row=6, column=2, sticky='EW')
+        self.fieldsearch_opt = self.GRPfield_menu  # save this way so that values are not cleared
+
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        settings['GRPcharacteristicscount'] = self.GRPcharacteristicscount
+        settings['GRPcharacteristicslist'] = self.GRPcharacteristicslist
+        settings['GRPcharacteristicsvalues'] = self.GRPcharacteristicsvalues
+        np.save(settingsfile,settings)
+
+        return self
+
+
+    def DBfieldchoice(self, value):
+        # get the field value choices for the selected field
+        print('GRPcharacteristicslist = ', self.GRPcharacteristicslist)
+        fvalue = self.field_var.get()
+
+        print('fvalue = ', fvalue)
+
+        self.GRPcharacteristicscount += 1
+
+        if self.GRPcharacteristicscount == 1:
+            self.GRPcharacteristicslist =  [fvalue]
+            fieldvalues = GRPFrame.get_DB_field_values(self)
+            print('size of fieldvalues is ',np.shape(fieldvalues))
+            self.GRPcharacteristicsvalues = np.array(fieldvalues)[:,np.newaxis]
+            print('size of GRPcharacteristicsvalues is ',np.shape(self.GRPcharacteristicsvalues))
+        else:
+            self.GRPcharacteristicslist.append(value)
+            fieldvalues = GRPFrame.get_DB_field_values(self)
+            print('size of fieldvalues is ',np.shape(fieldvalues))
+            print('size of GRPcharacteristicsvalues is ',np.shape(self.GRPcharacteristicsvalues))
+            self.GRPcharacteristicsvalues = np.concatenate((self.GRPcharacteristicsvalues,np.array(fieldvalues)[:,np.newaxis]),axis=1)
+            print('size of GRPcharacteristicsvalues is ',np.shape(self.GRPcharacteristicsvalues))
+
+        print('GRPcharacteristicslist = ', self.GRPcharacteristicslist)
+
+        chartext = ''
+        for names in self.GRPcharacteristicslist:
+            chartext += names + ','
+        chartext = chartext[:-1]
+        print('text for group characteristics list is: ',chartext)
+        self.GRPcharacteristicstext.set(chartext)
+
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        settings['GRPcharacteristicscount'] = self.GRPcharacteristicscount
+        settings['GRPcharacteristicslist'] = self.GRPcharacteristicslist
+        settings['GRPcharacteristicsvalues'] = self.GRPcharacteristicsvalues
+        np.save(settingsfile,settings)
+
+        return self
+
+
+    # inputs to search database, and create/save dbnum lists
+    def get_DB_fields(self):
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        self.DBname = settings['DBname']
+
+        print('reading fields from ', self.DBname)
+        if os.path.isfile(self.DBname):
+            xls = pd.ExcelFile(self.DBname, engine = 'openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
+            del df1['Unnamed: 0']  # get rid of the unwanted header column
+            fields = list(df1.keys())
+        else:
+            fields = 'empty'
+        # print('fields are: ',fields)
+        return fields
+
+
+    # inputs to search database, and create/save dbnum lists
+    def get_DB_field_values(self):
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        self.DBname = settings['DBname']
+
+        if os.path.isfile(self.DBname):
+            xls = pd.ExcelFile(self.DBname, engine = 'openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
+            del df1['Unnamed: 0']  # get rid of the unwanted header column
+
+            print('GRPcharacteristicslist = ',self.GRPcharacteristicslist)
+            fieldname = self.GRPcharacteristicslist[-1]
+            print('fieldname = ',fieldname)
+            fieldvalues = list(df1.loc[:,fieldname])
+        else:
+            fieldvalues = 'empty'
+        # print('get_DB_field_values: fieldvalues = ',fieldvalues)
+
+        return fieldvalues
+
+
+    def GRPresultsbrowseaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
+        filechoice =  tkf.askopenfilename(title = "Select results file",filetypes = (("npy files","*.npy"),("all files","*.*")))
+        print('results data file name = ',filechoice)
+        self.GRPresultsname = filechoice
+        settings['GRPresultsname'] = filechoice
+
+        npname, nfname = os.path.split(self.GRPresultsname)
+        # write the result to the label box for display
+        self.GRPresultsnametext.set(nfname)
+        self.GRPresultsdirtext.set(npname)
+
+        # check on the results
+        try:
+            data = np.load(filechoice, allow_pickle = True).flat[0]
+            keylist = data.keys()
+            datafiletype = 0
+            if 'type' in keylist: datafiletype = 1
+            if 'region_properties' in keylist: datafiletype = 2
+        except:
+            print('Error reading selected data file - unexpected contents or format')
+
+        if datafiletype == 0:  print('selected data file does not have the required format')
+        if datafiletype == 1:  print('found SEM results: for group comparisons be sure to select 2 results files')
+        if datafiletype == 2:  print('found time-course data: select correlation as the analysis type in order to do Bayesian regression')
+
+        settings['GRPdatafiletype1'] = datafiletype
+        np.save(settingsfile, settings)
+
+        self.GRPresultsnamebrowse2['state'] = tk.NORMAL
+
+
+    def GRPresultsbrowseaction2(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
+        filechoice = tkf.askopenfilename(title="Select results file 2",
+                                         filetypes=(("npy files", "*.npy"), ("all files", "*.*")))
+        print('results data file name 2 = ', filechoice)
+        self.GRPresultsname2 = filechoice
+        settings['GRPresultsname2'] = filechoice
+
+        npname, nfname = os.path.split(self.GRPresultsname2)
+        # write the result to the label box for display
+        self.GRPresultsnametext2.set(nfname)
+        self.GRPresultsdirtext2.set(npname)
+
+        # check on the results
+        try:
+            data = np.load(filechoice, allow_pickle = True).flat[0]
+            keylist = data.keys()
+            datafiletype = 0
+            if 'type' in keylist: datafiletype = 1
+            if 'region_properties' in keylist: datafiletype = 2
+        except:
+            print('Error reading selected data file - unexpected contents or format')
+
+        if datafiletype == 0:  print('selected data file does not have the required format')
+        if datafiletype == 1:  print('found SEM results: for group comparisons be sure to select 2 results files')
+        if datafiletype == 2:  print('found time-course data: select correlation as the analysis type in order to do Bayesian regression')
+
+        settings['GRPdatafiletype2'] = datafiletype
+        np.save(settingsfile, settings)
+
+
+    # action when checkboxes are selected/deselected
+    def GRPselecttype(self):
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        value = self.GRPanalysistypevalue.get()
+        if value == 1: self.GRPanalysistype = 'Sig1'
+        if value == 2: self.GRPanalysistype = 'Sig2'
+        if value == 3: self.GRPanalysistype = 'Sig2paired'
+        if value == 4: self.GRPanalysistype = 'Correlation'
+        if value == 5: self.GRPanalysistype = 'ANOVA'
+        if value == 6: self.GRPanalysistype = 'ANCOVA'
+
+        print('Group analysis type set to: ',self.GRPanalysistype)
+
+        if value == 4:
+            print('ANOVA:  select only discrete or categorical values for the personal characteristics')
+        if value == 5:
+            print('ANCOVA:  select a discrete value first, and a continuous value second, for the personal characteristics')
+
+        settings['GRPanalysistype'] = self.GRPanalysistype
+        np.save(settingsfile,settings)
+
+        return self
+
+
+    def GRPrunanalysis(self):
+        # run the selected analyses
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        self.GRPanalysistype = settings['GRPanalysistype']
+        # Sig1, Sig2, Sig2paired, Correlation, ANOVA, or ANCOVA
+
+        # check on the data to be used
+        datafile1 = settings['GRPresultsname']
+        datafile2 = settings['GRPresultsname2']
+        datafiletype1 = settings['GRPdatafiletype1']
+        datafiletype2 = settings['GRPdatafiletype2']
+
+        # for ANOVA/ANCOVA - could have two data files (Sig2) as a discrete category,
+        # or one data file with two characteristics select
+
+        if self.GRPanalysistype == 'Sig1':
+            if datafiletype1 == 1:  # SEM data
+                # look for significant group-average beta-value differences from zero
+
+
+                sem_results = np.load(datafile1, allow_pickle=True).flat[0]
+
+            # 2source results
+            results = {'type': '2source', 'CCrecord': CCrecord, 'beta2': beta2, 'beta1': beta1, 'Zgrid2': Zgrid2,
+                       'Zgrid1_1': Zgrid1_1, 'Zgrid1_2': Zgrid1_2, 'DBname': self.DBname, 'DBnum': self.DBnum}
+
+            # network results
+            results = {'type': 'network', 'resultsnames': outputnamelist, 'network': self.networkmodel,
+                       'regionname': self.SEMregionname, 'clustername': self.SEMclustername, 'DBname': self.DBname,
+                       'DBnum': self.DBnum}
+
+
+
+            if datafiletype1 == 2:  # BOLD data
+                # look for significant group-average BOLD response differences from zero
+                print('hold this')
+
+        if self.GRPanalysistype == 'Sig2':
+            if datafiletype1 == 1:  # SEM data
+                # look for significant group-average beta-value differences between two groups
+                if datafiletype2 == 1:
+                    # go ahead and do the comparison, otherwise quit
+                    print('hold this')
+
+            if datafiletype1 == 2:  # BOLD data
+                # look for significant group-average BOLD response differences between two groups
+                if datafiletype2 == 2:
+                    # go ahead and do the comparison, otherwise quit
+                    print('hold this')
+
+        if self.GRPanalysistype == 'Sig2paired':
+            if datafiletype1 == 1:  # SEM data
+                # look for significant group-average beta-value paired differences between two groups
+                if datafiletype2 == 1:
+                    # go ahead and do the comparison, otherwise quit
+                    print('hold this')
+
+            if datafiletype1 == 2:  # BOLD data
+                # look for significant group-average BOLD response paired differences between two groups
+                if datafiletype2 == 2:
+                    # go ahead and do the comparison, otherwise quit
+                    print('hold this')
+
+        if self.GRPanalysistype == 'Correlation':
+            if datafiletype1 == 1:  # SEM data
+                # look for significant correlations between beta-values and the first personal characteristic in the list
+                print('hold this')
+
+            if datafiletype1 == 2:  # BOLD data
+                # look for significant correlations between BOLD values and the first personal characteristic in the list
+                print('hold this')
+
+        if self.GRPanalysistype == 'ANOVA':
+            if datafiletype1 == 1:  # SEM data
+                if datafiletype2 == 1:
+                    # apply ANOVA analysis to beta-values, with the two files indicating two discrete groups,
+                    # and the first personal characteristic used as a second discrete variable
+                    print('hold this')
+                else:
+                    # apply ANOVA analysis to beta-values in the first data file named,
+                    # with the first two personal characteristics used as discrete variables
+                    print('hold this')
+
+            if datafiletype1 == 2:  # BOLD data
+                if datafiletype2 == 2:
+                    # apply ANOVA analysis to BOLD values, with the two files indicating two discrete groups,
+                    # and the first personal characteristic used as a second discrete variable
+                    print('hold this')
+                else:
+                    # apply ANOVA analysis to BOLD values in the first data file named,
+                    # with the first two personal characteristics used as discrete variables
+                    print('hold this')
+
+        if self.GRPanalysistype == 'ANCOVA':
+            if datafiletype1 == 1:  # SEM data
+                if datafiletype2 == 1:
+                    # apply ANCOVA analysis to beta-values, with the two files indicating two discrete groups,
+                    # and the first personal characteristic used as a continuous variable
+                    print('hold this')
+                else:
+                    # apply ANOVA analysis to beta-values in the first data file named,
+                    # with the first personal characteristics used as discrete variable,
+                    # and the second characteristic used as a continuous variable
+                    print('hold this')
+
+            if datafiletype1 == 2:  # BOLD data
+                if datafiletype2 == 2:
+                    # apply ANCOVA analysis to BOLD values, with the two files indicating two discrete groups,
+                    # and the first personal characteristic used as a continuous variable
+                    print('hold this')
+                else:
+                    # apply ANCOVA analysis to BOLD values in the first data file named,
+                    # with the first personal characteristics used as discrete variable,
+                    # and the second characteristic used as a continuous variable
+                    print('hold this')
+
+
+
+    def __init__(self, parent, controller):
+        parent.configure(relief='raised', bd=5, highlightcolor=fgcol3)
+        self.parent = parent
+        self.controller = controller
+        self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
+        self.networkmodel = settings['networkmodel']
+        self.GRPresultsname = settings['GRPresultsname']
+        self.GRPresultsname2 = settings['GRPresultsname2']
+        self.GRPcharacteristicscount = settings['GRPcharacteristicscount']
+        self.GRPcharacteristicslist = settings['GRPcharacteristicslist']
+        self.GRPcharacteristicsvalues = settings['GRPcharacteristicsvalues']
+
+        # put some text as a place-holder
+        self.GRPLabel1 = tk.Label(self.parent, text = "1) Select group-level analysis options\nChoices are: Bayesian regression of BOLD\nresponses, analyses of SEM results w.r.t.\npersonal characteristics", fg = 'gray', justify = 'left')
+        self.GRPLabel1.grid(row=0,column=0,rowspan=2, sticky='W')
+        self.GRPLabel2 = tk.Label(self.parent, text = "2) For Bayesian regression select correlation\n for the analysis type, and for group comparisons choose\n2 results files", fg = 'gray', justify = 'left')
+        self.GRPLabel2.grid(row=2,column=0,rowspan=2, sticky='W')
+        self.GRPLabel3 = tk.Label(self.parent, text = "3) Run selected group-level analysis", fg = 'gray', justify = 'left')
+        self.GRPLabel3.grid(row=4,column=0, sticky='W')
+
+        # make a label to show the current setting of the network definition file directory name
+        # file1 (in case there are two sets of results to be compared)-------------------------------
+        pname, fname = os.path.split(self.GRPresultsname)
+        self.GRPresultsdirtext = tk.StringVar()
+        self.GRPresultsdirtext.set(pname)
+        self.GRPresultsnametext = tk.StringVar()
+        self.GRPresultsnametext.set(fname)
+
+        self.GRPlabel1 = tk.Label(self.parent, text = 'Results file:')
+        self.GRPlabel1.grid(row=0, column=1, sticky='N')
+        self.GRPresultsnamelabel = tk.Label(self.parent, textvariable=self.GRPresultsnametext, bg=bgcol, fg="#4B4B4B", font="none 10",
+                                      wraplength=300, justify='left')
+        self.GRPresultsnamelabel.grid(row=0, column=2, sticky='S')
+        self.GRPresultsdirlabel = tk.Label(self.parent, textvariable=self.GRPresultsdirtext, bg=bgcol, fg="#4B4B4B", font="none 8",
+                                      wraplength=300, justify='left')
+        self.GRPresultsdirlabel.grid(row=1, column=2, sticky='N')
+        # define a button to browse and select an existing network definition file, and write out the selected name
+        # also, define the function for what to do when this button is pressed
+        self.GRPresultsnamebrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg=fgcol2, fg='black',
+                                          command=self.GRPresultsbrowseaction, relief='raised', bd=5)
+        self.GRPresultsnamebrowse.grid(row=0, column=3)
+
+
+        # file2 (in case there are two sets of results to be compared)-------------------------------
+        if settings['GRPresultsname'] == 'notdefined':
+            initial_state = tk.DISABLED
+        else:
+            initial_state = tk.NORMAL
+
+        pname, fname = os.path.split(self.GRPresultsname2)
+        self.GRPresultsdirtext2 = tk.StringVar()
+        self.GRPresultsdirtext2.set(pname)
+        self.GRPresultsnametext2 = tk.StringVar()
+        self.GRPresultsnametext2.set(fname)
+
+        self.GRPlabel2 = tk.Label(self.parent, text = 'Results file2:')
+        self.GRPlabel2.grid(row=2, column=1, sticky='N')
+        self.GRPresultsnamelabel2 = tk.Label(self.parent, textvariable=self.GRPresultsnametext2, bg=bgcol, fg="#4B4B4B", font="none 10",
+                                      wraplength=300, justify='left')
+        self.GRPresultsnamelabel2.grid(row=2, column=2, sticky='S')
+        self.GRPresultsdirlabel2 = tk.Label(self.parent, textvariable=self.GRPresultsdirtext2, bg=bgcol, fg="#4B4B4B", font="none 8",
+                                      wraplength=300, justify='left')
+        self.GRPresultsdirlabel2.grid(row=3, column=2, sticky='N')
+
+        self.GRPresultsnamebrowse2 = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg=fgcol2, fg='black',
+                                          command=self.GRPresultsbrowseaction2, relief='raised', bd=5, state = initial_state)
+        self.GRPresultsnamebrowse2.grid(row=2, column=3)
+
+
+        # ---------radio buttons to indicate type of analysis to do----------------
+        # checkboxes to indicate 1) signficiance from zero, 2) group differences, 3) correlation
+        self.GRPanalysistypevalue = tk.IntVar(None,1)
+        self.GRPsig1 = tk.Radiobutton(self.parent, text = 'Sign. non-zero', width = bigbuttonsize, fg = 'black',
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 1)
+        self.GRPsig1.grid(row = 4, column = 2, sticky="W")
+
+        self.var2 = tk.IntVar()
+        self.GRPsig2 = tk.Radiobutton(self.parent, text = 'Avg. Group Diff.', width = bigbuttonsize, fg = 'black',
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 2)
+        self.GRPsig2.grid(row = 5, column = 2, sticky="W")
+
+        self.var3 = tk.IntVar()
+        self.GRPsig2p = tk.Radiobutton(self.parent, text = 'Paired Group Diff.', width = bigbuttonsize, fg = 'black',
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 3)
+        self.GRPsig2p.grid(row = 6, column = 2, sticky="W")
+
+        self.var4 = tk.IntVar()
+        self.GRPcorr = tk.Radiobutton(self.parent, text = 'Correlation', width = bigbuttonsize, fg = 'black',
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 4)
+        self.GRPcorr.grid(row = 4, column = 3, sticky="W")
+
+        self.var5 = tk.IntVar()
+        self.GRPcorr = tk.Radiobutton(self.parent, text = 'ANOVA', width = bigbuttonsize, fg = 'black',
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 5)
+        self.GRPcorr.grid(row = 5, column = 3, sticky="W")
+
+        self.var6 = tk.IntVar()
+        self.GRPcorr = tk.Radiobutton(self.parent, text = 'ANCOVA', width = bigbuttonsize, fg = 'black',
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 6)
+        self.GRPcorr.grid(row = 6, column = 3, sticky="W")
+
+
+        # indicate which "personal characteristics" to use - selected from database
+        self.GRPlabel2 = tk.Label(self.parent, text = "Select characteristic:")
+        self.GRPlabel2.grid(row=7,column=1, sticky='W')
+        # fieldvalues = DBFrame.get_DB_field_values(self)
+        self.fields = self.get_DB_fields()
+        self.field_var = tk.StringVar()
+        if len(self.fields) > 0:
+            self.field_var.set(self.fields[0])
+        else:
+            self.field_var.set('empty')
+
+        self.GRPfield_menu = tk.OptionMenu(self.parent, self.field_var, *self.fields, command=self.DBfieldchoice)
+        self.GRPfield_menu.grid(row=7, column=2, sticky='EW')
+        self.fieldsearch_opt = self.GRPfield_menu  # save this way so that values are not cleared
+
+        # label, button, for running the definition of clusters, and loading data
+        self.GRPcharclearbutton = tk.Button(self.parent, text="Clear/Update", width=bigbigbuttonsize, bg=fgcol1, fg='white',
+                                        command=self.GRPcharacteristicslistclear, relief='raised', bd=5)
+        self.GRPcharclearbutton.grid(row=7, column=3)
+
+
+        self.GRPlabel3 = tk.Label(self.parent, text = 'Characteristics list:')
+        self.GRPlabel3.grid(row=8, column=1, sticky='N')
+
+        self.GRPcharacteristicscount = 0
+        self.GRPcharacteristicslist = []
+        self.GRPcharacteristicstext = tk.StringVar()
+        self.GRPcharacteristicstext.set('not defined yet')
+        self.GRPcharacteristicsdisplay = tk.Label(self.parent, textvariable=self.GRPcharacteristicstext, bg=bgcol, fg="#4B4B4B", font="none 10",
+                                      wraplength=300, justify='left')
+        self.GRPcharacteristicsdisplay.grid(row=8, column=2, sticky='N')
 
 
         # label, button, for running the definition of clusters, and loading data
-        self.SEMrunnetworkbutton = tk.Button(self.parent, text="network SEM", width=bigbigbuttonsize, bg=fgcol1, fg='white',
-                                        command=self.SEMrunnetwork, relief='raised', bd=5)
-        self.SEMrunnetworkbutton.grid(row=9, column=2)
+        self.GRPrunbutton = tk.Button(self.parent, text="Run Group Analysis", width=bigbigbuttonsize, bg=fgcol1, fg='white',
+                                        command=self.GRPrunanalysis, relief='raised', bd=5)
+        self.GRPrunbutton.grid(row=9, column=2, columnspan = 2)
 
-
-
-
-        # # need inputs for timepoints and epoch
-        # timepoints = [11, 18]
-        # epoch = 7
-        # savedirectory = 'C:\sample_data'
-        # savenamelabel = 'testing'
 
 
 #----------MAIN calling function----------------------------------------------------

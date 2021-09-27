@@ -470,14 +470,14 @@ def pysem(cluster_properties, region_properties, timepoints = 0, epoch = 0):
                         # residual_variance2(source1, source2, aa) = res_var;
                         # residual_variance1(source1, source2, 1: 2, aa) = [res_var1 res_var2];
 
-    print('pysem:  finished calculating 2-source SEM values.  {}',format(time.time()))
+    print('pysem:  finished calculating 2-source SEM values.  {}',format(time.ctime()))
 
     return CCrecord, beta2, beta1, Zgrid2, Zgrid1_1, Zgrid1_2
 
 
 #-----------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------------
-def pysem_network(cluster_properties, region_properties, networkmodel, timepoints, epoch, savedirectory, savenamelabel):
+def pysem_network(cluster_properties, region_properties, networkmodel, timepoints, epoch, savedirectory, savenamelabel, resume_run = False):
     print('running pysem_network ...')
     network, ncluster_list, sem_region_list = pyclustering.load_network_model(networkmodel)
     nclusterlist = np.array([ncluster_list[i]['nclusters'] for i in range(len(ncluster_list))])
@@ -543,9 +543,33 @@ def pysem_network(cluster_properties, region_properties, networkmodel, timepoint
                 tplist1.append({'tp':tpoints})
             tplist.append(tplist1)
 
+    # check if a previous failed run is being resumed
+    targetstart = 0
+    componentstart = 0
+    sem_one_target_results_inprogress = []
+    if resume_run:
+        filecheck = []
+        checknamelist = []
+        for networkcomponent in range(ntargets):
+            target = network[networkcomponent]['target']
+            sources = network[networkcomponent]['sources']
+            nametag = target
+            for name in sources: nametag = nametag + '_' + name
+            outputname_inprog = os.path.join(savedirectory, 'SEMresults_' + savenamelabel + '_' + nametag + '_inprogress.npy')
+            checknamelist.append(outputname_inprog)
+            check = os.path.isfile(outputname_inprog)
+            filecheck.append(check)
+        if any(filecheck):
+            ii = np.where(filecheck)[0]
+            outputname_inprog = checknamelist[ii[-1]]
+            results_inprogress = np.load(outputname_inprog, allow_pickle=True).flat[0]
+            targetstart = results_inprogress['sem_one_target_results'][-1]['targetcluster']
+            componentstart = results_inprogress['sem_one_target_results'][-1]['networkcomponent']
+
     # run all combinations of the SEM
     outputnamelist = []
-    for networkcomponent in range(ntargets):
+    outputnamecount = 0
+    for networkcomponent in range(componentstart,ntargets):
         target = network[networkcomponent]['target']
         sources = network[networkcomponent]['sources']
         targetnum = network[networkcomponent]['targetnum']
@@ -558,39 +582,51 @@ def pysem_network(cluster_properties, region_properties, networkmodel, timepoint
         infolabel = ' '
         for name in sources: infolabel = infolabel + ' ' + name
         outputname = os.path.join(savedirectory,'SEMresults_' + savenamelabel + '_' + nametag + '.npy')
-        outputnamelist += outputname
+        outputname_inprog = os.path.join(savedirectory,'SEMresults_' + savenamelabel + '_' + nametag + '_inprogress.npy')
+        if outputnamecount == 0:
+            outputnamelist = [outputname]
+            outputnamelist_inprog = [outputname_inprog]
+        else:
+            outputnamelist.append(outputname)
+            outputnamelist_inprog.append(outputname_inprog)
+        outputnamecount += 1
 
         print('pysem_network: calculating for target region {} of {} regions ...{}'.format(networkcomponent + 1, ntargets, time.ctime()))
         print('      target {}, sources {}'.format(target,infolabel))
 
-        sem_one_target_results = []
-        for targetcluster in range(nclusterlist[targetnum]):
+
+        sem_one_target_results = sem_one_target_results_inprogress
+        if networkcomponent > componentstart:
+            targetstart = 0
+            sem_one_target_results = []
+
+        for targetcluster in range(targetstart,nclusterlist[targetnum]):
             print('     pysem_network: target cluster {} of {} ...{}'.format(targetcluster + 1, nclusterlist[targetnum], time.ctime()))
             targetdataindex = dataindices_from_sourceclusters(nclusterlist, [targetnum],targetcluster).astype(int)
 
             bresults = np.zeros((ncombinations,ntimepoints,NP,nsources))
             R2results = np.zeros((ncombinations,ntimepoints,NP))
 
-            for index in range(ncombinations):
-                sourceclusters = ind2sub_ndims(nclusterlist[sourcenums], index)   # the cluster numbers to use for each source region
-                sourcedataindices = dataindices_from_sourceclusters(nclusterlist, sourcenums,index).astype(int)
+            for ttime in range(ntimepoints):
+                for nn in range(NP):
+                    tp = tplist[ttime][nn]['tp']
+                    targetdata = tcdata[targetdataindex,tp]
+                    targetdata1 = targetdata - np.mean(targetdata)
 
-                for ttime in range(ntimepoints):
-                    for nn in range(NP):
-                        tp = tplist[ttime][nn]['tp']
+                    for index in range(ncombinations):
+                        sourceclusters = ind2sub_ndims(nclusterlist[sourcenums], index)   # the cluster numbers to use for each source region
+                        sourcedataindices = dataindices_from_sourceclusters(nclusterlist, sourcenums,index).astype(int)
 
-                        targetdata = tcdata[targetdataindex,tp]
                         sourcedata = tcdata[sourcedataindices,:]
                         sourcedata = sourcedata[:,tp]
 
-                        targetdata1 = targetdata - np.mean(targetdata)
                         Smean = np.mean(sourcedata, axis=1)
                         sourcedata1 = sourcedata - np.repeat(Smean[:, np.newaxis], len(tp), axis=1)
 
                         Lweight = 1e-2
                         alpha = 1e-4
                         deltab = 0.05 * np.ones(nsources)
-                        tol = 1e-3
+                        tol = 1e-2
                         maxiter = 250
                         b0 = np.zeros(nsources)
                         b, fit, R2, total_var, res_var, iter = \
@@ -599,12 +635,22 @@ def pysem_network(cluster_properties, region_properties, networkmodel, timepoint
                         bresults[index,ttime,nn,:] = b
                         R2results[index,ttime,nn] = R2
 
-            entry = {'b':bresults, 'R2':R2results}
+            entry = {'b':bresults, 'R2':R2results, 'networkcomponent':networkcomponent, 'targetcluster':targetcluster}
             sem_one_target_results.append(entry)
+            print('appending entry to sem_one_target_results ... length now ',len(sem_one_target_results))
+            # inprogressdata = {'sem_one_target_results':sem_one_target_results, 'targetcluster':targetcluster, 'networkcomponent':networkcomponent}
+            inprog_results = {'sem_one_target_results':sem_one_target_results}
+            np.save(outputname_inprog, inprog_results)
 
             # save for each network component, with a different file name
-        np.save(outputname, sem_one_target_results)
 
+        print('saving sem_one_target_results ... length now ',len(sem_one_target_results))
+        results = {'sem_one_target_results': sem_one_target_results}
+        np.save(outputname, results)
+        # delete in progress results - not needed anymore
+        os.remove(outputname_inprog)
+
+    print('completed SEM network calculations: ',time.ctime())
     return outputnamelist
 
     # now a function is needed to look at group characteristics etc of the results...

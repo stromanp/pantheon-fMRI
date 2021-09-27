@@ -55,11 +55,15 @@ def load_network_model(networkmodel):
         sourcenumlist = []
         for ss in range(nsources_max):
             tag = 'source'+str(ss+1)
-            sourcename = dnet.loc[nn,tag]
-            if not str(sourcename) == 'nan':
-                sourcelist.append(sourcename)
-                sourcenum = sem_region_list.index(sourcename)
-                sourcenumlist.append(sourcenum)
+            try:
+                sourcename = dnet.loc[nn,tag]
+                if not str(sourcename) == 'nan':
+                    sourcelist.append(sourcename)
+                    sourcenum = sem_region_list.index(sourcename)
+                    sourcenumlist.append(sourcenum)
+            except:
+                print('source {} for target {} ignored in network definition - invalid source'.format(sourcename,targetname))
+
         entry = {'target':targetname, 'sources':sourcelist, 'targetnum':targetnum, 'sourcenums':sourcenumlist}
         network.append(entry)
 

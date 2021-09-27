@@ -17,7 +17,7 @@ def py_GRFcorrected_pthreshold(p_corr, residual_data, search_mask, df=0):
      # return [p_unc, FWHM, R]
 
     # input residual data after doing GLM fitting
-    e = residual_data;
+    e = residual_data
     ts = np.shape(e)[3]
     if df == 0:
         df = ts-1
@@ -33,6 +33,16 @@ def py_GRFcorrected_pthreshold(p_corr, residual_data, search_mask, df=0):
     p_unc = py_uc_RF(p_corr/2,df,R[3])   # divide by 2 to make it 2-sided T-distribution
 
     return p_unc, FWHM, R
+
+
+def py_Bonferonni_corrected_pthreshold(p_corr, search_mask, voxel_volume = 1.0):
+    # convert the residual map to normalized residuals (Z-scores)
+    cx,cy,cz = np.where(search_mask > 0)
+    nvox = len(cx)/voxel_volume
+    print('py_Bonferonni_corrected_pthreshold:  estimating for {:06.1f} voxels'.format(nvox))
+    p_unc = (p_corr/2)/nvox   # divide by 2 to make it 2-sided T-distribution
+
+    return p_unc, nvox
 
 
 def py_smoothness_est(e, mask):
@@ -68,12 +78,11 @@ def py_smoothness_est(e, mask):
     RESEL = (resel_img**(1/3))*resel_xyz/((resel_xyz.prod())**(1/3))
     FWHM = (1./RESEL)
 
-    R = py_sample_volume(mask, FWHM);   # takes into account the shape of the search volume
+    R = py_sample_volume(mask, FWHM)  # takes into account the shape of the search volume
 
     return resel_xyz, resel_img, RPV, RESEL, FWHM, R
 
 
-# QU_sample_volume
 def py_sample_volume(mask, FWHM):
     # return R
     mask = np.where(np.abs(mask)>0,1,0)
@@ -82,8 +91,8 @@ def py_sample_volume(mask, FWHM):
     P = np.size(c[0][:])
 
     xc = np.sum(mask,axis = 0);  c = np.where(xc > 0);  Ex = np.sum(xc[c]-1)
-    yc = np.sum(mask,axis = 1);  c = np.where(yc > 0);  Ey = np.sum(yc[c]-1);
-    zc = np.sum(mask,axis = 2);  c = np.where(zc > 0);  Ez = np.sum(zc[c]-1);
+    yc = np.sum(mask,axis = 1);  c = np.where(yc > 0);  Ey = np.sum(yc[c]-1)
+    zc = np.sum(mask,axis = 2);  c = np.where(zc > 0);  Ez = np.sum(zc[c]-1)
 
     # faces
     ss = np.copy(mask)
@@ -102,13 +111,13 @@ def py_sample_volume(mask, FWHM):
     Fyz = np.size(np.where(ss == 4)[0][:])
 
     # cubes
-    ss = np.copy(mask);
-    ss[:xs-1,:,:] = ss[:xs-1,:,:] + ss[1:,:,:];
-    ss[:,:ys-1,:] = ss[:,:ys-1,:] + ss[:,1:,:];
-    ss[:,:,:zs-1] = ss[:,:,:zs-1] + ss[:,:,1:];
+    ss = np.copy(mask)
+    ss[:xs-1,:,:] = ss[:xs-1,:,:] + ss[1:,:,:]
+    ss[:,:ys-1,:] = ss[:,:ys-1,:] + ss[:,1:,:]
+    ss[:,:,:zs-1] = ss[:,:,:zs-1] + ss[:,:,1:]
     C = np.size(np.where(ss == 8)[0][:])
 
-    rx = 1/FWHM[0];  ry = 1/FWHM[1];  rz = 1/FWHM[2];
+    rx = 1/FWHM[0];  ry = 1/FWHM[1];  rz = 1/FWHM[2]
     R = np.zeros(4)
     R[0] = P - (Ex + Ey + Ez) + (Fxy + Fxz + Fyz) - C
     R[1] = (Ex - Fxy - Fxz + C)*rx + (Ey - Fxy - Fyz + C)*ry + (Ez - Fxz - Fyz + C)*rz

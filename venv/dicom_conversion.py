@@ -144,9 +144,7 @@ def move_files_and_update_database(databasename, dbhome, pname):
                 newdicomname = os.path.join(nameparts[0], subfolder, nameparts[1])
                 # move the dicom file to the new location
                 shutil.move(dicomname, newdicomname)
-            
-            # # now write the new database values
-            # df1.to_excel(databasename, sheet_name='datarecord')
+
 
             # write it to the database by appending a sheet to the excel file
             with pd.ExcelWriter(databasename, mode='a') as writer:
