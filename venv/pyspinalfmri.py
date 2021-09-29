@@ -2725,7 +2725,6 @@ class SEMFrame:
         cluster_data = np.load(self.SEMclustername, allow_pickle=True).flat[0]
         cluster_properties = cluster_data['cluster_properties']
 
-        print('network SEM is not ready to run yet ....')
         outputnamelist = pysem.pysem_network(cluster_properties, region_properties, self.networkmodel, self.SEMtimepoints, self.SEMepoch, self.SEMresultsdir, self.SEMsavetag, self.SEMresumerun)
 
         # save the results somehow

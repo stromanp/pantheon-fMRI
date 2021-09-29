@@ -19,7 +19,7 @@ import os
 def ind2sub_ndims(vsize,index):
     # mlist = ind2sub_ndims(vsize, ind)
     ndims = len(vsize)
-    m = np.zeros(ndims)
+    m = np.zeros(ndims).astype(int)
     for nn in range(ndims):
         if nn == 0:
             m[0] = np.mod(index,vsize[0])
@@ -58,6 +58,8 @@ def single_source_fit(y,X):
     total_var = np.sum(y**2)
 
     R2 = 1.0 - res_var / (total_var + 1.0e-20)
+    if R2 > 1.0: R2 = 0.99999
+    if R2 < -1.0: R2 = -0.99999
 
     return b, fit, R2, total_var, res_var
 
@@ -80,6 +82,8 @@ def general_glm(y, X):
     total_var = np.sum(y**2)
 
     R2 = 1.0 - res_var / (total_var + 1.0e-20)
+    if R2 > 1.0: R2 = 0.99999
+    if R2 < -1.0: R2 = -0.99999
 
     return b, fit, R2, total_var, res_var
 
@@ -144,6 +148,8 @@ def gradient_descent_fullinfo(b0, y, X, Lweight, alpha, deltab, tol=1e-6, maxite
     total_var = np.sum(y**2)
     res_var = copy.deepcopy(ssqd)
     R2 = 1.0 - res_var / (total_var + 1.0e-20)
+    if R2 > 1.0: R2 = 0.99999
+    if R2 < -1.0: R2 = -0.99999
 
     ssqd_record = ssqd_record[:iter]
     gradnorm_record = gradnorm_record[:iter]
@@ -210,6 +216,8 @@ def gradient_descent(b0, y, X, Lweight, alpha, deltab, tol=1e-6, maxiter=1000):
     total_var = np.sum(y**2)
     res_var = copy.deepcopy(ssqd)
     R2 = 1.0 - res_var / (total_var + 1.0e-20)
+    if R2 > 1.0: R2 = 0.99999
+    if R2 < -1.0: R2 = -0.99999
 
     return b0, fit, R2, total_var, res_var, iter
 
@@ -277,6 +285,8 @@ def gradient_descent_single(b0, y, X, Lweight, alpha, deltab, tol=1e-6, maxiter=
     total_var = np.sum(y**2)
     res_var = copy.deepcopy(ssqd)
     R2 = 1.0 - res_var / (total_var + 1.0e-20)
+    if R2 > 1.0: R2 = 0.99999
+    if R2 < -1.0: R2 = -0.99999
 
     ssqd_record = ssqd_record[:iter]
     gradnorm_record = gradnorm_record[:iter]
@@ -380,10 +390,10 @@ def pysem(cluster_properties, region_properties, timepoints = 0, epoch = 0):
     # get beta values for all combinations of targets and two sources, for each person
 
     Lweight = 1e-2
-    alpha = 1e-4
+    alpha = 1e-2
     deltab = 0.05 * np.ones(2)
-    tol = 1e-3
-    maxiter = 200
+    tol = 1e-1
+    maxiter = 250
 
     # initialize arrays for storing the results
     beta2 = np.zeros((nclusters, nclusters, nclusters, ntimepoints, NP, 2))
@@ -397,23 +407,23 @@ def pysem(cluster_properties, region_properties, timepoints = 0, epoch = 0):
         t1 = np.sum(nclusterlist[:tregion]).astype(int)
         t2 = np.sum(nclusterlist[:(tregion+1)]).astype(int)
         tclusters = list(range(t1,t2))
-        s1regions = np.setdiff1d(list(range(nregions)), tregion)
-        for s1region in s1regions:
-            s11 = np.sum(nclusterlist[:s1region]).astype(int)
-            s12 = np.sum(nclusterlist[:(s1region + 1)]).astype(int)
-            s1clusters = list(range(s11, s12))
+        for tc in tclusters:
+            targetdata = tcdata[tc, :]
+            # print('pysem: calculating for cluster {} of target {} s1 region {} s2 region {} ...{}'.format(tc+1,tregion,s1region,s2region,time.ctime(time.time())))
 
-            s2regions = np.setdiff1d(list(range((s1region+1),nregions)), tregion)
-            for s2region in s2regions:
-                # s2clusters = np.setdiff1d(list(range(nclusters)), [tclusters, s1clusters])
-                s21 = np.sum(nclusterlist[:s2region]).astype(int)
-                s22 = np.sum(nclusterlist[:(s2region + 1)]).astype(int)
-                s2clusters = list(range(s21, s22))
+            s1regions = np.setdiff1d(list(range(nregions)), tregion)
+            for s1region in s1regions:
+                s11 = np.sum(nclusterlist[:s1region]).astype(int)
+                s12 = np.sum(nclusterlist[:(s1region + 1)]).astype(int)
+                s1clusters = list(range(s11, s12))
+                for s1c in s1clusters:
 
-                for tc in tclusters:
-                    targetdata = tcdata[tc,:]
-                    # print('pysem: calculating for cluster {} of target {} s1 region {} s2 region {} ...{}'.format(tc+1,tregion,s1region,s2region,time.ctime(time.time())))
-                    for s1c in s1clusters:
+                    s2regions = np.setdiff1d(list(range((s1region + 1), nregions)), tregion)
+                    for s2region in s2regions:
+                        # s2clusters = np.setdiff1d(list(range(nclusters)), [tclusters, s1clusters])
+                        s21 = np.sum(nclusterlist[:s2region]).astype(int)
+                        s22 = np.sum(nclusterlist[:(s2region + 1)]).astype(int)
+                        s2clusters = list(range(s21, s22))
                         for s2c in s2clusters:
 
                             X = tcdata[[s1c, s2c], :]
@@ -428,20 +438,8 @@ def pysem(cluster_properties, region_properties, timepoints = 0, epoch = 0):
                                     X1 = X1 - np.repeat(X1mean[:,np.newaxis],len(tp),axis=1)
 
                                     b0 = np.zeros(2)
-                                    deltab = 0.05 * np.ones(2)
                                     b, fit, R2, total_var, res_var, iter = \
                                         gradient_descent(b0, targetdata1, X1, Lweight, alpha, deltab, tol, maxiter)
-
-                                    # for comparison with single-source fits ...
-                                    # b0 = np.array([0]).astype(float)
-                                    # deltab = np.array([0.05]).astype(float)
-                                    # b1, fit1, R21, total_var1, res_var1, iter1, ssqd_record1, gradnorm_record1 = \
-                                    #     gradient_descent_single(b0, targetdata1, X1[0,:], Lweight, alpha, deltab, tol, maxiter)
-                                    #
-                                    # b0 = np.array([0]).astype(float)
-                                    # deltab = np.array([0.05]).astype(float)
-                                    # b2, fit2, R22, total_var2, res_var2, iter2, ssqd_record2, gradnorm_record2 = \
-                                    #     gradient_descent_single(b0, targetdata1, X1[1,:], Lweight, alpha, deltab, tol, maxiter)
 
                                     b1, fit1, R21, total_var1, res_var1 = single_source_fit(targetdata1,X1[0,:])
                                     b2, fit2, R22, total_var2, res_var2 = single_source_fit(targetdata1,X1[1,:])
@@ -456,19 +454,6 @@ def pysem(cluster_properties, region_properties, timepoints = 0, epoch = 0):
                                     Zgrid2[tc,s1c,s2c,ttime,nn] = Z
                                     Zgrid1_1[tc,s1c,s2c,ttime,nn] = Z_1
                                     Zgrid1_2[tc,s1c,s2c,ttime,nn] = Z_2
-                        #
-                        #
-                        # Rvals(target, source1, aa, jj0) = CCgrid(target, source1) / sqrt(
-                        #     CCgrid(target, target) * CCgrid(source1, source1));
-                        # Rvals(target, source2, aa, jj0) = CCgrid(target, source2) / sqrt(
-                        #     CCgrid(target, target) * CCgrid(source2, source2));
-                        # Rvals(source1, source2, aa, jj0) = CCgrid(source1, source2) / sqrt(
-                        #     CCgrid(source1, source1) * CCgrid(source2, source2));
-                        # Rvals(source2, source1, aa, jj0) = Rvals(source1, source2, aa, jj0);
-                        #
-                        # total_variance(aa) = tvar;
-                        # residual_variance2(source1, source2, aa) = res_var;
-                        # residual_variance1(source1, source2, 1: 2, aa) = [res_var1 res_var2];
 
     print('pysem:  finished calculating 2-source SEM values.  {}',format(time.ctime()))
 
@@ -519,8 +504,8 @@ def pysem_network(cluster_properties, region_properties, networkmodel, timepoint
         tplist = []
         tplist1 = []
         for nn in range(NP):
-            r1 = sum(nruns_per_person[:nn])
-            r2 = sum(nruns_per_person[:(nn+1)])
+            r1 = np.sum(nruns_per_person[:nn])
+            r2 = np.sum(nruns_per_person[:(nn+1)])
             t1 = r1*tsize
             t2 = r2*tsize
             tpoints = list(range(t1,t2))
@@ -533,8 +518,8 @@ def pysem_network(cluster_properties, region_properties, networkmodel, timepoint
             et2 = (timepoints[ee] + np.floor(epoch/2)).astype(int)
             tplist1 = []
             for nn in range(NP):
-                r1 = sum(nruns_per_person[:nn])
-                r2 = sum(nruns_per_person[:(nn+1)])
+                r1 = np.sum(nruns_per_person[:nn])
+                r2 = np.sum(nruns_per_person[:(nn+1)])
                 tp = [] # initialize list
                 tpoints = []
                 for ee2 in range(r1,r2):

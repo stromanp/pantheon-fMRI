@@ -34,6 +34,7 @@ def load_network_model(networkmodel):
     '''
     xls = pd.ExcelFile(networkmodel, engine = 'openpyxl')
     dnet = pd.read_excel(xls, 'connections')
+    dnet.pop('Unnamed: 0')   # remove this blank field from the beginning
     dnclusters = pd.read_excel(xls, 'nclusters')
 
     nregions = len(dnclusters)
@@ -286,7 +287,7 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, networkmodel):
                 tc[aa, :] = np.mean(regiondata[cc, :], axis=0)
                 tc_sem[aa, :] = np.std(regiondata[cc, :], axis=0) / np.sqrt(nvox)
 
-            regiondata_entry = {'tc': tc, 'tc_sem': tc_sem, 'nruns_per_person': nruns_per_person, 'tsize': tsize}
+            regiondata_entry = {'tc': tc, 'tc_sem': tc_sem, 'nruns_per_person': nruns_per_person, 'tsize': tsize, 'rname':rname}
             region_properties.append(regiondata_entry)
 
     return region_properties

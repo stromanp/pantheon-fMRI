@@ -3,6 +3,7 @@ import numpy as np
 import copy
 import load_templates
 import scipy.ndimage as nd
+import pandas as pd
 
 # setup color scales for displays
 def colormap(values):
@@ -311,3 +312,25 @@ def pydisplayvoxels(templatename, cx,cy,cz, colorlist = [1,0,0]):
     outputimg[outputimg<0.] = 0.0
 
     return outputimg
+
+
+def pywriteexcel(data, excelname, excelsheet = 'pydata', write_mode = 'replace'):
+    # data needs to be an array of dictionaries
+    # each dictionary key will be a column in the resulting excel sheet
+    # "write_mode" should be "replace" or "append" to indicate if the
+    # excel file should be over-written, or added to
+    try:
+        nrows = len(data)
+        keylist = data[0].keys()
+    except:
+        print('pywriteexcel: unexpected input data format')
+        return 0
+
+    dataf = pd.DataFrame(data)
+
+    if (write_mode == 'replace') or not os.path.exists(excelname):
+        with pd.ExcelWriter(excelname, mode='w') as writer:
+            dataf.to_excel(writer, sheet_name=excelsheet, float_format = '%.2f')
+    else:
+        with pd.ExcelWriter(excelname, mode='a') as writer:
+            dataf.to_excel(writer, sheet_name=excelsheet, float_format = '%.2f')
