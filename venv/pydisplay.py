@@ -4,6 +4,7 @@ import copy
 import load_templates
 import scipy.ndimage as nd
 import pandas as pd
+import os
 
 # setup color scales for displays
 def colormap(values):
@@ -314,7 +315,7 @@ def pydisplayvoxels(templatename, cx,cy,cz, colorlist = [1,0,0]):
     return outputimg
 
 
-def pywriteexcel(data, excelname, excelsheet = 'pydata', write_mode = 'replace'):
+def pywriteexcel(data, excelname, excelsheet = 'pydata', write_mode = 'replace', floatformat = '%.2f'):
     # data needs to be an array of dictionaries
     # each dictionary key will be a column in the resulting excel sheet
     # "write_mode" should be "replace" or "append" to indicate if the
@@ -330,7 +331,7 @@ def pywriteexcel(data, excelname, excelsheet = 'pydata', write_mode = 'replace')
 
     if (write_mode == 'replace') or not os.path.exists(excelname):
         with pd.ExcelWriter(excelname, mode='w') as writer:
-            dataf.to_excel(writer, sheet_name=excelsheet, float_format = '%.2f')
+            dataf.to_excel(writer, sheet_name=excelsheet, float_format = floatformat)
     else:
         with pd.ExcelWriter(excelname, mode='a') as writer:
-            dataf.to_excel(writer, sheet_name=excelsheet, float_format = '%.2f')
+            dataf.to_excel(writer, sheet_name=excelsheet, float_format = floatformat)

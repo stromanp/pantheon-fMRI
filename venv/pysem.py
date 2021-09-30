@@ -548,8 +548,16 @@ def pysem_network(cluster_properties, region_properties, networkmodel, timepoint
             ii = np.where(filecheck)[0]
             outputname_inprog = checknamelist[ii[-1]]
             results_inprogress = np.load(outputname_inprog, allow_pickle=True).flat[0]
-            targetstart = results_inprogress['sem_one_target_results'][-1]['targetcluster']
-            componentstart = results_inprogress['sem_one_target_results'][-1]['networkcomponent']
+            sem_one_target_results_inprogress = results_inprogress['sem_one_target_results']
+            lasttargetcomplete  = results_inprogress['sem_one_target_results'][-1]['targetcluster']
+            lastcomponent = results_inprogress['sem_one_target_results'][-1]['networkcomponent']
+            targetnum = network[lastcomponent]['targetnum']
+            ntargetclusters = nclusterlist[targetnum]
+            targetstart = lasttargetcomplete+1
+            componentstart = lastcomponent
+            if targetstart >= ntargetclusters:
+                targetstart = 0
+                componentstart += 1
 
     # run all combinations of the SEM
     outputnamelist = []
@@ -578,7 +586,6 @@ def pysem_network(cluster_properties, region_properties, networkmodel, timepoint
 
         print('pysem_network: calculating for target region {} of {} regions ...{}'.format(networkcomponent + 1, ntargets, time.ctime()))
         print('      target {}, sources {}'.format(target,infolabel))
-
 
         sem_one_target_results = sem_one_target_results_inprogress
         if networkcomponent > componentstart:
@@ -609,10 +616,11 @@ def pysem_network(cluster_properties, region_properties, networkmodel, timepoint
                         sourcedata1 = sourcedata - np.repeat(Smean[:, np.newaxis], len(tp), axis=1)
 
                         Lweight = 1e-2
-                        alpha = 1e-4
+                        alpha = 1e-2
                         deltab = 0.05 * np.ones(nsources)
-                        tol = 1e-2
+                        tol = 1e-1
                         maxiter = 250
+
                         b0 = np.zeros(nsources)
                         b, fit, R2, total_var, res_var, iter = \
                             gradient_descent(b0, targetdata1, sourcedata1, Lweight, alpha, deltab, tol, maxiter)

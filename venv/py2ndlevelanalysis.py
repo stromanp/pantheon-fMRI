@@ -120,6 +120,7 @@ def remove_reps_and_sort(id_list, value_list, data):
 # look for significant group-average beta-value differences from zero
 def group_average_significance(filename, pthreshold):
     data = np.load(filename, allow_pickle=True).flat[0]
+    datafiletype = 0
     try:
         keylist = list(data.keys())
         if 'type' in keylist: datafiletype = 1   # SEM results
@@ -184,41 +185,10 @@ def group_average_significance(filename, pthreshold):
                     values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Tvalue_list[ii]],
                                              list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits)))
                     entry = dict(zip(keys, values))
-
-                    #
-                    #
-                    # entry = {'tname':targetname, 'tcluster':targetcluster, 'sname':sourcename, 'scluster':sourcecluster,
-                    #          'Tvalue': Tvalue_list[ii],'tx':targetcoords[0],'ty':targetcoords[1],'tz':targetcoords[2],
-                    #          'tlimx1':targetlimits[0], 'tlimx2':targetlimits[1], 'tlimy1':targetlimits[2], 'tlimy2':targetlimits[3], 'tlimz1':targetlimits[4], 'tlimz2':targetlimits[5],
-                    #          'sx':sourcecoords[0], 'sy':sourcecoords[1], 'sz':sourcecoords[2],
-                    #          'slimx1':sourcelimits[0], 'slimx2':sourcelimits[1], 'slimy1':sourcelimits[2], 'slimy2':sourcelimits[3], 'slimz1':sourcelimits[4], 'slimz2':sourcelimits[5]}
                     results.append(entry)
 
                 # eliminate redundant values, for repeats keep the one with the largest Tvalue
                 results2, Tvalue_list2 = remove_reps_and_sort(connid_list, Tvalue_list, results)
-
-                # # eliminate redundant values, for repeats keep the one with the largest Tvalue
-                # uid, indices = np.unique(connid_list, return_index = True)
-                # keep_indices = []
-                # for cc in uid:
-                #     indices2 = np.where(connid_list == cc)[0]
-                #     Tindex = np.argmax(np.abs(Tvalue_list[indices2]))
-                #     keep_indices.append(indices2[Tindex])
-                # results2 = []
-                # Tvalue_list2 = []
-                # for cc in keep_indices:
-                #     results2.append(results[cc])
-                #     Tvalue_list2.append(Tvalue_list[cc])
-                # results = copy.deepcopy(results2)
-                # Tvalue_list = Tvalue_list2
-                # results2 = []
-                # Tvalue_list2 = []
-                #
-                # # sort by significance
-                # dorder = np.argsort(np.abs(Tvalue_list))
-                # results2 = copy.deepcopy(results)
-                # for ii,dd in enumerate(dorder):
-                #     results2[ii] = copy.deepcopy(results[dd])
 
                 p,f = os.path.split(filename)
                 f2,e = os.path.splitext(f)
@@ -333,14 +303,6 @@ def group_average_significance(filename, pthreshold):
                              list(targetcoords), list(targetlimits), list(sourcecoords), list(sourcelimits), [timepoint]))
                         entry = dict(zip(keys, values))
 
-                        # entry = {'tname': targetname, 'tcluster': tt, 'sname': sourcename,
-                        #          'scluster': sourcecluster, 'Tvalue': Tvalue_list[ii], 'tx': targetcoords[0], 'ty': targetcoords[1],
-                        #          'tz': targetcoords[2],'tlimx1': targetlimits[0], 'tlimx2': targetlimits[1], 'tlimy1': targetlimits[2],
-                        #          'tlimy2': targetlimits[3], 'tlimz1': targetlimits[4], 'tlimz2': targetlimits[5],
-                        #          'sx': sourcecoords[0], 'sy': sourcecoords[1], 'sz': sourcecoords[2],
-                        #          'slimx1': sourcelimits[0], 'slimx2': sourcelimits[1], 'slimy1': sourcelimits[2],
-                        #          'slimy2': sourcelimits[3], 'slimz1': sourcelimits[4], 'slimz2': sourcelimits[5], 'timepoint':timepoint}
-
                         results.append(entry)
                         Tvalue_list.append(Tvalue)
                         connid_list.append(connid)
@@ -351,18 +313,6 @@ def group_average_significance(filename, pthreshold):
             # separate by timepoints
             timepoint_list = [results2[ii]['timepoint'] for ii in range(len(results2))]
             times = np.unique(timepoint_list)
-
-            # timepoint_list = np.zeros(len(results2))
-            # for ii in range(len(results2)):
-            #     timepoint_list[ii] = results2[ii]['timepoint']
-
-            # # sort by significance, and separate by timepoints
-            # dorder = np.argsort(np.abs(Tvalue_list))
-            # results2 = copy.deepcopy(results)
-            # timepoints2 = []
-            # for ii,dd in enumerate(dorder):
-            #     results2[ii] = copy.deepcopy(results[dd])
-            #     timepoints2[ii] = results[dd]['timepoint']
 
         # still need to split the data according to timepoints
         p,f = os.path.split(filename)
@@ -389,7 +339,7 @@ def group_average_significance(filename, pthreshold):
         excelfilename = os.path.join(p, f2 + '_2ndlevel.xlsx')
 
         nregions = len(region_properties)
-        for rr in nregions:
+        for rr in range(nregions):
             tc = region_properties[rr]['tc']          # nclusters x tsize_total
             tc_sem = region_properties[rr]['tc_sem']
             tsize = region_properties[rr]['tsize']
@@ -401,7 +351,7 @@ def group_average_significance(filename, pthreshold):
             # change shape of timecourse data array - prep data
             tc_per_person = np.zeros((nclusters,tsize,NP))
             tc_per_person_sem = np.zeros((nclusters,tsize,NP))
-            for nn in NP:
+            for nn in range(NP):
                 nruns = nruns_per_person[nn]
                 t1 = np.sum(nruns_per_person[:nn])*tsize
                 t2 = np.sum(nruns_per_person[:(nn+1)])*tsize
@@ -416,23 +366,23 @@ def group_average_significance(filename, pthreshold):
             sem_tc = np.std(tc_per_person, axis = 2)/np.sqrt(NP)
             T = mean_tc/(sem_tc + 1.0e-10)
 
-            # check significance (or just write results to excel?)
+            # check significance
             Tthresh = stats.t.ppf(1 - pthreshold, NP - 1)
             sig = abs(T) > Tthresh
 
-            # mean_tc  :  nclusters x tsize
-            # sem_tc  :  nclusters x tsize
-            # T   : nclusters x tsize
-            # sig : nclusters x tsize
+            keys = []
+            for cc in range(nclusters):
+                keys = keys+['avg '+str(cc), 'sem '+str(cc),'T '+str(cc), 'sig '+str(cc)]
 
-            keys = ['rname avg','rname sem','rname T','rname sig']
             outputdata = []
-            for tt in tsize:
-                values = [mean_tc[tt],sem_tc[tt],T[tt],sig[tt]]
+            for tt in range(tsize):
+                values = []
+                for cc in range(nclusters):
+                    values = values+[mean_tc[cc,tt],sem_tc[cc,tt],T[cc,tt],sig[cc,tt]]
                 entry = dict(zip(keys,values))
                 outputdata.append(entry)
 
             excelsheetname = rname
-            pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'append')
+            pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'append', '%.3f')
 
 
