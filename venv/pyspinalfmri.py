@@ -2933,7 +2933,7 @@ class GRPFrame:
             self.field_var.set('empty')
 
         self.GRPfield_menu = tk.OptionMenu(self.parent, self.field_var, *self.fields, command=self.DBfieldchoice)
-        self.GRPfield_menu.grid(row=6, column=2, sticky='EW')
+        self.GRPfield_menu.grid(row=7, column=2, sticky='EW')
         self.fieldsearch_opt = self.GRPfield_menu  # save this way so that values are not cleared
 
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
@@ -3099,14 +3099,23 @@ class GRPFrame:
         if value == 2: self.GRPanalysistype = 'Sig2'
         if value == 3: self.GRPanalysistype = 'Sig2paired'
         if value == 4: self.GRPanalysistype = 'Correlation'
-        if value == 5: self.GRPanalysistype = 'ANOVA'
-        if value == 6: self.GRPanalysistype = 'ANCOVA'
+        if value == 5: self.GRPanalysistype = 'Regression'
+        if value == 6: self.GRPanalysistype = 'ANOVA'
+        if value == 7: self.GRPanalysistype = 'ANCOVA'
 
         print('Group analysis type set to: ',self.GRPanalysistype)
 
+        if value == 2:
+            print('Sig2:  be sure to indicate two sets of results to compare')
+        if value == 3:
+            print('Sig2paired:  be sure to indicate two sets of results to compare')
         if value == 4:
-            print('ANOVA:  select only discrete or categorical values for the personal characteristics')
+            print('Correlation:  only indicate one set of results (first set will be used)')
         if value == 5:
+            print('Regression:  only indicate one set of results (first set will be used)')
+        if value == 6:
+            print('ANOVA:  select only discrete or categorical values for the personal characteristics')
+        if value == 7:
             print('ANCOVA:  select a discrete value first, and a continuous value second, for the personal characteristics')
 
         settings['GRPanalysistype'] = self.GRPanalysistype
@@ -3308,32 +3317,38 @@ class GRPFrame:
         self.GRPanalysistypevalue = tk.IntVar(None,1)
         self.GRPsig1 = tk.Radiobutton(self.parent, text = 'Sign. non-zero', width = bigbuttonsize, fg = 'black',
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 1)
-        self.GRPsig1.grid(row = 4, column = 2, sticky="W")
+        self.GRPsig1.grid(row = 4, column = 1, sticky="W")
 
         self.var2 = tk.IntVar()
         self.GRPsig2 = tk.Radiobutton(self.parent, text = 'Avg. Group Diff.', width = bigbuttonsize, fg = 'black',
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 2)
-        self.GRPsig2.grid(row = 5, column = 2, sticky="W")
+        self.GRPsig2.grid(row = 5, column = 1, sticky="W")
 
         self.var3 = tk.IntVar()
         self.GRPsig2p = tk.Radiobutton(self.parent, text = 'Paired Group Diff.', width = bigbuttonsize, fg = 'black',
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 3)
-        self.GRPsig2p.grid(row = 6, column = 2, sticky="W")
+        self.GRPsig2p.grid(row = 6, column = 1, sticky="W")
 
         self.var4 = tk.IntVar()
         self.GRPcorr = tk.Radiobutton(self.parent, text = 'Correlation', width = bigbuttonsize, fg = 'black',
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 4)
-        self.GRPcorr.grid(row = 4, column = 3, sticky="W")
+        self.GRPcorr.grid(row = 4, column = 2, sticky="W")
 
         self.var5 = tk.IntVar()
-        self.GRPcorr = tk.Radiobutton(self.parent, text = 'ANOVA', width = bigbuttonsize, fg = 'black',
+        self.GRPcorr = tk.Radiobutton(self.parent, text = 'Regression', width = bigbuttonsize, fg = 'black',
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 5)
-        self.GRPcorr.grid(row = 5, column = 3, sticky="W")
+        self.GRPcorr.grid(row = 5, column = 2, sticky="W")
+
 
         self.var6 = tk.IntVar()
-        self.GRPcorr = tk.Radiobutton(self.parent, text = 'ANCOVA', width = bigbuttonsize, fg = 'black',
+        self.GRPcorr = tk.Radiobutton(self.parent, text = 'ANOVA', width = bigbuttonsize, fg = 'black',
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 6)
-        self.GRPcorr.grid(row = 6, column = 3, sticky="W")
+        self.GRPcorr.grid(row = 4, column = 3, sticky="W")
+
+        self.var7 = tk.IntVar()
+        self.GRPcorr = tk.Radiobutton(self.parent, text = 'ANCOVA', width = bigbuttonsize, fg = 'black',
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 7)
+        self.GRPcorr.grid(row = 5, column = 3, sticky="W")
 
 
         # indicate which "personal characteristics" to use - selected from database
