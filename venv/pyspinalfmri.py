@@ -52,6 +52,7 @@ from scipy import stats
 import pydisplay
 import pysem
 # import scipy
+import py2ndlevelanalysis
 
 matplotlib.use('TkAgg')   # explicitly set this - it might help with displaying figures in different environments
 
@@ -131,7 +132,8 @@ else:
             'GRPcharacteristicsvalues':[],
             'GRPanalysistype':'undefined',
             'GRPdatafiletype1':0,
-            'GRPdatafiletype2':0}
+            'GRPdatafiletype2':0,
+            'GRPpvalue':0.05}
 np.save(settingsfile,settings)
 
 # ------Create the Base Window that will hold everything, widgets, etc.---------------------
@@ -488,6 +490,7 @@ class DBFrame:
                 ufieldvalues.append(value)
         return ufieldvalues
 
+
     # initialize the values, keeping track of the frame this definition works on (parent), and 
     # also the main window containing that frame (controller)
     def __init__(self, parent, controller):
@@ -709,14 +712,51 @@ class DBFrame:
         save_folder = os.path.dirname(file_path)
         settings['last_folder'] = save_folder
         np.save(settingsfile,settings)
-        
-        
-    # action when the button is pressed to submit the DB entry number list
+
+
+    def DBdisplaynumlist(self, entered_values):
+        delta = np.concatenate(([0],np.diff(entered_values)))
+        dv = np.where(delta != 1)[0]
+        textv = ''
+        for nn, ndelta in enumerate(delta):
+            if ndelta != 1:
+                textv += str(entered_values[nn])
+                if nn != (len(delta)-1):
+                    if delta[nn+1] == 1:
+                        textv += ':'
+                    else:
+                        textv += ','
+            else:
+                if nn != (len(delta)-1):
+                    if delta[nn+1] != 1:
+                        textv += str(entered_values[nn]) + ','
+                else:
+                    textv += str(entered_values[nn])
+        if textv[-1] == ':': textv = textv[:-1]
+
+        return textv
+
+
+        # action when the button is pressed to submit the DB entry number list
     def DBnumsubmitclick(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
-        
+        self.DBname = settings['DBname']
+
+        # check database file and see how many entries exist
+        if os.path.isfile(self.DBname):
+            xls = pd.ExcelFile(self.DBname, engine = 'openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
+            del df1['Unnamed: 0']  # get rid of the unwanted header column
+            nentries,nfields = np.shape(df1)
+            dbnum_max = nentries-1
+        else:
+            dbnum_max = 0
+
         entered_text = self.DBnumenter.get()  # collect the text from the text entry box
+        # allow for "all" to be entered
+        if entered_text == 'all': entered_text = str(0) + ':' + str(dbnum_max)
+
         # need to make sure we are working with numbers, not text
         # first, replace any double spaces with single spaces, and then replace spaces with commas
         entered_text = re.sub('\ +',',',entered_text)
@@ -750,9 +790,16 @@ class DBFrame:
             entered_text = new_text
             m = re.search(r'\d*:\d*', entered_text)
             
-        entered_values = np.fromstring( entered_text, dtype=np.float, sep=',')
+        entered_values = np.fromstring( entered_text, dtype=np.int, sep=',')
+
+        # check upper limit
+        entered_values = entered_values[entered_values <= dbnum_max]
         # parse the entered text into values
         print(entered_values)
+
+        # convert back to shorter string for display
+        value_list_for_display = self.DBdisplaynumlist(entered_values)
+        self.DBnumsave_text = value_list_for_display
         
         settings['DBnum'] = entered_values
         settings['DBnumstring'] = self.DBnumsave_text
@@ -3004,19 +3051,30 @@ class GRPFrame:
 
 
     # inputs to search database, and create/save dbnum lists
-    def get_DB_field_values(self):
+    def get_DB_field_values(self, mode = 'average_per_person'):
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
-        self.DBname = settings['DBname']
+        DBname = settings['DBname']
+        DBnum = settings['DBnum']
+        prefix = settings['CLprefix']
 
-        if os.path.isfile(self.DBname):
-            xls = pd.ExcelFile(self.DBname, engine = 'openpyxl')
+        if os.path.isfile(DBname):
+            xls = pd.ExcelFile(DBname, engine = 'openpyxl')
             df1 = pd.read_excel(xls, 'datarecord')
             del df1['Unnamed: 0']  # get rid of the unwanted header column
 
             print('GRPcharacteristicslist = ',self.GRPcharacteristicslist)
             fieldname = self.GRPcharacteristicslist[-1]
             print('fieldname = ',fieldname)
-            fieldvalues = list(df1.loc[:,fieldname])
+
+            if mode == 'average_per_person':  # average values over entries for the same person
+                filename_list, dbnum_person_list, NP = pydatabase.get_datanames_by_person(DBname, DBnum, prefix, mode='list')
+                fieldvalues = np.zeros(NP)
+                for nn in range(NP):
+                    DBnum_person = dbnum_person_list[nn]
+                    fv1 = list(df1.loc[DBnum_person,fieldname])
+                    fieldvalues[nn] = np.mean(fv1)
+            else:
+                fieldvalues = list(df1.loc[DBnum,fieldname])
         else:
             fieldvalues = 'empty'
         # print('get_DB_field_values: fieldvalues = ',fieldvalues)
@@ -3091,6 +3149,18 @@ class GRPFrame:
         np.save(settingsfile, settings)
 
 
+    def GRPpvaluesubmit(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        GRPpvalue = float(self.GRPpvaluebox.get())
+        settings['GRPpvalue'] = GRPpvalue
+        np.save(settingsfile,settings)
+        # update the text in the box, in case it has changed
+        self.GRPpvalue = GRPpvalue
+        print('p-value for GRP analysis set to ',self.GRPpvalue)
+
+        return self
+
+
     # action when checkboxes are selected/deselected
     def GRPselecttype(self):
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
@@ -3127,7 +3197,7 @@ class GRPFrame:
     def GRPrunanalysis(self):
         # run the selected analyses
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
-        self.GRPanalysistype = settings['GRPanalysistype']
+        GRPanalysistype = settings['GRPanalysistype']
         # Sig1, Sig2, Sig2paired, Correlation, ANOVA, or ANCOVA
 
         # check on the data to be used
@@ -3135,33 +3205,28 @@ class GRPFrame:
         datafile2 = settings['GRPresultsname2']
         datafiletype1 = settings['GRPdatafiletype1']
         datafiletype2 = settings['GRPdatafiletype2']
+        GRPcharacteristicsvalues = settings['GRPcharacteristicsvalues']
+        GRPpvalue = settings['GRPpvalue']
+
+        print('GRPrunanalysis: type: ',GRPanalysistype, '  with data file type1: ',datafiletype1, '  file type2: ',datafiletype2)
 
         # for ANOVA/ANCOVA - could have two data files (Sig2) as a discrete category,
         # or one data file with two characteristics select
 
-        if self.GRPanalysistype == 'Sig1':
+        if GRPanalysistype == 'Sig1':
             if datafiletype1 == 1:  # SEM data
                 # look for significant group-average beta-value differences from zero
-
-
-                sem_results = np.load(datafile1, allow_pickle=True).flat[0]
-
-            # 2source results
-            results = {'type': '2source', 'CCrecord': CCrecord, 'beta2': beta2, 'beta1': beta1, 'Zgrid2': Zgrid2,
-                       'Zgrid1_1': Zgrid1_1, 'Zgrid1_2': Zgrid1_2, 'DBname': self.DBname, 'DBnum': self.DBnum}
-
-            # network results
-            results = {'type': 'network', 'resultsnames': outputnamelist, 'network': self.networkmodel,
-                       'regionname': self.SEMregionname, 'clustername': self.SEMclustername, 'DBname': self.DBname,
-                       'DBnum': self.DBnum}
-
-
+                # sem_results = np.load(datafile1, allow_pickle=True).flat[0]
+                pthreshold = GRPpvalue
+                outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='average', covariates='none')
 
             if datafiletype1 == 2:  # BOLD data
                 # look for significant group-average BOLD response differences from zero
-                print('hold this')
+                pthreshold = GRPpvalue
+                outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='average', covariates='none')
 
-        if self.GRPanalysistype == 'Sig2':
+
+        if GRPanalysistype == 'Sig2':
             if datafiletype1 == 1:  # SEM data
                 # look for significant group-average beta-value differences between two groups
                 if datafiletype2 == 1:
@@ -3174,7 +3239,7 @@ class GRPFrame:
                     # go ahead and do the comparison, otherwise quit
                     print('hold this')
 
-        if self.GRPanalysistype == 'Sig2paired':
+        if GRPanalysistype == 'Sig2paired':
             if datafiletype1 == 1:  # SEM data
                 # look for significant group-average beta-value paired differences between two groups
                 if datafiletype2 == 1:
@@ -3187,16 +3252,38 @@ class GRPFrame:
                     # go ahead and do the comparison, otherwise quit
                     print('hold this')
 
-        if self.GRPanalysistype == 'Correlation':
-            if datafiletype1 == 1:  # SEM data
-                # look for significant correlations between beta-values and the first personal characteristic in the list
-                print('hold this')
 
-            if datafiletype1 == 2:  # BOLD data
-                # look for significant correlations between BOLD values and the first personal characteristic in the list
-                print('hold this')
+        if GRPanalysistype == 'Correlation':
+            if self.GRPanalysistype == 'Sig1':
+                if datafiletype1 == 1:
+                    # look for significant correlations between beta-values and the first personal characteristic in the list
+                    pthreshold = GRPpvalue
+                    covariates = GRPcharacteristicsvalues
+                    outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='correlation', covariates=covariates)
 
-        if self.GRPanalysistype == 'ANOVA':
+                if datafiletype1 == 2:  # BOLD data
+                    # look for significant correlations between BOLD values and the first personal characteristic in the list
+                    pthreshold = GRPpvalue
+                    covariates = GRPcharacteristicsvalues
+                    outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='correlation', covariates=covariates)
+
+
+        if GRPanalysistype == 'Regression':
+            if self.GRPanalysistype == 'Sig1':
+                if datafiletype1 == 1:
+                    # look for significant correlations between beta-values and the first personal characteristic in the list
+                    pthreshold = GRPpvalue
+                    covariates = GRPcharacteristicsvalues
+                    outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='regression', covariates=covariates)
+
+                if datafiletype1 == 2:  # BOLD data
+                    # look for significant correlations between BOLD values and the first personal characteristic in the list
+                    pthreshold = GRPpvalue
+                    covariates = GRPcharacteristicsvalues
+                    outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='regression', covariates=covariates)
+
+
+        if GRPanalysistype == 'ANOVA':
             if datafiletype1 == 1:  # SEM data
                 if datafiletype2 == 1:
                     # apply ANOVA analysis to beta-values, with the two files indicating two discrete groups,
@@ -3217,7 +3304,7 @@ class GRPFrame:
                     # with the first two personal characteristics used as discrete variables
                     print('hold this')
 
-        if self.GRPanalysistype == 'ANCOVA':
+        if GRPanalysistype == 'ANCOVA':
             if datafiletype1 == 1:  # SEM data
                 if datafiletype2 == 1:
                     # apply ANCOVA analysis to beta-values, with the two files indicating two discrete groups,
@@ -3254,6 +3341,7 @@ class GRPFrame:
         self.GRPcharacteristicscount = settings['GRPcharacteristicscount']
         self.GRPcharacteristicslist = settings['GRPcharacteristicslist']
         self.GRPcharacteristicsvalues = settings['GRPcharacteristicsvalues']
+        self.GRPpvalue = settings['GRPpvalue']
 
         # put some text as a place-holder
         self.GRPLabel1 = tk.Label(self.parent, text = "1) Select group-level analysis options\nChoices are: Bayesian regression of BOLD\nresponses, analyses of SEM results w.r.t.\npersonal characteristics", fg = 'gray', justify = 'left')
@@ -3350,7 +3438,6 @@ class GRPFrame:
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 7)
         self.GRPcorr.grid(row = 5, column = 3, sticky="W")
 
-
         # indicate which "personal characteristics" to use - selected from database
         self.GRPlabel2 = tk.Label(self.parent, text = "Select characteristic:")
         self.GRPlabel2.grid(row=7,column=1, sticky='W')
@@ -3371,7 +3458,6 @@ class GRPFrame:
                                         command=self.GRPcharacteristicslistclear, relief='raised', bd=5)
         self.GRPcharclearbutton.grid(row=7, column=3)
 
-
         self.GRPlabel3 = tk.Label(self.parent, text = 'Characteristics list:')
         self.GRPlabel3.grid(row=8, column=1, sticky='N')
 
@@ -3383,11 +3469,19 @@ class GRPFrame:
                                       wraplength=300, justify='left')
         self.GRPcharacteristicsdisplay.grid(row=8, column=2, sticky='N')
 
+        # put in choices for statistical threshold
+        self.GRPlabel5 = tk.Label(self.parent, text = 'p-value threhold:').grid(row=9, column=1, sticky='NSEW')
+        self.GRPpvaluebox = tk.Entry(self.parent, width = 8, bg="white")
+        self.GRPpvaluebox.grid(row=9, column=2, sticky = "W")
+        self.GRPpvaluebox.insert(0,self.GRPpvalue)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.GRPpvaluesubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.GRPpvaluesubmit, relief='raised', bd = 5)
+        self.GRPpvaluesubmitbut.grid(row=9, column=3)
 
         # label, button, for running the definition of clusters, and loading data
         self.GRPrunbutton = tk.Button(self.parent, text="Run Group Analysis", width=bigbigbuttonsize, bg=fgcol1, fg='white',
                                         command=self.GRPrunanalysis, relief='raised', bd=5)
-        self.GRPrunbutton.grid(row=9, column=2, columnspan = 2)
+        self.GRPrunbutton.grid(row=10, column=1, columnspan = 2)
 
 
 

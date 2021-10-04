@@ -188,6 +188,7 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
     # test fMRI results for 1) significant differences from zero (statstype = 'average')
     # or regression (statstype = 'regression') or correlations (statstype = 'correlation') with covariates
     #
+    print('running py2ndlevelanalysis:  group_significance:  started at ',time.ctime())
     data = np.load(filename, allow_pickle=True).flat[0]
     datafiletype = 0
     try:
@@ -200,6 +201,7 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
 
     if datafiletype == 1:
         semtype = data['type']
+        print('SEM results loaded:  type ',semtype)
 
         if semtype == '2source':
             p,f = os.path.split(filename)
@@ -334,7 +336,7 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
 
             results_beta2 = results2
 
-            return results_beta1, results_beta2
+            return excelfilename
 
 
         if semtype == 'network':
@@ -442,7 +444,7 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
             excelsheetname = 'network ' + str(timepoint)
             pydisplay.pywriteexcel(results1, excelfilename, excelsheetname, 'append')
 
-        return results2
+        return excelfilename
 
     if datafiletype == 2:
         p, f = os.path.split(filename)
@@ -556,6 +558,7 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
 
             excelsheetname = rname
             pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'append', '%.3f')
+            return excelfilename
 
 
 #------------------------------------------------------------------------------------
