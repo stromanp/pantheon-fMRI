@@ -3005,14 +3005,14 @@ class GRPFrame:
             self.GRPcharacteristicslist =  [fvalue]
             fieldvalues = GRPFrame.get_DB_field_values(self)
             print('size of fieldvalues is ',np.shape(fieldvalues))
-            self.GRPcharacteristicsvalues = np.array(fieldvalues)[:,np.newaxis]
+            self.GRPcharacteristicsvalues = np.array(fieldvalues)[np.newaxis,:]
             print('size of GRPcharacteristicsvalues is ',np.shape(self.GRPcharacteristicsvalues))
         else:
             self.GRPcharacteristicslist.append(value)
             fieldvalues = GRPFrame.get_DB_field_values(self)
             print('size of fieldvalues is ',np.shape(fieldvalues))
             print('size of GRPcharacteristicsvalues is ',np.shape(self.GRPcharacteristicsvalues))
-            self.GRPcharacteristicsvalues = np.concatenate((self.GRPcharacteristicsvalues,np.array(fieldvalues)[:,np.newaxis]),axis=1)
+            self.GRPcharacteristicsvalues = np.concatenate((self.GRPcharacteristicsvalues,np.array(fieldvalues)[np.newaxis,:]),axis=0)
             print('size of GRPcharacteristicsvalues is ',np.shape(self.GRPcharacteristicsvalues))
 
         print('GRPcharacteristicslist = ', self.GRPcharacteristicslist)
@@ -3254,33 +3254,31 @@ class GRPFrame:
 
 
         if GRPanalysistype == 'Correlation':
-            if self.GRPanalysistype == 'Sig1':
-                if datafiletype1 == 1:
-                    # look for significant correlations between beta-values and the first personal characteristic in the list
-                    pthreshold = GRPpvalue
-                    covariates = GRPcharacteristicsvalues
-                    outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='correlation', covariates=covariates)
+            if datafiletype1 == 1:
+                # look for significant correlations between beta-values and the first personal characteristic in the list
+                pthreshold = GRPpvalue
+                covariates = GRPcharacteristicsvalues
+                outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='correlation', covariates=covariates)
 
-                if datafiletype1 == 2:  # BOLD data
-                    # look for significant correlations between BOLD values and the first personal characteristic in the list
-                    pthreshold = GRPpvalue
-                    covariates = GRPcharacteristicsvalues
-                    outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='correlation', covariates=covariates)
+            if datafiletype1 == 2:  # BOLD data
+                # look for significant correlations between BOLD values and the first personal characteristic in the list
+                pthreshold = GRPpvalue
+                covariates = GRPcharacteristicsvalues
+                outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='correlation', covariates=covariates)
 
 
         if GRPanalysistype == 'Regression':
-            if self.GRPanalysistype == 'Sig1':
-                if datafiletype1 == 1:
-                    # look for significant correlations between beta-values and the first personal characteristic in the list
-                    pthreshold = GRPpvalue
-                    covariates = GRPcharacteristicsvalues
-                    outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='regression', covariates=covariates)
+            if datafiletype1 == 1:
+                # look for significant correlations between beta-values and the first personal characteristic in the list
+                pthreshold = GRPpvalue
+                covariates = GRPcharacteristicsvalues
+                outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='regression', covariates=covariates)
 
-                if datafiletype1 == 2:  # BOLD data
-                    # look for significant correlations between BOLD values and the first personal characteristic in the list
-                    pthreshold = GRPpvalue
-                    covariates = GRPcharacteristicsvalues
-                    outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='regression', covariates=covariates)
+            if datafiletype1 == 2:  # BOLD data
+                # look for significant correlations between BOLD values and the first personal characteristic in the list
+                pthreshold = GRPpvalue
+                covariates = GRPcharacteristicsvalues
+                outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='regression', covariates=covariates)
 
 
         if GRPanalysistype == 'ANOVA':

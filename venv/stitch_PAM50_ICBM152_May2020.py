@@ -30,9 +30,9 @@ create_regionmap = True
 # load templates from PAM50, conn15e, and spinalfmri8
 # T2-weighted image
 type = 'T2'
-save_filename = os.path.join(save_data_path, 'stitched_PAM50_icbm152_May2020_' + type + '.nii')
-save_filename_small = os.path.join(save_data_path, 'stitched_PAM50_icbm152_May2020_' + type + '_1mm.nii')
-save_filename_smallwm = os.path.join(save_data_path, 'stitched_PAM50_icbm152_May2020_wm_1mm.nii')
+save_filename = os.path.join(save_data_path, 'stitched_PAM50_icbm152_May2020_' + type + '.nii.gz')
+save_filename_small = os.path.join(save_data_path, 'stitched_PAM50_icbm152_May2020_' + type + '_1mm.nii.gz')
+save_filename_smallwm = os.path.join(save_data_path, 'stitched_PAM50_icbm152_May2020_wm_1mm.nii.gz')
 # cord images
 PAM_data_path = os.path.join(original_data_path, 'PAM50_template')
 #cord_data_path = r'C:\stroman\spinalcordtoolbox-master\spinalcordtoolbox-master\20180410_PAM50\PAM50\template'
@@ -202,27 +202,27 @@ new_affine_pam = np.array([[-abs(vsp[0]), 0.0, 0.0, corner_pam[0]],[0.0, abs(vsp
 
 
 # create NIfTI format output of the stitched together template
-resulting_img = nib.Nifti1Image(stitched_image, new_affine)
+resulting_img = nib.Nifti1Image(stitched_image.astype(int), new_affine)
 nib.save(resulting_img, save_filename)
 
 # save other templates as well, for consistency, and convenience
 # brain
-save_filename2 = os.path.join(save_data_path, 'brain_template_aligned_with_stitched_PAM50_icbm152_' + type + '.nii')
-resulting_img2 = nib.Nifti1Image(brain_linear/np.amax(brain_linear), new_affine_brain)
+save_filename2 = os.path.join(save_data_path, 'brain_template_aligned_with_stitched_PAM50_icbm152_' + type + '.nii.gz')
+resulting_img2 = nib.Nifti1Image((255.*brain_linear/np.amax(brain_linear)).astype(int), new_affine_brain)
 nib.save(resulting_img2, save_filename2)
 
-save_filename2 = os.path.join(save_data_path, 'brain_template_aligned_with_stitched_PAM50_icbm152_wm.nii')
-resulting_img2 = nib.Nifti1Image(brainwm_linear/np.amax(brainwm_linear), new_affine_brain)
+save_filename2 = os.path.join(save_data_path, 'brain_template_aligned_with_stitched_PAM50_icbm152_wm.nii.gz')
+resulting_img2 = nib.Nifti1Image((255.*brainwm_linear/np.amax(brainwm_linear)).astype(int), new_affine_brain)
 nib.save(resulting_img2, save_filename2)
 
 # CCBS
-save_filename2 = os.path.join(save_data_path, 'CCBS_template_aligned_with_stitched_PAM50_icbm152.nii')
-resulting_img2 = nib.Nifti1Image(cord_linear/np.amax(cord_linear), new_affine_ccbs)
+save_filename2 = os.path.join(save_data_path, 'CCBS_template_aligned_with_stitched_PAM50_icbm152.nii.gz')
+resulting_img2 = nib.Nifti1Image((255.*cord_linear/np.amax(cord_linear)).astype(int), new_affine_ccbs)
 nib.save(resulting_img2, save_filename2)
 
 # PAM50
-save_filename2 = os.path.join(save_data_path, 'PAM50_template_aligned_with_stitched_PAM50_icbm152.nii')
-resulting_img2 = nib.Nifti1Image(pam_data/np.amax(pam_data), new_affine_pam)
+save_filename2 = os.path.join(save_data_path, 'PAM50_template_aligned_with_stitched_PAM50_icbm152.nii.gz')
+resulting_img2 = nib.Nifti1Image((255.*pam_data/np.amax(pam_data)).astype(int), new_affine_pam)
 nib.save(resulting_img2, save_filename2)
 
 # the templates so far are all 0.5 mm isotropic resolution - convert to 1 mm resolution as well
@@ -232,34 +232,34 @@ stitched_size = np.shape(stitched_image)
 new_size_1mm = np.floor(stitched_size*abs(vs)).astype('int')
 new_affine_1mm = np.array([[np.sign(new_affine[0,0]), 0.0, 0.0, new_affine[0,3]],[0.0, np.sign(new_affine[1,1]), 0.0, new_affine[1,3]],[0.0, 0.0, np.sign(new_affine[2,2]), new_affine[2,3]],[0., 0., 0., 1.]])
 stitched_image_small = i3d.resize_3D(stitched_image, new_size_1mm)
-resulting_img_small = nib.Nifti1Image(stitched_image_small/np.amax(stitched_image_small), new_affine_1mm)
+resulting_img_small = nib.Nifti1Image((255.*stitched_image_small/np.amax(stitched_image_small)).astype(int), new_affine_1mm)
 nib.save(resulting_img_small, save_filename_small)
 stitched_image_smallwm = i3d.resize_3D(stitched_imagewm, new_size_1mm)
-resulting_img_smallwm = nib.Nifti1Image(stitched_image_smallwm/np.amax(stitched_image_smallwm), new_affine_1mm)
+resulting_img_smallwm = nib.Nifti1Image((255.*stitched_image_smallwm/np.amax(stitched_image_smallwm)).astype(int), new_affine_1mm)
 nib.save(resulting_img_smallwm, save_filename_smallwm)
 
 # brain
 temp_affine = new_affine_brain
 temp_data = brain_linear
-temp_filename = os.path.join(save_data_path, 'brain_template_aligned_with_stitched_PAM50_icbm152_' + type + '_1mm.nii')
+temp_filename = os.path.join(save_data_path, 'brain_template_aligned_with_stitched_PAM50_icbm152_' + type + '_1mm.nii.gz')
 vs = np.array([temp_affine[0,0],temp_affine[1,1],temp_affine[2,2]])
 small_size = np.shape(temp_data)
 new_size_1mm = np.floor(small_size*abs(vs)).astype('int')
 new_affine_1mm = np.array([[np.sign(temp_affine[0,0]), 0.0, 0.0, temp_affine[0,3]],[0.0, np.sign(temp_affine[1,1]), 0.0, temp_affine[1,3]],[0.0, 0.0, np.sign(temp_affine[2,2]), temp_affine[2,3]],[0., 0., 0., 1.]])
 temp_data_small = i3d.resize_3D(temp_data, new_size_1mm)
-resulting_img_small = nib.Nifti1Image(temp_data_small/np.amax(temp_data_small), new_affine_1mm)
+resulting_img_small = nib.Nifti1Image((255.*temp_data_small/np.amax(temp_data_small)).astype(int), new_affine_1mm)
 nib.save(resulting_img_small, temp_filename)
 
 # brain wm
 temp_affine = new_affine_brain
 temp_data = brainwm_linear
-temp_filename = os.path.join(save_data_path, 'brain_template_aligned_with_stitched_PAM50_icbm152_wm_1mm.nii')
+temp_filename = os.path.join(save_data_path, 'brain_template_aligned_with_stitched_PAM50_icbm152_wm_1mm.nii.gz')
 vs = np.array([temp_affine[0,0],temp_affine[1,1],temp_affine[2,2]])
 small_size = np.shape(temp_data)
 new_size_1mm = np.floor(small_size*abs(vs)).astype('int')
 new_affine_1mm = np.array([[np.sign(temp_affine[0,0]), 0.0, 0.0, temp_affine[0,3]],[0.0, np.sign(temp_affine[1,1]), 0.0, temp_affine[1,3]],[0.0, 0.0, np.sign(temp_affine[2,2]), temp_affine[2,3]],[0., 0., 0., 1.]])
 temp_data_small = i3d.resize_3D(temp_data, new_size_1mm)
-resulting_img_small = nib.Nifti1Image(temp_data_small/np.amax(temp_data_small), new_affine_1mm)
+resulting_img_small = nib.Nifti1Image((255.*temp_data_small/np.amax(temp_data_small)).astype(int), new_affine_1mm)
 nib.save(resulting_img_small, temp_filename)
 brainwm_linear = []
 brainwm_data = []
@@ -268,25 +268,25 @@ brainwm_data = []
 # CC/BS
 temp_affine = new_affine_ccbs
 temp_data = cord_linear
-temp_filename = os.path.join(save_data_path, 'CCBS_template_aligned_with_stitched_PAM50_icbm152_1mm.nii')
+temp_filename = os.path.join(save_data_path, 'CCBS_template_aligned_with_stitched_PAM50_icbm152_1mm.nii.gz')
 vs = np.array([temp_affine[0,0],temp_affine[1,1],temp_affine[2,2]])
 small_size = np.shape(temp_data)
 new_size_1mm = np.floor(small_size*abs(vs)).astype('int')
 new_affine_1mm = np.array([[np.sign(temp_affine[0,0]), 0.0, 0.0, temp_affine[0,3]],[0.0, np.sign(temp_affine[1,1]), 0.0, temp_affine[1,3]],[0.0, 0.0, np.sign(temp_affine[2,2]), temp_affine[2,3]],[0., 0., 0., 1.]])
 temp_data_small = i3d.resize_3D(temp_data, new_size_1mm)
-resulting_img_small = nib.Nifti1Image(temp_data_small/np.amax(temp_data_small), new_affine_1mm)
+resulting_img_small = nib.Nifti1Image((255.*temp_data_small/np.amax(temp_data_small)).astype(int), new_affine_1mm)
 nib.save(resulting_img_small, temp_filename)
 
 # PAM data
 temp_affine = new_affine_pam
 temp_data = pam_data
-temp_filename = os.path.join(save_data_path, 'PAM50_template_aligned_with_stitched_PAM50_icbm152_1mm.nii')
+temp_filename = os.path.join(save_data_path, 'PAM50_template_aligned_with_stitched_PAM50_icbm152_1mm.nii.gz')
 vs = np.array([temp_affine[0,0],temp_affine[1,1],temp_affine[2,2]])
 small_size = np.shape(temp_data)
 new_size_1mm = np.floor(small_size*abs(vs)).astype('int')
 new_affine_1mm = np.array([[np.sign(temp_affine[0,0]), 0.0, 0.0, temp_affine[0,3]],[0.0, np.sign(temp_affine[1,1]), 0.0, temp_affine[1,3]],[0.0, 0.0, np.sign(temp_affine[2,2]), temp_affine[2,3]],[0., 0., 0., 1.]])
 temp_data_small = i3d.resize_3D(temp_data, new_size_1mm)
-resulting_img_small = nib.Nifti1Image(temp_data_small/np.amax(temp_data_small), new_affine_1mm)
+resulting_img_small = nib.Nifti1Image((255.*temp_data_small/np.amax(temp_data_small)).astype(int), new_affine_1mm)
 nib.save(resulting_img_small, temp_filename)
 
 
@@ -473,9 +473,13 @@ if verbose:
     tcimg = np.dstack((red[:,:,ax_slice],green[:,:,ax_slice],blue[:,:,ax_slice]))
     fig = plt.figure(33), plt.imshow(tcimg)
 
+    ax_slice = 311
+    tcimg = np.dstack((red[:,:,ax_slice],green[:,:,ax_slice],blue[:,:,ax_slice]))
+    fig = plt.figure(34), plt.imshow(tcimg)
+
     cor_slice = 82
     tcimg = np.dstack((red[:,cor_slice,:],green[:,cor_slice,:],blue[:,cor_slice,:]))
-    fig = plt.figure(34), plt.imshow(tcimg)
+    fig = plt.figure(35), plt.imshow(tcimg)
 
 
 # PAM50 atlas over PAM50 template:
@@ -566,14 +570,14 @@ for num, region_number in enumerate(df1['Cnumber']):   # regions in CONN15E temp
     region_abbrev = df1['CONN15E_abbrev'][num]
     region_fullname = df1['CONN15E template'][num]
     if not(region_abbrev in exclude_list):
-        a = np.where(stitched_atlas2 == region_number)
+        ax,ay,az = np.where(stitched_atlas2 == region_number)
         # print('size of a is ', np.size(a))
-        count = np.size(a)
+        count = np.size(ax)
         # count = (stitched_atlas2 == region_number).sum()
         if count > 0:
             region_count += 1
             print(region_count, ' ', region_abbrev)
-            stitched_atlas[a] = region_count
+            stitched_atlas[ax,ay,az] = region_count
             if region_count == 1:
                 stitched_region_labels = {'number':[region_count], 'name':[region_fullname], 'abbreviation':[region_abbrev], 'voxcount':[count]}
             else:
@@ -589,14 +593,14 @@ for num, region_number in enumerate(df1['CCBSnumber']):   # regions in CC/BS tem
     region_abbrev = df1['CCBS template'][num]
     region_fullname = df1['CCBS template'][num]
     if not(region_abbrev in exclude_list):
-        a = np.where(stitched_atlas3 == region_number)
+        ax,ay,az = np.where(stitched_atlas3 == region_number)
         # print('size of a is ', np.size(a))
-        count = np.size(a)
+        count = np.size(ax)
         # count = (stitched_atlas3 == region_number).sum()
         if count > 0:
             region_count += 1
             print(region_count, ' ', region_abbrev)
-            stitched_atlas[a] = region_count
+            stitched_atlas[ax,ay,az] = region_count
             if region_count == 1:
                 stitched_region_labels = {'number':[region_count], 'name':[region_fullname], 'abbreviation':[region_abbrev], 'voxcount':[count]}
             else:
@@ -617,12 +621,13 @@ stitched_atlas3 = []
 # defined in extract_downloaded_templates.py
 #----------------------------------------------------------------------------------
 #regions defined are: 'NAC','Amygdala','Substantia Nigra', 'PBP', 'VTA','Hypothalamus', 'PAG','VTA','LC', 'LC'
+#     from stromanlab defined templates:  PBN_NTS_LC_DRt_PRF_May2020.nii', so don't overwrite these regions, except combine PAG
 # 'ow' means over-write
 # 'combine' means use the combination of both
 # 'ignore' means keep the existing definition
-handle_method = ['ow', 'ow', 'ow', 'ow', 'ow', 'ow', 'combine', 'ow', 'ignore', 'combine']
+handle_method = ['ow', 'ow', 'ow', 'ignore', 'ignore', 'ow', 'combine', 'ow', 'ignore', 'ignore']   # check on LC definition
 
-srn_list = [0,1,2,3,4,5,6,7,9]
+srn_list = [0,1,2,5,6,7]
 for special_region_number in srn_list:
     special_stitched_atlas = np.zeros([x1,y1,z1])
     region_map, region_name = edt.load_anatomical_template(special_region_number, new_affine_brain, new_brain_size)
@@ -754,8 +759,8 @@ if save_wm_template:
     # df.to_excel(output_excel_name)
     
     # create NIfTI format output of the stitched together template
-    template_filename = os.path.join(save_data_path, 'wholeCNS_wm_map.nii')
-    resulting_img = nib.Nifti1Image(stitched_imagewm, new_affine)
+    template_filename = os.path.join(save_data_path, 'wholeCNS_wm_map.nii.gz')
+    resulting_img = nib.Nifti1Image(stitched_imagewm.astype(int), new_affine)
     nib.save(resulting_img, template_filename)
     
     # extract sections of the region maps corresponding to the CCBS template
@@ -772,30 +777,30 @@ if save_wm_template:
     # whole CNS
     temp_affine = new_affine
     temp_data = stitched_imagewm
-    temp_filename = os.path.join(save_data_path, 'wholeCNS_wm_map_1mm.nii')
+    temp_filename = os.path.join(save_data_path, 'wholeCNS_wm_map_1mm.nii.gz')
     vs = np.array([temp_affine[0,0],temp_affine[1,1],temp_affine[2,2]])
     small_size = np.shape(temp_data)
     new_size_1mm = np.floor(small_size*abs(vs)).astype('int')
     new_affine_1mm = np.array([[np.sign(temp_affine[0,0]), 0.0, 0.0, temp_affine[0,3]],[0.0, np.sign(temp_affine[1,1]), 0.0, temp_affine[1,3]],[0.0, 0.0, np.sign(temp_affine[2,2]), temp_affine[2,3]],[0., 0., 0., 1.]])
     temp_data_small = i3d.resize_3D_nearest(temp_data, new_size_1mm)
-    resulting_img_small = nib.Nifti1Image(temp_data_small, new_affine_1mm)
+    resulting_img_small = nib.Nifti1Image(temp_data_small.astype(int), new_affine_1mm)
     nib.save(resulting_img_small, temp_filename)
     
     # # CCBS
     # stitched_atlasCCBS = stitched_atlas[xc[0]:xc[1], yc[0]:yc[1], zc[0]:zc[1]]
     temp_affine = new_affine_ccbs
     temp_data = stitched_imagewm[xc[0]:xc[1], yc[0]:yc[1], zc[0]:zc[1]]
-    temp_filename = os.path.join(save_data_path, 'CCBS_wm_map.nii')
+    temp_filename = os.path.join(save_data_path, 'CCBS_wm_map.nii.gz')
     vs = np.array([temp_affine[0,0],temp_affine[1,1],temp_affine[2,2]])
     small_size = np.shape(temp_data)
-    resulting_img_small = nib.Nifti1Image(temp_data, temp_affine)
+    resulting_img_small = nib.Nifti1Image(temp_data.astype(int), temp_affine)
     nib.save(resulting_img_small, temp_filename)
 
-    temp_filename = os.path.join(save_data_path, 'CCBS_wm_map_1mm.nii')
+    temp_filename = os.path.join(save_data_path, 'CCBS_wm_map_1mm.nii.gz')
     new_size_1mm = np.floor(small_size*abs(vs)).astype('int')
     new_affine_1mm = np.array([[np.sign(temp_affine[0,0]), 0.0, 0.0, temp_affine[0,3]],[0.0, np.sign(temp_affine[1,1]), 0.0, temp_affine[1,3]],[0.0, 0.0, np.sign(temp_affine[2,2]), temp_affine[2,3]],[0., 0., 0., 1.]])
     temp_data_small = i3d.resize_3D_nearest(temp_data, new_size_1mm)
-    resulting_img_small = nib.Nifti1Image(temp_data_small, new_affine_1mm)
+    resulting_img_small = nib.Nifti1Image(temp_data_small.astype(int), new_affine_1mm)
     nib.save(resulting_img_small, temp_filename)
 
 
@@ -933,8 +938,8 @@ output_excel_name2 = os.path.join(save_data_path, 'cord_region_positions.xlsx')
 df2.to_excel(output_excel_name2, sheet_name = 'reference_positions')
 
 # create NIfTI format output of the stitched together template
-template_filename = os.path.join(save_data_path, 'wholeCNS_region_map_cordsegments.nii')
-resulting_img = nib.Nifti1Image(stitched_atlas, new_affine)
+template_filename = os.path.join(save_data_path, 'wholeCNS_region_map_cordsegments.nii.gz')
+resulting_img = nib.Nifti1Image(stitched_atlas.astype(int), new_affine)
 nib.save(resulting_img, template_filename)
 resulting_img = []
 
@@ -944,8 +949,8 @@ resulting_img = []
 #stitched_image[xc[0]:xc[1],yc[0]:yc[1],zc[0]:zc[1]] = cord_linear*(bval/cval)/np.amax(cord_linear)
 stitched_atlasCCBS = stitched_atlas[xc[0]:xc[1],yc[0]:yc[1],zc[0]:zc[1]]
 # CCBS
-save_filename_ccbs = os.path.join(save_data_path, 'CCBS_region_map_cordsegments.nii')
-resulting_img_ccbs = nib.Nifti1Image(stitched_atlasCCBS, new_affine_ccbs)
+save_filename_ccbs = os.path.join(save_data_path, 'CCBS_region_map_cordsegments.nii.gz')
+resulting_img_ccbs = nib.Nifti1Image(stitched_atlasCCBS.astype(int), new_affine_ccbs)
 nib.save(resulting_img_ccbs, save_filename_ccbs)
 resulting_img_ccbs = []
 
@@ -953,25 +958,25 @@ resulting_img_ccbs = []
 # whole CNS
 temp_affine = new_affine
 # temp_data = stitched_atlas
-temp_filename = os.path.join(save_data_path, 'wholeCNS_region_map_cordsegments_1mm.nii')
+temp_filename = os.path.join(save_data_path, 'wholeCNS_region_map_cordsegments_1mm.nii.gz')
 vs = np.array([temp_affine[0,0],temp_affine[1,1],temp_affine[2,2]])
 small_size = np.shape(stitched_atlas)
 new_size_1mm = np.floor(small_size*abs(vs)).astype('int')
 new_affine_1mm = np.array([[np.sign(temp_affine[0,0]), 0.0, 0.0, temp_affine[0,3]],[0.0, np.sign(temp_affine[1,1]), 0.0, temp_affine[1,3]],[0.0, 0.0, np.sign(temp_affine[2,2]), temp_affine[2,3]],[0., 0., 0., 1.]])
 temp_data_small = i3d.resize_3D_nearest(stitched_atlas, new_size_1mm)
-resulting_img_small = nib.Nifti1Image(temp_data_small, new_affine_1mm)
+resulting_img_small = nib.Nifti1Image(temp_data_small.astype(int), new_affine_1mm)
 nib.save(resulting_img_small, temp_filename)
 
 # CCBS
 temp_affine = new_affine_ccbs
 # temp_data = stitched_atlasCCBS
-temp_filename = os.path.join(save_data_path, 'CCBS_region_map_cordsegments_1mm.nii')
+temp_filename = os.path.join(save_data_path, 'CCBS_region_map_cordsegments_1mm.nii.gz')
 vs = np.array([temp_affine[0,0],temp_affine[1,1],temp_affine[2,2]])
 small_size = np.shape(stitched_atlasCCBS)
 new_size_1mm = np.floor(small_size*abs(vs)).astype('int')
 new_affine_1mm = np.array([[np.sign(temp_affine[0,0]), 0.0, 0.0, temp_affine[0,3]],[0.0, np.sign(temp_affine[1,1]), 0.0, temp_affine[1,3]],[0.0, 0.0, np.sign(temp_affine[2,2]), temp_affine[2,3]],[0., 0., 0., 1.]])
 temp_data_small = i3d.resize_3D_nearest(stitched_atlasCCBS, new_size_1mm)
-resulting_img_small = nib.Nifti1Image(temp_data_small, new_affine_1mm)
+resulting_img_small = nib.Nifti1Image(temp_data_small.astype(int), new_affine_1mm)
 nib.save(resulting_img_small, temp_filename)
 
 

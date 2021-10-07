@@ -17,6 +17,7 @@ import pysem
 import copy
 import pydisplay
 import os
+import time
 
 # 2-source SEM results
 # save the results somehow
@@ -79,9 +80,14 @@ def get_cluster_position_details(cluster_properties):
         cluster_coords = np.zeros((nclusters,3))
         for nn in range(nclusters):
             cc = np.where(IDX == nn)[0]
-            x0 = np.mean(cx[cc])
-            y0 = np.mean(cy[cc])
-            z0 = np.mean(cz[cc])
+            if len(cc) > 0:
+                x0 = np.mean(cx[cc])
+                y0 = np.mean(cy[cc])
+                z0 = np.mean(cz[cc])
+            else:
+                x0 = 0
+                y0 = 0
+                z0 = 0
             cluster_coords[nn,:] = x0,y0,z0
         entry = {'rname':rname, 'nclusters':nclusters, 'regionnum':regionnum, 'regionlimits':regionlimits, 'cluster_coords':cluster_coords}
         cluster_info.append(entry)
@@ -131,6 +137,8 @@ def GLMregression(data, covariates, axis):
     mdata2 = np.mean(data2,axis=-1)
     data2a = data2 - np.repeat(np.expand_dims(mdata2,axis=-1),dsize[-1],axis =-1)
 
+    varmask = np.var(data2a,axis = -1) > 0   # flag data with constant values
+
     # set the covariates to have average values = 0
     nc,NP = np.shape(covariates)
     mcov = np.mean(covariates,axis = -1)
@@ -152,9 +160,20 @@ def GLMregression(data, covariates, axis):
 
     # bsem = sqrt(abs(contrast'*iGG*contrast)*err2);
     err2 = residual_ssq/NP
-    bsem = np.sqrt(np.abs(np.diagonal(iGG))*err2)
+    iGGdiags = np.abs(np.diagonal(iGG))
+    for nn in range(nc+1):
+        bsem1 = np.sqrt(iGGdiags[nn]*err2)
+        bsem1 = np.expand_dims(bsem1,axis=-1)
+        if nn == 0:
+            bsem = bsem1
+        else:
+            bsem = np.concatenate((bsem,bsem1),axis = -1)
 
-    R2 = 1.0 - residual_ssq/(ssqa + 1.0e-10)   # determine how much variance is explained, not including the average offset
+    tol = 1.0e-10
+    R2 = 1.0 - residual_ssq/(ssqa + tol)   # determine how much variance is explained, not including the average offset
+    R2 = R2*varmask
+    R2[R2 >= 1.0] = 1.0-tol
+    R2[R2 <= -1.0] = -1.0+tol
     Z = np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(NP-3)
 
     # correlation
@@ -165,20 +184,19 @@ def GLMregression(data, covariates, axis):
 
         ssq_dc = np.sum(data2a*cv2, axis=-1)
         ssq_c = np.sum(cv2**2, axis=-1)
-        CC = ssq_dc/np.sqrt(ssqa*ssq_c)
+        CC = ssq_dc/(np.sqrt(ssqa*ssq_c) + tol)
         CC2 = np.reshape(CC, (np.concatenate((np.shape(CC),[1]))))
         if nn == 0:
             R = CC2
         else:
             R = np.concatenate((R,CC2),axis=-1)
 
+    R[R >=1.0] = 1.0-tol
+    R[R <= -1.0] = -1.0+tol
     Rcorrelation = R
     Zcorrelation = np.arctanh(R) * np.sqrt(NP - 3)
 
     return b, bsem, R2, Z, Rcorrelation, Zcorrelation
-
-
-
 
 
 #------------------------------------------------------------------------------------
@@ -195,6 +213,7 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
         keylist = list(data.keys())
         if 'type' in keylist: datafiletype = 1   # SEM results
         if 'region_properties' in keylist: datafiletype = 2    # BOLD time-course data
+        print('group_significance:  datafiletype = ', datafiletype)
     except:
         print('group_significance:  input file does not appear to have the correct data structure')
         return 0
@@ -210,8 +229,6 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
 
             # beta2 = np.zeros((nclusters, nclusters, nclusters, ntimepoints, NP, 2))
             # beta1 = np.zeros((nclusters, nclusters, nclusters, ntimepoints, NP, 2))
-            keys = ['tname', 'tcluster', 'sname', 'scluster', 'Tvalue', 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2', 'tlimy1',
-                    'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2', 'slimz1', 'slimz2']
 
             cluster_properties = data['cluster_properties']
             cluster_info, rname_list, ncluster_list = get_cluster_position_details(cluster_properties)
@@ -222,7 +239,8 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
             ntclusters, ns1sclusters, ns2clusters, ntimepoints, NP, nbeta = np.shape(beta1)
 
             # stats based on group average ----------
-            if stats_type == 'average':
+            if statstype == 'average':
+                stattitle = 'Tvalue'
                 # stats based on group average - sig diff from zero?
                 mean_beta1 = np.mean(beta1,axis = 4)
                 se_beta1 = np.std(beta1,axis = 4)/np.sqrt(NP)
@@ -236,46 +254,61 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
 
                 beta1_sig = np.abs(Tbeta1) > Tthresh
                 beta2_sig = np.abs(Tbeta2) > Tthresh
+                stat_of_interest1 = Tbeta1
+                stat_of_interest2 = Tbeta2
 
             # stats based on regression with covariates - --------
-            if stats_type == 'regression':
-                Zthresh = stats.norm.ppf(1-pthreshold,NP-1)
+            if statstype == 'regression':
+                stattitle = 'Zregression'
+                Zthresh = stats.norm.ppf(1-pthreshold)
 
-                NPt,terms = np.shape(covariates)  # need one term per person, for each covariate
+                terms, NPt = np.shape(covariates)  # need one term per person, for each covariate
                 b1, b1sem, R21, Z1, Rcorrelation1, Zcorrelation1 = GLMregression(beta1, covariates, 4)
                 b2, b2sem, R22,Z2, Rcorrelation2, Zcorrelation2 = GLMregression(beta2, covariates, 4)
 
                 beta1_sig = np.abs(Z1) > Zthresh
                 beta2_sig = np.abs(Z2) > Zthresh
+                stat_of_interest1 = Z1
+                stat_of_interest2 = Z2
 
             #---------------------------------------------------
-            if stats_type == 'correlation':
-                Zthresh = stats.norm.ppf(1-pthreshold,NP-1)
+            if statstype == 'correlation':
+                stattitle = 'Zcorr'
+                Zthresh = stats.norm.ppf(1-pthreshold)
 
-                NPt,terms = np.shape(covariates)  # need one term per person, for each covariate
+                terms, NPt = np.shape(covariates)  # need one term per person, for each covariate
                 b1, b1sem, R21, Z1, Rcorrelation1, Zcorrelation1 = GLMregression(beta1, covariates, 4)
                 b2, b2sem, R22,Z2, Rcorrelation2, Zcorrelation2 = GLMregression(beta2, covariates, 4)
 
                 beta1_sig = np.abs(Zcorrelation1) > Zthresh
                 beta2_sig = np.abs(Zcorrelation2) > Zthresh
+                stat_of_interest1 = Zcorrelation1
+                stat_of_interest2 = Zcorrelation2
             #---------------------------------------------------
 
+            keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2', 'tlimy1',
+                    'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2', 'slimz1', 'slimz2','cov']
+
             # write out significant results, based on beta1------------------------------
+            if np.ndim(beta1_sig) < 6:  # allow for different forms of results (some have multiple stats terms)
+                beta1_sig = np.expand_dims(beta1_sig, axis=-1)
+                stat_of_interest1 = np.expand_dims(stat_of_interest1, axis=-1)
+
             for tt in range(ntimepoints):
                 results = []
-                sig_temp = beta1_sig[:,:,:,tt,:]
-                t,s1,s2,nb = np.where(sig_temp)    # significant connections during this time period
+                sig_temp = beta1_sig[:,:,:,tt,:,:]
+                t,s1,s2,nb,nc = np.where(sig_temp)    # significant connections during this time period
 
-                Tvalue_list = np.zeros(len(t))
+                Svalue_list = np.zeros(len(t))
                 connid_list = np.zeros(len(t))   # identify connections - to be able to remove redundant ones later
                 for ii in range(len(t)):
-                    Tvalue_list[ii] = Tbeta1[t[ii],s1[ii],s2[ii],tt,nb[ii]]
+                    Svalue_list[ii] = stat_of_interest1[t[ii],s1[ii],s2[ii],tt,nb[ii],nc[ii]]
                     if nb[ii] == 0:
                         s = s1[ii]
                     else:
                         s = s2[ii]
                     # get region names, cluster numbers, etc.
-                    connid_list[ii] = t[ii]*1000 + s   # a unique identifier for the connection
+                    connid_list[ii] = nc[ii]*1e6+t[ii]*1000 + s   # a unique identifier for the connection
                     targetname, targetcluster, targetnumber = get_cluster_info(rname_list, ncluster_list, t[ii])
                     sourcename, sourcecluster, sourcenumber = get_cluster_info(rname_list, ncluster_list, s)
                     targetcoords = cluster_info[targetnumber]['cluster_coords'][targetcluster,:]
@@ -283,32 +316,42 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                     sourcecoords = cluster_info[sourcenumber]['cluster_coords'][sourcecluster,:]
                     sourcelimits = cluster_info[sourcenumber]['regionlimits']
 
-                    values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Tvalue_list[ii]],
-                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits)))
+                    values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]],
+                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),[nc[ii]]))
                     entry = dict(zip(keys, values))
                     results.append(entry)
 
                 # eliminate redundant values, for repeats keep the one with the largest Tvalue
-                results2, Tvalue_list2 = remove_reps_and_sort(connid_list, Tvalue_list, results)
+                if len(results) > 0:
+                    print('removing redundant values ...')
+                    results2, Svalue_list2 = remove_reps_and_sort(connid_list, Svalue_list, results)
 
-                p,f = os.path.split(filename)
-                f2,e = os.path.splitext(f)
-                excelfilename = os.path.join(p,f2+'_2ndlevel.xlsx')
-                excelsheetname = '2source beta1 ' + str(tt)
-                pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
+                    p,f = os.path.split(filename)
+                    f2,e = os.path.splitext(f)
+                    excelfilename = os.path.join(p,f2+'_2ndlevel.xlsx')
+                    excelsheetname = '2source beta2 ' + statstype + ' ' + str(tt)
+                    print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+                    pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
+                    print('finished writing results to ',excelfilename)
+                else:
+                    print('no significant results found at p < {}'.format(pthreshold))
 
             results_beta1 = results2
 
             # now, write out significant results, based on beta2-------------------------
+            if np.ndim(beta2_sig) < 6:  # allow for different forms of results (some have multiple stats terms)
+                beta2_sig = np.expand_dims(beta2_sig, axis=-1)
+                stat_of_interest2 = np.expand_dims(stat_of_interest2, axis=-1)
+
             for tt in range(ntimepoints):
                 results = []
-                sig_temp = beta2_sig[:,:,:,tt,:]
-                t,s1,s2,nb = np.where(sig_temp)    # significant connections during this time period
+                sig_temp = beta2_sig[:,:,:,tt,:,:]
+                t,s1,s2,nb,nc = np.where(sig_temp)    # significant connections during this time period
 
-                Tvalue_list = np.zeros(len(t))
+                Svalue_list = np.zeros(len(t))
                 connid_list = np.zeros(len(t))   # identify connections - to be able to remove redundant ones later
                 for ii in range(len(t)):
-                    Tvalue_list[ii] = Tbeta2[t[ii],s1[ii],s2[ii],tt,nb[ii]]
+                    Svalue_list[ii] = stat_of_interest2[t[ii],s1[ii],s2[ii],tt,nb[ii],nc[ii]]
                     if nb[ii] == 0:
                         s = s1[ii]
                     else:
@@ -322,17 +365,23 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                     sourcecoords = cluster_info[sourcenumber]['cluster_coords'][sourcecluster,:]
                     sourcelimits = cluster_info[sourcenumber]['regionlimits']
 
-                    values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Tvalue_list[ii]],
-                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits)))
+                    values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]],
+                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),[nc[ii]]))
                     entry = dict(zip(keys, values))
 
                     results.append(entry)
 
                 # eliminate redundant values, for repeats keep the one with the largest Tvalue
-                results2, Tvalue_list2 = remove_reps_and_sort(connid_list, Tvalue_list, results)
+                if len(results) > 0:
+                    print('removing redundant values ...')
+                    results2, Svalue_list2 = remove_reps_and_sort(connid_list, Svalue_list, results)
 
-                excelsheetname = '2source beta2 ' + str(tt)
-                pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
+                    excelsheetname = '2source beta2 ' + statstype + ' ' + str(tt)
+                    print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+                    pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
+                    print('finished writing results to ',excelfilename)
+                else:
+                    print('no significant results found at p < {}'.format(pthreshold))
 
             results_beta2 = results2
 
@@ -347,8 +396,6 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
             # results = {'type': 'network', 'resultsnames': outputnamelist, 'network': self.networkmodel,
             #            'regionname': self.SEMregionname, 'clustername': self.SEMclustername, 'DBname': self.DBname,
             #            'DBnum': self.DBnum}
-            keys = ['tname', 'tcluster', 'sname', 'scluster', 'Tvalue', 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2', 'tlimy1',
-                    'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2', 'slimz1', 'slimz2', 'timepoint']
 
             resultsnames = data['resultsnames']
             clustername = data['clustername']
@@ -362,9 +409,10 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
             cluster_info, rname_list, ncluster_list = get_cluster_position_details(cluster_properties)
 
             results = []
-            Tvalue_list = []
+            Svalue_list = []
             connid_list = []   # identify connections - to be able to remove redundant ones later
             for networkcomponent, fname in enumerate(resultsnames):
+                print('analyzing network component: ',fname)
                 semresults = np.load(fname, allow_pickle=True).flat[0]
                 sem_one_target = semresults['sem_one_target_results']
                 ntclusters = len(sem_one_target)
@@ -382,34 +430,49 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                     ncombinations, ntimepoints, NP, nsources = np.shape(beta)
 
                     # stats based on group average - --------------------
-                    if stats_type == 'average':
+                    if statstype == 'average':
+                        stattitle = 'Tvalue'
                         mean_beta = np.mean(beta, axis=2)
                         se_beta = np.std(beta, axis=2) / np.sqrt(NP)
                         Tbeta = mean_beta / (se_beta + 1.0e-10)
                         Tthresh = stats.t.ppf(1 - pthreshold, NP - 1)
                         beta_sig = np.abs(Tbeta) > Tthresh    # size is ncombinations x ntimepoints x nsources
+                        stat_of_interest = Tbeta
 
                     # stats based on regression with covariates - --------
-                    if stats_type == 'regression':
-                        Zthresh = stats.norm.ppf(1 - pthreshold, NP - 1)
-                        NPt, terms = np.shape(covariates)  # need one term per person, for each covariate
+                    if statstype == 'regression':
+                        stattitle = 'Zregression'
+                        Zthresh = stats.norm.ppf(1 - pthreshold)
+                        terms, NPt = np.shape(covariates)  # need one term per person, for each covariate
                         b, bsem, R2, Z, Rcorrelation, Zcorrelation = GLMregression(beta, covariates, 2)
                         beta_sig = np.abs(Z) > Zthresh
+                        stat_of_interest = Z
 
                     # stats based on regression with covariates - --------
-                    if stats_type == 'correlation':
-                        Zthresh = stats.norm.ppf(1 - pthreshold, NP - 1)
-                        NPt, terms = np.shape(covariates)  # need one term per person, for each covariate
+                    if statstype == 'correlation':
+                        stattitle = 'Zcorr'
+                        Zthresh = stats.norm.ppf(1 - pthreshold)
+                        terms, NPt = np.shape(covariates)  # need one term per person, for each covariate
                         b, bsem, R2, Z, Rcorrelation, Zcorrelation = GLMregression(beta, covariates, 2)
                         beta_sig = np.abs(Zcorrelation) > Zthresh
+                        stat_of_interest = Zcorrelation
                     #---------------------------------------------------
 
-                    # organize significant results
-                    combo, nt, ss = np.where(beta_sig)  # significant connections during this time period
+                    keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
+                            'tlimy1',
+                            'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2',
+                            'slimz1', 'slimz2', 'timepoint']
 
+                    # organize significant results
+                    if np.ndim(beta_sig) < 4:  # allow for different forms of results (some have multiple stats terms)
+                        stat_of_interest = np.expand_dims(stat_of_interest, axis=-1)
+                        beta_sig = np.expand_dims(beta_sig, axis=-1)
+                    combo, nt, ss, nc = np.where(beta_sig)   # significant connections during this time period
+
+                    cc = 0   # what about regression with two or more terms?
                     for ii in range(len(combo)):
                         # get region names, cluster numbers, etc.
-                        Tvalue = Tbeta[combo[ii], nt[ii], ss[ii]]
+                        Svalue = stat_of_interest[combo[ii], nt[ii], ss[ii],cc]
                         timepoint = nt[ii]
                         sourcename = cluster_info[sourcenums[ss[ii]]]['rname']
                         mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums],combo[ii]).astype(int)   # cluster number for each source
@@ -419,32 +482,41 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
 
                         connid = nt[ii]*1e7 + targetnum*1e5 + tt*1e3 + sourcenums[ss[ii]]*10 + sourcecluster
 
-                        values = np.concatenate(([targetname, tt, sourcename, sourcecluster, Tvalue],
+                        values = np.concatenate(([targetname, tt, sourcename, sourcecluster, Svalue],
                              list(targetcoords), list(targetlimits), list(sourcecoords), list(sourcelimits), [timepoint]))
                         entry = dict(zip(keys, values))
 
                         results.append(entry)
-                        Tvalue_list.append(Tvalue)
+                        Svalue_list.append(Svalue)
                         connid_list.append(connid)
 
             # eliminate redundant values, for repeats keep the one with the largest Tvalue
-            results2, Tvalue_list2 = remove_reps_and_sort(np.array(connid_list), np.array(Tvalue_list), results)
+            if len(results) > 0:
+                print('removing redundant values ...')
+                results2, Svalue_list2 = remove_reps_and_sort(np.array(connid_list), np.array(Svalue_list), results)
 
-            # separate by timepoints
-            timepoint_list = [results2[ii]['timepoint'] for ii in range(len(results2))]
-            times = np.unique(timepoint_list)
+                # separate by timepoints
+                timepoint_list = [int(results2[ii]['timepoint']) for ii in range(len(results2))]
+                times = np.unique(timepoint_list)
+                print('time point values: ',times)
 
-        # still need to split the data according to timepoints
-        for timepoint in times:
-            indices = np.where(timepoint_list == timepoint)[0]
-            results1 = []
-            for ii in indices:
-                results1.append(results2[ii])
+                # still need to split the data according to timepoints
+                print('separating values from different time periods...')
+                for timepoint in times:
+                    indices = np.where(timepoint_list == timepoint)[0]
+                    print('timepoint: {}, found {} entries'.format(timepoint,len(indices)))
+                    results1 = []
+                    for ii in indices:
+                        results1.append(results2[ii])
 
-            excelsheetname = 'network ' + str(timepoint)
-            pydisplay.pywriteexcel(results1, excelfilename, excelsheetname, 'append')
+                    excelsheetname = 'network ' + statstype + ' ' + str(timepoint)
+                    print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+                    pydisplay.pywriteexcel(results1, excelfilename, excelsheetname, 'append')
+                    print('finished writing results to ',excelfilename)
+            else:
+                print('no significant results found with p < {} '.format(pthreshold))
 
-        return excelfilename
+            return excelfilename
 
     if datafiletype == 2:
         p, f = os.path.split(filename)
@@ -479,7 +551,7 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                 tc_per_person_sem[:,:,nn] = tc1_sem
 
             # stats based on group average ---------------------------
-            if stats_type == 'average':
+            if statstype == 'average':
                 mean_tc = np.mean(tc_per_person, axis = 2)
                 sem_tc = np.std(tc_per_person, axis = 2)/np.sqrt(NP)
                 T = mean_tc/(sem_tc + 1.0e-10)
@@ -501,8 +573,8 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
 
 
             # stats based on regression with covariates ----------
-            if stats_type == 'regression':
-                Zthresh = stats.norm.ppf(1 - pthreshold, NP - 1)
+            if statstype == 'regression':
+                Zthresh = stats.norm.ppf(1 - pthreshold)
                 b, bsem, R2, Z, Rcorrelation, Zcorrelation = GLMregression(tc_per_person, covariates, 2)
                 sig = np.abs(Z) > Zthresh
 
@@ -528,10 +600,9 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
 
 
             # stats based on regression with covariates ----------
-            if stats_type == 'correlation':
-                Zthresh = stats.norm.ppf(1 - pthreshold, NP - 1)
+            if statstype == 'correlation':
+                Zthresh = stats.norm.ppf(1 - pthreshold)
                 R = np.corrcoef()
-                NPt, terms = np.shape(covariates)  # need one term per person, for each covariate
                 b, bsem, R2, Z, Rcorrelation, Zcorrelation = GLMregression(tc_per_person, covariates, 2)
                 sig = np.abs(Zcorrelation) > Zthresh
 
@@ -556,8 +627,13 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                     outputdata.append(entry)
             #---------------------------------------------------
 
-            excelsheetname = rname
-            pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'append', '%.3f')
+            if len(outputdata) > 0:
+                excelsheetname = rname
+                print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+                pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'append', '%.3f')
+                print('finished writing results to ',excelfilename)
+            else:
+                print('no significant results found at p < {}'.format(pthreshold))
             return excelfilename
 
 
@@ -642,12 +718,14 @@ def group_average_significance(filename, pthreshold):
                     results.append(entry)
 
                 # eliminate redundant values, for repeats keep the one with the largest Tvalue
+                print('removing redundant values ...')
                 results2, Tvalue_list2 = remove_reps_and_sort(connid_list, Tvalue_list, results)
 
                 p, f = os.path.split(filename)
                 f2, e = os.path.splitext(f)
                 excelfilename = os.path.join(p, f2 + '_2ndlevel.xlsx')
                 excelsheetname = '2source beta1 ' + str(tt)
+                print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
                 pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
 
             results_beta1 = results2
@@ -683,9 +761,11 @@ def group_average_significance(filename, pthreshold):
                     results.append(entry)
 
                 # eliminate redundant values, for repeats keep the one with the largest Tvalue
+                print('removing redundant values ...')
                 results2, Tvalue_list2 = remove_reps_and_sort(connid_list, Tvalue_list, results)
 
                 excelsheetname = '2source beta2 ' + str(tt)
+                print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
                 pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
 
             results_beta2 = results2
@@ -769,6 +849,7 @@ def group_average_significance(filename, pthreshold):
                         connid_list.append(connid)
 
             # eliminate redundant values, for repeats keep the one with the largest Tvalue
+            print('removing redundant values ...')
             results2, Tvalue_list2 = remove_reps_and_sort(np.array(connid_list), np.array(Tvalue_list), results)
 
             # separate by timepoints
@@ -783,6 +864,7 @@ def group_average_significance(filename, pthreshold):
                 results1.append(results2[ii])
 
             excelsheetname = 'network ' + str(timepoint)
+            print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
             pydisplay.pywriteexcel(results1, excelfilename, excelsheetname, 'append')
 
         return results2
@@ -842,6 +924,7 @@ def group_average_significance(filename, pthreshold):
                 outputdata.append(entry)
 
             excelsheetname = rname
+            print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
             pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'append', '%.3f')
 
 

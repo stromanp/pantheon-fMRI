@@ -134,7 +134,7 @@ def pydisplaystatmap(Tmap, Tthreshold, template, mask,templatename):
 # display named regions in different colors
 def pydisplayanatregions(templatename, anatnames, colorlist = []):
     resolution = 1
-    template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map = load_templates.load_template_and_masks(templatename, resolution)
+    template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_img = load_templates.load_template_and_masks(templatename, resolution)
 
     anatnamelist = []
     for name in anatlabels['names']:
