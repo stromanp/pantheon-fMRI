@@ -3488,7 +3488,15 @@ class GRPFrame:
 def main():
     root = tk.Tk()
     root.title('FMRI Analysis')
-    tk.Tk.iconbitmap(root, default='lablogoicon.ico')
+
+    # original that only works on PCs
+    # tk.Tk.iconbitmap(root, default='lablogoicon.ico')
+
+    # try this (?)
+    img = tk.Image('photo', file='lablogoicon.gif')
+    # root.iconphoto(True, img) # you may also want to try this.
+    root.tk.call('wm', 'iconphoto', root._w, img)
+
     app = mainspinalfmri_window(root)
 
     root.mainloop()
