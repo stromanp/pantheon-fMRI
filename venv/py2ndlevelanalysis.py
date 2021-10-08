@@ -626,7 +626,6 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                     entry = dict(zip(keys, values))
                     outputdata.append(entry)
             #---------------------------------------------------
-
             if len(outputdata) > 0:
                 excelsheetname = rname
                 print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
@@ -635,7 +634,6 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
             else:
                 print('no significant results found at p < {}'.format(pthreshold))
             return excelfilename
-
 
 #------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------
@@ -844,7 +842,6 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                     values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]],
                                              list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),[nc[ii]]))
                     entry = dict(zip(keys, values))
-
                     results.append(entry)
 
                 # eliminate redundant values, for repeats keep the one with the largest Tvalue
@@ -937,7 +934,6 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                             Tthresh = stats.t.ppf(1-pthreshold,NP-1)
                             beta_sig = np.abs(Tbeta) > Tthresh
                             stat_of_interest = Tbeta
-
 
                     # # stats based on regression with covariates - --------
                     # if statstype == 'regression':
@@ -1072,7 +1068,6 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                 tc_semsingle = np.mean(np.reshape(tc_sem2[:,tp],(nclusters,tsize2,nruns)),axis = 2)
                 tc_per_person2[:,:,nn] = tcsingle
                 tc_per_person_sem2[:,:,nn] = tc_semsingle
-
 
             # stats based on group average ---------------------------
             if statstype == 'average':

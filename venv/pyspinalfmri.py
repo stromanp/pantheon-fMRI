@@ -53,6 +53,7 @@ import pydisplay
 import pysem
 # import scipy
 import py2ndlevelanalysis
+import copy
 
 matplotlib.use('TkAgg')   # explicitly set this - it might help with displaying figures in different environments
 
@@ -88,6 +89,8 @@ if os.path.isfile(settingsfile):
 else:
     settings = {'DBname':'none',
             'DBnum':'none',
+            'DBname2': 'none',
+            'DBnum2': 'none',
             'DBnumstring':'none',
             'NIbasename':'Series',
             'CRprefix':'',
@@ -130,6 +133,7 @@ else:
             'GRPcharacteristicscount':0,
             'GRPcharacteristicslist':[],
             'GRPcharacteristicsvalues':[],
+            'GRPcharacteristicsvalues2':[],
             'GRPanalysistype':'undefined',
             'GRPdatafiletype1':0,
             'GRPdatafiletype2':0,
@@ -2348,7 +2352,7 @@ class CLFrame:
             pyclustering.define_clusters_and_load_data(self.DBname, self.DBnum, self.CLprefix, self.networkmodel, regionmap_img, anatlabels)
 
         cluster_definition = {'cluster_properties':cluster_properties}
-        region_data = {'region_properties':region_properties}
+        region_data = {'region_properties':region_properties, 'DBname':self.DBname, 'DBnum':self.DBnum}
 
         # save the results
         np.save(self.CLclustername,cluster_definition)
@@ -2371,7 +2375,7 @@ class CLFrame:
 
         print('CLload:  DBname = ', self.DBname)
         region_properties = pyclustering.load_cluster_data(cluster_properties, self.DBname, self.DBnum, self.CLprefix, self.networkmodel)
-        region_data = {'region_properties':region_properties}
+        region_data = {'region_properties':region_properties, 'DBname':self.DBname, 'DBnum':self.DBnum}
 
         np.save(self.CLregionname,region_data)
         messagetext = 'loading cluster data completed: \n' + time.ctime(time.time())
@@ -2987,6 +2991,7 @@ class GRPFrame:
         settings['GRPcharacteristicscount'] = self.GRPcharacteristicscount
         settings['GRPcharacteristicslist'] = self.GRPcharacteristicslist
         settings['GRPcharacteristicsvalues'] = self.GRPcharacteristicsvalues
+        settings['GRPcharacteristicsvalues2'] = self.GRPcharacteristicsvalues2
         np.save(settingsfile,settings)
 
         return self
@@ -2994,6 +2999,13 @@ class GRPFrame:
 
     def DBfieldchoice(self, value):
         # get the field value choices for the selected field
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
+        self.DBname2 = settings['DBname2']
+        self.DBnum2 = settings['DBnum2']
+        self.GRPcharacteristicscount = settings['GRPcharacteristicscount']
+
         print('GRPcharacteristicslist = ', self.GRPcharacteristicslist)
         fvalue = self.field_var.get()
 
@@ -3003,17 +3015,28 @@ class GRPFrame:
 
         if self.GRPcharacteristicscount == 1:
             self.GRPcharacteristicslist =  [fvalue]
-            fieldvalues = GRPFrame.get_DB_field_values(self)
+            fieldvalues, fieldvalues2 = GRPFrame.get_DB_field_values(self)
             print('size of fieldvalues is ',np.shape(fieldvalues))
             self.GRPcharacteristicsvalues = np.array(fieldvalues)[np.newaxis,:]
             print('size of GRPcharacteristicsvalues is ',np.shape(self.GRPcharacteristicsvalues))
+
+            if os.path.isfile(self.DBname2):
+                print('size of fieldvalues2 is ',np.shape(fieldvalues2))
+                self.GRPcharacteristicsvalues2 = np.array(fieldvalues2)[np.newaxis,:]
+                print('size of GRPcharacteristicsvalues2 is ',np.shape(self.GRPcharacteristicsvalues2))
         else:
             self.GRPcharacteristicslist.append(value)
-            fieldvalues = GRPFrame.get_DB_field_values(self)
+            fieldvalues, fieldvalues2 = GRPFrame.get_DB_field_values(self)
             print('size of fieldvalues is ',np.shape(fieldvalues))
             print('size of GRPcharacteristicsvalues is ',np.shape(self.GRPcharacteristicsvalues))
             self.GRPcharacteristicsvalues = np.concatenate((self.GRPcharacteristicsvalues,np.array(fieldvalues)[np.newaxis,:]),axis=0)
             print('size of GRPcharacteristicsvalues is ',np.shape(self.GRPcharacteristicsvalues))
+
+            if os.path.isfile(self.DBname2):
+                print('size of fieldvalues2 is ',np.shape(fieldvalues2))
+                print('size of GRPcharacteristicsvalues2 is ',np.shape(self.GRPcharacteristicsvalues2))
+                self.GRPcharacteristicsvalues2 = np.concatenate((self.GRPcharacteristicsvalues2,np.array(fieldvalues2)[np.newaxis,:]),axis=0)
+                print('size of GRPcharacteristicsvalues2 is ',np.shape(self.GRPcharacteristicsvalues2))
 
         print('GRPcharacteristicslist = ', self.GRPcharacteristicslist)
 
@@ -3024,10 +3047,10 @@ class GRPFrame:
         print('text for group characteristics list is: ',chartext)
         self.GRPcharacteristicstext.set(chartext)
 
-        settings = np.load(settingsfile, allow_pickle = True).flat[0]
         settings['GRPcharacteristicscount'] = self.GRPcharacteristicscount
         settings['GRPcharacteristicslist'] = self.GRPcharacteristicslist
         settings['GRPcharacteristicsvalues'] = self.GRPcharacteristicsvalues
+        settings['GRPcharacteristicsvalues2'] = self.GRPcharacteristicsvalues2
         np.save(settingsfile,settings)
 
         return self
@@ -3079,7 +3102,35 @@ class GRPFrame:
             fieldvalues = 'empty'
         # print('get_DB_field_values: fieldvalues = ',fieldvalues)
 
-        return fieldvalues
+        #------------------------------------------------------------
+        # in case there are two sets of data to be loaded/compared
+        DBname2 = settings['DBname2']
+        DBnum2 = settings['DBnum2']
+        prefix = settings['CLprefix']
+
+        if os.path.isfile(DBname2):
+            xls = pd.ExcelFile(DBname2, engine = 'openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
+            del df1['Unnamed: 0']  # get rid of the unwanted header column
+
+            print('GRPcharacteristicslist2 = ',self.GRPcharacteristicslist)
+            fieldname = self.GRPcharacteristicslist[-1]
+            print('fieldname2 = ',fieldname)
+
+            if mode == 'average_per_person':  # average values over entries for the same person
+                filename_list2, dbnum_person_list2, NP2 = pydatabase.get_datanames_by_person(DBname2, DBnum2, prefix, mode='list')
+                fieldvalues2 = np.zeros(NP2)
+                for nn in range(NP2):
+                    DBnum_person2 = dbnum_person_list2[nn]
+                    fv1 = list(df1.loc[DBnum_person2,fieldname])
+                    fieldvalues2[nn] = np.mean(fv1)
+            else:
+                fieldvalues2 = list(df1.loc[DBnum2,fieldname])
+        else:
+            fieldvalues2 = 'empty'
+        # print('get_DB_field_values: fieldvalues = ',fieldvalues)
+
+        return fieldvalues, fieldvalues2
 
 
     def GRPresultsbrowseaction(self):
@@ -3105,16 +3156,55 @@ class GRPFrame:
             if 'region_properties' in keylist: datafiletype = 2
         except:
             print('Error reading selected data file - unexpected contents or format')
+            return
 
         if datafiletype == 0:  print('selected data file does not have the required format')
         if datafiletype == 1:  print('found SEM results: for group comparisons be sure to select 2 results files')
         if datafiletype == 2:  print('found time-course data: select correlation as the analysis type in order to do Bayesian regression')
 
         settings['GRPdatafiletype1'] = datafiletype
+        settings['DBname'] = data['DBname']
+        settings['DBnum'] = data['DBnum']
+        self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
         np.save(settingsfile, settings)
 
-        self.GRPresultsnamebrowse2['state'] = tk.NORMAL
+        # clear the characteristics list
+        self.GRPcharacteristicslistclear()
 
+        self.GRPresultsnamebrowse2['state'] = tk.NORMAL
+        self.GRPresultsnameclear2['state'] = tk.NORMAL
+
+        return self
+
+
+    def GRPresultsclearaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.GRPresultsname = 'notdefined'
+        settings['GRPresultsname'] = 'notdefined'
+        # write the result to the label box for display
+        self.GRPresultsnametext.set('notdefined')
+        self.GRPresultsdirtext.set('')
+
+        self.GRPresultsname2 = 'notdefined'
+        settings['GRPresultsname2'] = 'notdefined'
+        # write the result to the label box for display
+        self.GRPresultsnametext2.set('notdefined')
+        self.GRPresultsdirtext2.set('')
+
+        settings['GRPdatafiletype1'] = 0
+        settings['GRPdatafiletype2'] = 0
+        settings['DBname2'] = 'none'
+        settings['DBnum2'] = 'none'
+        self.DBname2 = 'none'
+        self.DBnum2 = 'none'
+        np.save(settingsfile, settings)
+
+        self.GRPresultsnamebrowse2['state'] = tk.DISABLED
+        self.GRPresultsnameclear2['state'] = tk.DISABLED
+
+        return self
 
     def GRPresultsbrowseaction2(self):
         # first load the settings file so that values can be used later
@@ -3140,14 +3230,55 @@ class GRPFrame:
             if 'region_properties' in keylist: datafiletype = 2
         except:
             print('Error reading selected data file - unexpected contents or format')
+            return
 
         if datafiletype == 0:  print('selected data file does not have the required format')
         if datafiletype == 1:  print('found SEM results: for group comparisons be sure to select 2 results files')
         if datafiletype == 2:  print('found time-course data: select correlation as the analysis type in order to do Bayesian regression')
 
         settings['GRPdatafiletype2'] = datafiletype
+        settings['DBname2'] = data['DBname']
+        settings['DBnum2'] = data['DBnum']
+        self.DBname2 = settings['DBname2']
+        self.DBnum2 = settings['DBnum2']
+        np.save(settingsfile,settings)  # get_DB_field_values will use the values in the settings file
+
+        # load characteristics values if fields have already been selected-------------------
+        GRPcharacteristicslist_copy = copy.deepcopy(self.GRPcharacteristicslist)
+        for num, fvalue in enumerate(GRPcharacteristicslist_copy):
+            self.GRPcharacteristicslist = [fvalue]
+            print('loading characteristics for field: {}'.format(fvalue))
+            fieldvalues, fieldvalues2 = GRPFrame.get_DB_field_values(self)
+            if num == 0:
+                self.GRPcharacteristicsvalues2 = np.array(fieldvalues2)[np.newaxis,:]
+            else:
+                self.GRPcharacteristicsvalues2 = np.concatenate((self.GRPcharacteristicsvalues2,np.array(fieldvalues2)[np.newaxis,:]),axis=0)
+
+        print('size of GRPcharacteristicsvalues2 is ', np.shape(self.GRPcharacteristicsvalues2))
+
+        self.GRPcharacteristicslist = GRPcharacteristicslist_copy
+        settings['GRPcharacteristicsvalues2'] = self.GRPcharacteristicsvalues2
+        np.save(settingsfile,settings)
+
+
+    def GRPresultsclearaction2(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.GRPresultsname2 = 'notdefined'
+        settings['GRPresultsname2'] = 'notdefined'
+
+        # write the result to the label box for display
+        self.GRPresultsnametext2.set('notdefined')
+        self.GRPresultsdirtext2.set('')
+
+        settings['GRPdatafiletype2'] = 0
+        settings['DBname2'] = 'none'
+        settings['DBnum2'] = 'none'
+        self.DBname2 = 'none'
+        self.DBnum2 = 'none'
         np.save(settingsfile, settings)
 
+        return self
 
     def GRPpvaluesubmit(self):
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
@@ -3206,6 +3337,7 @@ class GRPFrame:
         datafiletype1 = settings['GRPdatafiletype1']
         datafiletype2 = settings['GRPdatafiletype2']
         GRPcharacteristicsvalues = settings['GRPcharacteristicsvalues']
+        GRPcharacteristicsvalues2 = settings['GRPcharacteristicsvalues2']
         GRPpvalue = settings['GRPpvalue']
 
         print('GRPrunanalysis: type: ',GRPanalysistype, '  with data file type1: ',datafiletype1, '  file type2: ',datafiletype2)
@@ -3214,72 +3346,84 @@ class GRPFrame:
         # or one data file with two characteristics select
 
         if GRPanalysistype == 'Sig1':
-            if datafiletype1 == 1:  # SEM data
-                # look for significant group-average beta-value differences from zero
-                # sem_results = np.load(datafile1, allow_pickle=True).flat[0]
-                pthreshold = GRPpvalue
-                outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='average', covariates='none')
+            pthreshold = GRPpvalue
+            outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, 'average', covariates='none')
 
-            if datafiletype1 == 2:  # BOLD data
-                # look for significant group-average BOLD response differences from zero
-                pthreshold = GRPpvalue
-                outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='average', covariates='none')
-
+            # if datafiletype1 == 1:  # SEM data
+            #     # look for significant group-average beta-value differences from zero
+            #     # sem_results = np.load(datafile1, allow_pickle=True).flat[0]
+            #     pthreshold = GRPpvalue
+            #     outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='average', covariates='none')
+            #
+            # if datafiletype1 == 2:  # BOLD data
+            #     # look for significant group-average BOLD response differences from zero
 
         if GRPanalysistype == 'Sig2':
-            if datafiletype1 == 1:  # SEM data
-                # look for significant group-average beta-value differences between two groups
-                if datafiletype2 == 1:
-                    # go ahead and do the comparison, otherwise quit
-                    print('hold this')
+            pthreshold = GRPpvalue
+            outputfilename = py2ndlevelanalysis.group_difference_significance(datafile1, datafile2, pthreshold,'unpaired','average', covariates='none')
 
-            if datafiletype1 == 2:  # BOLD data
-                # look for significant group-average BOLD response differences between two groups
-                if datafiletype2 == 2:
-                    # go ahead and do the comparison, otherwise quit
-                    print('hold this')
+            # if datafiletype1 == 1:  # SEM data
+            #     # look for significant group-average beta-value differences between two groups
+            #     if datafiletype2 == 1:
+            #         # go ahead and do the comparison, otherwise quit
+            #         outputfilename = py2ndlevelanalysis.group_difference_significance(datafile1, datafile2, pthreshold,'unpaired','average', covariates='none')
+            #
+            # if datafiletype1 == 2:  # BOLD data
+            #     # look for significant group-average BOLD response differences between two groups
+            #     if datafiletype2 == 2:
+            #         # go ahead and do the comparison, otherwise quit
+            #         outputfilename = py2ndlevelanalysis.group_difference_significance(datafile1, datafile2, pthreshold,'paired','average', covariates='none')
 
         if GRPanalysistype == 'Sig2paired':
-            if datafiletype1 == 1:  # SEM data
-                # look for significant group-average beta-value paired differences between two groups
-                if datafiletype2 == 1:
-                    # go ahead and do the comparison, otherwise quit
-                    print('hold this')
+            pthreshold = GRPpvalue
+            outputfilename = py2ndlevelanalysis.group_difference_significance(datafile1, datafile2, pthreshold,'paired','average', covariates='none')
 
-            if datafiletype1 == 2:  # BOLD data
-                # look for significant group-average BOLD response paired differences between two groups
-                if datafiletype2 == 2:
-                    # go ahead and do the comparison, otherwise quit
-                    print('hold this')
-
+            # if datafiletype1 == 1:  # SEM data
+            #     # look for significant group-average beta-value paired differences between two groups
+            #     if datafiletype2 == 1:
+            #         # go ahead and do the comparison, otherwise quit
+            #         print('hold this')
+            #
+            # if datafiletype1 == 2:  # BOLD data
+            #     # look for significant group-average BOLD response paired differences between two groups
+            #     if datafiletype2 == 2:
+            #         # go ahead and do the comparison, otherwise quit
+            #         print('hold this')
 
         if GRPanalysistype == 'Correlation':
-            if datafiletype1 == 1:
-                # look for significant correlations between beta-values and the first personal characteristic in the list
-                pthreshold = GRPpvalue
-                covariates = GRPcharacteristicsvalues
-                outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='correlation', covariates=covariates)
+            pthreshold = GRPpvalue
+            covariates = GRPcharacteristicsvalues
+            outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='correlation', covariates=covariates)
 
-            if datafiletype1 == 2:  # BOLD data
-                # look for significant correlations between BOLD values and the first personal characteristic in the list
-                pthreshold = GRPpvalue
-                covariates = GRPcharacteristicsvalues
-                outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='correlation', covariates=covariates)
-
+            # if datafiletype1 == 1:
+            #     # look for significant correlations between beta-values and the first personal characteristic in the list
+            #     pthreshold = GRPpvalue
+            #     covariates = GRPcharacteristicsvalues
+            #     outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='correlation', covariates=covariates)
+            #
+            # if datafiletype1 == 2:  # BOLD data
+            #     # look for significant correlations between BOLD values and the first personal characteristic in the list
+            #     pthreshold = GRPpvalue
+            #     covariates = GRPcharacteristicsvalues
+            #     outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='correlation', covariates=covariates)
 
         if GRPanalysistype == 'Regression':
-            if datafiletype1 == 1:
-                # look for significant correlations between beta-values and the first personal characteristic in the list
-                pthreshold = GRPpvalue
-                covariates = GRPcharacteristicsvalues
-                outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='regression', covariates=covariates)
+            pthreshold = GRPpvalue
+            covariates = GRPcharacteristicsvalues
+            outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='regression', covariates=covariates)
 
-            if datafiletype1 == 2:  # BOLD data
-                # look for significant correlations between BOLD values and the first personal characteristic in the list
-                pthreshold = GRPpvalue
-                covariates = GRPcharacteristicsvalues
-                outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='regression', covariates=covariates)
-
+            # if datafiletype1 == 1:
+            #     # look for significant correlations between beta-values and the first personal characteristic in the list
+            #     pthreshold = GRPpvalue
+            #     covariates = GRPcharacteristicsvalues
+            #     outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='regression', covariates=covariates)
+            #
+            # if datafiletype1 == 2:  # BOLD data
+            #     # look for significant correlations between BOLD values and the first personal characteristic in the list
+            #     pthreshold = GRPpvalue
+            #     covariates = GRPcharacteristicsvalues
+            #     outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='regression', covariates=covariates)
+            #
 
         if GRPanalysistype == 'ANOVA':
             if datafiletype1 == 1:  # SEM data
@@ -3326,28 +3470,32 @@ class GRPFrame:
                     print('hold this')
 
 
-
     def __init__(self, parent, controller):
         parent.configure(relief='raised', bd=5, highlightcolor=fgcol3)
         self.parent = parent
         self.controller = controller
         self.DBname = settings['DBname']
         self.DBnum = settings['DBnum']
+        self.DBname2 = settings['DBname2']   # for 2nd set of comparison results
+        self.DBnum2 = settings['DBnum2']
         self.networkmodel = settings['networkmodel']
         self.GRPresultsname = settings['GRPresultsname']
         self.GRPresultsname2 = settings['GRPresultsname2']
         self.GRPcharacteristicscount = settings['GRPcharacteristicscount']
         self.GRPcharacteristicslist = settings['GRPcharacteristicslist']
         self.GRPcharacteristicsvalues = settings['GRPcharacteristicsvalues']
+        self.GRPcharacteristicsvalues2 = settings['GRPcharacteristicsvalues2']
         self.GRPpvalue = settings['GRPpvalue']
 
         # put some text as a place-holder
-        self.GRPLabel1 = tk.Label(self.parent, text = "1) Select group-level analysis options\nChoices are: Bayesian regression of BOLD\nresponses, analyses of SEM results w.r.t.\npersonal characteristics", fg = 'gray', justify = 'left')
+        self.GRPLabel1 = tk.Label(self.parent, text = "1) Choose data/results files;  \nSEMresults_network..., SEMresults_2source...,\nor region_properties... files", fg = 'gray', justify = 'left')
         self.GRPLabel1.grid(row=0,column=0,rowspan=2, sticky='W')
-        self.GRPLabel2 = tk.Label(self.parent, text = "2) For Bayesian regression select correlation\n for the analysis type, and for group comparisons choose\n2 results files", fg = 'gray', justify = 'left')
-        self.GRPLabel2.grid(row=2,column=0,rowspan=2, sticky='W')
-        self.GRPLabel3 = tk.Label(self.parent, text = "3) Run selected group-level analysis", fg = 'gray', justify = 'left')
-        self.GRPLabel3.grid(row=4,column=0, sticky='W')
+        self.GRPLabel1 = tk.Label(self.parent, text = "2) Select group-level analysis options\nChoices are: Bayesian regression of BOLD\nresponses, analyses of SEM results w.r.t.\npersonal characteristics", fg = 'gray', justify = 'left')
+        self.GRPLabel1.grid(row=2,column=0,rowspan=2, sticky='W')
+        self.GRPLabel2 = tk.Label(self.parent, text = "3) For Bayesian regression select correlation\n for the analysis type, and for group comparisons choose\n2 results files", fg = 'gray', justify = 'left')
+        self.GRPLabel2.grid(row=4,column=0,rowspan=2, sticky='W')
+        self.GRPLabel3 = tk.Label(self.parent, text = "4) Run selected group-level analysis", fg = 'gray', justify = 'left')
+        self.GRPLabel3.grid(row=6,column=0, sticky='W')
 
         # make a label to show the current setting of the network definition file directory name
         # file1 (in case there are two sets of results to be compared)-------------------------------
@@ -3370,6 +3518,9 @@ class GRPFrame:
         self.GRPresultsnamebrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg=fgcol2, fg='black',
                                           command=self.GRPresultsbrowseaction, relief='raised', bd=5)
         self.GRPresultsnamebrowse.grid(row=0, column=3)
+        self.GRPresultsnameclear = tk.Button(self.parent, text='Clear', width=smallbuttonsize, bg=fgcol2, fg='black',
+                                          command=self.GRPresultsclearaction, relief='raised', bd=5)
+        self.GRPresultsnameclear.grid(row=0, column=4)
 
 
         # file2 (in case there are two sets of results to be compared)-------------------------------
@@ -3396,6 +3547,9 @@ class GRPFrame:
         self.GRPresultsnamebrowse2 = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg=fgcol2, fg='black',
                                           command=self.GRPresultsbrowseaction2, relief='raised', bd=5, state = initial_state)
         self.GRPresultsnamebrowse2.grid(row=2, column=3)
+        self.GRPresultsnameclear2 = tk.Button(self.parent, text='Clear', width=smallbuttonsize, bg=fgcol2, fg='black',
+                                          command=self.GRPresultsclearaction2, relief='raised', bd=5, state = initial_state)
+        self.GRPresultsnameclear2.grid(row=2, column=4)
 
 
         # ---------radio buttons to indicate type of analysis to do----------------
