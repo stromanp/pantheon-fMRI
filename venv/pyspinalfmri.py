@@ -227,8 +227,10 @@ class mainspinalfmri_window:
     # Definition of the function to choose which frame is on top
     def show_frame(self, page_name):
         '''Show a frame for the given page name'''
-        frame = self.frames[page_name]
-        frame.tkraise()
+        keylist = self.frames.keys()
+        if page_name in keylist:
+            frame = self.frames[page_name]
+            frame.tkraise()
 
 
 # ------Create the Window for displaying images, results, etc.---------------------
@@ -417,49 +419,70 @@ class BaseFrame2:
 class OptionsFrame:
     # initialize the values, keeping track of the frame this definition works on (parent), and 
     # also the main window containing that frame (controller)
+
+    # select frame function
+    def options_show_frame(self,page_name, widgetname):
+        buttonlist = self.buttons.keys()
+        for button in buttonlist:
+            buttonname = self.buttons[button]
+            buttonname.configure(fg='black')
+        if widgetname in buttonlist:
+            self.buttons[widgetname].configure(fg='white')
+        self.controller.show_frame(page_name)
+
+
     def __init__(self, parent, controller):
         parent.configure(relief='raised', bd = 5, highlightcolor = fgcol1)
         self.parent = parent
         self.controller = controller
+        self.buttons = {}  # to keep track of button handles
 
         # button for running the conversion to NIfTI format step
-        self.setdb = tk.Button(self.parent, text = 'Database', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('DBFrame'), relief='raised', bd = 5)
+        self.setdb = tk.Button(self.parent, text = 'Database', width = smallbuttonsize, bg = fgcol2, fg = 'white', font = "none 9 bold", command = lambda: self.options_show_frame('DBFrame', 'setdb'), relief='raised', bd = 5)
         self.setdb.grid(row = 0, column = 0)
+        self.buttons['setdb'] = self.setdb
         
         # button for running the conversion to NIfTI format step
-        self.writenifti = tk.Button(self.parent, text = 'Write NIfTI', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('NIFrame'), relief='raised', bd = 5)
+        self.writenifti = tk.Button(self.parent, text = 'Write NIfTI', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: self.options_show_frame('NIFrame', 'writenifti'), relief='raised', bd = 5)
         self.writenifti.grid(row = 1, column = 0)
+        self.buttons['writenifti'] = self.writenifti
 
         # button for calculating the normalization parameters for each data set
-        self.normalizationcalc = tk.Button(self.parent, text = 'Norm. Calc.', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('NCFrame'), relief='raised', bd = 5)
+        self.normalizationcalc = tk.Button(self.parent, text = 'Norm. Calc.', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: self.options_show_frame('NCFrame', 'normalizationcalc'), relief='raised', bd = 5)
         self.normalizationcalc.grid(row = 2, column = 0)
+        self.buttons['normalizationcalc'] = self.normalizationcalc
 
         # button for selecting and running the pre-processing steps
-        self.preprocess = tk.Button(self.parent, text = 'Pre-Process', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('PPFrame'), relief='raised', bd = 5)
+        self.preprocess = tk.Button(self.parent, text = 'Pre-Process', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: self.options_show_frame('PPFrame', 'preprocess'), relief='raised', bd = 5)
         self.preprocess.grid(row = 3, column = 0)
+        self.buttons['preprocess'] = self.preprocess
 
         # button for selecting and running the GLM analysis steps
-        self.glmanalysis = tk.Button(self.parent, text = 'GLM fit', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('GLMFrame'), relief='raised', bd = 5)
+        self.glmanalysis = tk.Button(self.parent, text = 'GLM fit', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: self.options_show_frame('GLMFrame', 'glmanalysis'), relief='raised', bd = 5)
         self.glmanalysis.grid(row = 4, column = 0)
+        self.buttons['glmanalysis'] = self.glmanalysis
 
         # button for selecting and running the data clustering steps
-        self.clustering = tk.Button(self.parent, text = 'Cluster', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('CLFrame'), relief='raised', bd = 5)
+        self.clustering = tk.Button(self.parent, text = 'Cluster', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: self.options_show_frame('CLFrame', 'clustering'), relief='raised', bd = 5)
         self.clustering.grid(row = 5, column = 0)
+        self.buttons['clustering'] = self.clustering
 
         # button for selecting and running the SEM analysis steps
-        self.clustering = tk.Button(self.parent, text = 'SEM', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('SEMFrame'), relief='raised', bd = 5)
-        self.clustering.grid(row = 6, column = 0)
+        self.sem = tk.Button(self.parent, text = 'SEM', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: self.options_show_frame('SEMFrame', 'sem'), relief='raised', bd = 5)
+        self.sem.grid(row = 6, column = 0)
+        self.buttons['sem'] = self.sem
 
         # button for selecting and running the group-level analysis steps
-        self.clustering = tk.Button(self.parent, text = 'Group-level', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: controller.show_frame('GRPFrame'), relief='raised', bd = 5)
-        self.clustering.grid(row = 7, column = 0)
+        self.groupanalysis = tk.Button(self.parent, text = 'Group-level', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: self.options_show_frame('GRPFrame', 'groupanalysis'), relief='raised', bd = 5)
+        self.groupanalysis.grid(row = 7, column = 0)
+        self.buttons['groupanalysis'] = self.groupanalysis
         
         # define a button to exit the GUI
         # also, define the function for what to do when this button is pressed
         self.exit_button = tk.Button(self.parent, text = 'Exit', width = smallbuttonsize, bg = 'grey80', fg = 'black', font = "none 9 bold", command = self.close_window, relief='sunken', bd = 5)
         self.exit_button.grid(row = 8, column = 0)
-            
-    # exit function
+
+        # exit function
     def close_window(self):
         self.controller.master.destroy()
         
@@ -1033,6 +1056,13 @@ class NCFrame:
 
         # initialize some values
         self.NCdatabasename = settings['DBname']
+        self.NCdbnum = settings['DBnum']
+        xls = pd.ExcelFile(self.NCdatabasename, engine = 'openpyxl')
+        df1 = pd.read_excel(xls, 'datarecord')
+        self.normtemplatename = df1.loc[self.NCdbnum[0], 'normtemplatename']
+
+        self.NCtemplatelabel = tk.Label(self.parent, text = 'Normalizing region: '+self.normtemplatename, fg = 'gray')
+        self.NCtemplatelabel.grid(row=0,column=2, sticky='W')
 
         # put some text as a place-holder
         self.NClabel1 = tk.Label(self.parent, text = "1) Calculate normalization\nparameters", fg = 'gray')
@@ -1043,16 +1073,16 @@ class NCFrame:
         # now define an Entry box so that the user can indicate the prefix name of the data to normalize
         # give it a label first
         self.NCinfo1 = tk.Label(self.parent, text = "Save name base:")
-        self.NCinfo1.grid(row=0,column=1, sticky='E')
+        self.NCinfo1.grid(row=1,column=1, sticky='E')
 
         # create the Entry box, and put it next to the label
         self.NCsavename = tk.Entry(self.parent, width = 20, bg="white")
-        self.NCsavename.grid(row=0, column = 2, sticky = "W")
-        self.NCsavename.insert(0,self.normdatasavename)
+        self.NCsavename.grid(row=1, column = 2, sticky = "W")
+        self.NCsavename.insert(1,self.normdatasavename)
 
         # the entry box needs a "submit" button so that the program knows when to take the entered values
         self.NCsavenamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.NCsavenamesubmit, relief='raised', bd = 5)
-        self.NCsavenamesubmit.grid(row = 0, column = 3)
+        self.NCsavenamesubmit.grid(row = 1, column = 3)
 
         # need entry boxes for "fit_parameters"
         # fit_parameters: 0 position stiffness upper  1 position stiffness lower  2 angle_stiffness upper 3 angle stiffness lower
@@ -1060,72 +1090,72 @@ class NCFrame:
         # these parameters are scaled by [1e-4, 1e-4, 1e-4, 1, 1, 1, 1, 1] before use  so the inputs are more intuitive values
 
         # label the columns
-        self.NCupper_label = tk.Label(self.parent, text = "Upper Regions")
-        self.NCupper_label.grid(row=1,column=2, sticky='W')
-        self.NClower_label = tk.Label(self.parent, text = "Lower Regions")
-        self.NClower_label.grid(row=1,column=3, sticky='W')
+        self.NCupper_label = tk.Label(self.parent, text = "Brainstem Regions")
+        self.NCupper_label.grid(row=2,column=2, sticky='W')
+        self.NClower_label = tk.Label(self.parent, text = "Cord Regions")
+        self.NClower_label.grid(row=2,column=3, sticky='W')
 
         # define an Entry box for each fit_parameters value
         # give it a label -- position stiffness
         self.NCfitp0_label = tk.Label(self.parent, text = "Position Stiffness (0-100):")
-        self.NCfitp0_label.grid(row=2,column=1, sticky='E')
+        self.NCfitp0_label.grid(row=3,column=1, sticky='E')
         # create the Entry box, for position stiffness upper
         self.NCfitp0 = tk.Entry(self.parent, width = 8, bg="white")
-        self.NCfitp0.grid(row=2, column = 2, sticky = "W")
+        self.NCfitp0.grid(row=3, column = 2, sticky = "W")
         self.NCfitp0.insert(0,self.fitp0)
         # create the Entry box, for position stiffness lower
         self.NCfitp1 = tk.Entry(self.parent, width = 8, bg="white")
-        self.NCfitp1.grid(row=2, column = 3, sticky = "W")
+        self.NCfitp1.grid(row=3, column = 3, sticky = "W")
         self.NCfitp1.insert(0,self.fitp1)
 
         # define an Entry box for each fit_parameters value
         # give it a label -- angle stiffness
         self.NCfitp2_label = tk.Label(self.parent, text="Angle Stiffness (0-100):")
-        self.NCfitp2_label.grid(row=3, column=1, sticky='E')
+        self.NCfitp2_label.grid(row=4, column=1, sticky='E')
         # create the Entry box, for position stiffness upper
         self.NCfitp2 = tk.Entry(self.parent, width=8, bg="white")
-        self.NCfitp2.grid(row=3, column=2, sticky="W")
+        self.NCfitp2.grid(row=4, column=2, sticky="W")
         self.NCfitp2.insert(0, self.fitp2)
         # create the Entry box, for position stiffness lower
         self.NCfitp3 = tk.Entry(self.parent, width=8, bg="white")
-        self.NCfitp3.grid(row=3, column=3, sticky="W")
+        self.NCfitp3.grid(row=4, column=3, sticky="W")
         self.NCfitp3.insert(0, self.fitp3)
 
         # define an Entry box for each fit_parameters value
         # give it a label -- angle stiffness
         self.NCfitp4_label = tk.Label(self.parent, text="Angle Start,Stop (degrees):")
-        self.NCfitp4_label.grid(row=4, column=1, sticky='E')
+        self.NCfitp4_label.grid(row=5, column=1, sticky='E')
         # create the Entry box, for position stiffness upper
         self.NCfitp45 = tk.Entry(self.parent, width=8, bg="white")
-        self.NCfitp45.grid(row=4, column=2, sticky="W")
+        self.NCfitp45.grid(row=5, column=2, sticky="W")
         self.NCfitp45.insert(0, self.fitp45)
         # create the Entry box, for position stiffness lower
         self.NCfitp67 = tk.Entry(self.parent, width=8, bg="white")
-        self.NCfitp67.grid(row=4, column=3, sticky="W")
+        self.NCfitp67.grid(row=5, column=3, sticky="W")
         self.NCfitp67.insert(0, self.fitp67)
 
         # the entry box needs a "submit" button so that the program knows when to take the entered values
         self.NCfitparamsubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg='black',
                                           command=self.NCfitparamsubmit, relief='raised', bd=5)
-        self.NCfitparamsubmit.grid(row=2, column=4, rowspan=3)
+        self.NCfitparamsubmit.grid(row=3, column=4, rowspan=3)
 
         # checkboxes to indicate 1) do rough normalization, 2) do fine-tuning normalization
         self.var1 = tk.IntVar()
         self.NCroughnorm = tk.Checkbutton(self.parent, text = 'Rough Norm.', width = smallbuttonsize, fg = 'black',
                                           command = self.NCcheckboxes, variable = self.var1)
-        self.NCroughnorm.grid(row = 3, column = 0, sticky="E")
+        self.NCroughnorm.grid(row = 4, column = 0, sticky="E")
         self.var2 = tk.IntVar()
         self.NCfinetune = tk.Checkbutton(self.parent, text = 'Fine-Tune', width = smallbuttonsize, fg = 'black',
                                           command = self.NCcheckboxes, variable = self.var2)
-        self.NCfinetune.grid(row = 4, column = 0, sticky="E")
+        self.NCfinetune.grid(row = 5, column = 0, sticky="E")
 
         # button to call the normalization program
         self.NCrun = tk.Button(self.parent, text = 'Calculate Normalization', width = bigbigbuttonsize, bg = fgcol1, fg = 'white', command = self.NCrunclick, font = "none 9 bold", relief='raised', bd = 5)
-        self.NCrun.grid(row = 5, column = 1)
+        self.NCrun.grid(row = 6, column = 1)
 
         # button to run program to manually adjust rough normalization sections
         self.NCmano = tk.Button(self.parent, text = 'Manual Over-ride', width = bigbuttonsize, bg = fgcol3, fg = 'white', command = self.NCmanoclick, font = "none 9 bold", relief='raised', bd = 5)
-        self.NCmano.grid(row = 5, column = 2)
+        self.NCmano.grid(row = 6, column = 2)
 
 
     # action when the button is pressed to submit the DB entry number list
