@@ -170,6 +170,13 @@ class mainspinalfmri_window:
         page_name = OptionsFrame.__name__
         self.frames[page_name] = Optionsbase
 
+        IMGbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
+        IMGbase.grid(row=1, column=1, sticky="nsew")
+        IMGFrame = IMGDispFrame(IMGbase, self)
+        page_name = IMGDispFrame.__name__
+        self.frames[page_name] = IMGbase
+        self.imgwindow = IMGFrame
+
         # The remaining frames are on the bottom of the main window, and are on top of each other
         # All of these frames are defined at the same time, but only the top one is visible
         DBbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
@@ -220,6 +227,7 @@ class mainspinalfmri_window:
         page_name = GRPFrame.__name__
         self.frames[page_name] = GRPbase
 
+
         # start with the Database information frame on top
         self.show_frame('DBFrame')
 
@@ -232,9 +240,15 @@ class mainspinalfmri_window:
             frame = self.frames[page_name]
             frame.tkraise()
 
+    def get_display_window(self, windownumber):
+        # access the display windows
+        window, image_in_window = self.imgwindow.get_window(windownumber)
+        return window, image_in_window
+
+
 
 # ------Create the Window for displaying images, results, etc.---------------------
-class imagedisplay_window:
+class IMGDispFrame:
     # defines the image display window, separate from the main window so the main window is not too bulky
     def __init__(self, parent, controller):
         # tk.Frame.__init__(self, master)
@@ -294,6 +308,11 @@ class imagedisplay_window:
         self.image_in_W4 = self.W4.create_image(0, 0, image=photo4, anchor = tk.NW)
         self.frames['window4'] = self.W4
         self.frames['image_in_window4'] = self.image_in_W4
+
+        controller.W1 = self.W1  # pass upward for access
+        controller.W2 = self.W2  # pass upward for access
+        controller.W3 = self.W3  # pass upward for access
+        controller.W4 = self.W4  # pass upward for access
 
 
     def get_window(self, window_number):
@@ -476,6 +495,11 @@ class OptionsFrame:
         self.groupanalysis = tk.Button(self.parent, text = 'Group-level', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: self.options_show_frame('GRPFrame', 'groupanalysis'), relief='raised', bd = 5)
         self.groupanalysis.grid(row = 7, column = 0)
         self.buttons['groupanalysis'] = self.groupanalysis
+
+        # button for selecting and running the group-level analysis steps
+        self.imgdisplay = tk.Button(self.parent, text = 'Display', width = smallbuttonsize, bg = fgcol1, fg = 'white', font = "none 9 bold", command = lambda: self.options_show_frame('IMGDispFrame', 'imgdisplay'), relief='raised', bd = 5)
+        self.imgdisplay.grid(row = 7, column = 0)
+        self.buttons['imgdisplay'] = self.imgdisplay
         
         # define a button to exit the GUI
         # also, define the function for what to do when this button is pressed
@@ -1042,6 +1066,20 @@ class NCFrame:
         self.parent = parent
         self.controller = controller
 
+        # display_window1, image_in_W1 = controller.get_display_window(1)
+        # self.display_window1 = display_window1
+        # self.image_in_W1 = image_in_W1
+        # print('handle of display_window1 is ',display_window1)
+        # print('image in window1:  ',image_in_W1)
+
+        # test_photo = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
+        # controller.photod1 = test_photo  # need to keep a copy so it is not cleared from memory
+        # self.display_window1.configure(width=test_photo.width(), height=test_photo.height())
+        # self.image_in_W1 = self.display_window1.create_image(0, 0, image=test_photo, anchor = tk.NW)
+
+        # self.window1 = controller.W1
+        # self.window2 = controller.W2
+
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         self.normdatasavename = settings['NCsavename']  # default prefix value
         self.fitparameters = settings['NCparameters'] #  [50,50,5,6,-10,20,-10,10]  # default prefix value
@@ -1157,6 +1195,18 @@ class NCFrame:
         self.NCmano = tk.Button(self.parent, text = 'Manual Over-ride', width = bigbuttonsize, bg = fgcol3, fg = 'white', command = self.NCmanoclick, font = "none 9 bold", relief='raised', bd = 5)
         self.NCmano.grid(row = 6, column = 2)
 
+        img1 = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
+        controller.img1d = img1  # need to keep a copy so it is not cleared from memory
+        self.window1 = tk.Canvas(master = self.parent, width=img1.width(), height=img1.height(), bg='black')
+        self.window1.grid(row=7, column=1,rowspan = 2, columnspan = 2, sticky='NW')
+        self.windowdisplay1 = self.window1.create_image(0, 0, image=img1, anchor=tk.NW)
+
+        img2 = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
+        controller.img2d = img2  # need to keep a copy so it is not cleared from memory
+        self.window2 = tk.Canvas(master = self.parent, width=img2.width(), height=img2.height(), bg='black')
+        self.window2.grid(row=7, column=3,rowspan = 2, columnspan = 2, sticky='NW')
+        self.windowdisplay2 = self.window2.create_image(0, 0, image=img2, anchor=tk.NW)
+
 
     # action when the button is pressed to submit the DB entry number list
     def NCsavenamesubmit(self):
@@ -1233,6 +1283,33 @@ class NCFrame:
         fit_parameters = self.fitparameters
         normdatasavename = self.normdatasavename
 
+        # display original image for first dbnum entry-------------------
+        dbnum = self.NCdatabasenum[0]
+        dbhome = df1.loc[dbnum, 'datadir']
+        fname = df1.loc[dbnum, 'niftiname']
+        seriesnumber = df1.loc[dbnum, 'seriesnumber']
+        niiname = os.path.join(dbhome, fname)
+        input_data = i3d.load_and_scale_nifti(niiname)
+        print('shape of input_data is ',np.shape(input_data))
+        print('niiname = ', niiname)
+        if np.ndim(input_data) == 4:
+            xs,ys,zs,ts = np.shape(input_data)
+            xmid = np.round(xs/2).astype(int)
+            img = input_data[xmid,:,:,0]
+            img = (255.*img/np.max(img)).astype(int)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(img))
+        else:
+            xs,ys,zs = np.shape(input_data)
+            xmid = np.round(xs/2).astype(int)
+            img = input_data[xmid,:,:]
+            img = (255.*img/np.max(img)).astype(int)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(img))
+        self.controller.img2d = image_tk  # keep a copy so it persists
+        self.window2.configure(width=image_tk.width(), height=image_tk.height())
+        self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+        time.sleep(0.5)
+        #-----------end of display--------------------------------
+
         print('Normalization: databasename ',self.NCdatabasename)
         print('Normalization: started organizing at ', time.ctime(time.time()))
 
@@ -1265,15 +1342,45 @@ class NCFrame:
                 # display_window2, image_in_W2 = self.controller.DisplayWindow.get_window(2)
                 # print('display_window1 = ', display_window1)
                 # print('display_window2 = ', display_window2)
-                T, warpdata, reverse_map_image = pynormalization.run_rough_normalization_calculations(niiname, normtemplatename,
+                T, warpdata, reverse_map_image, displayrecord, imagerecord, resultsplot = pynormalization.run_rough_normalization_calculations(niiname, normtemplatename,
                                     template_img, fit_parameters)  # , display_window1, image_in_W1, display_window2, image_in_W2
                 Tfine = 'none'
                 norm_image_fine = 'none'
                 self.controller.master.config(cursor = "")
                 self.controller.master.update()
 
-                # normdata = {'T':T,'warpdata':warpdata, 'reverse_map_image':reverse_map_image, 'Tfine':Tfine, 'norm_image_fine':norm_image_fine}
+                # display results-----------------------------------------------------
+                nfordisplay = len(imagerecord)
+                for nf in range(nfordisplay):
+                    img1 = imagerecord[nf]['img']
+                    img1 = (255. * img1 / np.max(img1)).astype(int)
+                    image_tk = ImageTk.PhotoImage(Image.fromarray(img1))
+                    self.controller.img1d = image_tk
+                    self.window1.configure(width=image_tk.width(), height=image_tk.height())
+                    self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+                    time.sleep(1)
+                self.window1.create_text(0,0,text = 'template sections mapped onto image', font = 6, fill = 'white')
 
+                display_image = imagerecord[0]['img']
+                display_image = (255. * display_image / np.max(display_image)).astype(int)
+                image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+                self.controller.img2d = image_tk   # keep a copy so it persists
+                self.window2.configure(width=image_tk.width(), height=image_tk.height())
+                self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+                # how to plot points over the image?
+                for nn in range(len(resultsplot)):
+                    coords = resultsplot[nn]['coords']
+                    fixedpoint = resultsplot[nn]['fixedpoint']
+                    fixedpoint_previous = resultsplot[nn]['fixedpoint_previous']
+
+                    self.window2.create_line(coords[2], coords[1], fixedpoint[2], fixedpoint[1], fill='red', width=2)
+                    self.window2.create_line(fixedpoint_previous[2], fixedpoint_previous[1], fixedpoint_previous[2], fixedpoint_previous[1], fill='blue', width=2)
+
+                    # plt.plot([coords[2], fixedpoint[2]], [coords[1], fixedpoint[1]], 'xr-')
+                    # plt.plot([fixedpoint_previous[2], fixedpoint_previous[2]],
+                    #          [fixedpoint_previous[1], fixedpoint_previous[1]], 'xb-')
+                # plt.show(block=False)
+                self.window2.create_text(0,0,text = 'tracking sequential cord sections', font = 6, fill = 'white')
             else:
                 # if rough norm is not being run, then assume that it has already been done and the results need to be loaded
                 normdata = np.load(normdataname_full, allow_pickle=True).flat[0]
@@ -1282,6 +1389,17 @@ class NCFrame:
                 reverse_map_image = normdata['reverse_map_image']
                 Tfine = normdata['Tfine']
                 norm_image_fine = normdata['norm_image_fine']
+                imagerecord = normdata['imagerecord']
+
+                xs,ys,zs = np.shape(reverse_map_image)
+                xmid = np.round(xs/2).astype(int)
+                img1 = reverse_map_image[xmid,:,:]
+                img1 = (255. * img1 / np.max(img1)).astype(int)
+                image_tk = ImageTk.PhotoImage(Image.fromarray(img1))
+                self.controller.img1d = image_tk   # keep a copy so it persists
+                self.window1.configure(width=image_tk.width(), height=image_tk.height())
+                self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+                time.sleep(1)
 
             # manual over-ride?
 
@@ -1313,22 +1431,22 @@ class NCFrame:
             with pd.ExcelWriter(self.NCdatabasename, mode='a') as writer:
                 df1.to_excel(writer, sheet_name='datarecord')
 
-            normdata = {'T':T, 'Tfine':Tfine, 'warpdata':warpdata, 'reverse_map_image':reverse_map_image, 'norm_image_fine':norm_image_fine, 'template_affine':template_affine}
+            normdata = {'T':T, 'Tfine':Tfine, 'warpdata':warpdata, 'reverse_map_image':reverse_map_image, 'norm_image_fine':norm_image_fine, 'template_affine':template_affine, 'imagerecord':imagerecord}
             np.save(normdataname_full, normdata)
             print('normalization data saved in ',normdataname_full)
 
-            # check the results --------------------------
-            # load the nifti data and scale to 1mm voxels
-            input_data = i3d.load_and_scale_nifti(niiname)
-            print('niiname = ',niiname)
-
-            norm_image = pynormalization.py_apply_normalization(input_data[:,:,:,2], T, Tfine)
-            xs,ys,zs = np.shape(norm_image)
-            x0 = np.round(xs/2).astype('int')   # find the mid-slice for display
-            display_image = norm_image[x0, :, :]
-
-            fig = plt.figure(1), plt.imshow(display_image, 'gray')
-            plt.show(block = False)
+            # # check the results --------------------------
+            # # load the nifti data and scale to 1mm voxels
+            # input_data = i3d.load_and_scale_nifti(niiname)
+            # print('niiname = ',niiname)
+            #
+            # norm_image = pynormalization.py_apply_normalization(input_data[:,:,:,2], T, Tfine)
+            # xs,ys,zs = np.shape(norm_image)
+            # x0 = np.round(xs/2).astype('int')   # find the mid-slice for display
+            # display_image = norm_image[x0, :, :]
+            #
+            # fig = plt.figure(1), plt.imshow(display_image, 'gray')
+            # plt.show(block = False)
 
 
         print('Normalization: finished processing data ...', time.ctime(time.time()))

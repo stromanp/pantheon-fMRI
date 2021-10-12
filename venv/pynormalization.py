@@ -477,6 +477,7 @@ def py_predict_positions(section_defs, result):
 def py_display_sections_local(template, background, warpdata):
     # create views showing the sections overlying the original image
     results_img = background/np.max(background)
+    template = template/np.max(template)
     xs, ys, zs = np.shape(results_img)
     xt, yt, zt = np.shape(template)
     coords_list = np.zeros((np.size(warpdata),3))
@@ -752,12 +753,13 @@ def py_estimate_reverse_transform(X,Y,Z, input_size, fit_order=3):
     return Xt, Yt, Zt
 
 
-
 # -------------py_auto_cord_normalize-------------------------------------------------
 # ------------------------------------------------------------------------------------
-def py_auto_cord_normalize(background2, template, fit_parameters_input, section_defs, ninitial_fixed_segments, display_window = 'None', display_image = 'None', display_window2 = 'None', display_image2 = 'None'):
+def py_auto_cord_normalize(background2, template, fit_parameters_input, section_defs, ninitial_fixed_segments, display_output=True):   # , display_window = 'None',display_image1 = 'none', display_window2 = 'None', display_image2 = 'none'
     # return T, warpdata
     print('running py_auto_cord_normalize ...')
+    displayrecord = []
+    imagerecord = []
 
     if np.size(fit_parameters_input) < 1:
         fit_parameters_input = [10, 50, 5, 6, -10, 10, -10, 20]   # default values
@@ -826,22 +828,28 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         results_img = py_display_sections_local(template, background2, warpdata[:ss+1])
         x = np.round(xs2/2).astype('int')
         display_image = results_img[x, :, :]
+        image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+        displayrecord.append(image_tk)
+        imagerecord.append({'img':display_image})
 
         # need to figure out how to control which figure is used for display  - come back to this ....
         # for now, don't use the display_window inputs
-        if display_window == 'None':
-            window1_display = display_image
-            fig = plt.figure(1), plt.imshow(window1_display, 'gray')
-            plt.show(block = False)
-        else:
-            print('Updating the display in Window 1 ... (line 801 in pynormalization')
-            display_image = results_img[x, :, :]
-            image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
-            print('display_window is: ', display_window)
-            display_window.configure(width=image_tk.width(), height=image_tk.height())
-            display_window.itemconfig(display_image, image=image_tk)
-            # display_window.create_image(0, 0, image=image_tk, anchor=tk.NW)
-
+        # if display_window == 'None':
+        #     window1_display = display_image
+        #     fig = plt.figure(1), plt.imshow(window1_display, 'gray')
+        #     plt.show(block = False)
+        # else:
+        #     print('Updating the display in Window 1 ... (line 837 in pynormalization')
+        #     display_image = results_img[x, :, :]
+        #     image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+        #     outputimage1 = image_tk  # keep a copy
+        #     print('display_window is: ', display_window)
+        #     display_window.configure(width=image_tk.width(), height=image_tk.height())
+        #     display_image1.configure(image = image_tk)
+        #     # display_window.create_image(0,0, image=image_tk, anchor=tk.NW)
+        #     display_window.update_idletasks
+        #     # display_window.itemconfig(display_image1, image=image_tk)
+        #     # display_image1.config(data = display_image)
 
     # 2) check results for initial sections
     print('Checking results for initial sections ...')
@@ -907,19 +915,23 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         results_img = py_display_sections_local(template, background2, warpdata[:ninitial_fixed_segments])
         x = np.round(xs2/2).astype('int')
         display_image = results_img[x, :, :]
-        # need to figure out how to control which figure is used for display  - come back to this ....
+        image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+        displayrecord.append(image_tk)
+        imagerecord.append({'img':display_image})
 
-        if display_window == 'None':
-            window1_display = display_image
-            fig = plt.figure(1), plt.imshow(window1_display, 'gray')
-            plt.show(block=False)
-        else:
-            print('Updating the display in Window 1 ... (line 877 in pynormalization')
-            image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
-            print('display_window is: ', display_window)
-            display_window.configure(width=image_tk.width(), height=image_tk.height())
-            display_window.itemconfig(display_image, image=image_tk)
-            # display_window.create_image(0, 0, image=image_tk, anchor=tk.NW)
+        # if display_window == 'None':
+        #     window1_display = display_image
+        #     fig = plt.figure(1), plt.imshow(window1_display, 'gray')
+        #     plt.show(block=False)
+        # else:
+        #     print('Updating the display in Window 1 ... (line 917 in pynormalization')
+        #     image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+        #     outputimage1 = image_tk  # keep a copy
+        #     print('display_window is: ', display_window)
+        #     display_window.configure(width=image_tk.width(), height=image_tk.height())
+        #     display_window.create_image(0,0, image=image_tk, anchor=tk.NW)
+        #     display_window.update_idletasks
+        #     # display_window.itemconfig(display_image1, image=image_tk)
 
 
     # 3) map the remaining sections based on the initial sections
@@ -937,11 +949,12 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
     fixedpoint = coords + rvpos  # mapped location of the fixedpoint in the image data
 
     # draw this line over the figure that was previously displayed ...
-    if display_window == 'None':
-        plt.plot([fixedpoint[2], fixedpoint[2]], [fixedpoint[1], fixedpoint[1]], 'xr-')
-        plt.show(block=False)
+    # if display_window == 'None':
+    #     plt.plot([fixedpoint[2], fixedpoint[2]], [fixedpoint[1], fixedpoint[1]], 'xr-')
+    #     plt.show(block=False)
 
     # -----now, map the cord segments ---------------------------
+    resultsplot = []
     dtor = np.pi/180   # convert degrees to radians
     ncordsegments = np.size(section_defs) - ninitial_fixed_segments
     for ss in range(ncordsegments):
@@ -960,9 +973,9 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
             rvpos = np.dot(vpos_connectionpoint, Mtotal)   # rotated vector
             fixedpoint = coords + rvpos  # mapped location of fixedpoint in the image data
         else:
-            angle = result[ss+ninitial_fixed_segments-1]['angle'];
-            coords = result[ss+ninitial_fixed_segments-1]['coords'];
-            pos = section_defs[ss+ninitial_fixed_segments-1]['center'];
+            angle = result[ss+ninitial_fixed_segments-1]['angle']
+            coords = result[ss+ninitial_fixed_segments-1]['coords']
+            pos = section_defs[ss+ninitial_fixed_segments-1]['center']
             vpos_connectionpoint = section_defs[ss+ninitial_fixed_segments-1]['fixedpoint2'] - pos   # vector from the center of the section to the connection point
             Mx = rotation_matrix(-angle,0)
             My = rotation_matrix(-angley,1)
@@ -999,17 +1012,32 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         # display the result again
         # need to figure out how to control which figure is used for display  - come back to this ....
         display_image = results_img[midline, :, :]
-        if display_window == 'None':
-            window1_display = display_image
-            fig = plt.figure(1), plt.imshow(window1_display, 'gray')
-            plt.show(block=False)
-        else:
-            print('Updating the display in Window 1 ... (line 963 in pynormalization')
-            image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
-            print('display_window is: ', display_window)
-            display_window.configure(width=image_tk.width(), height=image_tk.height())
-            display_window.itemconfig(display_image, image=image_tk)
+        image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+        displayrecord.append(image_tk)
+        imagerecord.append({'img':display_image})
+
+        # if display_window == 'None':
+        #     window1_display = display_image
+        #     fig = plt.figure(1), plt.imshow(window1_display, 'gray')
+        #     plt.show(block=False)
+        # else:
+        #     print('Updating the display in Window 1 ... (line 1007 in pynormalization')
+        #     image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+        #     outputimage1 = image_tk  # keep a copy
+        #     print('display_window is: ', display_window)
+        #     display_window.configure(width=image_tk.width(), height=image_tk.height())
+        #     display_window.create_image(0,0, image=image_tk, anchor=tk.NW)
+        #     display_window.update_idletasks
+
+            # display_window.itemconfig(display_image1, image=image_tk)
+
             # display_window.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+            # test_photo = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
+            # controller.photod1 = test_photo  # need to keep a copy so it is not cleared from memory
+            # self.display_window1.configure(width=test_photo.width(), height=test_photo.height())
+            # self.image_in_W1 = self.display_window1.create_image(0, 0, image=test_photo, anchor = tk.NW)
+
 
         # show fixed point
         fixedpoint_previous = fixedpoint
@@ -1023,11 +1051,17 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         rvpos = np.dot(vpos_connectionpoint, Mtotal) # rotated vector
         fixedpoint = coords + rvpos  # mapped location of the fixed point in the image data
 
-        if display_window == 'None':
+        entry = {'coords':coords, 'fixedpoint':fixedpoint, 'fixedpoint_previous':fixedpoint_previous}
+        resultsplot.append(entry)
+
+    if display_output:
+        fig = plt.figure(1), plt.imshow(background2[np.round(xs2/2).astype(int),:,:], 'gray')
+        for nn in range(len(resultsplot)):
+            coords = resultsplot[nn]['coords']
+            fixedpoint = resultsplot[nn]['fixedpoint']
             plt.plot([coords[2],fixedpoint[2]], [coords[1],fixedpoint[1]], 'xr-')
             plt.plot([fixedpoint_previous[2], fixedpoint_previous[2]], [fixedpoint_previous[1], fixedpoint_previous[1]], 'xb-')
-            plt.show(block = False)
-
+        plt.show(block = False)
 
     # display the results - ----------------------
     coords_list = np.zeros((np.size(result),3))
@@ -1052,17 +1086,19 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         cor_results_img[:,zz] = results_img[:, np.round(yy[zz]).astype('int'), zz]
 
     # displaying coronal view
-    if display_window2 == 'None':
-        window2_display = cor_results_img
-        fig = plt.figure(2), plt.imshow(window2_display, 'gray')
-        plt.show(block=False)
-    else:
-        print('Updating the display in Window 2 ... (line 1011 in pynormalization')
-        image_tk = ImageTk.PhotoImage(Image.fromarray(cor_results_img))
-        print('display_window2 is: ', display_window2)
-        display_window2.configure(width=image_tk.width(), height=image_tk.height())
-        display_window2.itemconfig(display_image2, image=image_tk)
-        # display_window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+    # if display_window2 == 'None':
+    #     window2_display = cor_results_img
+    #     fig = plt.figure(2), plt.imshow(window2_display, 'gray')
+    #     plt.show(block=False)
+    # else:
+    #     print('Updating the display in Window 2 ... (line 1011 in pynormalization')
+    #     image_tk = ImageTk.PhotoImage(Image.fromarray(cor_results_img))
+    #     outputimage2 = image_tk  # keep a copy
+    #     print('display_window2 is: ', display_window2)
+    #     display_window2.configure(width=image_tk.width(), height=image_tk.height())
+    #     display_window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+    #     display_window2.update_idletasks
+    #     # display_window2.itemconfig(display_image2, image=image_tk)
 
 
     # 4) combine the warp fields from each section into one map
@@ -1092,7 +1128,7 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         results_record = {'T':T, 'reverse_map_image':reverse_map_image, 'forward_map_image':forward_map_image, 'warpdata':warpdata}
         np.save(savename, results_record)
 
-    return T, warpdata, reverse_map_image, forward_map_image, window1_display, window2_display
+    return T, warpdata, reverse_map_image, forward_map_image, displayrecord, imagerecord, resultsplot
 
 
 
@@ -1175,8 +1211,162 @@ def py_norm_fine_tuning(input_image, template, T, input_type = 'normalized'):
 def define_sections(template_name, dataname):
     # define sections and reference point coordinates for this choice of
     # template section
-    if template_name.lower() not in ['thoracic', 'sacral']:
-        template_name = 'ccbs'   # default
+
+    # need to consistent with functions in load_templates.py
+    region_name = 'notdefined'
+    region_name2 = 'notdefined'
+    range_specified = False
+    a = template_name.find('to')
+    if a > 0:  # a range of cord segments is specified
+        region_name2 = template_name[a + 2:]
+        region_name = template_name[:2]
+        range_specified = True
+    else:
+        region_name2 = ''
+
+    if template_name.lower() == 'thoracic':
+        region_name = 'T1'
+        region_name2 = 'T12'
+
+    if range_specified:
+        resolution = 1
+        template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = load_templates.load_template_and_masks(
+            template_name, resolution)
+        namelist = [name[:3] for num,name in enumerate(anatlabels['names'])]
+        nd = len(region_name)
+        rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:nd] == region_name]
+        test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
+        cx,cy,cz = np.where(test)   # region at superior end of range
+        zmax = np.max(cz)
+        rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:nd] == region_name2]
+        test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
+        cx,cy,cz = np.where(test)   # region at inferior end of range
+        zmin = np.min(cz)
+
+        # check if lower and/or upper lumbar region is included in range
+        section1 = [x for x, v in enumerate(['C', 'T', 'L', 'S']) if v == region_name[0]]
+        segment1 = int(region_name[1:])
+        section2 = [x for x, v in enumerate(['C', 'T', 'L', 'S']) if v == region_name2[0]]
+        segment2 = int(region_name2[1:])
+        value1 = 20*section1[0] + segment1
+        value2 = 20*section2[0] + segment2
+
+        # define sections in reverse order when starting at lumbar regions
+        reverse_order = False
+        ninitial_fixed_segments = 0
+
+        rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:3] == 'T12']
+        test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
+        cx, cy, cz = np.where(test)
+        z_bottom_of_T12 = np.min(cz)  # the bottom of the T12 segment
+
+        z_connection_point = zmax  # ... top of range
+
+        # check for lumbar regions - specify first sections to match
+        if value1 < 60 & value2 > 63:
+            z_connection_point = z_bottom_of_T12
+            reverse_order = True
+            ninitial_fixed_segments += 1
+            print('range includes sacral regions ...')
+            rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:2] == 'S2']
+            test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
+            cx, cy, cz = np.where(test)
+            zref = np.mean(cz)   # the middle of the L4 segment
+            lowerlumbar = {'name': 'sacral',
+                       'center': np.array([12, 15, zref]),
+                       'dims': np.array([6, 15, 15]),
+                       'xrot': 0,
+                       'yrot': 0,
+                       'start_ref_pos': [],
+                       'pos_estimate': pos_estimate,
+                       'fixdistance': 0,
+                       'first_region_connection_point': [12, 30, z_bottom_of_T12]}  # first_region_connection_point is the bottom edge of T12
+
+        # check for lumbar regions - specify first sections to match
+        if value1 < 44 & value2 > 45:
+            z_connection_point = z_bottom_of_T12
+            reverse_order = True
+            ninitial_fixed_segments += 1
+            print('range includes lower lumbar region ...')
+            rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:2] == 'L4']
+            test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
+            cx, cy, cz = np.where(test)
+            zref = np.mean(cz)   # the middle of the L4 segment
+            lowerlumbar = {'name': 'lower_lumbar',
+                       'center': np.array([12, 15, zref]),
+                       'dims': np.array([6, 15, 15]),
+                       'xrot': 0,
+                       'yrot': 0,
+                       'start_ref_pos': [],
+                       'pos_estimate': pos_estimate,
+                       'fixdistance': 0,
+                       'first_region_connection_point': [12, 30, z_bottom_of_T12]}  # first_region_connection_point is the bottom edge of T12
+
+        # check for lumbar regions - specify first sections to match
+        if value1 < 40 & value2 > 43:
+            z_connection_point = z_bottom_of_T12
+            reverse_order = True
+            ninitial_fixed_segments += 1
+            print('range includes upper lumbar region ...')
+            rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:2] == 'L2']
+            test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
+            cx, cy, cz = np.where(test)
+            zref = np.mean(cz)   # the middle of the L2 segment
+            lowerlumbar = {'name': 'upper_lumbar',
+                       'center': np.array([12, 15, zref]),
+                       'dims': np.array([6, 15, 15]),
+                       'xrot': 0,
+                       'yrot': 0,
+                       'start_ref_pos': [],
+                       'pos_estimate': pos_estimate,
+                       'fixdistance': 0,
+                       'first_region_connection_point': [12, 30, z_bottom_of_T12]}  # first_region_connection_point is the bottom edge of T12
+
+        # make consistent with other sections ...............[update this]-------------
+        # first_region_connection_point is where bottom of thoracic region connects to lumbar region
+        first_region_connection_point = np.array([12, 30, z_connection_point])  # [13 31 7] + [0 0 259] in matlab
+        dz = 13
+        if reverse_order:
+            ncsections = np.floor(zmax-z_connection_point / dz - 0.5).astype('int')
+        else:
+            ncsections = np.floor(z_connection_point / dz - 0.5).astype('int')
+        # working from top-down, or reverse order?
+
+        # initialize_section_defs
+        single_def = {'name': 0, 'center': 0, 'dims': 0, 'xrot': 0, 'yrot': 0, 'pos_estimate': 0, 'fixdistance': 0,
+                      'fixedpoint1': 0, 'fixedpoint2': 0, 'first_region_connection_point': 0}
+        section_defs = []
+        for ss in range(ninitial_fixed_segments + ncsections):
+            section_defs.append(single_def.copy())
+
+        for ss in range(ncsections):
+            if reverse_order:
+                zcenter = (z_connection_point + np.floor(dz * (ss + 0.5))).astype('int')
+                zrefpoint = (z_connection_point + np.floor(dz * 0.5)).astype('int')
+                fixedpoint1 = first_region_connection_point + np.array([0, 0, dz * ss])
+                fixedpoint2 = first_region_connection_point + np.array([0, 0, dz * (ss + 1)])
+            else:
+                zcenter = (z_connection_point - np.floor(dz * (ss + 0.5))).astype('int')
+                zrefpoint = (z_connection_point - np.floor(dz * 0.5)).astype('int')
+                fixedpoint1 = first_region_connection_point - np.array([0, 0, dz * ss])
+                fixedpoint2 = first_region_connection_point - np.array([0, 0, dz * (ss + 1)])
+
+            section_defs[ss]['center'] = [12, 30, zcenter]
+            section_defs[ss]['dims'] = [6, 10, np.floor(dz / 2).astype('int')]  # span +/- from center
+            section_defs[ss]['name'] = sprintf('cord%d', ss);
+            section_defs[ss]['fixdistance'] = 1;
+            section_defs[ss]['refpoint'] = [12, 30, zrefpoint];
+            section_defs[ss]['pos_estimate'] = []
+            section_defs[ss]['xrot'] = 0
+            section_defs[ss]['yrot'] = 0
+            section_defs[ss]['fixedpoint1'] = fixedpoint1  # more superior connection point
+            section_defs[ss]['fixedpoint2'] = fixedpoint2  # most inferior connection point
+
+        section_defs[0]['first_region_connection_point'] = first_region_connection_point  # more superior connection point
+        #---------------above here is not done yet------------------------------
+
+    # if template_name.lower() not in ['thoracic', 'sacral']:
+    #     template_name = 'ccbs'   # default
 
     if template_name.lower() == 'thoracic':
         # 18 pixels of overlap with cervical region, in 3rd (z) dimension
@@ -1299,15 +1489,15 @@ def define_sections(template_name, dataname):
 
         print('Set up reference information based on cervical reference ...')
 
-    return section_defs, ninitial_fixed_segments
+    return section_defs, ninitial_fixed_segments, reverse_order
 
 
 
 #------------run_rough_normalization_calculations--------------------------------------------------------
 #-----------------------------------------------------------------------------------
-def run_rough_normalization_calculations(niiname, normtemplatename, template_img, fit_parameters, display_window = 'None', display_image = 'None', display_window2 = 'None', display_image2 = 'None'):
+def run_rough_normalization_calculations(niiname, normtemplatename, template_img, fit_parameters):  # , display_window = 'None', display_image1 = 'None', display_window2 = 'None', display_image2 = 'None'
     # this might go in a separate module or function
-    section_defs, ninitial_fixed_segments = define_sections(normtemplatename, niiname)
+    section_defs, ninitial_fixed_segments, reverse_order = define_sections(normtemplatename, niiname)
     # resolution = 1
     # template_img, regionmap_img, template_affine = load_templates.load_template(normtemplatename, resolution)
     # actually run the normalization steps now
@@ -1315,10 +1505,37 @@ def run_rough_normalization_calculations(niiname, normtemplatename, template_img
     # load the nifti data and rescale to 1 mm voxels
     input_datar = i3d.load_and_scale_nifti(niiname)
 
+    # displaycount = 0
+    # display_record = []
+    # print('Updating initial display in Window 1 ...')
+    if np.ndim(input_datar) > 3:
+        x,y,z,t = np.shape(input_datar)
+        if t > 3:
+            t0 = 3
+        else:
+            t0=0
+        input_image = input_datar[:,:,:,t0]
+    else:
+        x,y,z = np.shape(input_datar)
+        input_image = input_datar
+
+    # if display_window != 'none':
+    #     x0 = np.round(x/2).astype(int)
+    #     image_tk = ImageTk.PhotoImage(Image.fromarray(input_image[x0,:,:]))
+    #     display_record[displaycount] = [image_tk]
+    #     displaycount += 1
+
+        # outputimage1 = image_tk  # keep a copy
+        # display_window.configure(width=image_tk.width(), height=image_tk.height())
+        # display_window.itemconfig(display_image1, image = image_tk)
+        # # display_window.create_image(0, 0, image=image_tk, anchor=tk.NW)
+        # display_window.update_idletasks
+        # print('run_rough_normalization_calculations:  finished displaying initial images ...')
+
     # rough normalization
-    T, warpdata, reverse_map_image, forward_map_image, window1_display, window2_display = py_auto_cord_normalize(input_datar[:,:,:,3], template_img,
-                    fit_parameters, section_defs, ninitial_fixed_segments, display_window, display_image, display_window2, display_image2)
+    T, warpdata, reverse_map_image, forward_map_image, displayrecord, imagerecord, resultsplot = py_auto_cord_normalize(input_image, template_img,
+                    fit_parameters, section_defs, ninitial_fixed_segments, display_output = True)  # , display_window, display_image1, display_window2, display_image2
     # fine-tune the normalization
     # Tfine, norm_image_fine = normcalc.py_norm_fine_tuning(input_datar, template_img, T)
-    return T, warpdata, reverse_map_image
+    return T, warpdata, reverse_map_image, displayrecord, imagerecord, resultsplot
 

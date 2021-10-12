@@ -384,13 +384,13 @@ def load_template_and_masks(region_name, resolution, verbose=False):
         check1 = tagfind(region_name, namelist)
         check2 = tagfind(region_name2, namelist)
         # get the full range of region numbers that is spanned by the region names
-        listn1 = np.min([check1, check2])
-        listn2 = np.max([check1, check2])
+        listn1 = np.min([np.min(check1), np.min(check2)])
+        listn2 = np.max([np.max(check1), np.max(check2)])
         rn1 = df1['number'][listn1]
         rn2 = df1['number'][listn2]
 
-        # print('rn1 = {}   rn2 = {}'.format(rn1,rn2))
-        # print('size of regionmap_img is ',np.shape(regionmap_img))
+        print('rn1 = {}   rn2 = {}'.format(rn1,rn2))
+        print('size of regionmap_img is ',np.shape(regionmap_img))
 
         a = np.where((regionmap_img >= rn1) & (regionmap_img <= rn2))
         # now get the range of z coordinates:
