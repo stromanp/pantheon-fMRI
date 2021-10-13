@@ -284,7 +284,7 @@ def py_calculate_section_positions(template, img, section_defs, angle_list, pos_
 
 # -------------py_calculate_chainlink_positions-------------------------------------------------
 # ------------------------------------------------------------------------------------
-def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fixedpoint, angle_estimate, angle_stiffness):
+def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fixedpoint, angle_estimate, angle_stiffness, reverse_order = False):
     # fixedpoint is in terms of the image coordinates
     # template is the entire template, not just the section of interest
 
@@ -303,7 +303,10 @@ def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fi
     xr = [xpos - dx, xpos + dx]
 
     # point in the template that links to the previous fixed point
-    vcenter_fixedpoint = section_defs['center'] - section_defs['fixedpoint1'] # vector from fixed_point to section center, in the template
+    if reverse_order:
+        vcenter_fixedpoint = section_defs['center'] + section_defs['fixedpoint1']
+    else:
+        vcenter_fixedpoint = section_defs['center'] - section_defs['fixedpoint1'] # vector from fixed_point to section center, in the template
 
     aw = angle_stiffness
     angle_diff = np.abs(angle_list - angle_estimate) # angle_estimate must be provided
@@ -360,7 +363,11 @@ def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fi
     dtor = np.pi/180 # convert from degrees to radians
 
     # in the rotated image, the section position is the same every time
-    section_position = np.round(fixedpoint + vcenter_fixedpoint)
+    if reverse_order:
+        section_position = np.round(fixedpoint - vcenter_fixedpoint)
+    else:
+        section_position = np.round(fixedpoint + vcenter_fixedpoint)
+
     x = np.linspace(section_position[0] - dx, section_position[0] + dx, 2 * dx + 1).astype('int')
     cx = np.where((x >= 0) & (x < xs))
     y = np.linspace(section_position[1] - dy, section_position[1] + dy, 2 * dy + 1).astype('int')
@@ -755,7 +762,7 @@ def py_estimate_reverse_transform(X,Y,Z, input_size, fit_order=3):
 
 # -------------py_auto_cord_normalize-------------------------------------------------
 # ------------------------------------------------------------------------------------
-def py_auto_cord_normalize(background2, template, fit_parameters_input, section_defs, ninitial_fixed_segments, display_output=True):   # , display_window = 'None',display_image1 = 'none', display_window2 = 'None', display_image2 = 'none'
+def py_auto_cord_normalize(background2, template, fit_parameters_input, section_defs, ninitial_fixed_segments, reverse_order, display_output=True):   # , display_window = 'None',display_image1 = 'none', display_window2 = 'None', display_image2 = 'none'
     # return T, warpdata
     print('running py_auto_cord_normalize ...')
     displayrecord = []
@@ -916,8 +923,8 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         x = np.round(xs2/2).astype('int')
         display_image = results_img[x, :, :]
         image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
-        displayrecord.append(image_tk)
-        imagerecord.append({'img':display_image})
+        # displayrecord.append(image_tk)
+        # imagerecord.append({'img':display_image})
 
         # if display_window == 'None':
         #     window1_display = display_image
@@ -941,12 +948,18 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
     coords = result[0]['coords']   # this might be in the rotated template space
     pos = section_defs[0]['center']
     first_region_connection_point = section_defs[0]['first_region_connection_point']
-    vpos_connectionpoint = first_region_connection_point - pos  # vector from the center of the section to the connection point, in the template
+    if reverse_order:
+        vpos_connectionpoint = first_region_connection_point + pos
+    else:
+        vpos_connectionpoint = first_region_connection_point - pos  # vector from the center of the section to the connection point, in the template
     Mx = rotation_matrix(angle, 0);
     My = rotation_matrix(angley, 1);
     Mtotal = np.dot(Mx,My)
     rvpos = np.dot(vpos_connectionpoint,Mtotal)  # rotated vector
-    fixedpoint = coords + rvpos  # mapped location of the fixedpoint in the image data
+    if reverse_order:
+        fixedpoint = coords - rvpos  # mapped location of the fixedpoint in the image data
+    else:
+        fixedpoint = coords + rvpos  # mapped location of the fixedpoint in the image data
 
     # draw this line over the figure that was previously displayed ...
     # if display_window == 'None':
@@ -966,28 +979,42 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
             angle = result[0]['angle']
             coords = result[0]['coords']
             pos = section_defs[0]['center']
-            vpos_connectionpoint = first_region_connection_point - pos  # vector from the center of the section to the connection point
+            if reverse_order:
+                vpos_connectionpoint = first_region_connection_point + pos
+            else:
+                vpos_connectionpoint = first_region_connection_point - pos  # vector from the center of the section to the connection point
             Mx = rotation_matrix(angle,0)
             My = rotation_matrix(angley,1)
             Mtotal = np.dot(Mx,My)
             rvpos = np.dot(vpos_connectionpoint, Mtotal)   # rotated vector
-            fixedpoint = coords + rvpos  # mapped location of fixedpoint in the image data
+            if reverse_order:
+                fixedpoint = coords - rvpos  # mapped location of fixedpoint in the image data
+            else:
+                fixedpoint = coords + rvpos  # mapped location of fixedpoint in the image data
         else:
             angle = result[ss+ninitial_fixed_segments-1]['angle']
             coords = result[ss+ninitial_fixed_segments-1]['coords']
             pos = section_defs[ss+ninitial_fixed_segments-1]['center']
-            vpos_connectionpoint = section_defs[ss+ninitial_fixed_segments-1]['fixedpoint2'] - pos   # vector from the center of the section to the connection point
+            if reverse_order:
+                vpos_connectionpoint = section_defs[ss + ninitial_fixed_segments - 1]['fixedpoint2'] + pos
+            else:
+                vpos_connectionpoint = section_defs[ss+ninitial_fixed_segments-1]['fixedpoint2'] - pos   # vector from the center of the section to the connection point
             Mx = rotation_matrix(-angle,0)
             My = rotation_matrix(-angley,1)
             Mtotal = np.dot(Mx,My)
             rvpos = np.dot(vpos_connectionpoint, Mtotal)   # rotated vector
-            fixedpoint = coords + rvpos  # mapped location of fixedpoint in the image data
+            if reverse_order:
+                fixedpoint = coords - rvpos  # mapped location of fixedpoint in the image data
+            else:
+                fixedpoint = coords + rvpos  # mapped location of fixedpoint in the image data
 
         angle_estimate = angle
         angle_stiffness = 1e-3
 
         print('cord section ',ss,'   fixed point: ', fixedpoint)   # fixed point is in the image coordinates
-        coords, angle, angley, section_mapping_coords, original_section, template_section = py_calculate_chainlink_positions(template, background2, section_defs[ss+ninitial_fixed_segments], angle_list, fixedpoint, angle_estimate, angle_stiffness)
+        coords, angle, angley, section_mapping_coords, original_section, template_section = \
+            py_calculate_chainlink_positions(template, background2, section_defs[ss+ninitial_fixed_segments], \
+                                             angle_list, fixedpoint, angle_estimate, angle_stiffness, reverse_order)
                                                                                                                         #  (template, img, section_defs, angle_list, fixedpoint, angle_estimate, angle_stiffness):
         result[ss+ninitial_fixed_segments]['angle'] = angle
         result[ss+ninitial_fixed_segments]['angley'] = angley
@@ -1044,12 +1071,18 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         angle = result[ss + ninitial_fixed_segments]['angle']
         coords = result[ss + ninitial_fixed_segments]['coords']
         pos = section_defs[ss + ninitial_fixed_segments]['center']
-        vpos_connectionpoint = section_defs[ss + ninitial_fixed_segments]['fixedpoint2'] - pos # vector from the center of the section to the connection point
+        if reverse_order:
+            vpos_connectionpoint = section_defs[ss + ninitial_fixed_segments]['fixedpoint2'] + pos
+        else:
+            vpos_connectionpoint = section_defs[ss + ninitial_fixed_segments]['fixedpoint2'] - pos # vector from the center of the section to the connection point
         Mx = rotation_matrix(-angle,0)
         My = rotation_matrix(-angley,1)
         Mtotal = np.dot(Mx,My)
         rvpos = np.dot(vpos_connectionpoint, Mtotal) # rotated vector
-        fixedpoint = coords + rvpos  # mapped location of the fixed point in the image data
+        if reverse_order:
+            fixedpoint = coords - rvpos  # mapped location of the fixed point in the image data
+        else:
+            fixedpoint = coords + rvpos  # mapped location of the fixed point in the image data
 
         entry = {'coords':coords, 'fixedpoint':fixedpoint, 'fixedpoint_previous':fixedpoint_previous}
         resultsplot.append(entry)
@@ -1125,10 +1158,10 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
     if save_data:
         wdir = os.path.dirname(os.path.realpath(__file__))
         savename = os.path.join(wdir,'auto_normalize_data_check2.npy')
-        results_record = {'T':T, 'reverse_map_image':reverse_map_image, 'forward_map_image':forward_map_image, 'warpdata':warpdata}
+        results_record = {'T':T, 'reverse_map_image':reverse_map_image, 'forward_map_image':forward_map_image, 'warpdata':warpdata, 'result':result}
         np.save(savename, results_record)
 
-    return T, warpdata, reverse_map_image, forward_map_image, displayrecord, imagerecord, resultsplot
+    return T, warpdata, reverse_map_image, forward_map_image, displayrecord, imagerecord, resultsplot, result
 
 
 
@@ -1215,6 +1248,7 @@ def define_sections(template_name, dataname):
     # need to consistent with functions in load_templates.py
     region_name = 'notdefined'
     region_name2 = 'notdefined'
+    reverse_order = False
     range_specified = False
     a = template_name.find('to')
     if a > 0:  # a range of cord segments is specified
@@ -1533,9 +1567,9 @@ def run_rough_normalization_calculations(niiname, normtemplatename, template_img
         # print('run_rough_normalization_calculations:  finished displaying initial images ...')
 
     # rough normalization
-    T, warpdata, reverse_map_image, forward_map_image, displayrecord, imagerecord, resultsplot = py_auto_cord_normalize(input_image, template_img,
-                    fit_parameters, section_defs, ninitial_fixed_segments, display_output = True)  # , display_window, display_image1, display_window2, display_image2
+    T, warpdata, reverse_map_image, forward_map_image, displayrecord, imagerecord, resultsplot, result = py_auto_cord_normalize(input_image, template_img,
+                    fit_parameters, section_defs, ninitial_fixed_segments, reverse_order, display_output = True)  # , display_window, display_image1, display_window2, display_image2
     # fine-tune the normalization
     # Tfine, norm_image_fine = normcalc.py_norm_fine_tuning(input_datar, template_img, T)
-    return T, warpdata, reverse_map_image, displayrecord, imagerecord, resultsplot
+    return T, warpdata, reverse_map_image, displayrecord, imagerecord, resultsplot, result
 

@@ -54,6 +54,7 @@ import pysem
 # import scipy
 import py2ndlevelanalysis
 import copy
+import math
 
 matplotlib.use('TkAgg')   # explicitly set this - it might help with displaying figures in different environments
 
@@ -1065,6 +1066,8 @@ class NCFrame:
         parent.configure(relief='raised', bd=5, highlightcolor=fgcol3)
         self.parent = parent
         self.controller = controller
+        self.NCmanomode = 'OFF'
+        self.NCresult = []
 
         # display_window1, image_in_W1 = controller.get_display_window(1)
         # self.display_window1 = display_window1
@@ -1198,15 +1201,124 @@ class NCFrame:
         img1 = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
         controller.img1d = img1  # need to keep a copy so it is not cleared from memory
         self.window1 = tk.Canvas(master = self.parent, width=img1.width(), height=img1.height(), bg='black')
-        self.window1.grid(row=7, column=1,rowspan = 2, columnspan = 2, sticky='NW')
+        self.window1.grid(row=7, column=0,rowspan = 2, columnspan = 2, sticky='NW')
         self.windowdisplay1 = self.window1.create_image(0, 0, image=img1, anchor=tk.NW)
 
         img2 = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
         controller.img2d = img2  # need to keep a copy so it is not cleared from memory
         self.window2 = tk.Canvas(master = self.parent, width=img2.width(), height=img2.height(), bg='black')
-        self.window2.grid(row=7, column=3,rowspan = 2, columnspan = 2, sticky='NW')
+        self.window2.grid(row=7, column=2,rowspan = 2, columnspan = 2, sticky='NW')
         self.windowdisplay2 = self.window2.create_image(0, 0, image=img2, anchor=tk.NW)
 
+    def outline_section(self, sectionnumber):
+        nf = sectionnumber
+        coords = self.NCresult[nf]['coords']
+        angle = self.NCresult[nf]['angle']
+        sectionsize = np.shape(self.NCresult[nf]['template_section'])
+        smallestside = np.min(sectionsize[1:])
+        sa = (np.pi / 180) * angle
+        hv = (sectionsize[2] / 2) * np.array([math.cos(sa), -math.sin(sa)])
+        vv = (sectionsize[1] / 2) * np.array([math.sin(sa), math.cos(sa)])
+        p0 = coords[[2, 1]] - hv - vv
+        p1 = coords[[2, 1]] - hv + vv
+        p2 = coords[[2, 1]] + hv + vv
+        p3 = coords[[2, 1]] + hv - vv
+
+        return p0,p1,p2,p3,coords,angle,sectionsize,smallestside
+
+
+    def findclosestsection(self, x,y):
+        P = np.array([x,y])
+        nfordisplay = len(self.NCresult)
+        mindist_record = np.zeros(nfordisplay)
+        inside_record = [False for i in range(nfordisplay)]
+        nearedge_record = [False for i in range(nfordisplay)]
+
+        for nf in range(nfordisplay):
+            p0, p1, p2, p3, coords, angle, sectionsize, smallestside = self.outline_section(nf)
+            points = [p0,p1,p2,p3,p0]
+
+            # distance to closest point on line passing through points p0 and p1
+            mindist = np.zeros(4)
+            for aa in range(4):
+                p1 = points[aa+1]
+                p0 = points[aa]
+                v = p1-p0
+                dline = np.linalg.norm( (p1[0]-p0[0])*(p0[1]-P[1]) - (p0[0]-P[0])*(p1[1]-p0[1]) )/np.linalg.norm(v)
+                vp0 = P - p0
+                dp0 = np.linalg.norm(vp0)
+                vp1 = P - p1
+                dp1 = np.linalg.norm(vp1)
+                mindist[aa] = np.min(np.array([dline, dp0, dp1]))
+            dist_to_edge = np.min(mindist)
+            nearedge = dist_to_edge < 0.1*smallestside
+            # is the point, P, inside the rectangular area?
+            # since the corners are all defined in clockwise order - use the cross-product
+            z = np.zeros(4)
+            for aa in range(4):
+                a = points[aa]
+                b = points[aa+1]
+                v0 = P - a
+                v1 = P - b
+                z[aa] = v1[0]*v0[1] - v1[1]*v0[0]   # positive or negative?
+            inside_rect = (z >= 0).all()
+
+            mindist_record[nf] = dist_to_edge
+            inside_record[nf] = inside_rect
+            nearedge_record[nf] = nearedge
+
+        a = np.where(inside_record)[0]
+        if len(a) == 0:
+            region_selected = False
+            closest_section = -1
+            nearedge = False
+            print('region selected = ',region_selected)
+        else:
+            region_selected = True
+            if len(a) > 1:
+                b = [mindist_record[a[ii]] for ii in range(len(a))]
+                ii = np.argmax(b)
+                a = a[ii]
+            else:
+                a = a[0]
+            print('region selected = ',region_selected)
+            print('closest section is number ',a)
+            closest_section = a
+            nearedge = nearedge_record[a]
+
+        return region_selected, closest_section, nearedge
+
+
+    def mouseclick(self,event):
+        if self.NCmanomode == 'ON':
+            print('image window (x,y) = ({},{})'.format(event.x,event.y))
+            region_selected, closest_section, nearedge = self.findclosestsection(event.x,event.y)
+
+            # if rough normalization results are shown, then indicate which region has been selected
+            # first, find which section is closest to selected point ...
+            if region_selected:
+                nfordisplay = len(self.NCresult)
+                if nfordisplay > 0:
+                    image_tk = self.controller.img1d
+                    # self.window1.configure(width=image_tk.width(), height=image_tk.height())
+                    self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+                    for nf in range(nfordisplay):
+                        if nf == closest_section:
+                            fillcolor = 'red'
+                        else:
+                            fillcolor = 'yellow'
+                        # draw the rectangular regions for each section
+                        p0, p1, p2, p3, coords, angle, sectionsize, smallestside = self.outline_section(nf)
+                        self.window1.create_line(p0[0], p0[1], p1[0], p1[1], p2[0], p2[1], p3[0], p3[1], p0[0], p0[1],
+                                                 fill=fillcolor, width=1)
+
+        else:
+            print('manual over-ride mode is OFF')
+        return event.x,event.y
+
+    def mousenotactive(self,event):
+        return 0
 
     # action when the button is pressed to submit the DB entry number list
     def NCsavenamesubmit(self):
@@ -1304,9 +1416,9 @@ class NCFrame:
             img = input_data[xmid,:,:]
             img = (255.*img/np.max(img)).astype(int)
             image_tk = ImageTk.PhotoImage(Image.fromarray(img))
-        self.controller.img2d = image_tk  # keep a copy so it persists
-        self.window2.configure(width=image_tk.width(), height=image_tk.height())
-        self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+        self.controller.img1d = image_tk  # keep a copy so it persists
+        self.window1.configure(width=image_tk.width(), height=image_tk.height())
+        self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
         time.sleep(0.5)
         #-----------end of display--------------------------------
 
@@ -1338,12 +1450,9 @@ class NCFrame:
                 # set the cursor to reflect being busy ...
                 self.controller.master.config(cursor = "wait")
                 self.controller.master.update()
-                # display_window1, image_in_W1 = self.controller.DisplayWindow.get_window(1)
-                # display_window2, image_in_W2 = self.controller.DisplayWindow.get_window(2)
-                # print('display_window1 = ', display_window1)
-                # print('display_window2 = ', display_window2)
-                T, warpdata, reverse_map_image, displayrecord, imagerecord, resultsplot = pynormalization.run_rough_normalization_calculations(niiname, normtemplatename,
+                T, warpdata, reverse_map_image, displayrecord, imagerecord, resultsplot, result = pynormalization.run_rough_normalization_calculations(niiname, normtemplatename,
                                     template_img, fit_parameters)  # , display_window1, image_in_W1, display_window2, image_in_W2
+                self.NCresult = result  # need this for manual over-ride etc.
                 Tfine = 'none'
                 norm_image_fine = 'none'
                 self.controller.master.config(cursor = "")
@@ -1359,28 +1468,30 @@ class NCFrame:
                     self.window1.configure(width=image_tk.width(), height=image_tk.height())
                     self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
                     time.sleep(1)
-                self.window1.create_text(0,0,text = 'template sections mapped onto image', font = 6, fill = 'white')
+
+                nfordisplay = len(result)
+                for nf in range(nfordisplay):
+                    # draw the rectangular regions for each section
+                    p0, p1, p2, p3, coords, angle, sectionsize, smallestside = self.outline_section(nf)
+                    self.window1.create_line(p0[0],p0[1],p1[0],p1[1],p2[0],p2[1],p3[0],p3[1],p0[0],p0[1], fill = 'yellow', width = 2)
+
+                self.window1.create_text(np.round(image_tk.width()/2),image_tk.height()-5,text = 'template sections mapped onto image', fill = 'white')
 
                 display_image = imagerecord[0]['img']
                 display_image = (255. * display_image / np.max(display_image)).astype(int)
                 image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+                # show normalization result instead
+                xs,ys,zs = np.shape(reverse_map_image)
+                xmid = np.round(xs/2).astype(int)
+                display_image = reverse_map_image[xmid,:,:]
+                display_image = (255. * display_image / np.max(display_image)).astype(int)
+                image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+
                 self.controller.img2d = image_tk   # keep a copy so it persists
                 self.window2.configure(width=image_tk.width(), height=image_tk.height())
                 self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
-                # how to plot points over the image?
-                for nn in range(len(resultsplot)):
-                    coords = resultsplot[nn]['coords']
-                    fixedpoint = resultsplot[nn]['fixedpoint']
-                    fixedpoint_previous = resultsplot[nn]['fixedpoint_previous']
 
-                    self.window2.create_line(coords[2], coords[1], fixedpoint[2], fixedpoint[1], fill='red', width=2)
-                    self.window2.create_line(fixedpoint_previous[2], fixedpoint_previous[1], fixedpoint_previous[2], fixedpoint_previous[1], fill='blue', width=2)
-
-                    # plt.plot([coords[2], fixedpoint[2]], [coords[1], fixedpoint[1]], 'xr-')
-                    # plt.plot([fixedpoint_previous[2], fixedpoint_previous[2]],
-                    #          [fixedpoint_previous[1], fixedpoint_previous[1]], 'xb-')
-                # plt.show(block=False)
-                self.window2.create_text(0,0,text = 'tracking sequential cord sections', font = 6, fill = 'white')
+                self.window2.create_text(np.round(image_tk.width()/2),image_tk.height()-5,text = 'normalization result', fill = 'white')
             else:
                 # if rough norm is not being run, then assume that it has already been done and the results need to be loaded
                 normdata = np.load(normdataname_full, allow_pickle=True).flat[0]
@@ -1390,16 +1501,30 @@ class NCFrame:
                 Tfine = normdata['Tfine']
                 norm_image_fine = normdata['norm_image_fine']
                 imagerecord = normdata['imagerecord']
+                result = normdata['result']
+                self.NCresult = result
 
                 xs,ys,zs = np.shape(reverse_map_image)
                 xmid = np.round(xs/2).astype(int)
-                img1 = reverse_map_image[xmid,:,:]
-                img1 = (255. * img1 / np.max(img1)).astype(int)
-                image_tk = ImageTk.PhotoImage(Image.fromarray(img1))
-                self.controller.img1d = image_tk   # keep a copy so it persists
+                img2 = reverse_map_image[xmid,:,:]
+                img2 = (255. * img2 / np.max(img2)).astype(int)
+                image_tk = ImageTk.PhotoImage(Image.fromarray(img2))
+                self.controller.img2d = image_tk   # keep a copy so it persists
+                self.window2.configure(width=image_tk.width(), height=image_tk.height())
+                self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+                image_tk = self.controller.img1d
                 self.window1.configure(width=image_tk.width(), height=image_tk.height())
                 self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
                 time.sleep(1)
+
+                nfordisplay = len(result)
+                for nf in range(nfordisplay):
+                    # draw the rectangular regions for each section
+                    p0, p1, p2, p3, coords, angle, sectionsize, smallestside = self.outline_section(nf)
+                    self.window1.create_line(p0[0],p0[1],p1[0],p1[1],p2[0],p2[1],p3[0],p3[1],p0[0],p0[1], fill = 'yellow', width = 2)
+                # arial6 = tkFont.Font(family='Arial', size=6)
+                self.window1.create_text(np.round(image_tk.width()/2),image_tk.height()-5,text = 'template sections mapped onto image', fill = 'white')
 
             # manual over-ride?
 
@@ -1423,33 +1548,18 @@ class NCFrame:
                 std = workbook.get_sheet_by_name('datarecord')
                 workbook.remove_sheet(std)
                 workbook.save(self.NCdatabasename)
-                # xls = pd.ExcelFile(self.NCdatabasename, engine = 'openpyxl')
-                # df1 = pd.read_excel(xls, 'datarecord')   # reload the value in df1 to use the pandas structure
 
             # write it to the database by appending a sheet to the excel file
             # remove old version of datarecord first
             with pd.ExcelWriter(self.NCdatabasename, mode='a') as writer:
                 df1.to_excel(writer, sheet_name='datarecord')
 
-            normdata = {'T':T, 'Tfine':Tfine, 'warpdata':warpdata, 'reverse_map_image':reverse_map_image, 'norm_image_fine':norm_image_fine, 'template_affine':template_affine, 'imagerecord':imagerecord}
+            normdata = {'T':T, 'Tfine':Tfine, 'warpdata':warpdata, 'reverse_map_image':reverse_map_image, 'norm_image_fine':norm_image_fine, 'template_affine':template_affine, 'imagerecord':imagerecord, 'result':result}
             np.save(normdataname_full, normdata)
             print('normalization data saved in ',normdataname_full)
 
-            # # check the results --------------------------
-            # # load the nifti data and scale to 1mm voxels
-            # input_data = i3d.load_and_scale_nifti(niiname)
-            # print('niiname = ',niiname)
-            #
-            # norm_image = pynormalization.py_apply_normalization(input_data[:,:,:,2], T, Tfine)
-            # xs,ys,zs = np.shape(norm_image)
-            # x0 = np.round(xs/2).astype('int')   # find the mid-slice for display
-            # display_image = norm_image[x0, :, :]
-            #
-            # fig = plt.figure(1), plt.imshow(display_image, 'gray')
-            # plt.show(block = False)
-
-
         print('Normalization: finished processing data ...', time.ctime(time.time()))
+
 
     # options for manual correction of rough normalization?
     # action when the button is pressed to run the manual over-ride function
@@ -1463,6 +1573,29 @@ class NCFrame:
         df1 = pd.read_excel(xls, 'datarecord')
         fit_parameters = self.fitparameters
         normdatasavename = self.normdatasavename
+
+        # get the button click position and print it out, then quit
+        if self.NCmanomode == 'OFF':
+            self.NCmanomode = 'ON'
+            self.button_funcid = self.window1.bind("<Button-1>",self.mouseclick,"+")
+        else:
+            self.NCmanomode = 'OFF'
+            self.window1.unbind("<Button-1>", self.button_funcid)
+            # self.button_funcid = self.window1.bind("<Button-1>",self.mousenotactive,"+")
+
+            # refresh the display
+            nfordisplay = len(self.NCresult)
+            if nfordisplay > 0:
+                image_tk = self.controller.img1d
+                # self.window1.configure(width=image_tk.width(), height=image_tk.height())
+                self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+                for nf in range(nfordisplay):
+                    fillcolor = 'blue'
+                    # draw the rectangular regions for each section
+                    p0, p1, p2, p3, coords, angle, sectionsize, smallestside = self.outline_section(nf)
+                    self.window1.create_line(p0[0], p0[1], p1[0], p1[1], p2[0], p2[1], p3[0], p3[1], p0[0], p0[1],
+                                             fill=fillcolor, width=1)
 
         print('Normalization: manual over-ride does not work yet - check back tomorrow ', time.ctime(time.time()))
 
