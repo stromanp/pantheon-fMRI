@@ -16,6 +16,7 @@ import os
 import py_mirt3D as mirt
 from PIL import Image, ImageTk
 import tkinter as tk
+import load_templates
 
 # -------------rotation_matrix-------------------------------------------------
 # ------------------------------------------------------------------------------------
@@ -33,7 +34,6 @@ def rotation_matrix(input_angle, axis = 0):
         M = [[math.cos(angle),-math.sin(angle),0],[math.sin(angle),math.cos(angle),0],[0,0,1]]
 
     return M
-
 
 
 # -------------py_calculate_section_positions-------------------------------------------------
@@ -839,28 +839,9 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         displayrecord.append(image_tk)
         imagerecord.append({'img':display_image})
 
-        # need to figure out how to control which figure is used for display  - come back to this ....
-        # for now, don't use the display_window inputs
-        # if display_window == 'None':
-        #     window1_display = display_image
-        #     fig = plt.figure(1), plt.imshow(window1_display, 'gray')
-        #     plt.show(block = False)
-        # else:
-        #     print('Updating the display in Window 1 ... (line 837 in pynormalization')
-        #     display_image = results_img[x, :, :]
-        #     image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
-        #     outputimage1 = image_tk  # keep a copy
-        #     print('display_window is: ', display_window)
-        #     display_window.configure(width=image_tk.width(), height=image_tk.height())
-        #     display_image1.configure(image = image_tk)
-        #     # display_window.create_image(0,0, image=image_tk, anchor=tk.NW)
-        #     display_window.update_idletasks
-        #     # display_window.itemconfig(display_image1, image=image_tk)
-        #     # display_image1.config(data = display_image)
-
     # 2) check results for initial sections
     print('Checking results for initial sections ...')
-    if ninitial_fixed_segments > 2:   # if there are "initial" segments defined, then there are 3 of them
+    if ninitial_fixed_segments > 2:   # if there are "initial" segments defined, and there are at least 3 of them
         # need a way to check on the result and fix bad mapping if it occurs
         # predict section positions based on other sections
         predicted, calculated = py_predict_positions(section_defs[:ninitial_fixed_segments], result[:ninitial_fixed_segments])
@@ -923,27 +904,9 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         x = np.round(xs2/2).astype('int')
         display_image = results_img[x, :, :]
         image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
-        # displayrecord.append(image_tk)
-        # imagerecord.append({'img':display_image})
-
-        # if display_window == 'None':
-        #     window1_display = display_image
-        #     fig = plt.figure(1), plt.imshow(window1_display, 'gray')
-        #     plt.show(block=False)
-        # else:
-        #     print('Updating the display in Window 1 ... (line 917 in pynormalization')
-        #     image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
-        #     outputimage1 = image_tk  # keep a copy
-        #     print('display_window is: ', display_window)
-        #     display_window.configure(width=image_tk.width(), height=image_tk.height())
-        #     display_window.create_image(0,0, image=image_tk, anchor=tk.NW)
-        #     display_window.update_idletasks
-        #     # display_window.itemconfig(display_image1, image=image_tk)
-
 
     # 3) map the remaining sections based on the initial sections
     # the later sections are guided by the first section
-
     angle = result[0]['angle']
     coords = result[0]['coords']   # this might be in the rotated template space
     pos = section_defs[0]['center']
@@ -952,8 +915,8 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         vpos_connectionpoint = first_region_connection_point + pos
     else:
         vpos_connectionpoint = first_region_connection_point - pos  # vector from the center of the section to the connection point, in the template
-    Mx = rotation_matrix(angle, 0);
-    My = rotation_matrix(angley, 1);
+    Mx = rotation_matrix(angle, 0)
+    My = rotation_matrix(angley, 1)
     Mtotal = np.dot(Mx,My)
     rvpos = np.dot(vpos_connectionpoint,Mtotal)  # rotated vector
     if reverse_order:
@@ -1043,29 +1006,6 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         displayrecord.append(image_tk)
         imagerecord.append({'img':display_image})
 
-        # if display_window == 'None':
-        #     window1_display = display_image
-        #     fig = plt.figure(1), plt.imshow(window1_display, 'gray')
-        #     plt.show(block=False)
-        # else:
-        #     print('Updating the display in Window 1 ... (line 1007 in pynormalization')
-        #     image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
-        #     outputimage1 = image_tk  # keep a copy
-        #     print('display_window is: ', display_window)
-        #     display_window.configure(width=image_tk.width(), height=image_tk.height())
-        #     display_window.create_image(0,0, image=image_tk, anchor=tk.NW)
-        #     display_window.update_idletasks
-
-            # display_window.itemconfig(display_image1, image=image_tk)
-
-            # display_window.create_image(0, 0, image=image_tk, anchor=tk.NW)
-
-            # test_photo = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
-            # controller.photod1 = test_photo  # need to keep a copy so it is not cleared from memory
-            # self.display_window1.configure(width=test_photo.width(), height=test_photo.height())
-            # self.image_in_W1 = self.display_window1.create_image(0, 0, image=test_photo, anchor = tk.NW)
-
-
         # show fixed point
         fixedpoint_previous = fixedpoint
         angle = result[ss + ninitial_fixed_segments]['angle']
@@ -1101,10 +1041,6 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
     for nn in range(np.size(result)):
         coords_list[nn, 0:3]= result[nn]['coords']
 
-    # not sure if saving temporary copies of the results is necessary - might come up later
-    # ptemp = fileparts(which('QU_auto_brainstem_cord3D_normalize_2018'));
-    # save([ptemp filesep 'temp_auto_normalize_data.mat'], 'coords_list', 'zs2')
-
     # getting ready to create a warping map for the entire image now
     temp, ee = np.unique(coords_list[:,2], return_index = True);
     # use a spline interpolation
@@ -1118,24 +1054,7 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
     for zz in range(zs2):
         cor_results_img[:,zz] = results_img[:, np.round(yy[zz]).astype('int'), zz]
 
-    # displaying coronal view
-    # if display_window2 == 'None':
-    #     window2_display = cor_results_img
-    #     fig = plt.figure(2), plt.imshow(window2_display, 'gray')
-    #     plt.show(block=False)
-    # else:
-    #     print('Updating the display in Window 2 ... (line 1011 in pynormalization')
-    #     image_tk = ImageTk.PhotoImage(Image.fromarray(cor_results_img))
-    #     outputimage2 = image_tk  # keep a copy
-    #     print('display_window2 is: ', display_window2)
-    #     display_window2.configure(width=image_tk.width(), height=image_tk.height())
-    #     display_window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
-    #     display_window2.update_idletasks
-    #     # display_window2.itemconfig(display_image2, image=image_tk)
-
-
     # 4) combine the warp fields from each section into one map
-
     fit_order = [2, 4, 2]  # "fit_order" could be an input parameter
     found_stable = False
     while not found_stable:
@@ -1306,15 +1225,17 @@ def define_sections(template_name, dataname):
             test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
             cx, cy, cz = np.where(test)
             zref = np.mean(cz)   # the middle of the L4 segment
-            lowerlumbar = {'name': 'sacral',
+            sacraldefined = True
+            sacral = {'name': 'sacral',
                        'center': np.array([12, 15, zref]),
                        'dims': np.array([6, 15, 15]),
                        'xrot': 0,
                        'yrot': 0,
                        'start_ref_pos': [],
                        'pos_estimate': pos_estimate,
-                       'fixdistance': 0,
-                       'first_region_connection_point': [12, 30, z_bottom_of_T12]}  # first_region_connection_point is the bottom edge of T12
+                       'fixdistance': 0}
+        else:
+            sacraldefined = False
 
         # check for lumbar regions - specify first sections to match
         if value1 < 44 & value2 > 45:
@@ -1326,6 +1247,7 @@ def define_sections(template_name, dataname):
             test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
             cx, cy, cz = np.where(test)
             zref = np.mean(cz)   # the middle of the L4 segment
+            lowerlumbardefined = True
             lowerlumbar = {'name': 'lower_lumbar',
                        'center': np.array([12, 15, zref]),
                        'dims': np.array([6, 15, 15]),
@@ -1333,8 +1255,9 @@ def define_sections(template_name, dataname):
                        'yrot': 0,
                        'start_ref_pos': [],
                        'pos_estimate': pos_estimate,
-                       'fixdistance': 0,
-                       'first_region_connection_point': [12, 30, z_bottom_of_T12]}  # first_region_connection_point is the bottom edge of T12
+                       'fixdistance': 0}
+        else:
+            lowerlumbardefined = False
 
         # check for lumbar regions - specify first sections to match
         if value1 < 40 & value2 > 43:
@@ -1346,7 +1269,8 @@ def define_sections(template_name, dataname):
             test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
             cx, cy, cz = np.where(test)
             zref = np.mean(cz)   # the middle of the L2 segment
-            lowerlumbar = {'name': 'upper_lumbar',
+            upperlumbardefined = True
+            upperlumbar = {'name': 'upper_lumbar',
                        'center': np.array([12, 15, zref]),
                        'dims': np.array([6, 15, 15]),
                        'xrot': 0,
@@ -1355,6 +1279,8 @@ def define_sections(template_name, dataname):
                        'pos_estimate': pos_estimate,
                        'fixdistance': 0,
                        'first_region_connection_point': [12, 30, z_bottom_of_T12]}  # first_region_connection_point is the bottom edge of T12
+        else:
+            upperlumbardefined = False
 
         # make consistent with other sections ...............[update this]-------------
         # first_region_connection_point is where bottom of thoracic region connects to lumbar region
@@ -1373,6 +1299,18 @@ def define_sections(template_name, dataname):
         for ss in range(ninitial_fixed_segments + ncsections):
             section_defs.append(single_def.copy())
 
+        # put in initial sections
+        segcount = 0
+        if upperlumbardefined:
+            section_defs[segcount] = upperlumbar   # needs to be first
+            segcount += 1
+        if lowerlumbardefined:
+            section_defs[segcount] = lowerlumbar
+            segcount += 1
+        if sacraldefined:
+            section_defs[segcount] = sacral
+            segcount += 1
+
         for ss in range(ncsections):
             if reverse_order:
                 zcenter = (z_connection_point + np.floor(dz * (ss + 0.5))).astype('int')
@@ -1385,18 +1323,18 @@ def define_sections(template_name, dataname):
                 fixedpoint1 = first_region_connection_point - np.array([0, 0, dz * ss])
                 fixedpoint2 = first_region_connection_point - np.array([0, 0, dz * (ss + 1)])
 
-            section_defs[ss]['center'] = [12, 30, zcenter]
-            section_defs[ss]['dims'] = [6, 10, np.floor(dz / 2).astype('int')]  # span +/- from center
-            section_defs[ss]['name'] = sprintf('cord%d', ss);
-            section_defs[ss]['fixdistance'] = 1;
-            section_defs[ss]['refpoint'] = [12, 30, zrefpoint];
-            section_defs[ss]['pos_estimate'] = []
-            section_defs[ss]['xrot'] = 0
-            section_defs[ss]['yrot'] = 0
-            section_defs[ss]['fixedpoint1'] = fixedpoint1  # more superior connection point
-            section_defs[ss]['fixedpoint2'] = fixedpoint2  # most inferior connection point
+            section_defs[ss+ninitial_fixed_segments]['center'] = [12, 30, zcenter]
+            section_defs[ss+ninitial_fixed_segments]['dims'] = [6, 10, np.floor(dz / 2).astype('int')]  # span +/- from center
+            section_defs[ss+ninitial_fixed_segments]['name'] = sprintf('cord%d', ss);
+            section_defs[ss+ninitial_fixed_segments]['fixdistance'] = 1;
+            section_defs[ss+ninitial_fixed_segments]['refpoint'] = [12, 30, zrefpoint];
+            section_defs[ss+ninitial_fixed_segments]['pos_estimate'] = []
+            section_defs[ss+ninitial_fixed_segments]['xrot'] = 0
+            section_defs[ss+ninitial_fixed_segments]['yrot'] = 0
+            section_defs[ss+ninitial_fixed_segments]['fixedpoint1'] = fixedpoint1  # more superior connection point
+            section_defs[ss+ninitial_fixed_segments]['fixedpoint2'] = fixedpoint2  # most inferior connection point
 
-        section_defs[0]['first_region_connection_point'] = first_region_connection_point  # more superior connection point
+        # section_defs[0]['first_region_connection_point'] = first_region_connection_point  # more superior connection point
         #---------------above here is not done yet------------------------------
 
     # if template_name.lower() not in ['thoracic', 'sacral']:
@@ -1458,7 +1396,7 @@ def define_sections(template_name, dataname):
         print('Set up thoracic section information based on cervical reference ...')
 
     if template_name.lower() == 'ccbs':
-        ninitial_fixed_segments = 3;
+        ninitial_fixed_segments = 3
         input_img = nib.load(dataname)
         hdr = input_img.header
         FOV = hdr['pixdim'][1:4]*hdr['dim'][1:4]
@@ -1553,19 +1491,6 @@ def run_rough_normalization_calculations(niiname, normtemplatename, template_img
         x,y,z = np.shape(input_datar)
         input_image = input_datar
 
-    # if display_window != 'none':
-    #     x0 = np.round(x/2).astype(int)
-    #     image_tk = ImageTk.PhotoImage(Image.fromarray(input_image[x0,:,:]))
-    #     display_record[displaycount] = [image_tk]
-    #     displaycount += 1
-
-        # outputimage1 = image_tk  # keep a copy
-        # display_window.configure(width=image_tk.width(), height=image_tk.height())
-        # display_window.itemconfig(display_image1, image = image_tk)
-        # # display_window.create_image(0, 0, image=image_tk, anchor=tk.NW)
-        # display_window.update_idletasks
-        # print('run_rough_normalization_calculations:  finished displaying initial images ...')
-
     # rough normalization
     T, warpdata, reverse_map_image, forward_map_image, displayrecord, imagerecord, resultsplot, result = py_auto_cord_normalize(input_image, template_img,
                     fit_parameters, section_defs, ninitial_fixed_segments, reverse_order, display_output = True)  # , display_window, display_image1, display_window2, display_image2
@@ -1573,3 +1498,345 @@ def run_rough_normalization_calculations(niiname, normtemplatename, template_img
     # Tfine, norm_image_fine = normcalc.py_norm_fine_tuning(input_datar, template_img, T)
     return T, warpdata, reverse_map_image, displayrecord, imagerecord, resultsplot, result
 
+
+#------------align_override_sections--------------------------------------------------------
+#-----------------------------------------------------------------------------------
+def align_override_sections(normalization_results, adjusted_sections, niiname, normtemplatename):
+    # after manual over-ride has been used to move template sections,
+    # the positions must be made consistent across all sections
+    # "adjusted_sections" is the list of sections that have been moved,
+    # try to keep these where they are
+    # move all the rest of the sections as little as possible
+    section_defs, ninitial_fixed_segments, reverse_order = define_sections(normtemplatename, niiname)
+
+    nsections = len(normalization_results)
+    # initial cord segments must be handled differently - can be out of order and not connected
+    fixedrecord1 = []
+    fixedrecord2 = []
+    ncordsegments = len(section_defs) - ninitial_fixed_segments
+
+    nsections = len(normalization_results)
+    ncordsegments = len(section_defs) - ninitial_fixed_segments
+    angle = np.zeros(ncordsegments)
+    angley = np.zeros(ncordsegments)
+    coords = np.zeros((ncordsegments,3))
+    for ss in range(ncordsegments):
+        angle[ss] = normalization_results[ss + ninitial_fixed_segments]['angle']
+        angley[ss] = normalization_results[ss + ninitial_fixed_segments]['angley']
+        coords[ss,:] = normalization_results[ss + ninitial_fixed_segments]['coords']
+
+    # use a minimization method - gradient descent
+    # cost = sum of distances between points that should be joining
+    #       plus a scaled amout of the sum of the amounts that sections need to be moved
+    #       with sections weighted according to "importance"
+    delta_angle = np.zeros(ncordsegments)
+    delta_angley = np.zeros(ncordsegments)
+    delta_coords = np.zeros((ncordsegments,3))
+    weighting = np.ones(ncordsegments)
+    weighting[adjusted_sections - ninitial_fixed_segments] = 3.0  # give more weighting to keeping the adjust sections where they were put to
+
+    deltav = 1.0e-2
+    alpha = 1.0e-3
+    total_cost, dist = align_cost(normalization_results, section_defs, ninitial_fixed_segments, coords, angle, angley, delta_coords, delta_angle, delta_angley, weighting)
+
+    nitermax = 250
+    tol = 1.0e-2
+    delta_cost = total_cost
+    cost_record = [total_cost]
+    nn=0
+    while (nn < nitermax) & (delta_cost > tol):
+        total_cost, dist = align_cost(normalization_results, section_defs, ninitial_fixed_segments, coords, angle, angley, delta_coords, delta_angle, delta_angley, weighting)
+        # calculate gradients
+        coords_cost_gradient, angle_cost_gradient, angley_cost_gradient = align_cost_gradients(deltav, normalization_results, section_defs, ninitial_fixed_segments, coords, angle, angley, delta_coords, delta_angle, delta_angley, weighting)
+        delta_coords = delta_coords - alpha*coords_cost_gradient
+        delta_angle = delta_angle - alpha * angle_cost_gradient
+        delta_angley = delta_angley - alpha * angley_cost_gradient
+        new_total_cost, dist = align_cost(normalization_results, section_defs, ninitial_fixed_segments, coords, angle, angley, delta_coords, delta_angle, delta_angley, weighting)
+        cost_record.append(new_total_cost)
+        delta_cost = total_cost - new_total_cost
+        nn+=1
+
+    for ss in range(ncordsegments):
+        normalization_results[ss + ninitial_fixed_segments]['angle'] = angle[ss] + delta_angle[ss]
+        normalization_results[ss + ninitial_fixed_segments]['angley'] = angley[ss] + delta_angley[ss]
+        normalization_results[ss + ninitial_fixed_segments]['coords'] = coords[ss,:] + delta_coords[ss,:]
+
+    return normalization_results
+
+
+def align_cost(normalization_results, section_defs, ninitial_fixed_segments, coords, angle, angley, delta_coords, delta_angle, delta_angley, weighting):
+    nsections = len(normalization_results)
+    ncordsegments = len(angle)
+
+    fixedrecord1 = []
+    fixedrecord2 = []
+
+    for ss in range(ncordsegments):
+        # angle = normalization_results[ss + ninitial_fixed_segments]['angle']
+        # angley = normalization_results[ss + ninitial_fixed_segments]['angley']
+        # coords = normalization_results[ss + ninitial_fixed_segments]['coords']
+        pos = section_defs[ss + ninitial_fixed_segments]['center']
+        vpos_connectionpoint1 = section_defs[ss + ninitial_fixed_segments]['fixedpoint1'] - pos
+        vpos_connectionpoint2 = section_defs[ss + ninitial_fixed_segments]['fixedpoint2'] - pos
+
+        Mx = rotation_matrix(-angle[ss]-delta_angle[ss], 0)
+        My = rotation_matrix(-angley[ss]-delta_angley[ss], 1)
+        Mtotal = np.dot(Mx, My)
+        rvpos = np.dot(vpos_connectionpoint1, Mtotal)  # rotated vector
+        fixedpoint1 = coords[ss,:]+delta_coords[ss,:] + rvpos  # mapped location of fixedpoint in the image data
+        rvpos = np.dot(vpos_connectionpoint2, Mtotal)  # rotated vector
+        fixedpoint2 = coords[ss,:]+delta_coords[ss,:] + rvpos  # mapped location of fixedpoint in the image data
+        fixedrecord1.append(fixedpoint1)
+        fixedrecord2.append(fixedpoint2)
+
+    dist = np.linalg.norm(np.array(fixedrecord1[1:][:]) - np.array(fixedrecord2[:-1][:]),axis=1)
+    offset = np.linalg.norm(delta_coords,axis=1)
+    total_cost = np.sum(weighting*offset) + np.sum(np.abs(dist-0.5))
+
+    return total_cost, dist
+
+
+def align_cost_gradients(deltav, normalization_results, section_defs, ninitial_fixed_segments, coords, angle, angley, delta_coords, delta_angle, delta_angley, weighting):
+
+    ndc = np.size(delta_coords)
+    n1,n2 = np.shape(delta_coords)
+    coords_cost_record = np.zeros(ndc)
+    angle_cost_record = np.zeros(n1)
+    angley_cost_record = np.zeros(n1)
+
+    for nn in range(ndc):
+        dc = np.zeros(ndc)
+        dc[nn] = deltav
+        dc = dc.reshape(n1,n2)
+        total_cost, dist = align_cost(normalization_results, section_defs, ninitial_fixed_segments, coords, angle, angley, dc+delta_coords, delta_angle, delta_angley, weighting)
+        coords_cost_record[nn] = total_cost
+    coords_cost_record = coords_cost_record.reshape(n1,n2)
+
+    for nn in range(n1):
+        da = np.zeros(n1)
+        da[nn] = deltav
+        total_cost, dist = align_cost(normalization_results, section_defs, ninitial_fixed_segments, coords, angle, angley, delta_coords, da+delta_angle, delta_angley, weighting)
+        angle_cost_record[nn] = total_cost
+
+    for nn in range(n1):
+        day = np.zeros(n1)
+        day[nn] = deltav
+        total_cost, dist = align_cost(normalization_results, section_defs, ninitial_fixed_segments, coords, angle, angley, delta_coords, delta_angle, day+delta_angley, weighting)
+        angley_cost_record[nn] = total_cost
+
+    total_cost, dist = align_cost(normalization_results, section_defs, ninitial_fixed_segments, coords, angle, angley, delta_coords, delta_angle, delta_angley, weighting)
+    coords_cost_gradient = (coords_cost_record - total_cost)/deltav
+    angle_cost_gradient = (angle_cost_record - total_cost)/deltav
+    angley_cost_gradient = (angley_cost_record - total_cost)/deltav
+
+    return coords_cost_gradient, angle_cost_gradient, angley_cost_gradient
+
+
+# -------------py_load_modified_normalization-------------------------------------------------
+# ------------------------------------------------------------------------------------
+def py_load_modified_normalization(niiname, normtemplatename, new_result):   # , display_window = 'None',display_image1 = 'none', display_window2 = 'None', display_image2 = 'none'
+    # return T, warpdata, reverse_map_image, forward_map_image, new_result
+    imagerecord = []
+    displayrecord = []
+
+    resolution = 1
+    template, regionmap_img, template_affine, anatlabels = load_templates.load_template(normtemplatename, resolution)
+
+    print('running py_load_modified_normalization ...')
+    section_defs, ninitial_fixed_segments, reverse_order = define_sections(normtemplatename, niiname)
+
+    # load the nifti data and rescale to 1 mm voxels
+    input_datar = i3d.load_and_scale_nifti(niiname)
+    if np.ndim(input_datar) > 3:
+        x,y,z,t = np.shape(input_datar)
+        if t > 3:
+            t0 = 3
+        else:
+            t0=0
+        input_image = input_datar[:,:,:,t0]
+    else:
+        x,y,z = np.shape(input_datar)
+        input_image = input_datar
+
+    background2 = input_image
+
+    xs2, ys2, zs2 = np.shape(background2)
+    xs, ys, zs = np.shape(template)
+
+    # 1) initial sections
+    # initialize result and warpdata
+    # result_entry = {'angle':0, 'angley':0, 'coords':[0,0,0], 'original_section':[], 'template_section':[], 'section_mapping_coords':[]}
+    warpdata_entry = {'X': 0, 'Y': 0, 'Z': 0, 'Xt': 0, 'Yt': 0, 'Zt': 0}
+    warpdata = []
+
+    nsections = len(new_result)
+
+    midline = np.zeros(nsections)
+    for aa in range(nsections):
+        midline[aa] = new_result[aa]['coords'][0]
+    midline = np.round(np.mean(midline)).astype('int')
+
+    for ss in range(nsections):
+        warpdata.append(warpdata_entry.copy())
+        coords = new_result[ss]['coords']
+        angle = new_result[ss]['angle']
+        angley = new_result[ss]['angley']
+        # new part---------------------------------
+        # calculate values for modified normalization positions - done with manual override
+        section_mapping_coords, original_section = py_modify_section_positions(template, background2, section_defs[ss], coords, angle, angley)
+
+        new_result[ss]['original_section'] = original_section
+        # new_result[ss]['template_section'] = template_section    # does not need to be updated
+        new_result[ss]['section_mapping_coords'] = section_mapping_coords
+
+        # save another copy, for convenience later
+        warpdata[ss]['X'] = new_result[ss]['section_mapping_coords']['X']
+        warpdata[ss]['Y'] = new_result[ss]['section_mapping_coords']['Y']
+        warpdata[ss]['Z'] = new_result[ss]['section_mapping_coords']['Z']
+        warpdata[ss]['Xt'] = new_result[ss]['section_mapping_coords']['Xt']
+        warpdata[ss]['Yt'] = new_result[ss]['section_mapping_coords']['Yt']
+        warpdata[ss]['Zt'] = new_result[ss]['section_mapping_coords']['Zt']
+
+        print('finished compiling results for section ',ss, ' ...')
+
+        results_img = py_display_sections_local(template, background2, warpdata[:(ss+ninitial_fixed_segments+1)])
+        # display the result again
+        # need to figure out how to control which figure is used for display  - come back to this ....
+        display_image = results_img[midline, :, :]
+        image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+        displayrecord.append(image_tk)
+        imagerecord.append({'img':display_image})
+
+    # 4) combine the warp fields from each section into one map
+    fit_order = [2, 4, 2]  # "fit_order" could be an input parameter
+    found_stable = False
+    while not found_stable:
+        T, reverse_map_image, forward_map_image, inv_Rcheck = py_combine_warp_fields(warpdata, background2, template, fit_order)
+        # reverse_map_image is the mapping of the image data into the template space
+        # "reverse" mapping because we had the coordinates of where template voxels mapped into
+        # the original image data, and we are calculating where the original image data belongs in the
+        # template space
+
+        if np.any(inv_Rcheck > 1.0e22): print('py_cord_normalize:  matrix inversion may be unstable, y fit order = ',fit_order[1],'  ... will try to correct with a lower fit order')
+        Ys_max = np.max(T['Ys']);  Ys_min = np.min(T['Ys']);   Ymap_check = (Ys_max < (2*ys2)) & (Ys_max > (-ys2))
+        if Ymap_check | (fit_order[1] <= 2):
+            found_stable = True
+        else:
+            fit_order[1] = fit_order[1]-1
+
+    print('py_auto_cord_normalize:  Found a stable warp field solution')
+
+    save_data = True   # turn this on for error-checking
+    if save_data:
+        wdir = os.path.dirname(os.path.realpath(__file__))
+        savename = os.path.join(wdir,'auto_normalize_data_check2.npy')
+        result = new_result
+        results_record = {'T':T, 'reverse_map_image':reverse_map_image, 'forward_map_image':forward_map_image, 'warpdata':warpdata, 'result':result}
+        np.save(savename, results_record)
+
+    return T, warpdata, reverse_map_image, forward_map_image, new_result, imagerecord, displayrecord
+
+
+#----------------------------------------------------------------------------
+#-------------calculate normalization values with new positions--------------
+def py_modify_section_positions(template, img, section_defs, coords, angle, angley):
+    # return section_mapping_coords, original_section, template_section
+
+    # input is the entire template, and sections are extracted
+    xt, yt, zt = np.shape(template)
+    xs, ys, zs = np.shape(img)
+    img = img/np.max(img)
+
+    # section_defs relate to the template
+    zpos = section_defs['center'][2]
+    dz = section_defs['dims'][2]
+    zr = [zpos - dz, zpos + dz]
+    ypos = section_defs['center'][1]
+    dy = section_defs['dims'][1]
+    yr = [ypos - dy, ypos + dy]
+    xpos = section_defs['center'][0]
+    dx = section_defs['dims'][0]
+    xr = [xpos - dx, xpos + dx]
+
+    # get coordinates of image section and template
+    dzm = dz
+    dym = dy
+    zpos2 = zpos
+    x1 = 0
+    x2 = 2*dx + 1
+    y1 = dym - dy
+    y2 = dym + dy
+    z1 = dzm - dz
+    z2 = dzm + dz
+
+    # reverse rotation:
+    p0 = np.round(np.array([xs, ys, zs]) / 2).astype('int')
+    Mx = rotation_matrix(angle, axis=0)
+    My = rotation_matrix(angley, axis=1)
+    Mtotal = np.dot(Mx,My)
+    coordsR = np.dot((coords - p0),Mtotal) + p0
+
+    # get the coordinates for the image, where the template section maps to
+    # first, get the coordinates in the rotated template
+    # ===> need the coordinates in the image, not in the template
+    # Xt, etc are template coordinates
+    Xt, Yt, Zt = np.mgrid[(xpos-dx):(xpos+dx):(2*dx+1)*1j, (ypos-dym):(ypos+dym):(2*dym+1)*1j, (zpos-dzm):(zpos+dzm):(2*dzm+1)*1j]
+    # X etc are image coordinates, in the rotate image to start with
+    X, Y, Z = np.mgrid[(coordsR[0]-dx):(coordsR[0]+dx):(2*dx+1)*1j, (coordsR[1]-dym):(coordsR[1]+dym):(2*dym+1)*1j, (coordsR[2]-dzm):(coordsR[2]+dzm):(2*dzm+1)*1j]
+    # next, need to rotate both sets of coordinates, -xrot for the template, and angle-xrot for the image
+    # then rotate these coordinates by section_defs['sectionangle']
+
+    # this is for rotating the image coordinates
+    p0 = np.round(np.array([xs, ys, zs]) / 2).astype('int')
+    sa = (np.pi/180)*angle
+    Xr = X
+    Yr = (Y - p0[1])*math.cos(sa) - (Zt - p0[2])*math.sin(sa) + p0[1]
+    Zr = (Z - p0[2])*math.cos(sa) + (Yt - p0[1])*math.sin(sa) + p0[2]
+
+    sa = (np.pi/180)*angley
+    Xrr = (Xr - p0[0])*math.cos(sa) - (Zr - p0[2])*math.sin(sa) + p0[0]
+    Yrr = Yr
+    Zrr = (Zr - p0[2])*math.cos(sa) + (Xr - p0[0])*math.sin(sa) + p0[2]
+
+    Xr = Xrr
+    Yr = Yrr
+    Zr = Zrr
+
+    # this is for rotating the template coordinates
+    sa = (np.pi/180)*(-section_defs['xrot'])
+    Xtr = Xt
+    Ytr = (Yt - ypos)*math.cos(sa) - (Zt - zpos) * math.sin(sa) + ypos
+    Ztr = (Zt - zpos) * math.cos(sa) + (Yt - ypos) * math.sin(sa) + zpos
+
+    sa = (np.pi/180)*(angley)
+    Xtrr = (Xtr - xpos)*math.cos(sa) - (Ztr - zpos)*math.sin(sa) + xpos
+    Ytrr = Ytr
+    Ztrr = (Ztr - zpos)*math.cos(sa) + (Xtr - xpos)*math.sin(sa) + zpos
+
+    Xtr = Xtrr
+    Ytr = Ytrr
+    Ztr = Ztrr
+
+    # make sure coordinates are within limits
+    Xtr = np.where(Xtr < 0, 0, Xtr)
+    Xtr = np.where(Xtr >= xt, xt-1, Xtr)
+    Ytr = np.where(Ytr < 0, 0, Ytr)
+    Ytr = np.where(Ytr >= yt, yt-1, Ytr)
+    Ztr = np.where(Ztr < 0, 0, Ztr)
+    Ztr = np.where(Ztr >= zt, zt-1, Ztr)
+
+    Xr = np.where(Xr < 0, 0, Xr)
+    Xr = np.where(Xr >= xs, xs - 1, Xr)
+    Yr = np.where(Yr < 0, 0, Yr)
+    Yr = np.where(Yr >= ys, ys - 1, Yr)
+    Zr = np.where(Zr < 0, 0, Zr)
+    Zr = np.where(Zr >= zs, zs - 1, Zr)
+
+    # extract the template and corresponding image sections - for checking on the results
+    template_section_check = template[Xtr.astype('int'),Ytr.astype('int'),Ztr.astype('int')]    # check on this, see if it converted properly from matlab
+    original_section = img[Xr.astype('int'),Yr.astype('int'),Zr.astype('int')]
+
+    # organize the outputs
+    section_mapping_coords = {'X':Xr,'Y':Yr,'Z':Zr,'Xt':Xtr,'Yt':Ytr,'Zt':Ztr}
+
+    return section_mapping_coords, original_section    #, template_section

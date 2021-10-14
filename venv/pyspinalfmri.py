@@ -1067,7 +1067,12 @@ class NCFrame:
         self.parent = parent
         self.controller = controller
         self.NCmanomode = 'OFF'
+        self.overrideactive = False
+        self.overrideangle = False
+        self.overridepos = False
+        self.overridesection = 0
         self.NCresult = []
+        self.NCresult_copy = []
 
         # display_window1, image_in_W1 = controller.get_display_window(1)
         # self.display_window1 = display_window1
@@ -1198,6 +1203,10 @@ class NCFrame:
         self.NCmano = tk.Button(self.parent, text = 'Manual Over-ride', width = bigbuttonsize, bg = fgcol3, fg = 'white', command = self.NCmanoclick, font = "none 9 bold", relief='raised', bd = 5)
         self.NCmano.grid(row = 6, column = 2)
 
+        # button to recalculate normalization after manual over-ride
+        self.NCrun = tk.Button(self.parent, text = 'Recalculate', width = bigbigbuttonsize, bg = fgcol3, fg = 'white', command = self.NCrecalculate_after_override, font = "none 9 bold", relief='raised', bd = 5)
+        self.NCrun.grid(row = 7, column = 5)
+
         img1 = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
         controller.img1d = img1  # need to keep a copy so it is not cleared from memory
         self.window1 = tk.Canvas(master = self.parent, width=img1.width(), height=img1.height(), bg='black')
@@ -1210,11 +1219,12 @@ class NCFrame:
         self.window2.grid(row=7, column=2,rowspan = 2, columnspan = 2, sticky='NW')
         self.windowdisplay2 = self.window2.create_image(0, 0, image=img2, anchor=tk.NW)
 
+
     def outline_section(self, sectionnumber):
         nf = sectionnumber
-        coords = self.NCresult[nf]['coords']
-        angle = self.NCresult[nf]['angle']
-        sectionsize = np.shape(self.NCresult[nf]['template_section'])
+        coords = self.NCresult_copy[nf]['coords']
+        angle = self.NCresult_copy[nf]['angle']
+        sectionsize = np.shape(self.NCresult_copy[nf]['template_section'])
         smallestside = np.min(sectionsize[1:])
         sa = (np.pi / 180) * angle
         hv = (sectionsize[2] / 2) * np.array([math.cos(sa), -math.sin(sa)])
@@ -1229,7 +1239,7 @@ class NCFrame:
 
     def findclosestsection(self, x,y):
         P = np.array([x,y])
-        nfordisplay = len(self.NCresult)
+        nfordisplay = len(self.NCresult_copy)
         mindist_record = np.zeros(nfordisplay)
         inside_record = [False for i in range(nfordisplay)]
         nearedge_record = [False for i in range(nfordisplay)]
@@ -1251,7 +1261,7 @@ class NCFrame:
                 dp1 = np.linalg.norm(vp1)
                 mindist[aa] = np.min(np.array([dline, dp0, dp1]))
             dist_to_edge = np.min(mindist)
-            nearedge = dist_to_edge < 0.1*smallestside
+            nearedge = dist_to_edge < 0.3*smallestside
             # is the point, P, inside the rectangular area?
             # since the corners are all defined in clockwise order - use the cross-product
             z = np.zeros(4)
@@ -1289,7 +1299,7 @@ class NCFrame:
         return region_selected, closest_section, nearedge
 
 
-    def mouseclick(self,event):
+    def mouseleftclick(self,event):
         if self.NCmanomode == 'ON':
             print('image window (x,y) = ({},{})'.format(event.x,event.y))
             region_selected, closest_section, nearedge = self.findclosestsection(event.x,event.y)
@@ -1297,7 +1307,9 @@ class NCFrame:
             # if rough normalization results are shown, then indicate which region has been selected
             # first, find which section is closest to selected point ...
             if region_selected:
-                nfordisplay = len(self.NCresult)
+                self.overrideactive = True
+                self.overridesection = closest_section
+                nfordisplay = len(self.NCresult_copy)
                 if nfordisplay > 0:
                     image_tk = self.controller.img1d
                     # self.window1.configure(width=image_tk.width(), height=image_tk.height())
@@ -1305,20 +1317,71 @@ class NCFrame:
 
                     for nf in range(nfordisplay):
                         if nf == closest_section:
-                            fillcolor = 'red'
+                            if nearedge:
+                                fillcolor = 'red'  # indicates to change rotation angle
+                                self.overrideangle = True
+                                self.overridepos = False
+                            else:
+                                fillcolor = 'blue' # indicates to change position
+                                self.overrideangle = False
+                                self.overridepos = True
                         else:
                             fillcolor = 'yellow'
                         # draw the rectangular regions for each section
                         p0, p1, p2, p3, coords, angle, sectionsize, smallestside = self.outline_section(nf)
                         self.window1.create_line(p0[0], p0[1], p1[0], p1[1], p2[0], p2[1], p3[0], p3[1], p0[0], p0[1],
                                                  fill=fillcolor, width=1)
-
         else:
             print('manual over-ride mode is OFF')
         return event.x,event.y
 
-    def mousenotactive(self,event):
-        return 0
+
+    def mouserightclick(self,event):
+        # self.NCresult_copy = copy.deepcopy(self.NCresult)
+        if self.NCmanomode == 'ON':
+            # print('right-click in image window (x,y) = ({},{})'.format(event.x,event.y))
+            # determine if translation or rotation indicated
+            if self.overrideactive:
+                if self.overridepos:
+                    # get position of active section
+                    coords = self.NCresult_copy[self.overridesection]['coords']
+                    new_coords = coords
+                    new_coords[1] = event.y
+                    new_coords[2] = event.x
+                    self.NCresult_copy[self.overridesection]['coords'] = new_coords
+
+                if self.overrideangle:
+                    angle = self.NCresult_copy[self.overridesection]['angle']
+                    coords = self.NCresult_copy[self.overridesection]['coords']
+                    new_angle = angle
+                    deltay = event.y-coords[1]
+                    deltaz = event.x-coords[2]
+                    delta_angle = 0.1*deltaz
+                    new_angle -= delta_angle
+                    self.NCresult_copy[self.overridesection]['angle'] = new_angle
+
+                nfordisplay = len(self.NCresult_copy)
+                if nfordisplay > 0:
+                    image_tk = self.controller.img1d
+                    # self.window1.configure(width=image_tk.width(), height=image_tk.height())
+                    self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+                    for nf in range(nfordisplay):
+                        if nf == self.overridesection:
+                            if self.overrideangle:
+                                fillcolor = 'red'  # indicates to change rotation angle
+                            else:
+                                fillcolor = 'blue' # indicates to change position
+                        else:
+                            fillcolor = 'yellow'
+                        # draw the rectangular regions for each section
+                        p0, p1, p2, p3, coords, angle, sectionsize, smallestside = self.outline_section(nf)
+                        self.window1.create_line(p0[0], p0[1], p1[0], p1[1], p2[0], p2[1], p3[0], p3[1], p0[0], p0[1],
+                                                 fill=fillcolor, width=1)
+        else:
+            print('manual over-ride mode is OFF')
+        return event.x,event.y
+
 
     # action when the button is pressed to submit the DB entry number list
     def NCsavenamesubmit(self):
@@ -1453,6 +1516,7 @@ class NCFrame:
                 T, warpdata, reverse_map_image, displayrecord, imagerecord, resultsplot, result = pynormalization.run_rough_normalization_calculations(niiname, normtemplatename,
                                     template_img, fit_parameters)  # , display_window1, image_in_W1, display_window2, image_in_W2
                 self.NCresult = result  # need this for manual over-ride etc.
+                self.NCresult_copy = copy.deepcopy(self.NCresult)  # need this for manual over-ride etc.
                 Tfine = 'none'
                 norm_image_fine = 'none'
                 self.controller.master.config(cursor = "")
@@ -1503,6 +1567,7 @@ class NCFrame:
                 imagerecord = normdata['imagerecord']
                 result = normdata['result']
                 self.NCresult = result
+                self.NCresult_copy = copy.deepcopy(self.NCresult)
 
                 xs,ys,zs = np.shape(reverse_map_image)
                 xmid = np.round(xs/2).astype(int)
@@ -1558,6 +1623,18 @@ class NCFrame:
             np.save(normdataname_full, normdata)
             print('normalization data saved in ',normdataname_full)
 
+            # display the resulting normalized image
+            xs, ys, zs = np.shape(norm_image_fine)
+            xmid = np.round(xs / 2).astype(int)
+            img2 = norm_image_fine[xmid, :, :]
+            img2[np.isnan(img2)] = 0.0
+            img2[np.isinf(img2)] = 0.0
+            img2 = (255. * img2 / np.max(img2)).astype(int)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(img2))
+            self.controller.img2d = image_tk  # keep a copy so it persists
+            self.window2.configure(width=image_tk.width(), height=image_tk.height())
+            self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
         print('Normalization: finished processing data ...', time.ctime(time.time()))
 
 
@@ -1577,14 +1654,19 @@ class NCFrame:
         # get the button click position and print it out, then quit
         if self.NCmanomode == 'OFF':
             self.NCmanomode = 'ON'
-            self.button_funcid = self.window1.bind("<Button-1>",self.mouseclick,"+")
+            self.button_funcid = self.window1.bind("<Button-1>",self.mouseleftclick,"+")
+            self.button_funcidL = self.window1.bind("<Button-3>",self.mouserightclick,"+")
         else:
             self.NCmanomode = 'OFF'
             self.window1.unbind("<Button-1>", self.button_funcid)
-            # self.button_funcid = self.window1.bind("<Button-1>",self.mousenotactive,"+")
+            self.window1.unbind("<Button-3>", self.button_funcidL)
+            self.overrideactive = False
+            self.overrideangle = False
+            self.overridepos = False
+            self.NCresult_copy = copy.deepcopy(self.NCresult)   # refresh the copy
 
             # refresh the display
-            nfordisplay = len(self.NCresult)
+            nfordisplay = len(self.NCresult_copy)
             if nfordisplay > 0:
                 image_tk = self.controller.img1d
                 # self.window1.configure(width=image_tk.width(), height=image_tk.height())
@@ -1597,7 +1679,138 @@ class NCFrame:
                     self.window1.create_line(p0[0], p0[1], p1[0], p1[1], p2[0], p2[1], p3[0], p3[1], p0[0], p0[1],
                                              fill=fillcolor, width=1)
 
-        print('Normalization: manual over-ride does not work yet - check back tomorrow ', time.ctime(time.time()))
+
+    def NCrecalculate_after_override(self):
+        # calculate new normalization based on sections with manual over-ride applied
+        # first get the necessary input data
+        # use the values saved in self because these need to be up to date from the previous steps,
+        # if not, then over-ride is not ready to be used
+
+        # shut off the manual over-ride mode
+        self.NCmanomode = 'OFF'
+        self.window1.unbind("<Button-1>", self.button_funcid)
+        self.window1.unbind("<Button-3>", self.button_funcidL)
+        self.overrideactive = False
+        self.overrideangle = False
+        self.overridepos = False
+
+        xls = pd.ExcelFile(self.NCdatabasename, engine = 'openpyxl')
+        df1 = pd.read_excel(xls, 'datarecord')
+        normdatasavename = self.normdatasavename
+
+        # display original image for first dbnum entry-------------------
+        dbnum = self.NCdatabasenum[0]
+        dbhome = df1.loc[dbnum, 'datadir']
+        fname = df1.loc[dbnum, 'niftiname']
+        seriesnumber = df1.loc[dbnum, 'seriesnumber']
+        normtemplatename = df1.loc[dbnum, 'normtemplatename']
+        niiname = os.path.join(dbhome, fname)
+        fullpath, filename = os.path.split(niiname)
+        # prefix_niiname = os.path.join(fullpath,self.prefix+filename)
+        tag = '_s' + str(seriesnumber)
+        normdataname_full = os.path.join(fullpath, normdatasavename + tag + '.npy')
+
+        input_data = i3d.load_and_scale_nifti(niiname)
+        print('shape of input_data is ',np.shape(input_data))
+        print('niiname = ', niiname)
+        if np.ndim(input_data) == 4:
+            xs,ys,zs,ts = np.shape(input_data)
+            xmid = np.round(xs/2).astype(int)
+            img = input_data[xmid,:,:,0]
+            img = (255.*img/np.max(img)).astype(int)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(img))
+            input_image = input_data[:,:,:,3]
+        else:
+            xs,ys,zs = np.shape(input_data)
+            xmid = np.round(xs/2).astype(int)
+            img = input_data[xmid,:,:]
+            img = (255.*img/np.max(img)).astype(int)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(img))
+            input_image = input_data
+        self.controller.img1d = image_tk  # keep a copy so it persists
+        self.window1.configure(width=image_tk.width(), height=image_tk.height())
+        self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+        time.sleep(0.5)
+        #-----------end of display--------------------------------
+
+        # tweak the normalization results for consistency
+
+        nsections = len(self.NCresult_copy)
+        adjusted_sections = []
+        for nn in range(nsections):
+            angle1 = self.NCresult_copy[nn]['angle']
+            coords1 = self.NCresult_copy[nn]['coords']
+            angle2 = self.NCresult[nn]['angle']
+            coords2 = self.NCresult[nn]['coords']
+            v1 = angle1+coords1
+            v2 = angle2+coords2
+            changecheck = (np.abs(v1-v2) > 0.01).any()
+            if changecheck:
+                adjusted_sections.append(nn)
+        adjusted_sections = np.array(adjusted_sections)
+
+        result = copy.deepcopy(self.NCresult_copy)
+        new_result = pynormalization.align_override_sections(result, adjusted_sections, niiname, normtemplatename)
+        self.NCresult_copy = new_result
+
+        #-------get the modified normalization information -------------------------------------
+        self.NCresult = copy.deepcopy(self.NCresult_copy)  # lock in the changes
+        result = copy.deepcopy(self.NCresult)
+
+        T, warpdata, reverse_map_image, forward_map_image, new_result, imagerecord, displayrecord = pynormalization.py_load_modified_normalization(niiname, normtemplatename, result)
+        self.NCresult = new_result  # keep a copy
+
+        # over-write existing normalization data
+        normdata_original = np.load(normdataname_full, allow_pickle=True).flat[0]
+        Tfine = normdata_original['Tfine']
+        norm_image_fine = normdata_original['norm_image_fine']
+        # imagerecord = normdata_original['imagerecord']
+        template_affine = normdata_original['template_affine']
+
+        normdata = {'T': T, 'Tfine': Tfine, 'warpdata': warpdata, 'reverse_map_image': reverse_map_image,
+                    'norm_image_fine': norm_image_fine, 'template_affine': template_affine, 'imagerecord': imagerecord,
+                    'result': result}
+        np.save(normdataname_full, normdata)
+        print('normalization data saved in ', normdataname_full)
+
+
+        # display results-----------------------------------------------------
+        nfordisplay = len(imagerecord)
+        for nf in range(nfordisplay):
+            img1 = imagerecord[nf]['img']
+            img1 = (255. * img1 / np.max(img1)).astype(int)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(img1))
+            self.controller.img1d = image_tk
+            self.window1.configure(width=image_tk.width(), height=image_tk.height())
+            self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+            time.sleep(1)
+
+        nfordisplay = len(result)
+        for nf in range(nfordisplay):
+            # draw the rectangular regions for each section
+            p0, p1, p2, p3, coords, angle, sectionsize, smallestside = self.outline_section(nf)
+            self.window1.create_line(p0[0], p0[1], p1[0], p1[1], p2[0], p2[1], p3[0], p3[1], p0[0], p0[1],
+                                     fill='yellow', width=2)
+
+        self.window1.create_text(np.round(image_tk.width() / 2), image_tk.height() - 5,
+                                 text='template sections mapped onto image', fill='white')
+
+        display_image = imagerecord[0]['img']
+        display_image = (255. * display_image / np.max(display_image)).astype(int)
+        image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+        # show normalization result instead
+        xs, ys, zs = np.shape(reverse_map_image)
+        xmid = np.round(xs / 2).astype(int)
+        display_image = reverse_map_image[xmid, :, :]
+        display_image = (255. * display_image / np.max(display_image)).astype(int)
+        image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+
+        self.controller.img2d = image_tk  # keep a copy so it persists
+        self.window2.configure(width=image_tk.width(), height=image_tk.height())
+        self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+        self.window2.create_text(np.round(image_tk.width() / 2), image_tk.height() - 5, text='normalization result',
+                                 fill='white')
 
         
 #--------------------Image Pre-Processing FRAME---------------------------------------------------------------
