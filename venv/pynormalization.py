@@ -1533,16 +1533,18 @@ def align_override_sections(normalization_results, adjusted_sections, niiname, n
     delta_angley = np.zeros(ncordsegments)
     delta_coords = np.zeros((ncordsegments,3))
     weighting = np.ones(ncordsegments)
-    weighting[adjusted_sections - ninitial_fixed_segments] = 3.0  # give more weighting to keeping the adjust sections where they were put to
+    weighting[adjusted_sections - ninitial_fixed_segments] = 10.0  # give more weighting to keeping the adjust sections where they were put to
 
-    deltav = 1.0e-2
-    alpha = 1.0e-3
+    deltav = 1.0e-1
+    alpha = 1.0e-1
     total_cost, dist = align_cost(normalization_results, section_defs, ninitial_fixed_segments, coords, angle, angley, delta_coords, delta_angle, delta_angley, weighting)
 
-    nitermax = 250
-    tol = 1.0e-2
+    nitermax = 5000
+    tol = 1.0e-4
     delta_cost = total_cost
     cost_record = [total_cost]
+    descent_record = []
+    print('pynormalization:  aligning sections for consistency ...')
     nn=0
     while (nn < nitermax) & (delta_cost > tol):
         total_cost, dist = align_cost(normalization_results, section_defs, ninitial_fixed_segments, coords, angle, angley, delta_coords, delta_angle, delta_angley, weighting)
@@ -1554,12 +1556,19 @@ def align_override_sections(normalization_results, adjusted_sections, niiname, n
         new_total_cost, dist = align_cost(normalization_results, section_defs, ninitial_fixed_segments, coords, angle, angley, delta_coords, delta_angle, delta_angley, weighting)
         cost_record.append(new_total_cost)
         delta_cost = total_cost - new_total_cost
-        nn+=1
+        entry = {'delta_coords':delta_coords, 'delta_angle':delta_angle, 'delta_angley':delta_angley, 'iteration':nn, 'delta_cost':delta_cost}
+        descent_record.append(entry)
+        print('iteration {}: cost = {} '.format(nn,new_total_cost))
+        nn += 1
 
     for ss in range(ncordsegments):
         normalization_results[ss + ninitial_fixed_segments]['angle'] = angle[ss] + delta_angle[ss]
         normalization_results[ss + ninitial_fixed_segments]['angley'] = angley[ss] + delta_angley[ss]
         normalization_results[ss + ninitial_fixed_segments]['coords'] = coords[ss,:] + delta_coords[ss,:]
+
+    wdir = os.path.dirname(os.path.realpath(__file__))
+    debugrecordname = os.path.join(wdir,'debug_mano_data_check.npy')
+    np.save(debugrecordname, descent_record)
 
     return normalization_results
 
@@ -1591,7 +1600,7 @@ def align_cost(normalization_results, section_defs, ninitial_fixed_segments, coo
 
     dist = np.linalg.norm(np.array(fixedrecord1[1:][:]) - np.array(fixedrecord2[:-1][:]),axis=1)
     offset = np.linalg.norm(delta_coords,axis=1)
-    total_cost = np.sum(weighting*offset) + np.sum(np.abs(dist-0.5))
+    total_cost = 1.0e-3*np.sum(weighting*offset) + np.sum(np.abs(dist-0.5))
 
     return total_cost, dist
 
@@ -1697,7 +1706,7 @@ def py_load_modified_normalization(niiname, normtemplatename, new_result):   # ,
         warpdata[ss]['Yt'] = new_result[ss]['section_mapping_coords']['Yt']
         warpdata[ss]['Zt'] = new_result[ss]['section_mapping_coords']['Zt']
 
-        print('finished compiling results for section ',ss, ' ...')
+        # print('finished compiling results for section ',ss, ' ...')
 
         results_img = py_display_sections_local(template, background2, warpdata[:(ss+ninitial_fixed_segments+1)])
         # display the result again
