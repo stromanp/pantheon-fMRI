@@ -730,7 +730,7 @@ class DBFrame:
         required_pd_sheets = ['dt','paradigm']
         sample_paradigm = list(zip(5*np.ones(12),[0,0,0,1,1,1,0,0,0,1,1,1]))
         df2 = pd.DataFrame(columns=required_pd_sheets, data=sample_paradigm)
-        with pd.ExcelWriter(settings['DBname'], mode='a') as writer:
+        with pd.ExcelWriter(settings['DBname'], engine="openpyxl", mode='a') as writer:
             df2.to_excel(writer, sheet_name='paradigm')
 
 
@@ -1644,7 +1644,7 @@ class NCFrame:
 
             # write it to the database by appending a sheet to the excel file
             # remove old version of datarecord first
-            with pd.ExcelWriter(self.NCdatabasename, mode='a') as writer:
+            with pd.ExcelWriter(self.NCdatabasename, engine="openpyxl", mode='a') as writer:
                 df1.to_excel(writer, sheet_name='datarecord')
 
             normdata = {'T':T, 'Tfine':Tfine, 'warpdata':warpdata, 'reverse_map_image':reverse_map_image, 'norm_image_fine':norm_image_fine, 'template_affine':template_affine, 'imagerecord':imagerecord, 'result':result}

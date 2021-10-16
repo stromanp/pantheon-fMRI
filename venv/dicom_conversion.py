@@ -199,8 +199,14 @@ def convert_dicom_folder(databasename, databasenumber, basename = 'Series'):
     df1.loc[databasenumber, 'niftiname'] = os.path.join(dicom_directory, niiname)
     # df1.to_excel(databasename, sheet_name='datarecord')
 
+    # need to delete the existing database sheet before writing the new one
+    workbook = openpyxl.load_workbook(databasename)
+    std = workbook.get_sheet_by_name('datarecord')
+    workbook.remove_sheet(std)
+    workbook.save(databasename)
+
     # write it to the database by appending a sheet to the excel file
-    with pd.ExcelWriter(databasename, mode='a') as writer:
+    with pd.ExcelWriter(databasename, engine="openpyxl", mode='a') as writer:
         df1.to_excel(writer, sheet_name='datarecord')
 
     return output_file
