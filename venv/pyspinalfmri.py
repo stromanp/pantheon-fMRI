@@ -1074,20 +1074,6 @@ class NCFrame:
         self.NCresult = []
         self.NCresult_copy = []
 
-        # display_window1, image_in_W1 = controller.get_display_window(1)
-        # self.display_window1 = display_window1
-        # self.image_in_W1 = image_in_W1
-        # print('handle of display_window1 is ',display_window1)
-        # print('image in window1:  ',image_in_W1)
-
-        # test_photo = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
-        # controller.photod1 = test_photo  # need to keep a copy so it is not cleared from memory
-        # self.display_window1.configure(width=test_photo.width(), height=test_photo.height())
-        # self.image_in_W1 = self.display_window1.create_image(0, 0, image=test_photo, anchor = tk.NW)
-
-        # self.window1 = controller.W1
-        # self.window2 = controller.W2
-
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         self.normdatasavename = settings['NCsavename']  # default prefix value
         self.fitparameters = settings['NCparameters'] #  [50,50,5,6,-10,20,-10,10]  # default prefix value
@@ -1286,7 +1272,7 @@ class NCFrame:
             region_selected = False
             closest_section = -1
             nearedge = False
-            print('region selected = ',region_selected)
+            # print('region selected = ',region_selected)
         else:
             region_selected = True
             if len(a) > 1:
@@ -1295,8 +1281,8 @@ class NCFrame:
                 a = a[ii]
             else:
                 a = a[0]
-            print('region selected = ',region_selected)
-            print('closest section is number ',a)
+            # print('region selected = ',region_selected)
+            # print('closest section is number ',a)
             closest_section = a
             nearedge = nearedge_record[a]
 
@@ -1305,7 +1291,7 @@ class NCFrame:
 
     def mouseleftclick(self,event):
         if self.NCmanomode == 'ON':
-            print('image window (x,y) = ({},{})'.format(event.x,event.y))
+            # print('image window (x,y) = ({},{})'.format(event.x,event.y))
             region_selected, closest_section, nearedge = self.findclosestsection(event.x,event.y)
 
             # if rough normalization results are shown, then indicate which region has been selected
@@ -1628,9 +1614,13 @@ class NCFrame:
             print('normalization data saved in ',normdataname_full)
 
             # display the resulting normalized image
-            xs, ys, zs = np.shape(norm_image_fine)
+            if np.ndim(norm_image_fine) >= 3:
+                norm_result_image = norm_image_fine
+            else:
+                norm_result_image = reverse_map_image
+            xs, ys, zs = np.shape(norm_result_image)
             xmid = np.round(xs / 2).astype(int)
-            img2 = norm_image_fine[xmid, :, :]
+            img2 = norm_result_image[xmid, :, :]
             img2[np.isnan(img2)] = 0.0
             img2[np.isinf(img2)] = 0.0
             img2 = (255. * img2 / np.max(img2)).astype(int)
@@ -1748,7 +1738,7 @@ class NCFrame:
             coords2 = self.NCresult[nn]['coords']
             v1 = angle1+coords1
             v2 = angle2+coords2
-            changecheck = (np.abs(v1-v2) > 0.01).any()
+            changecheck = (np.abs(v1-v2) > 0.01).any()  # if any values have changed, mark these as sections to keep where they are
             if changecheck:
                 adjusted_sections.append(nn)
         adjusted_sections = np.array(adjusted_sections)

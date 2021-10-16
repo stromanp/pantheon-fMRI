@@ -229,8 +229,8 @@ def py_calculate_section_positions(template, img, section_defs, angle_list, pos_
     p0 = np.round(np.array([xs, ys, zs]) / 2).astype('int')
     sa = (np.pi/180)*angle
     Xr = X
-    Yr = (Y - p0[1])*math.cos(sa) - (Zt - p0[2])*math.sin(sa) + p0[1]
-    Zr = (Z - p0[2])*math.cos(sa) + (Yt - p0[1])*math.sin(sa) + p0[2]
+    Yr = (Y - p0[1])*math.cos(sa) - (Z - p0[2])*math.sin(sa) + p0[1]
+    Zr = (Z - p0[2])*math.cos(sa) + (Y - p0[1])*math.sin(sa) + p0[2]
 
     sa = (np.pi/180)*angley
     Xrr = (Xr - p0[0])*math.cos(sa) - (Zr - p0[2])*math.sin(sa) + p0[0]
@@ -998,7 +998,7 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
             midline[aa] = result[aa]['coords'][0]
         midline = np.round(np.mean(midline)).astype('int')
 
-        results_img = py_display_sections_local(template, background2, warpdata[:(ss+ninitial_fixed_segments+1)])
+        results_img = py_display_sections_local(template, background2, warpdata[:(ss+ninitial_fixed_segments)])
         # display the result again
         # need to figure out how to control which figure is used for display  - come back to this ....
         display_image = results_img[midline, :, :]
@@ -1493,7 +1493,7 @@ def run_rough_normalization_calculations(niiname, normtemplatename, template_img
 
     # rough normalization
     T, warpdata, reverse_map_image, forward_map_image, displayrecord, imagerecord, resultsplot, result = py_auto_cord_normalize(input_image, template_img,
-                    fit_parameters, section_defs, ninitial_fixed_segments, reverse_order, display_output = True)  # , display_window, display_image1, display_window2, display_image2
+                    fit_parameters, section_defs, ninitial_fixed_segments, reverse_order, display_output = False)  # , display_window, display_image1, display_window2, display_image2
     # fine-tune the normalization
     # Tfine, norm_image_fine = normcalc.py_norm_fine_tuning(input_datar, template_img, T)
     return T, warpdata, reverse_map_image, displayrecord, imagerecord, resultsplot, result
@@ -1698,6 +1698,13 @@ def py_load_modified_normalization(niiname, normtemplatename, new_result):   # ,
         # new_result[ss]['template_section'] = template_section    # does not need to be updated
         new_result[ss]['section_mapping_coords'] = section_mapping_coords
 
+        # check values
+        print('section {}  coords = {}'.format(ss,coords))
+        xx = np.mean(new_result[ss]['section_mapping_coords']['X'])
+        yy = np.mean(new_result[ss]['section_mapping_coords']['Y'])
+        zz = np.mean(new_result[ss]['section_mapping_coords']['Z'])
+        print('          X,Y,Z midpoints = {}'.format((xx,yy,zz)))
+
         # save another copy, for convenience later
         warpdata[ss]['X'] = new_result[ss]['section_mapping_coords']['X']
         warpdata[ss]['Y'] = new_result[ss]['section_mapping_coords']['Y']
@@ -1708,7 +1715,13 @@ def py_load_modified_normalization(niiname, normtemplatename, new_result):   # ,
 
         # print('finished compiling results for section ',ss, ' ...')
 
-        results_img = py_display_sections_local(template, background2, warpdata[:(ss+ninitial_fixed_segments+1)])
+        print('py_load_modified_normalization: ninitial_fixed_segments = ',ninitial_fixed_segments)
+        print('py_load_modified_normalization: ss = ',ss)
+        print('py_load_modified_normalization: size of warpdata = ',np.shape(warpdata))
+
+        # results_img = py_display_sections_local(template, background2, warpdata[:(ss+ninitial_fixed_segments+1)])
+        results_img = py_display_sections_local(template, background2, warpdata[:ss])
+
         # display the result again
         # need to figure out how to control which figure is used for display  - come back to this ....
         display_image = results_img[midline, :, :]
@@ -1782,8 +1795,16 @@ def py_modify_section_positions(template, img, section_defs, coords, angle, angl
     p0 = np.round(np.array([xs, ys, zs]) / 2).astype('int')
     Mx = rotation_matrix(angle, axis=0)
     My = rotation_matrix(angley, axis=1)
-    Mtotal = np.dot(Mx,My)
+    Mtotal = np.dot(My,Mx)
     coordsR = np.dot((coords - p0),Mtotal) + p0
+
+    # rotate from image coordinates:
+    # coordsR = input_coords
+    # p0 = np.round(np.array([xs, ys, zs]) / 2).astype('int')
+    # Mx = rotation_matrix(-angle, axis=0)
+    # My = rotation_matrix(-angley, axis=1)
+    # Mtotal = np.dot(My,Mx)
+    # coords = np.dot((coordsR - p0),Mtotal) + p0
 
     # get the coordinates for the image, where the template section maps to
     # first, get the coordinates in the rotated template
@@ -1799,8 +1820,8 @@ def py_modify_section_positions(template, img, section_defs, coords, angle, angl
     p0 = np.round(np.array([xs, ys, zs]) / 2).astype('int')
     sa = (np.pi/180)*angle
     Xr = X
-    Yr = (Y - p0[1])*math.cos(sa) - (Zt - p0[2])*math.sin(sa) + p0[1]
-    Zr = (Z - p0[2])*math.cos(sa) + (Yt - p0[1])*math.sin(sa) + p0[2]
+    Yr = (Y - p0[1])*math.cos(sa) - (Z - p0[2])*math.sin(sa) + p0[1]
+    Zr = (Z - p0[2])*math.cos(sa) + (Y - p0[1])*math.sin(sa) + p0[2]
 
     sa = (np.pi/180)*angley
     Xrr = (Xr - p0[0])*math.cos(sa) - (Zr - p0[2])*math.sin(sa) + p0[0]
@@ -1817,14 +1838,15 @@ def py_modify_section_positions(template, img, section_defs, coords, angle, angl
     Ytr = (Yt - ypos)*math.cos(sa) - (Zt - zpos) * math.sin(sa) + ypos
     Ztr = (Zt - zpos) * math.cos(sa) + (Yt - ypos) * math.sin(sa) + zpos
 
-    sa = (np.pi/180)*(angley)
-    Xtrr = (Xtr - xpos)*math.cos(sa) - (Ztr - zpos)*math.sin(sa) + xpos
-    Ytrr = Ytr
-    Ztrr = (Ztr - zpos)*math.cos(sa) + (Xtr - xpos)*math.sin(sa) + zpos
-
-    Xtr = Xtrr
-    Ytr = Ytrr
-    Ztr = Ztrr
+    # is this necessary?
+    # sa = (np.pi/180)*(angley)
+    # Xtrr = (Xtr - xpos)*math.cos(sa) - (Ztr - zpos)*math.sin(sa) + xpos
+    # Ytrr = Ytr
+    # Ztrr = (Ztr - zpos)*math.cos(sa) + (Xtr - xpos)*math.sin(sa) + zpos
+    #
+    # Xtr = Xtrr
+    # Ytr = Ytrr
+    # Ztr = Ztrr
 
     # make sure coordinates are within limits
     Xtr = np.where(Xtr < 0, 0, Xtr)
