@@ -49,6 +49,7 @@ import py_fmristats
 import configparser as cp
 import pyclustering
 from scipy import stats
+from scipy import ndimage
 import pydisplay
 import pysem
 # import scipy
@@ -1074,20 +1075,6 @@ class NCFrame:
         self.NCresult = []
         self.NCresult_copy = []
 
-        # display_window1, image_in_W1 = controller.get_display_window(1)
-        # self.display_window1 = display_window1
-        # self.image_in_W1 = image_in_W1
-        # print('handle of display_window1 is ',display_window1)
-        # print('image in window1:  ',image_in_W1)
-
-        # test_photo = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
-        # controller.photod1 = test_photo  # need to keep a copy so it is not cleared from memory
-        # self.display_window1.configure(width=test_photo.width(), height=test_photo.height())
-        # self.image_in_W1 = self.display_window1.create_image(0, 0, image=test_photo, anchor = tk.NW)
-
-        # self.window1 = controller.W1
-        # self.window2 = controller.W2
-
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         self.normdatasavename = settings['NCsavename']  # default prefix value
         self.fitparameters = settings['NCparameters'] #  [50,50,5,6,-10,20,-10,10]  # default prefix value
@@ -1286,7 +1273,7 @@ class NCFrame:
             region_selected = False
             closest_section = -1
             nearedge = False
-            print('region selected = ',region_selected)
+            # print('region selected = ',region_selected)
         else:
             region_selected = True
             if len(a) > 1:
@@ -1295,8 +1282,8 @@ class NCFrame:
                 a = a[ii]
             else:
                 a = a[0]
-            print('region selected = ',region_selected)
-            print('closest section is number ',a)
+            # print('region selected = ',region_selected)
+            # print('closest section is number ',a)
             closest_section = a
             nearedge = nearedge_record[a]
 
@@ -1305,7 +1292,7 @@ class NCFrame:
 
     def mouseleftclick(self,event):
         if self.NCmanomode == 'ON':
-            print('image window (x,y) = ({},{})'.format(event.x,event.y))
+            # print('image window (x,y) = ({},{})'.format(event.x,event.y))
             region_selected, closest_section, nearedge = self.findclosestsection(event.x,event.y)
 
             # if rough normalization results are shown, then indicate which region has been selected
@@ -1486,6 +1473,13 @@ class NCFrame:
         self.controller.img1d = image_tk  # keep a copy so it persists
         self.window1.configure(width=image_tk.width(), height=image_tk.height())
         self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+        inprogressfile = os.path.join(basedir, 'underconstruction.gif')
+        image_tk = tk.Image('photo', file=inprogressfile)
+        self.controller.img2d = image_tk  # keep a copy so it persists
+        self.window2.configure(width=image_tk.width(), height=image_tk.height())
+        self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
         time.sleep(0.5)
         #-----------end of display--------------------------------
 
@@ -1508,7 +1502,8 @@ class NCFrame:
             normdataname_full  = os.path.join(fullpath,normdatasavename+tag+'.npy')
 
             resolution = 1
-            template_img, regionmap_img, template_affine, anatlabels = load_templates.load_template(normtemplatename, resolution)
+            # template_img, regionmap_img, template_affine, anatlabels = load_templates.load_template(normtemplatename, resolution)
+            template_img, regionmap_img, template_affine, anatlabels, wmmap_img, roi_map, gmwm_img = load_templates.load_template_and_masks(normtemplatename, resolution)
             # still need to write the resulting normdata file name to the database excel file
 
             # run the rough normalization
@@ -1600,14 +1595,43 @@ class NCFrame:
             # run the normalization fine-tuning
             print('self.finetune = ', self.finetune)
             if self.finetune == 1:
+                inprogressfile = os.path.join(basedir, 'underconstruction.gif')
+                image_tk = tk.Image('photo', file=inprogressfile)
+                self.controller.img2d = image_tk  # keep a copy so it persists
+                self.window2.configure(width=image_tk.width(), height=image_tk.height())
+                self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
                 Tfine, norm_image_fine = pynormalization.py_norm_fine_tuning(reverse_map_image, template_img, T, input_type = 'normalized')
+
+            # check the quality of the resulting normalization
+            if np.ndim(norm_image_fine) >= 3:
+                norm_result_image = norm_image_fine
+            else:
+                norm_result_image = reverse_map_image
+            norm_result_image[np.isnan(norm_result_image)] = 0.0
+            norm_result_image[np.isinf(norm_result_image)] = 0.0
+            # dilate the roi_map
+            dstruct = ndimage.generate_binary_structure(3, 3)
+            roi_map2 = ndimage.binary_dilation(roi_map, structure=dstruct).astype(roi_map.dtype)
+            cx,cy,cz = np.where(roi_map2)
+            vimg = norm_result_image[cx,cy,cz]
+            vtemp = template_img[cx,cy,cz]
+            Q = np.corrcoef(vimg,vtemp)
+            print('normalization quality (correlation with template) = {}'.format(Q[0,1]))
 
             # now write the new database values
             xls = pd.ExcelFile(self.NCdatabasename, engine = 'openpyxl')
             df1 = pd.read_excel(xls, 'datarecord')
-            df1.pop('Unnamed: 0')   # remove this blank field from the beginning
+            keylist = df1.keys()
+            for kname in keylist:
+                if 'Unnamed' in kname: df1.pop(kname)  # remove blank fields from the database
+            # df1.pop('Unnamed: 0')
             normdataname_small = normdataname_full.replace(dbhome, '')  # need to strip off dbhome before writing the name
             df1.loc[dbnum.astype('int'), 'normdataname'] = normdataname_small[1:]
+
+            # add normalization quality to database
+            if 'norm_quality' not in keylist:
+                df1['norm_quality'] = 0
+            df1.loc[dbnum.astype('int'), 'norm_quality'] = Q[0,1]
 
             # need to delete the existing sheet before writing the new version
             existing_sheet_names = xls.sheet_names
@@ -1628,11 +1652,9 @@ class NCFrame:
             print('normalization data saved in ',normdataname_full)
 
             # display the resulting normalized image
-            xs, ys, zs = np.shape(norm_image_fine)
+            xs, ys, zs = np.shape(norm_result_image)
             xmid = np.round(xs / 2).astype(int)
-            img2 = norm_image_fine[xmid, :, :]
-            img2[np.isnan(img2)] = 0.0
-            img2[np.isinf(img2)] = 0.0
+            img2 = norm_result_image[xmid, :, :]
             img2 = (255. * img2 / np.max(img2)).astype(int)
             image_tk = ImageTk.PhotoImage(Image.fromarray(img2))
             self.controller.img2d = image_tk  # keep a copy so it persists
@@ -1748,7 +1770,7 @@ class NCFrame:
             coords2 = self.NCresult[nn]['coords']
             v1 = angle1+coords1
             v2 = angle2+coords2
-            changecheck = (np.abs(v1-v2) > 0.01).any()
+            changecheck = (np.abs(v1-v2) > 0.01).any()  # if any values have changed, mark these as sections to keep where they are
             if changecheck:
                 adjusted_sections.append(nn)
         adjusted_sections = np.array(adjusted_sections)
