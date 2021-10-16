@@ -814,8 +814,8 @@ class DBFrame:
         entered_text = re.sub('\ +',',',entered_text)
         entered_text = re.sub('\,\,+',',',entered_text)
         # remove any leading or trailing commas
-        if entered_text[0] is ',': entered_text = entered_text[1:]
-        if entered_text[-1] is ',': entered_text = entered_text[:-1]
+        if entered_text[0] == ',': entered_text = entered_text[1:]
+        if entered_text[-1] == ',': entered_text = entered_text[:-1]
         
         self.DBnumsave_text = entered_text
         
@@ -1103,9 +1103,13 @@ class NCFrame:
         # initialize some values
         self.NCdatabasename = settings['DBname']
         self.NCdbnum = settings['DBnum']
-        xls = pd.ExcelFile(self.NCdatabasename, engine = 'openpyxl')
-        df1 = pd.read_excel(xls, 'datarecord')
-        self.normtemplatename = df1.loc[self.NCdbnum[0], 'normtemplatename']
+
+        if os.path.isfile(self.NCdatabasename):
+            xls = pd.ExcelFile(self.NCdatabasename, engine = 'openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
+            self.normtemplatename = df1.loc[self.NCdbnum[0], 'normtemplatename']
+        else:
+            self.normtemplatename = 'notdefined'
 
         self.NCtemplatelabel = tk.Label(self.parent, text = 'Normalizing region: '+self.normtemplatename, fg = 'gray')
         self.NCtemplatelabel.grid(row=0,column=2, sticky='W')
@@ -4140,8 +4144,8 @@ def main():
     # original that only works on PCs
     # tk.Tk.iconbitmap(root, default='lablogoicon.ico')
 
-    # try this (?)
-    img = tk.Image('photo', file='lablogoicon.gif')
+    logofile = os.path.join(basedir, 'lablogo.gif')
+    img = tk.Image('photo', file=logofile)
     # root.iconphoto(True, img) # you may also want to try this.
     root.tk.call('wm', 'iconphoto', root._w, img)
 
