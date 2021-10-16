@@ -145,11 +145,9 @@ def move_files_and_update_database(databasename, dbhome, pname):
                 # move the dicom file to the new location
                 shutil.move(dicomname, newdicomname)
 
-
             # write it to the database by appending a sheet to the excel file
-            with pd.ExcelWriter(databasename, mode='a') as writer:
+            with pd.ExcelWriter(databasename, engine="openpyxl", mode='a') as writer:
                 df1.to_excel(writer, sheet_name='datarecord')
-
 
 
 def convert_dicom_folder(databasename, databasenumber, basename = 'Series'):
