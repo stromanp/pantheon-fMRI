@@ -14,7 +14,7 @@ import numpy
 import pandas as pd
 import shutil  
 import dicom2nifti
-
+import openpyxl
 
 # move files into subfolders if wanted
 # update database file if files moved, if wanted
@@ -57,8 +57,6 @@ def get_database_numbers(databasename, dbhome, pname, seriesnumber = 0):
 
 def move_files_and_update_database(databasename, dbhome, pname):
     # find all of the files in a dataset directory
-    # get rid of the annoying double \
-    #pname = pname.replace(r'\\\\',r'\\')
 
     # BASEdir = os.path.dirname(databasename)
     pname_sub = pname.replace(dbhome,'')
@@ -67,22 +65,36 @@ def move_files_and_update_database(databasename, dbhome, pname):
     DICOMlistfull = []  # create an empty list
     seriesnumberlist = []
     DICOMextension = '.ima'
-    for dirName, subdirList, fileList in os.walk(pname):
-        for filename in fileList:
-            if DICOMextension in filename.lower():  # check whether the file is DICOM
-                singlefile = os.path.join(dirName,filename)
-                DICOMlistfull.append(singlefile)
-                ds = pydicom.dcmread(singlefile)
-                seriesnumberlist.append(ds.SeriesNumber)
+
+    # original method - not good if folder has already been organized
+    # for dirName, subdirList, fileList in os.walk(pname):
+    #     for filename in fileList:
+    #         if DICOMextension in filename.lower():  # check whether the file is DICOM
+    #             singlefile = os.path.join(dirName,filename)
+    #             DICOMlistfull.append(singlefile)
+    #             ds = pydicom.dcmread(singlefile)
+    #             seriesnumberlist.append(ds.SeriesNumber)
+
+    for filename in os.listdir(pname):
+        if DICOMextension in filename.lower():  # check whether the file is DICOM
+            fullname = os.path.join(pname,filename)
+            DICOMlistfull.append(fullname)
+            ds = pydicom.dcmread(fullname)
+            seriesnumberlist.append(ds.SeriesNumber)
+
     x = numpy.array(seriesnumberlist)
     serieslist = numpy.unique(x)
+    print('serieslist = ', serieslist)
     
     if len(serieslist) > 1:   # don't do anything if the directory contains a single series
         # find all entries in the database matching pname
         # and list the series numbers for these entries
         xls = pd.ExcelFile(databasename, engine = 'openpyxl')
         df1 = pd.read_excel(xls, 'datarecord')
-        df1.pop('Unnamed: 0')   # remove this blank field from the beginning
+        keylist = df1.keys()
+        for kname in keylist:
+            if 'Unnamed' in kname:
+                df1.pop(kname)   # remove this blank field from the beginning
         
         # to write an excel file:    df.to_excel(outputname)
         for snum in serieslist:
@@ -97,7 +109,11 @@ def move_files_and_update_database(databasename, dbhome, pname):
             
             # check if the subfolder needs to be created
             subfolder = 'Series{number}'.format(number=snum)
-            subfolderpath = os.path.join(pname_sub,subfolder)
+            check = pname_sub.find(subfolder)
+            if check == -1:
+                subfolderpath = os.path.join(pname_sub,subfolder)
+            else:
+                subfolderpath = subfolder  # don't add another layer if the subfolder already exists
             
             # create the new sub-folder
             # move the dicom files to the new folder
@@ -121,12 +137,13 @@ def move_files_and_update_database(databasename, dbhome, pname):
                     if os.path.isfile(niftinamefull):
                         shutil.move(niftinamefull, newniftinamefull)
                     df1.loc[dbindex[0], 'niftiname'] = newniftiname
+                    print('{}  updating niftiname to {}'.format(dbindex[0],newniftiname))
                     
                 # normdataname  needs to be changed next, if it has been set already
                 normname = df1.loc[dbindex[0], 'normdataname']
                 nameparts = os.path.split(normname)
                 nameparts2 = os.path.splitext(nameparts[1])
-                normext = '.mat'  # this will probably need to be updated-----------------------------------------------------------
+                normext = '.npy'  # this will probably need to be updated-----------------------------------------------------------
                 if nameparts2[1] == normext:   # if a normdataname has already been specified, then deal with it, otherwise do nothing
                     newnormname = os.path.join(nameparts[0], subfolder, nameparts[1])
                     normnamefull = os.path.join(dbhome,normname)
@@ -135,9 +152,11 @@ def move_files_and_update_database(databasename, dbhome, pname):
                     if os.path.isfile(normnamefull):
                         shutil.move(normnamefull, newnormnamefull)
                     df1.loc[dbindex[0], 'normdataname'] = newnormname
+                    print('{}  updating normdataname to {}'.format(dbindex[0],newnormname))
                       
                 # now replace the pname for the data, with the new name
                 df1.loc[dbindex[0], 'pname'] = subfolderpath
+                print('{}  updating pname to {}'.format(dbindex[0],subfolderpath))
             
             for dicomname in list_of_dicom_files:
                 nameparts = os.path.split(dicomname)
@@ -145,9 +164,15 @@ def move_files_and_update_database(databasename, dbhome, pname):
                 # move the dicom file to the new location
                 shutil.move(dicomname, newdicomname)
 
-            # write it to the database by appending a sheet to the excel file
-            with pd.ExcelWriter(databasename, engine="openpyxl", mode='a') as writer:
-                df1.to_excel(writer, sheet_name='datarecord')
+        # need to delete the existing database sheet before writing the new one
+        workbook = openpyxl.load_workbook(databasename)
+        std = workbook.get_sheet_by_name('datarecord')
+        workbook.remove_sheet(std)
+        workbook.save(databasename)
+
+        # write it to the database by appending a sheet to the excel file
+        with pd.ExcelWriter(databasename, engine="openpyxl", mode='a') as writer:
+            df1.to_excel(writer, sheet_name='datarecord')
 
 
 def convert_dicom_folder(databasename, databasenumber, basename = 'Series'):
@@ -162,6 +187,9 @@ def convert_dicom_folder(databasename, databasenumber, basename = 'Series'):
     
     output_file = os.path.join(dbhome, dicom_directory, niiname)
     dicom_directory_full = os.path.join(dbhome, dicom_directory)
+
+    print('output_file = ',output_file)
+    print('dicom_directory_full = ',dicom_directory_full)
     
     # still need to check the orientation for both BS/SC data and brain data
     dicom2nifti.dicom_series_to_nifti(dicom_directory_full, output_file, reorient_nifti=True)
