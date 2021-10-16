@@ -843,7 +843,7 @@ class DBFrame:
             entered_text = new_text
             m = re.search(r'\d*:\d*', entered_text)
             
-        entered_values = np.fromstring( entered_text, dtype=np.int, sep=',')
+        entered_values = np.fromstring( entered_text, dtype=int, sep=',')
 
         # check upper limit
         entered_values = entered_values[entered_values <= dbnum_max]
