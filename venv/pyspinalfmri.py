@@ -49,6 +49,7 @@ import py_fmristats
 import configparser as cp
 import pyclustering
 from scipy import stats
+from scipy import ndimage
 import pydisplay
 import pysem
 # import scipy
@@ -1472,6 +1473,13 @@ class NCFrame:
         self.controller.img1d = image_tk  # keep a copy so it persists
         self.window1.configure(width=image_tk.width(), height=image_tk.height())
         self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+        inprogressfile = os.path.join(basedir, 'underconstruction.gif')
+        image_tk = tk.Image('photo', file=inprogressfile)
+        self.controller.img2d = image_tk  # keep a copy so it persists
+        self.window2.configure(width=image_tk.width(), height=image_tk.height())
+        self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
         time.sleep(0.5)
         #-----------end of display--------------------------------
 
@@ -1494,7 +1502,8 @@ class NCFrame:
             normdataname_full  = os.path.join(fullpath,normdatasavename+tag+'.npy')
 
             resolution = 1
-            template_img, regionmap_img, template_affine, anatlabels = load_templates.load_template(normtemplatename, resolution)
+            # template_img, regionmap_img, template_affine, anatlabels = load_templates.load_template(normtemplatename, resolution)
+            template_img, regionmap_img, template_affine, anatlabels, wmmap_img, roi_map, gmwm_img = load_templates.load_template_and_masks(normtemplatename, resolution)
             # still need to write the resulting normdata file name to the database excel file
 
             # run the rough normalization
@@ -1586,14 +1595,43 @@ class NCFrame:
             # run the normalization fine-tuning
             print('self.finetune = ', self.finetune)
             if self.finetune == 1:
+                inprogressfile = os.path.join(basedir, 'underconstruction.gif')
+                image_tk = tk.Image('photo', file=inprogressfile)
+                self.controller.img2d = image_tk  # keep a copy so it persists
+                self.window2.configure(width=image_tk.width(), height=image_tk.height())
+                self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
                 Tfine, norm_image_fine = pynormalization.py_norm_fine_tuning(reverse_map_image, template_img, T, input_type = 'normalized')
+
+            # check the quality of the resulting normalization
+            if np.ndim(norm_image_fine) >= 3:
+                norm_result_image = norm_image_fine
+            else:
+                norm_result_image = reverse_map_image
+            norm_result_image[np.isnan(norm_result_image)] = 0.0
+            norm_result_image[np.isinf(norm_result_image)] = 0.0
+            # dilate the roi_map
+            dstruct = ndimage.generate_binary_structure(3, 3)
+            roi_map2 = ndimage.binary_dilation(roi_map, structure=dstruct).astype(roi_map.dtype)
+            cx,cy,cz = np.where(roi_map2)
+            vimg = norm_result_image[cx,cy,cz]
+            vtemp = template_img[cx,cy,cz]
+            Q = np.corrcoef(vimg,vtemp)
+            print('normalization quality (correlation with template) = {}'.format(Q[0,1]))
 
             # now write the new database values
             xls = pd.ExcelFile(self.NCdatabasename, engine = 'openpyxl')
             df1 = pd.read_excel(xls, 'datarecord')
-            df1.pop('Unnamed: 0')   # remove this blank field from the beginning
+            keylist = df1.keys()
+            for kname in keylist:
+                if 'Unnamed' in kname: df1.pop(kname)  # remove blank fields from the database
+            # df1.pop('Unnamed: 0')
             normdataname_small = normdataname_full.replace(dbhome, '')  # need to strip off dbhome before writing the name
             df1.loc[dbnum.astype('int'), 'normdataname'] = normdataname_small[1:]
+
+            # add normalization quality to database
+            if 'norm_quality' not in keylist:
+                df1['norm_quality'] = 0
+            df1.loc[dbnum.astype('int'), 'norm_quality'] = Q[0,1]
 
             # need to delete the existing sheet before writing the new version
             existing_sheet_names = xls.sheet_names
@@ -1614,15 +1652,9 @@ class NCFrame:
             print('normalization data saved in ',normdataname_full)
 
             # display the resulting normalized image
-            if np.ndim(norm_image_fine) >= 3:
-                norm_result_image = norm_image_fine
-            else:
-                norm_result_image = reverse_map_image
             xs, ys, zs = np.shape(norm_result_image)
             xmid = np.round(xs / 2).astype(int)
             img2 = norm_result_image[xmid, :, :]
-            img2[np.isnan(img2)] = 0.0
-            img2[np.isinf(img2)] = 0.0
             img2 = (255. * img2 / np.max(img2)).astype(int)
             image_tk = ImageTk.PhotoImage(Image.fromarray(img2))
             self.controller.img2d = image_tk  # keep a copy so it persists
