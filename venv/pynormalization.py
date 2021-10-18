@@ -264,16 +264,17 @@ def py_calculate_section_positions(template, img, section_defs, angle_list, pos_
     Ztr = np.where(Ztr < 0, 0, Ztr)
     Ztr = np.where(Ztr >= zt, zt-1, Ztr)
 
-    Xr = np.where(Xr < 0, 0, Xr)
-    Xr = np.where(Xr >= xs, xs - 1, Xr)
-    Yr = np.where(Yr < 0, 0, Yr)
-    Yr = np.where(Yr >= ys, ys - 1, Yr)
-    Zr = np.where(Zr < 0, 0, Zr)
-    Zr = np.where(Zr >= zs, zs - 1, Zr)
+    # use these limits because values will be rounded when used
+    Xr = np.where(Xr <= -0.5, 0, Xr)
+    Xr = np.where(Xr >= xs-0.5, xs - 1, Xr)
+    Yr = np.where(Yr <= -0.5, 0, Yr)
+    Yr = np.where(Yr >= ys-0.5, ys - 1, Yr)
+    Zr = np.where(Zr <= -0.5, 0, Zr)
+    Zr = np.where(Zr >= zs-0.5, zs - 1, Zr)
 
     # extract the template and corresponding image sections - for checking on the results
     template_section_check = template[Xtr.astype('int'),Ytr.astype('int'),Ztr.astype('int')]    # check on this, see if it converted properly from matlab
-    original_section = img[Xr.astype('int'),Yr.astype('int'),Zr.astype('int')]
+    original_section = img[np.round(Xr).astype('int'),np.round(Yr).astype('int'),np.round(Zr).astype('int')]
 
     # organize the outputs
     section_mapping_coords = {'X':Xr,'Y':Yr,'Z':Zr,'Xt':Xtr,'Yt':Ytr,'Zt':Ztr}
