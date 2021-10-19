@@ -500,13 +500,13 @@ class OptionsFrame:
 
         # button for selecting and running the group-level analysis steps
         self.imgdisplay = tk.Button(self.parent, text = 'Display', width = smallbuttonsize, bg = fgcol1, fg = 'white', font = "none 9 bold", command = lambda: self.options_show_frame('IMGDispFrame', 'imgdisplay'), relief='raised', bd = 5)
-        self.imgdisplay.grid(row = 7, column = 0)
+        self.imgdisplay.grid(row = 8, column = 0)
         self.buttons['imgdisplay'] = self.imgdisplay
         
         # define a button to exit the GUI
         # also, define the function for what to do when this button is pressed
         self.exit_button = tk.Button(self.parent, text = 'Exit', width = smallbuttonsize, bg = 'grey80', fg = 'black', font = "none 9 bold", command = self.close_window, relief='sunken', bd = 5)
-        self.exit_button.grid(row = 8, column = 0)
+        self.exit_button.grid(row = 9, column = 0)
 
         # exit function
     def close_window(self):
@@ -3856,6 +3856,7 @@ class GRPFrame:
         datafile2 = settings['GRPresultsname2']
         datafiletype1 = settings['GRPdatafiletype1']
         datafiletype2 = settings['GRPdatafiletype2']
+        GRPcharacteristicslist = settings['GRPcharacteristicslist']
         GRPcharacteristicsvalues = settings['GRPcharacteristicsvalues']
         GRPcharacteristicsvalues2 = settings['GRPcharacteristicsvalues2']
         GRPpvalue = settings['GRPpvalue']
@@ -3950,44 +3951,74 @@ class GRPFrame:
                 if datafiletype2 == 1:
                     # apply ANOVA analysis to beta-values, with the two files indicating two discrete groups,
                     # and the first personal characteristic used as a second discrete variable
-                    print('hold this')
+                    pthreshold = GRPpvalue
+                    covariates1 = GRPcharacteristicsvalues[0,:]
+                    covariates2 = GRPcharacteristicsvalues2[0,:]
+                    covname = GRPcharacteristicslist[0]
+                    outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, datafile2, covariates1, covariates2, pthreshold, mode = 'ANOVA', covariate_name = covname)
                 else:
                     # apply ANOVA analysis to beta-values in the first data file named,
                     # with the first two personal characteristics used as discrete variables
-                    print('hold this')
+                    pthreshold = GRPpvalue
+                    covariates1 = GRPcharacteristicsvalues[:1,:]
+                    covname = GRPcharacteristicslist[:1]
+                    outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, 'none', covariates1, 'none', pthreshold, mode = 'ANOVA', covariate_name = covname)
+
 
             if datafiletype1 == 2:  # BOLD data
                 if datafiletype2 == 2:
-                    # apply ANOVA analysis to BOLD values, with the two files indicating two discrete groups,
+                    # apply ANOVA analysis to beta-values, with the two files indicating two discrete groups,
                     # and the first personal characteristic used as a second discrete variable
-                    print('hold this')
+                    pthreshold = GRPpvalue
+                    covariates1 = GRPcharacteristicsvalues[0,:]
+                    covariates2 = GRPcharacteristicsvalues2[0,:]
+                    covname = GRPcharacteristicslist[0]
+                    outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, datafile2, covariates1, covariates2, pthreshold, mode = 'ANOVA', covariate_name = covname)
                 else:
-                    # apply ANOVA analysis to BOLD values in the first data file named,
+                    # apply ANOVA analysis to beta-values in the first data file named,
                     # with the first two personal characteristics used as discrete variables
-                    print('hold this')
+                    pthreshold = GRPpvalue
+                    covariates1 = GRPcharacteristicsvalues[:1,:]
+                    covname = GRPcharacteristicslist[:1]
+                    outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, 'none', covariates1, 'none', pthreshold, mode = 'ANOVA', covariate_name = covname)
+
 
         if GRPanalysistype == 'ANCOVA':
             if datafiletype1 == 1:  # SEM data
                 if datafiletype2 == 1:
-                    # apply ANCOVA analysis to beta-values, with the two files indicating two discrete groups,
+                    # apply ANOVA analysis to beta-values, with the two files indicating two discrete groups,
                     # and the first personal characteristic used as a continuous variable
-                    print('hold this')
+                    pthreshold = GRPpvalue
+                    covariates1 = GRPcharacteristicsvalues[0,:]
+                    covariates2 = GRPcharacteristicsvalues2[0,:]
+                    covname = GRPcharacteristicslist[0]
+                    outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, datafile2, covariates1, covariates2, pthreshold, mode = 'ANOVA', covariate_name = covname)
                 else:
                     # apply ANOVA analysis to beta-values in the first data file named,
-                    # with the first personal characteristics used as discrete variable,
-                    # and the second characteristic used as a continuous variable
-                    print('hold this')
+                    # with the first two personal characteristics used as one discrete and one continuous variable
+                    pthreshold = GRPpvalue
+                    covariates1 = GRPcharacteristicsvalues[:1,:]
+                    covname = GRPcharacteristicslist[:1]
+                    outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, 'none', covariates1, 'none', pthreshold, mode = 'ANOVA', covariate_name = covname)
+
 
             if datafiletype1 == 2:  # BOLD data
                 if datafiletype2 == 2:
-                    # apply ANCOVA analysis to BOLD values, with the two files indicating two discrete groups,
+                    # apply ANOVA analysis to beta-values, with the two files indicating two discrete groups,
                     # and the first personal characteristic used as a continuous variable
-                    print('hold this')
+                    pthreshold = GRPpvalue
+                    covariates1 = GRPcharacteristicsvalues[0,:]
+                    covariates2 = GRPcharacteristicsvalues2[0,:]
+                    covname = GRPcharacteristicslist[0]
+                    outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, datafile2, covariates1, covariates2, pthreshold, mode = 'ANOVA', covariate_name = covname)
                 else:
-                    # apply ANCOVA analysis to BOLD values in the first data file named,
-                    # with the first personal characteristics used as discrete variable,
-                    # and the second characteristic used as a continuous variable
-                    print('hold this')
+                    # apply ANOVA analysis to beta-values in the first data file named,
+                    # with the first two personal characteristics used as one discrete and one continuous variable
+                    pthreshold = GRPpvalue
+                    covariates1 = GRPcharacteristicsvalues[:1,:]
+                    covname = GRPcharacteristicslist[:1]
+                    outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, 'none', covariates1, 'none', pthreshold, mode = 'ANOVA', covariate_name = covname)
+
 
 
     def __init__(self, parent, controller):
