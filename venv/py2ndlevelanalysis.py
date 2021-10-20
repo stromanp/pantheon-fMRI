@@ -18,6 +18,9 @@ import copy
 import pydisplay
 import os
 import time
+import pandas as pd
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
 
 # 2-source SEM results
 # save the results somehow
@@ -1175,3 +1178,863 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
             return excelfilename
 
 
+# -------------group_comparison_ANOVA--------------------------------------
+def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthreshold, mode = 'ANOVA', covariate_name = 'cov1'):
+    # test fMRI results for group-level differences, using an ANOVA
+    #
+    # if covariates1 and covariates2 contain more than one set of values, only the first one is used
+    # "mode" can be ANOVA or ANCOVA
+    # for ANOVA:  the covariate will be treated as a categorical variable
+    # for ANCOVA:  the covariate will be treated as a continuous variable
+    #
+    print('running py2ndlevelanalysis:  group_comparison_ANOVA:  started at ',time.ctime())
+    data1 = np.load(filename1, allow_pickle=True).flat[0]
+    data2 = np.load(filename2, allow_pickle=True).flat[0]
+
+    if np.ndim(covariates1) > 1:
+        ncov1, NP1 = np.shape(covariates1)
+        cov1 = covariates1[0,:]
+    else:
+        cov1 = covariates1
+
+    if np.ndim(covariates2) > 1:
+        ncov2, NP2 = np.shape(covariates2)
+        cov2 = covariates2[0, :]
+    else:
+        cov2 = covariates2
+
+
+    datafiletype = 0
+    try:
+        keylist = list(data1.keys())
+        if 'type' in keylist: datafiletype = 1   # SEM results
+        if 'region_properties' in keylist: datafiletype = 2    # BOLD time-course data
+        print('group_comparison_ANOVA:  datafiletype = ', datafiletype)
+    except:
+        print('group_comparison_ANOVA:  input file does not appear to have the correct data structure')
+        return 0
+
+    if datafiletype == 1:
+        semtype = data1['type']
+        print('SEM results loaded:  type ',semtype)
+
+        if semtype == '2source':
+            p,f = os.path.split(filename1)
+            f2,e = os.path.splitext(f)
+            excelfilename = os.path.join(p,f2+'_2ndlevel.xlsx')
+
+            cluster_properties = data1['cluster_properties']
+            cluster_info, rname_list, ncluster_list = get_cluster_position_details(cluster_properties)
+
+            beta1_1 = data1['beta1']
+            beta2_1 = data1['beta2']
+            beta1_2 = data2['beta1']
+            beta2_2 = data2['beta2']
+
+            ntclusters, ns1clusters, ns2clusters, ntimepoints, NP2, nbeta = np.shape(beta1_2)
+            ntclusters, ns1clusters, ns2clusters, ntimepoints, NP1, nbeta = np.shape(beta1_1)
+
+            anova_p_beta1 = np.zeros((ntclusters,ns1clusters, ns2clusters, ntimepoints, nbeta,3))
+            anova_p_beta2 = np.zeros((ntclusters,ns1clusters, ns2clusters, ntimepoints, nbeta,3))
+
+            # ---------do the ANOVA here-----------------------
+            if mode == 'ANOVA':
+                formula_key1 = 'C(Group)'
+                formula_key2 = 'C(' + covariate_name + ')'
+                formula_key3 = 'C(Group):C('+covariate_name+')'
+                atype = 2
+            else:
+                formula_key1 = 'C(Group)'
+                formula_key2 = covariate_name
+                formula_key3 = 'C(Group):'+covariate_name
+                atype = 2
+
+            for t in range(ntclusters):
+                for s1 in range(ns1clusters):
+                    for s2 in range(ns2clusters):
+                        for tp in range(ntimepoints):
+                            for nb in range(nbeta):
+
+                                # one-source
+                                b1 = beta1_1[t, s1, s2, tp, :, nb]
+                                b2 = beta1_2[t, s1, s2, tp, :, nb]
+                                if np.var(b1) > 0 and np.var(b2) > 0:
+                                    # anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA2(beta1, beta2, cov1, cov2, covname='cov1', mode='ANOVA')
+                                    anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA2(b1, b2, cov1, cov2, covname, formula_key1, formula_key2, formula_key3, atype)
+                                    anova_p_beta1[t,s1,s2,tp,nb,:] = np.array[p_MeoG, p_MeoC, p_intGC]
+
+                                # two-source
+                                b1 = beta2_1[t, s1, s2, tp, :, nb]
+                                b2 = beta2_2[t, s1, s2, tp, :, nb]
+                                if np.var(b1) > 0 and np.var(b2) > 0:
+                                    # anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA2(beta1, beta2, cov1, cov2, covname='cov1', mode='ANOVA')
+                                    anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA2(b1, b2, cov1, cov2, covname, formula_key1, formula_key2, formula_key3, atype)
+                                    anova_p_beta2[t,s1,s2,tp,nb,:] = np.array[p_MeoG, p_MeoC, p_intGC]
+
+            beta1_sig = anova_p_beta1 < p_threshold
+            beta2_sig = anova_p_beta2 < p_threshold
+
+            # -----------sorting and writing results---------------------------------
+            keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2', 'tlimy1',
+                    'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2', 'slimz1', 'slimz2','cov']
+
+            # write out significant results, based on beta1------------------------------
+            if np.ndim(beta1_sig) < 6:  # allow for different forms of results (some have multiple stats terms)
+                beta1_sig = np.expand_dims(beta1_sig, axis=-1)
+                stat_of_interest1 = np.expand_dims(stat_of_interest1, axis=-1)
+
+            for tt in range(ntimepoints):
+                results = []
+                sig_temp = beta1_sig[:,:,:,tt,:,:]
+                t,s1,s2,nb,nc = np.where(sig_temp)    # significant connections during this time period
+
+                Svalue_list = np.zeros(len(t))
+                connid_list = np.zeros(len(t))   # identify connections - to be able to remove redundant ones later
+                for ii in range(len(t)):
+                    Svalue_list[ii] = stat_of_interest1[t[ii],s1[ii],s2[ii],tt,nb[ii],nc[ii]]
+                    if nb[ii] == 0:
+                        s = s1[ii]
+                    else:
+                        s = s2[ii]
+                    # get region names, cluster numbers, etc.
+                    connid_list[ii] = nc[ii]*1e6+t[ii]*1000 + s   # a unique identifier for the connection
+                    targetname, targetcluster, targetnumber = get_cluster_info(rname_list, ncluster_list, t[ii])
+                    sourcename, sourcecluster, sourcenumber = get_cluster_info(rname_list, ncluster_list, s)
+                    targetcoords = cluster_info[targetnumber]['cluster_coords'][targetcluster,:]
+                    targetlimits = cluster_info[targetnumber]['regionlimits']
+                    sourcecoords = cluster_info[sourcenumber]['cluster_coords'][sourcecluster,:]
+                    sourcelimits = cluster_info[sourcenumber]['regionlimits']
+
+                    values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]],
+                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),[nc[ii]]))
+                    entry = dict(zip(keys, values))
+                    results.append(entry)
+
+                # eliminate redundant values, for repeats keep the one with the largest Tvalue
+                if len(results) > 0:
+                    print('removing redundant values ...')
+                    results2, Svalue_list2 = remove_reps_and_sort(connid_list, Svalue_list, results)
+
+                    p,f = os.path.split(filename)
+                    f2,e = os.path.splitext(f)
+                    excelfilename = os.path.join(p,f2+'_2ndlevel.xlsx')
+                    excelsheetname = '2source beta2 ' + statstype + ' ' + str(tt)
+                    print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+                    pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
+                    print('finished writing results to ',excelfilename)
+                else:
+                    print('no significant results found at p < {}'.format(pthreshold))
+
+            results_beta1 = results2
+
+            # now, write out significant results, based on beta2-------------------------
+            if np.ndim(beta2_sig) < 6:  # allow for different forms of results (some have multiple stats terms)
+                beta2_sig = np.expand_dims(beta2_sig, axis=-1)
+                stat_of_interest2 = np.expand_dims(stat_of_interest2, axis=-1)
+
+            for tt in range(ntimepoints):
+                results = []
+                sig_temp = beta2_sig[:,:,:,tt,:,:]
+                t,s1,s2,nb,nc = np.where(sig_temp)    # significant connections during this time period
+
+                Svalue_list = np.zeros(len(t))
+                connid_list = np.zeros(len(t))   # identify connections - to be able to remove redundant ones later
+                for ii in range(len(t)):
+                    Svalue_list[ii] = stat_of_interest2[t[ii],s1[ii],s2[ii],tt,nb[ii],nc[ii]]
+                    if nb[ii] == 0:
+                        s = s1[ii]
+                    else:
+                        s = s2[ii]
+                    # get region names, cluster numbers, etc.
+                    connid_list[ii] = t[ii]*1000 + s   # a unique identifier for the connection
+                    targetname, targetcluster, targetnumber = get_cluster_info(rname_list, ncluster_list, t[ii])
+                    sourcename, sourcecluster, sourcenumber = get_cluster_info(rname_list, ncluster_list, s)
+                    targetcoords = cluster_info[targetnumber]['cluster_coords'][targetcluster,:]
+                    targetlimits = cluster_info[targetnumber]['regionlimits']
+                    sourcecoords = cluster_info[sourcenumber]['cluster_coords'][sourcecluster,:]
+                    sourcelimits = cluster_info[sourcenumber]['regionlimits']
+
+                    values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]],
+                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),[nc[ii]]))
+                    entry = dict(zip(keys, values))
+                    results.append(entry)
+
+                # eliminate redundant values, for repeats keep the one with the largest Tvalue
+                if len(results) > 0:
+                    print('removing redundant values ...')
+                    results2, Svalue_list2 = remove_reps_and_sort(connid_list, Svalue_list, results)
+
+                    excelsheetname = '2source beta2 ' + statstype + ' ' + str(tt)
+                    print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+                    pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
+                    print('finished writing results to ',excelfilename)
+                else:
+                    print('no significant results found at p < {}'.format(pthreshold))
+
+            results_beta2 = results2
+
+            return excelfilename
+
+
+
+        if semtype == 'network':
+            p,f = os.path.split(filename1)
+            f2,e = os.path.splitext(f)
+            excelfilename = os.path.join(p,f2+'_2ndlevel.xlsx')
+
+            # results = {'type': 'network', 'resultsnames': outputnamelist, 'network': self.networkmodel,
+            #            'regionname': self.SEMregionname, 'clustername': self.SEMclustername, 'DBname': self.DBname,
+            #            'DBnum': self.DBnum}
+
+            resultsnames1 = data1['resultsnames']
+            resultsnames2 = data2['resultsnames']
+            clustername = data1['clustername']
+            regionname = data1['regionname']
+            networkmodel = data1['network']
+            network, ncluster_list, sem_region_list = pyclustering.load_network_model(networkmodel)
+            nclusterlist = np.array([ncluster_list[i]['nclusters'] for i in range(len(ncluster_list))])
+
+            cluster_data = np.load(clustername, allow_pickle=True).flat[0]
+            cluster_properties = cluster_data['cluster_properties']
+            cluster_info, rname_list, ncluster_list = get_cluster_position_details(cluster_properties)
+
+            results = []
+            Svalue_list = []
+            connid_list = []   # identify connections - to be able to remove redundant ones later
+            for networkcomponent, fname1 in enumerate(resultsnames1):
+                fname2 = resultsnames2[networkcomponent]
+                print('analyzing network component: \n{}\n{}\n',fname1,fname2)
+                semresults1 = np.load(fname1, allow_pickle=True).flat[0]
+                sem_one_target1 = semresults1['sem_one_target_results']
+                semresults2= np.load(fname2, allow_pickle=True).flat[0]
+                sem_one_target2 = semresults2['sem_one_target_results']
+                ntclusters = len(sem_one_target1)
+
+                target = network[networkcomponent]['target']
+                sources = network[networkcomponent]['sources']
+                targetnum = network[networkcomponent]['targetnum']
+                sourcenums = network[networkcomponent]['sourcenums']
+                targetname = cluster_info[targetnum]['rname']
+                targetlimits = cluster_info[targetnum]['regionlimits']
+
+                ncombinations, ntimepoints, NP1, nsources = np.shape(sem_one_target1[0]['b'])
+                ncombinations, ntimepoints, NP2, nsources = np.shape(sem_one_target2[0]['b'])
+                # initialize for saving results for each network component
+                anova_p[tt, nc, nt, ns, :] = np.zeros((ntclusters, ncombinations, ntimepoints,nsources,3))
+
+                for tt in range(ntclusters):
+                    targetcoords = cluster_info[targetnum]['cluster_coords'][tt, :]
+                    beta1 = sem_one_target1[tt]['b']
+                    beta2 = sem_one_target2[tt]['b']
+
+                    # -------------do the ANOVA here-----------------------
+                    if mode == 'ANOVA':
+                        formula_key1 = 'C(Group)'
+                        formula_key2 = 'C(' + covariate_name + ')'
+                        formula_key3 = 'C(Group):C('+covariate_name+')'
+                        atype = 2
+                    else:
+                        formula_key1 = 'C(Group)'
+                        formula_key2 = covariate_name
+                        formula_key3 = 'C(Group):'+covariate_name
+                        atype = 2
+
+                    for nc in range(ncombinations):
+                        for nt in range(ntimepoints):
+                            for ns in range(nsources):
+                                b1 = beta1[nc,nt,:,ns]
+                                b2 = beta2[nc,nt,:,ns]
+                                if np.var(b1) > 0 and np.var(b2) > 0:
+                                    anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA2(b1, b2, cov1, cov2, covname, formula_key1, formula_key2, formula_key3, atype)
+                                    anova_p[tt,nc,nt,ns,:] = np.array[p_MeoG, p_MeoC, p_intGC]
+
+                beta_sig = anova_p  < p_threshold
+
+                #--------sort and write out the results---------------------------
+                keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
+                        'tlimy1',
+                        'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2',
+                        'slimz1', 'slimz2', 'timepoint']
+
+                # organize significant results
+                if np.ndim(beta_sig) < 4:  # allow for different forms of results (some have multiple stats terms)
+                    stat_of_interest = np.expand_dims(stat_of_interest, axis=-1)
+                    beta_sig = np.expand_dims(beta_sig, axis=-1)
+                combo, nt, ss, nc = np.where(beta_sig)   # significant connections during this time period
+
+                cc = 0   # what about regression with two or more terms?
+                for ii in range(len(combo)):
+                    # get region names, cluster numbers, etc.
+                    Svalue = stat_of_interest[combo[ii], nt[ii], ss[ii],cc]
+                    timepoint = nt[ii]
+                    sourcename = cluster_info[sourcenums[ss[ii]]]['rname']
+                    mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums],combo[ii]).astype(int)   # cluster number for each source
+                    sourcecluster = mlist[ss[ii]]
+                    sourcecoords = cluster_info[sourcenums[ss[ii]]]['cluster_coords'][sourcecluster, :]
+                    sourcelimits = cluster_info[sourcenums[ss[ii]]]['regionlimits']
+
+                    connid = nt[ii]*1e7 + targetnum*1e5 + tt*1e3 + sourcenums[ss[ii]]*10 + sourcecluster
+
+                    values = np.concatenate(([targetname, tt, sourcename, sourcecluster, Svalue],
+                         list(targetcoords), list(targetlimits), list(sourcecoords), list(sourcelimits), [timepoint]))
+                    entry = dict(zip(keys, values))
+
+                    results.append(entry)
+                    Svalue_list.append(Svalue)
+                    connid_list.append(connid)
+
+            # eliminate redundant values, for repeats keep the one with the largest Tvalue
+            if len(results) > 0:
+                print('removing redundant values ...')
+                results2, Svalue_list2 = remove_reps_and_sort(np.array(connid_list), np.array(Svalue_list), results)
+
+                # separate by timepoints
+                timepoint_list = [int(results2[ii]['timepoint']) for ii in range(len(results2))]
+                times = np.unique(timepoint_list)
+                print('time point values: ',times)
+
+                # still need to split the data according to timepoints
+                print('separating values from different time periods...')
+                for timepoint in times:
+                    indices = np.where(timepoint_list == timepoint)[0]
+                    print('timepoint: {}, found {} entries'.format(timepoint,len(indices)))
+                    results1 = []
+                    for ii in indices:
+                        results1.append(results2[ii])
+
+                    excelsheetname = 'network ' + statstype + ' ' + str(timepoint)
+                    print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+                    pydisplay.pywriteexcel(results1, excelfilename, excelsheetname, 'append')
+                    print('finished writing results to ',excelfilename)
+            else:
+                print('no significant results found with p < {} '.format(pthreshold))
+
+            return excelfilename
+
+
+    if datafiletype == 2:
+        p, f = os.path.split(filename1)
+        f2, e = os.path.splitext(f)
+        excelfilename = os.path.join(p, f2 + '_2ndlevel.xlsx')
+
+        # analyzing BOLD responses
+        region_properties1 = data1['region_properties']
+        region_properties2 = data2['region_properties']
+        # regiondata_entry = {'tc': tc, 'tc_sem': tc_sem, 'nruns_per_person': nruns_per_person, 'tsize': tsize,'rname': rname}
+
+        nregions = len(region_properties1)
+        for rr in range(nregions):
+            tc1 = region_properties1[rr]['tc']          # nclusters x tsize_total
+            tc_sem1 = region_properties1[rr]['tc_sem']
+            tsize1 = region_properties1[rr]['tsize']
+            nruns_per_person1 = region_properties1[rr]['nruns_per_person']
+            rname1 = region_properties1[rr]['rname']
+            NP1 = len(nruns_per_person1)
+
+            tc2 = region_properties2[rr]['tc']          # nclusters x tsize_total
+            tc_sem2 = region_properties2[rr]['tc_sem']
+            tsize2 = region_properties2[rr]['tsize']
+            nruns_per_person2 = region_properties2[rr]['nruns_per_person']
+            rname2 = region_properties2[rr]['rname']
+            NP2 = len(nruns_per_person2)
+
+            nclusters, tsize_total1 = np.shape(tc1)   # nclusters need to be the same for the two data sets, for comparisons
+            nclusters, tsize_total2 = np.shape(tc2)   # nclusters need to be the same for the two data sets, for comparisons
+
+            # change shape of timecourse data array - prep data - group 1
+            tc_per_person1 = np.zeros((nclusters,tsize1,NP1))
+            tc_per_person_sem1 = np.zeros((nclusters,tsize1,NP1))
+            for nn in range(NP1):
+                nruns = nruns_per_person1[nn]
+                t1 = np.sum(nruns_per_person1[:nn])*tsize1
+                t2 = np.sum(nruns_per_person1[:(nn+1)])*tsize1
+                tp = list(range(t1,t2))
+                tcsingle = np.mean(np.reshape(tc1[:,tp],(nclusters,tsize1,nruns)),axis = 2)
+                tc_semsingle = np.mean(np.reshape(tc_sem1[:,tp],(nclusters,tsize1,nruns)),axis = 2)
+                tc_per_person1[:,:,nn] = tcsingle
+                tc_per_person_sem1[:,:,nn] = tc_semsingle
+
+            # change shape of timecourse data array - prep data - group 2
+            tc_per_person2 = np.zeros((nclusters,tsize2,NP2))
+            tc_per_person_sem2 = np.zeros((nclusters,tsize2,NP2))
+            for nn in range(NP2):
+                nruns = nruns_per_person2[nn]
+                t1 = np.sum(nruns_per_person2[:nn])*tsize2
+                t2 = np.sum(nruns_per_person2[:(nn+1)])*tsize2
+                tp = list(range(t1,t2))
+                tcsingle = np.mean(np.reshape(tc2[:,tp],(nclusters,tsize2,nruns)),axis = 2)
+                tc_semsingle = np.mean(np.reshape(tc_sem2[:,tp],(nclusters,tsize2,nruns)),axis = 2)
+                tc_per_person2[:,:,nn] = tcsingle
+                tc_per_person_sem2[:,:,nn] = tc_semsingle
+
+            #-----------do the ANOVA here--------------------------------
+            anova_p = np.zeros(nclusters,tsize1,3)
+            if mode == 'ANOVA':
+                formula_key1 = 'C(Group)'
+                formula_key2 = 'C(' + covariate_name + ')'
+                formula_key3 = 'C(Group):C(' + covariate_name + ')'
+                atype = 2
+            else:
+                formula_key1 = 'C(Group)'
+                formula_key2 = covariate_name
+                formula_key3 = 'C(Group):' + covariate_name
+                atype = 2
+
+            for nc in range(nclusters):
+                for ts in range(tsize1):
+                    tc1 = tc_per_person1[nc,ts,:]
+                    tc2 = tc_per_person2[nc,ts,:]
+                    if np.var(tc1) > 0 and np.var(tc2) > 0:
+                        anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA2(tc1, tc2, cov1, cov2, covname,
+                                                                                    formula_key1, formula_key2,
+                                                                                    formula_key3, atype)
+                        anova_p[nc, ts, :] = np.array[p_MeoG, p_MeoC, p_intGC]
+
+            beta_sig = anova_p < p_threshold
+
+            #-------------sort and write out the results?-------------------------
+            if len(outputdata) > 0:
+                excelsheetname = rname
+                print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+                pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'append', '%.3f')
+                print('finished writing results to ',excelfilename)
+            else:
+                print('no significant results found at p < {}'.format(pthreshold))
+            return excelfilename
+
+
+
+#---------------single group ANOVA--------------------------------------
+#------------------------------------------------------------------------
+
+# -------------group_comparison_ANOVA--------------------------------------
+def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covariate_names = ['cov1','cov2']):
+    # test fMRI results for differences based on covariates, using an ANOVA or ANCOVA
+    #
+    # if covariates1 contains more than two sets of values, only the first two are used
+    # "mode" can be ANOVA or ANCOVA
+    # for ANOVA:  the 2nd covariate will be treated as a categorical variable
+    # for ANCOVA:  the 2nd covariate will be treated as a continuous variable
+    #
+    print('running py2ndlevelanalysis:  single_group_ANOVA:  started at ',time.ctime())
+    data1 = np.load(filename1, allow_pickle=True).flat[0]
+
+    if np.ndim(covariates1) > 2:
+        ncov1, NP1 = np.shape(covariates1)
+        cov1 = covariates1[0,:]
+        cov2 = covariates1[1,:]
+        covname1 = covariate_names[0]
+        covname2 = covariate_names[1]
+    else:
+        print('error:  not enough covariates provided for single_group_ANOVA')
+
+    datafiletype = 0
+    try:
+        keylist = list(data1.keys())
+        if 'type' in keylist: datafiletype = 1   # SEM results
+        if 'region_properties' in keylist: datafiletype = 2    # BOLD time-course data
+        print('group_comparison_ANOVA:  datafiletype = ', datafiletype)
+    except:
+        print('group_comparison_ANOVA:  input file does not appear to have the correct data structure')
+        return 0
+
+    if datafiletype == 1:
+        semtype = data1['type']
+        print('SEM results loaded:  type ',semtype)
+
+        if semtype == '2source':
+            p,f = os.path.split(filename1)
+            f2,e = os.path.splitext(f)
+            excelfilename = os.path.join(p,f2+'_2ndlevel.xlsx')
+
+            cluster_properties = data1['cluster_properties']
+            cluster_info, rname_list, ncluster_list = get_cluster_position_details(cluster_properties)
+
+            beta1 = data1['beta1']
+            beta2 = data1['beta2']
+
+            ntclusters, ns1clusters, ns2clusters, ntimepoints, NP, nbeta = np.shape(beta1)
+
+            anova_p_beta1 = np.zeros((ntclusters,ns1clusters, ns2clusters, ntimepoints, nbeta,3))
+            anova_p_beta2 = np.zeros((ntclusters,ns1clusters, ns2clusters, ntimepoints, nbeta,3))
+
+            # ---------do the ANOVA here-----------------------
+            if mode == 'ANOVA':
+                formula_key1 = 'C(' + covname1 + ')'
+                formula_key2 = 'C(' + covname2 + ')'
+                formula_key3 = 'C('+covname1+'):C('+covname2+')'
+                atype = 2
+            else:
+                formula_key1 = 'C(' + covname1 + ')'
+                formula_key2 = covname2
+                formula_key3 = 'C('+covname1+'):'+covname2
+                atype = 2
+
+            for t in range(ntclusters):
+                for s1 in range(ns1clusters):
+                    for s2 in range(ns2clusters):
+                        for tp in range(ntimepoints):
+                            for nb in range(nbeta):
+
+                                # one-source
+                                b1 = beta1[t, s1, s2, tp, :, nb]
+                                if np.var(b1) > 0:
+                                    anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA1(b1, cov1, cov2, covname1, covname2, formula_key1, formula_key2, formula_key3, atype)
+                                    anova_p_beta1[t,s1,s2,tp,nb,:] = np.array[p_MeoG, p_MeoC, p_intGC]
+
+                                # two-source
+                                b1 = beta2[t, s1, s2, tp, :, nb]
+                                if np.var(b1) > 0:
+                                    anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA1(b1, cov1, cov2, covname1, covname2, formula_key1, formula_key2, formula_key3, atype)
+                                    anova_p_beta2[t,s1,s2,tp,nb,:] = np.array[p_MeoG, p_MeoC, p_intGC]
+
+            beta1_sig = anova_p_beta1 < p_threshold
+            beta2_sig = anova_p_beta2 < p_threshold
+
+            # -----------sorting and writing results---------------------------------
+            keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2', 'tlimy1',
+                    'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2', 'slimz1', 'slimz2','cov']
+
+            # write out significant results, based on beta1------------------------------
+            if np.ndim(beta1_sig) < 6:  # allow for different forms of results (some have multiple stats terms)
+                beta1_sig = np.expand_dims(beta1_sig, axis=-1)
+                stat_of_interest1 = np.expand_dims(stat_of_interest1, axis=-1)
+
+            for tt in range(ntimepoints):
+                results = []
+                sig_temp = beta1_sig[:,:,:,tt,:,:]
+                t,s1,s2,nb,nc = np.where(sig_temp)    # significant connections during this time period
+
+                Svalue_list = np.zeros(len(t))
+                connid_list = np.zeros(len(t))   # identify connections - to be able to remove redundant ones later
+                for ii in range(len(t)):
+                    Svalue_list[ii] = stat_of_interest1[t[ii],s1[ii],s2[ii],tt,nb[ii],nc[ii]]
+                    if nb[ii] == 0:
+                        s = s1[ii]
+                    else:
+                        s = s2[ii]
+                    # get region names, cluster numbers, etc.
+                    connid_list[ii] = nc[ii]*1e6+t[ii]*1000 + s   # a unique identifier for the connection
+                    targetname, targetcluster, targetnumber = get_cluster_info(rname_list, ncluster_list, t[ii])
+                    sourcename, sourcecluster, sourcenumber = get_cluster_info(rname_list, ncluster_list, s)
+                    targetcoords = cluster_info[targetnumber]['cluster_coords'][targetcluster,:]
+                    targetlimits = cluster_info[targetnumber]['regionlimits']
+                    sourcecoords = cluster_info[sourcenumber]['cluster_coords'][sourcecluster,:]
+                    sourcelimits = cluster_info[sourcenumber]['regionlimits']
+
+                    values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]],
+                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),[nc[ii]]))
+                    entry = dict(zip(keys, values))
+                    results.append(entry)
+
+                # eliminate redundant values, for repeats keep the one with the largest Tvalue
+                if len(results) > 0:
+                    print('removing redundant values ...')
+                    results2, Svalue_list2 = remove_reps_and_sort(connid_list, Svalue_list, results)
+
+                    p,f = os.path.split(filename)
+                    f2,e = os.path.splitext(f)
+                    excelfilename = os.path.join(p,f2+'_2ndlevel.xlsx')
+                    excelsheetname = '2source beta2 ' + statstype + ' ' + str(tt)
+                    print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+                    pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
+                    print('finished writing results to ',excelfilename)
+                else:
+                    print('no significant results found at p < {}'.format(pthreshold))
+
+            results_beta1 = results2
+
+            # now, write out significant results, based on beta2-------------------------
+            if np.ndim(beta2_sig) < 6:  # allow for different forms of results (some have multiple stats terms)
+                beta2_sig = np.expand_dims(beta2_sig, axis=-1)
+                stat_of_interest2 = np.expand_dims(stat_of_interest2, axis=-1)
+
+            for tt in range(ntimepoints):
+                results = []
+                sig_temp = beta2_sig[:,:,:,tt,:,:]
+                t,s1,s2,nb,nc = np.where(sig_temp)    # significant connections during this time period
+
+                Svalue_list = np.zeros(len(t))
+                connid_list = np.zeros(len(t))   # identify connections - to be able to remove redundant ones later
+                for ii in range(len(t)):
+                    Svalue_list[ii] = stat_of_interest2[t[ii],s1[ii],s2[ii],tt,nb[ii],nc[ii]]
+                    if nb[ii] == 0:
+                        s = s1[ii]
+                    else:
+                        s = s2[ii]
+                    # get region names, cluster numbers, etc.
+                    connid_list[ii] = t[ii]*1000 + s   # a unique identifier for the connection
+                    targetname, targetcluster, targetnumber = get_cluster_info(rname_list, ncluster_list, t[ii])
+                    sourcename, sourcecluster, sourcenumber = get_cluster_info(rname_list, ncluster_list, s)
+                    targetcoords = cluster_info[targetnumber]['cluster_coords'][targetcluster,:]
+                    targetlimits = cluster_info[targetnumber]['regionlimits']
+                    sourcecoords = cluster_info[sourcenumber]['cluster_coords'][sourcecluster,:]
+                    sourcelimits = cluster_info[sourcenumber]['regionlimits']
+
+                    values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]],
+                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),[nc[ii]]))
+                    entry = dict(zip(keys, values))
+                    results.append(entry)
+
+                # eliminate redundant values, for repeats keep the one with the largest Tvalue
+                if len(results) > 0:
+                    print('removing redundant values ...')
+                    results2, Svalue_list2 = remove_reps_and_sort(connid_list, Svalue_list, results)
+
+                    excelsheetname = '2source beta2 ' + statstype + ' ' + str(tt)
+                    print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+                    pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
+                    print('finished writing results to ',excelfilename)
+                else:
+                    print('no significant results found at p < {}'.format(pthreshold))
+
+            results_beta2 = results2
+
+            return excelfilename
+
+
+        if semtype == 'network':
+            p,f = os.path.split(filename1)
+            f2,e = os.path.splitext(f)
+            excelfilename = os.path.join(p,f2+'_2ndlevel.xlsx')
+
+            # results = {'type': 'network', 'resultsnames': outputnamelist, 'network': self.networkmodel,
+            #            'regionname': self.SEMregionname, 'clustername': self.SEMclustername, 'DBname': self.DBname,
+            #            'DBnum': self.DBnum}
+
+            resultsnames1 = data1['resultsnames']
+            clustername = data1['clustername']
+            regionname = data1['regionname']
+            networkmodel = data1['network']
+            network, ncluster_list, sem_region_list = pyclustering.load_network_model(networkmodel)
+            nclusterlist = np.array([ncluster_list[i]['nclusters'] for i in range(len(ncluster_list))])
+
+            cluster_data = np.load(clustername, allow_pickle=True).flat[0]
+            cluster_properties = cluster_data['cluster_properties']
+            cluster_info, rname_list, ncluster_list = get_cluster_position_details(cluster_properties)
+
+            results = []
+            Svalue_list = []
+            connid_list = []   # identify connections - to be able to remove redundant ones later
+            for networkcomponent, fname1 in enumerate(resultsnames1):
+                semresults1 = np.load(fname1, allow_pickle=True).flat[0]
+                sem_one_target1 = semresults1['sem_one_target_results']
+                ntclusters = len(sem_one_target1)
+
+                target = network[networkcomponent]['target']
+                sources = network[networkcomponent]['sources']
+                targetnum = network[networkcomponent]['targetnum']
+                sourcenums = network[networkcomponent]['sourcenums']
+                targetname = cluster_info[targetnum]['rname']
+                targetlimits = cluster_info[targetnum]['regionlimits']
+
+                ncombinations, ntimepoints, NP1, nsources = np.shape(sem_one_target1[0]['b'])
+                # initialize for saving results for each network component
+                anova_p = np.zeros((ntclusters, ncombinations, ntimepoints,nsources,3))
+
+                for tt in range(ntclusters):
+                    targetcoords = cluster_info[targetnum]['cluster_coords'][tt, :]
+                    beta1 = sem_one_target1[tt]['b']
+
+                    # -------------do the ANOVA here-----------------------
+                    if mode == 'ANOVA':
+                        formula_key1 = 'C(' + covname1 + ')'
+                        formula_key2 = 'C(' + covname2 + ')'
+                        formula_key3 = 'C('+covname1+'):C('+covname2+')'
+                        atype = 2
+                    else:
+                        formula_key1 = 'C(' + covname1 + ')'
+                        formula_key2 = covname2
+                        formula_key3 = 'C('+covname1+'):'+covname2
+                        atype = 2
+
+                    for nc in range(ncombinations):
+                        for nt in range(ntimepoints):
+                            for ns in range(nsources):
+                                b1 = beta1[nc,nt,:,ns]
+                                if np.var(b1) > 0 and np.var(b2) > 0:
+                                    anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA1(b1, cov1, cov2, covname1, covname2, formula_key1, formula_key2, formula_key3, atype)
+                                    anova_p[tt,nc,nt,ns,:] = np.array[p_MeoG, p_MeoC, p_intGC]
+
+                beta_sig = anova_p  < p_threshold
+
+                #--------sort and write out the results---------------------------
+                keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
+                        'tlimy1',
+                        'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2',
+                        'slimz1', 'slimz2', 'timepoint']
+
+                # organize significant results
+                if np.ndim(beta_sig) < 4:  # allow for different forms of results (some have multiple stats terms)
+                    stat_of_interest = np.expand_dims(stat_of_interest, axis=-1)
+                    beta_sig = np.expand_dims(beta_sig, axis=-1)
+                combo, nt, ss, nc = np.where(beta_sig)   # significant connections during this time period
+
+                cc = 0   # what about regression with two or more terms?
+                for ii in range(len(combo)):
+                    # get region names, cluster numbers, etc.
+                    Svalue = stat_of_interest[combo[ii], nt[ii], ss[ii],cc]
+                    timepoint = nt[ii]
+                    sourcename = cluster_info[sourcenums[ss[ii]]]['rname']
+                    mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums],combo[ii]).astype(int)   # cluster number for each source
+                    sourcecluster = mlist[ss[ii]]
+                    sourcecoords = cluster_info[sourcenums[ss[ii]]]['cluster_coords'][sourcecluster, :]
+                    sourcelimits = cluster_info[sourcenums[ss[ii]]]['regionlimits']
+
+                    connid = nt[ii]*1e7 + targetnum*1e5 + tt*1e3 + sourcenums[ss[ii]]*10 + sourcecluster
+
+                    values = np.concatenate(([targetname, tt, sourcename, sourcecluster, Svalue],
+                         list(targetcoords), list(targetlimits), list(sourcecoords), list(sourcelimits), [timepoint]))
+                    entry = dict(zip(keys, values))
+
+                    results.append(entry)
+                    Svalue_list.append(Svalue)
+                    connid_list.append(connid)
+
+            # eliminate redundant values, for repeats keep the one with the largest Tvalue
+            if len(results) > 0:
+                print('removing redundant values ...')
+                results2, Svalue_list2 = remove_reps_and_sort(np.array(connid_list), np.array(Svalue_list), results)
+
+                # separate by timepoints
+                timepoint_list = [int(results2[ii]['timepoint']) for ii in range(len(results2))]
+                times = np.unique(timepoint_list)
+                print('time point values: ',times)
+
+                # still need to split the data according to timepoints
+                print('separating values from different time periods...')
+                for timepoint in times:
+                    indices = np.where(timepoint_list == timepoint)[0]
+                    print('timepoint: {}, found {} entries'.format(timepoint,len(indices)))
+                    results1 = []
+                    for ii in indices:
+                        results1.append(results2[ii])
+
+                    excelsheetname = 'network ' + statstype + ' ' + str(timepoint)
+                    print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+                    pydisplay.pywriteexcel(results1, excelfilename, excelsheetname, 'append')
+                    print('finished writing results to ',excelfilename)
+            else:
+                print('no significant results found with p < {} '.format(pthreshold))
+
+            return excelfilename
+
+
+    if datafiletype == 2:
+        p, f = os.path.split(filename1)
+        f2, e = os.path.splitext(f)
+        excelfilename = os.path.join(p, f2 + '_2ndlevel.xlsx')
+
+        # analyzing BOLD responses
+        region_properties1 = data1['region_properties']
+        # regiondata_entry = {'tc': tc, 'tc_sem': tc_sem, 'nruns_per_person': nruns_per_person, 'tsize': tsize,'rname': rname}
+
+        nregions = len(region_properties1)
+        for rr in range(nregions):
+            tc1 = region_properties1[rr]['tc']          # nclusters x tsize_total
+            tc_sem1 = region_properties1[rr]['tc_sem']
+            tsize1 = region_properties1[rr]['tsize']
+            nruns_per_person1 = region_properties1[rr]['nruns_per_person']
+            rname1 = region_properties1[rr]['rname']
+            NP1 = len(nruns_per_person1)
+
+            nclusters, tsize_total1 = np.shape(tc1)   # nclusters need to be the same for the two data sets, for comparisons
+            nclusters, tsize_total2 = np.shape(tc2)   # nclusters need to be the same for the two data sets, for comparisons
+
+            # change shape of timecourse data array - prep data - group 1
+            tc_per_person1 = np.zeros((nclusters,tsize1,NP1))
+            tc_per_person_sem1 = np.zeros((nclusters,tsize1,NP1))
+            for nn in range(NP1):
+                nruns = nruns_per_person1[nn]
+                t1 = np.sum(nruns_per_person1[:nn])*tsize1
+                t2 = np.sum(nruns_per_person1[:(nn+1)])*tsize1
+                tp = list(range(t1,t2))
+                tcsingle = np.mean(np.reshape(tc1[:,tp],(nclusters,tsize1,nruns)),axis = 2)
+                tc_semsingle = np.mean(np.reshape(tc_sem1[:,tp],(nclusters,tsize1,nruns)),axis = 2)
+                tc_per_person1[:,:,nn] = tcsingle
+                tc_per_person_sem1[:,:,nn] = tc_semsingle
+
+            #-----------do the ANOVA here--------------------------------
+                if mode == 'ANOVA':
+                    formula_key1 = 'C(' + covname1 + ')'
+                    formula_key2 = 'C(' + covname2 + ')'
+                    formula_key3 = 'C('+covname1+'):C('+covname2+')'
+                    atype = 2
+                else:
+                    formula_key1 = 'C(' + covname1 + ')'
+                    formula_key2 = covname2
+                    formula_key3 = 'C('+covname1+'):'+covname2
+                    atype = 2
+
+            for nc in range(nclusters):
+                for ts in range(tsize1):
+                    tc1 = tc_per_person1[nc, ts, :]
+                    if np.var(tc1) > 0 and np.var(tc2) > 0:
+                        anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA1(tc1, cov1, cov2, covname1, covname2,
+                                                                                    formula_key1, formula_key2,
+                                                                                    formula_key3, atype)
+                        anova_p[nc, ts, :] = np.array[p_MeoG, p_MeoC, p_intGC]
+
+            beta_sig = anova_p < p_threshold
+
+
+
+            #-------------sort and write out the results?-------------------------
+            if len(outputdata) > 0:
+                excelsheetname = rname
+                print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+                pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'append', '%.3f')
+                print('finished writing results to ',excelfilename)
+            else:
+                print('no significant results found at p < {}'.format(pthreshold))
+            return excelfilename
+        
+        
+        
+
+# def run_ANOVA_or_ANCOVA2(beta1, beta2, cov1, cov2, covname = 'cov1', mode = 'ANOVA'):
+def run_ANOVA_or_ANCOVA2(beta1, beta2, cov1, cov2, covname, formula_key1, formula_key2, formula_key3, atype):
+    # make up test values
+    NP1 = len(beta1)
+    NP2 = len(beta1)
+
+    g1 = ['group1']
+    g2 = ['group2']
+    group = g1 * NP1 + g2 * NP2
+    beta = list(beta1) + list(beta2)
+    cov = list(cov1) + list(cov2)
+
+    d = {'beta': beta, 'Group': group, covname:cov}
+    df = pd.DataFrame(data=d)
+
+    formula = 'beta ~ ' + formula_key1 + ' + ' + formula_key2 + ' + ' + formula_key3
+
+    model = ols(formula, data=df).fit()
+    anova_table = sm.stats.anova_lm(model, typ=atype)
+
+    p_MeoG = anova_table['PR(>F)'][formula_key1]
+    p_MeoC = anova_table['PR(>F)'][formula_key2]
+    p_intGC = anova_table['PR(>F)'][formula_key3]
+
+    return anova_table, p_MeoG, p_MeoC, p_intGC
+
+
+
+# def run_ANOVA_or_ANCOVA2(beta1, beta2, cov1, cov2, covname = 'cov1', mode = 'ANOVA'):
+def run_ANOVA_or_ANCOVA1(beta1, cov1, cov2, covname1, covname2, formula_key1, formula_key2, formula_key3, atype):
+    # make up test values
+    NP = len(beta1)
+
+    d = {'beta':beta1, covname1:cov1, covname2:cov2}
+    df = pd.DataFrame(data=d)
+
+    formula = 'beta ~ ' + formula_key1 + ' + ' + formula_key2 + ' + ' + formula_key3
+
+    model = ols(formula, data=df).fit()
+    anova_table = sm.stats.anova_lm(model, typ=atype)
+
+    p_MeoG = anova_table['PR(>F)'][formula_key1]
+    p_MeoC = anova_table['PR(>F)'][formula_key2]
+    p_intGC = anova_table['PR(>F)'][formula_key3]
+
+    return anova_table, p_MeoG, p_MeoC, p_intGC
