@@ -1086,6 +1086,7 @@ class NCFrame:
         self.fitp67 = '{},{}'.format(self.fitparameters[6],self.fitparameters[7])
         self.roughnorm = 0
         self.finetune = 0
+        self.copydbnumber = 0
 
         # initialize some values
         self.NCdatabasename = settings['DBname']
@@ -1197,6 +1198,21 @@ class NCFrame:
         # button to recalculate normalization after manual over-ride
         self.NCrun = tk.Button(self.parent, text = 'Recalculate', width = bigbigbuttonsize, bg = fgcol3, fg = 'white', command = self.NCrecalculate_after_override, font = "none 9 bold", relief='raised', bd = 5)
         self.NCrun.grid(row = 7, column = 5)
+
+
+        # entry box and button to copy rough normalization from another database number
+        self.NCcopy_label = tk.Label(self.parent, text="Copy rough normalization from another data set:")
+        self.NCcopy_label.grid(row=8, column=5, columnspan = 2, sticky='E')
+        self.NCcopy_label = tk.Label(self.parent, text="Datbase number:")
+        self.NCcopy_label.grid(row=9, column=5, sticky='E')
+        # create the Entry box, for position stiffness upper
+        self.NCcopyentry = tk.Entry(self.parent, width=8, bg="white")
+        self.NCcopyentry.grid(row=9, column=6, sticky="W")
+        self.NCcopyentry.insert(0, self.copydbnumber)
+        # the entry box needs a "submit" button so that the program knows when to take the entered values
+        self.NCcopysubmit = tk.Button(self.parent, text = "Copy", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.NCcopyroughnorm, relief='raised', bd = 5)
+        self.NCcopysubmit.grid(row = 9, column = 7)
+
 
         img1 = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
         controller.img1d = img1  # need to keep a copy so it is not cleared from memory
@@ -1372,6 +1388,107 @@ class NCFrame:
         else:
             print('manual over-ride mode is OFF')
         return event.x,event.y
+
+
+    def NCcopyroughnorm(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        copydbnum = int(self.NCcopyentry.get())  # collect the db num from the entry box
+        self.NCdatabasename = settings['DBname']
+        self.NCdatabasenum = settings['DBnum']
+        # BASEdir = os.path.dirname(self.NCdatabasename)
+        xls = pd.ExcelFile(self.NCdatabasename, engine = 'openpyxl')
+        df1 = pd.read_excel(xls, 'datarecord')
+
+        # get current normdataname, etc.
+        dbnum = self.NCdatabasenum[0]
+        dbhome = df1.loc[dbnum, 'datadir']
+        fname = df1.loc[dbnum, 'niftiname']
+        seriesnumber = df1.loc[dbnum, 'seriesnumber']
+        normtemplatename = df1.loc[dbnum, 'normtemplatename']
+        niiname = os.path.join(dbhome, fname)
+
+        normname = df1.loc[dbnum, 'normdataname']
+        normdataname_full = os.path.join(dbhome, normname)
+
+        # fullpath, filename = os.path.split(niiname)
+        # tag = '_s' + str(seriesnumber)
+        # normdataname_full = os.path.join(fullpath, normdatasavename + tag + '.npy')
+
+        # get normdataname to copy from
+        dbhomeC = df1.loc[copydbnum, 'datadir']
+        normnameC = df1.loc[copydbnum, 'normdataname']
+        normdataname_fullC = os.path.join(dbhomeC, normnameC)
+
+        # load normdata to be copied
+        print('loading normdata from {}'.format(normdataname_fullC))
+        normdata = np.load(normdataname_fullC, allow_pickle=True).flat[0]
+        result = normdata['result']
+        template_affine = normdata['template_affine']
+        normdata['Tfine'] = 'none'
+        normdata['norm_image_fine'] = 'none'   # do not include the fine-tuned data from the copy
+        self.NCresult = copy.deepcopy(result)
+        self.NCresult_copy = copy.deepcopy(result)
+
+        T, warpdata, reverse_map_image, forward_map_image, new_result, imagerecord, displayrecord = pynormalization.py_load_modified_normalization(
+            niiname, normtemplatename, result)
+
+        Tfine = 'none'
+        norm_image_fine = 'none'
+        normdata = {'T': T, 'Tfine': Tfine, 'warpdata': warpdata, 'reverse_map_image': reverse_map_image,
+                    'norm_image_fine': norm_image_fine, 'template_affine': template_affine, 'imagerecord': imagerecord,
+                    'result': result}
+        np.save(normdataname_full, normdata)
+
+
+        # input_datar = i3d.load_and_scale_nifti(niiname)
+        # if np.ndim(input_datar) > 3:
+        #     x, y, z, t = np.shape(input_datar)
+        #     if t > 3:
+        #         t0 = 3
+        #     else:
+        #         t0 = 0
+        #     input_image = input_datar[:, :, :, t0]
+        # else:
+        #     x, y, z = np.shape(input_datar)
+        #     input_image = input_datar
+        #
+        # background2 = input_image
+        # xs,ys,zs = np.shape(input_image)
+        # xmid = np.round(xs/2).astype(int)
+        # img = input_image[xmid,:,:]
+        # img = (255.*img/np.max(img)).astype(int)
+        # image_tk = ImageTk.PhotoImage(Image.fromarray(img))
+        # self.controller.img1d = image_tk  # keep a copy so it persists
+        # imagerecord = []
+        # imagerecord.append({'img':img})
+        #
+        # resolution = 1
+        # template_img, regionmap_img, template_affine, anatlabels, wmmap_img, roi_map, gmwm_img = load_templates.load_template_and_masks(
+        #     normtemplatename, resolution)
+        # normdata['imagerecord'] = imagerecord
+
+        print('saving normdata to {}'.format(normdataname_full))
+        np.save(normdataname_full, normdata)   # overwrite the norm data with the copy
+
+        # display results-----------------------------------------------------
+        nfordisplay = len(imagerecord)
+        for nf in range(nfordisplay):
+            img1 = imagerecord[nf]['img']
+            img1 = (255. * img1 / np.max(img1)).astype(int)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(img1))
+            self.controller.img1d = image_tk
+            self.window1.configure(width=image_tk.width(), height=image_tk.height())
+            self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+            time.sleep(1)
+
+        nfordisplay = len(result)
+        for nf in range(nfordisplay):
+            # draw the rectangular regions for each section
+            p0, p1, p2, p3, coords, angle, sectionsize, smallestside = self.outline_section(nf)
+            self.window1.create_line(p0[0], p0[1], p1[0], p1[1], p2[0], p2[1], p3[0], p3[1], p0[0], p0[1],
+                                     fill='yellow', width=2)
+
+        print('finished copying rough normalization data and saving results ...')
 
 
     # action when the button is pressed to submit the DB entry number list
@@ -1638,8 +1755,9 @@ class NCFrame:
             if 'datarecord' in existing_sheet_names:
                 # delete sheet - need to use openpyxl
                 workbook = openpyxl.load_workbook(self.NCdatabasename)
-                std = workbook.get_sheet_by_name('datarecord')
-                workbook.remove_sheet(std)
+                # std = workbook.get_sheet_by_name('datarecord')
+                # workbook.remove_sheet(std)
+                del workbook['datarecord']
                 workbook.save(self.NCdatabasename)
 
             # write it to the database by appending a sheet to the excel file

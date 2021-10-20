@@ -287,6 +287,7 @@ def py_calculate_section_positions(template, img, section_defs, angle_list, pos_
 def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fixedpoint, angle_estimate, angle_stiffness, reverse_order = False):
     # fixedpoint is in terms of the image coordinates
     # template is the entire template, not just the section of interest
+    map_success = True
 
     xt, yt, zt = np.shape(template)
     xs, ys, zs = np.shape(img)
@@ -353,9 +354,9 @@ def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fi
     print('coords x ', x1,' ',x2,' y ', y1,' ',y2,' z ',z1,' ',z2)
 
     # angle_list = np.linspace(-15,20,36) # input parameter
-    angley_list = np.linspace(-5,5,3)   # if angles are any smaller they are indistinguishable
-    angley_list = np.linspace(-1,1,2)   # if angles are any smaller they are indistinguishable
-    angley_weight = np.array([1.0, 1.0]) # slight weighting toward angley = 0
+    # angley_list = np.linspace(-5,5,3)   # if angles are any smaller they are indistinguishable
+    angley_list = np.linspace(-2,2,3)   # if angles are any smaller they are indistinguishable
+    angley_weight = np.array([0.5, 1.0, 0.5]) # slight weighting toward angley = 0
 
     mlist = np.zeros((np.size(angle_list), np.size(angley_list)))
     cclist = np.zeros((np.size(angle_list), np.size(angley_list),3))
@@ -367,6 +368,8 @@ def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fi
         section_position = np.round(fixedpoint - vcenter_fixedpoint)
     else:
         section_position = np.round(fixedpoint + vcenter_fixedpoint)
+
+    print('section_position = ',section_position)
 
     x = np.linspace(section_position[0] - dx, section_position[0] + dx, 2 * dx + 1).astype('int')
     cx = np.where((x >= 0) & (x < xs))
@@ -394,10 +397,19 @@ def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fi
     mtemp = mlist*angle_weight_extend
     maxc = np.max(mtemp)
     nc,mc = np.where(mtemp == maxc)
+    if len(nc) > 1:
+        nc = nc[0]
+        mc = mc[0]
     # bestposR = np.squeeze(cclist[nc, mc, 0:3])
     bestposR = section_position  # the position in the rotated image is the same for every angle, it rotates around in the unrotated image
     angle = angle_list[nc]
     angley = angley_list[mc]
+
+    # print('angle = ', angle)
+    # print('angley = ', angley)
+    # print('angle_list = ', angle_list)
+    # print('angley_list = ', angley_list)
+    # print('mtemp = ', mtemp)
 
     # rotate the positions back to the unrotated image
     # are these angles positive or negative?
@@ -410,6 +422,9 @@ def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fi
 
     print('best angle = ',angle,' angley = ', angley)
     print('best position:  ',coords)
+
+    if (coords[2] < 10) or (coords[2] > zs-10):
+        map_success = False
 
     # get the coordinates for the template section and corresponding image location that it maps to
     # get the coordinates for the image, where the template section maps to
@@ -453,7 +468,7 @@ def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fi
     # organize the outputs
     section_mapping_coords = {'X': Xr, 'Y': Yr, 'Z': Zr, 'Xt': Xt, 'Yt': Yt, 'Zt': Zt}
 
-    return coords, angle, angley, section_mapping_coords, original_section, template_section
+    return coords, angle, angley, section_mapping_coords, original_section, template_section, map_success
 
 
 # -------------py_predict_positions-------------------------------------------------
@@ -846,8 +861,8 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         # need a way to check on the result and fix bad mapping if it occurs
         # predict section positions based on other sections
         predicted, calculated = py_predict_positions(section_defs[:ninitial_fixed_segments], result[:ninitial_fixed_segments])
-        print('predicted positions: ', predicted)
-        print('calculated positions: ', calculated)
+        # print('predicted positions: ', predicted)
+        # print('calculated positions: ', calculated)
 
         err = np.abs(predicted-calculated)
         errdist = np.sqrt(np.sum(err**2, axis = 2))  # error in the position (distance) based on difference between predicted and calculated
@@ -873,12 +888,12 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
 
             # recalculate error section, with constraints
             position_stiffness = fit_parameters[0]
-            position_stiffnes = 1
+            position_stiffness = 1
             angle_stiffness = fit_parameters[2]
             angle_estimate =[]
             fixZ_flag = section_defs[commonfactor[0]]['fixdistance']
             error_correction_flag = 1;
-            coords, angle, angley, section_mapping_coords, original_section, template_section = py_calculate_section_positions(template, background2, section_defs[commonfactor[0]], angle_list, p1, angle_estimate, position_stiffness, angle_stiffness, fixZ_flag, fix_position_flag, error_correction_flag)
+            coords, angle, angley, section_mapping_coords, original_section, template_section, window1_display = py_calculate_section_positions(template, background2, section_defs[commonfactor[0]], angle_list, p1, angle_estimate, position_stiffness, angle_stiffness, fixZ_flag, fix_position_flag, error_correction_flag)
 
             result[commonfactor[0]]['angle'] = angle
             result[commonfactor[0]]['angley'] = angley
@@ -976,57 +991,65 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         angle_stiffness = 1e-3
 
         print('cord section ',ss,'   fixed point: ', fixedpoint)   # fixed point is in the image coordinates
-        coords, angle, angley, section_mapping_coords, original_section, template_section = \
+        coords, angle, angley, section_mapping_coords, original_section, template_section, map_success = \
             py_calculate_chainlink_positions(template, background2, section_defs[ss+ninitial_fixed_segments], \
                                              angle_list, fixedpoint, angle_estimate, angle_stiffness, reverse_order)
                                                                                                                         #  (template, img, section_defs, angle_list, fixedpoint, angle_estimate, angle_stiffness):
-        result[ss+ninitial_fixed_segments]['angle'] = angle
-        result[ss+ninitial_fixed_segments]['angley'] = angley
-        result[ss+ninitial_fixed_segments]['coords'] = coords
-        result[ss+ninitial_fixed_segments]['original_section'] = original_section
-        result[ss+ninitial_fixed_segments]['template_section'] = template_section
-        result[ss+ninitial_fixed_segments]['section_mapping_coords'] = section_mapping_coords
+        # if sections cannot be defined because they run off the end of the volume,
+        # then don't use them -------------------------------------
+        if map_success:
+            result[ss+ninitial_fixed_segments]['angle'] = angle
+            result[ss+ninitial_fixed_segments]['angley'] = angley
+            result[ss+ninitial_fixed_segments]['coords'] = coords
+            result[ss+ninitial_fixed_segments]['original_section'] = original_section
+            result[ss+ninitial_fixed_segments]['template_section'] = template_section
+            result[ss+ninitial_fixed_segments]['section_mapping_coords'] = section_mapping_coords
 
-        warpdata[ss+ninitial_fixed_segments]['X'] = section_mapping_coords['X']
-        warpdata[ss+ninitial_fixed_segments]['Y'] = section_mapping_coords['Y']
-        warpdata[ss+ninitial_fixed_segments]['Z'] = section_mapping_coords['Z']
-        warpdata[ss+ninitial_fixed_segments]['Xt'] = section_mapping_coords['Xt']
-        warpdata[ss+ninitial_fixed_segments]['Yt'] = section_mapping_coords['Yt']
-        warpdata[ss+ninitial_fixed_segments]['Zt'] = section_mapping_coords['Zt']
+            warpdata[ss+ninitial_fixed_segments]['X'] = section_mapping_coords['X']
+            warpdata[ss+ninitial_fixed_segments]['Y'] = section_mapping_coords['Y']
+            warpdata[ss+ninitial_fixed_segments]['Z'] = section_mapping_coords['Z']
+            warpdata[ss+ninitial_fixed_segments]['Xt'] = section_mapping_coords['Xt']
+            warpdata[ss+ninitial_fixed_segments]['Yt'] = section_mapping_coords['Yt']
+            warpdata[ss+ninitial_fixed_segments]['Zt'] = section_mapping_coords['Zt']
 
-        midline = np.zeros(ss+ninitial_fixed_segments)
-        for aa in range(ss+ninitial_fixed_segments):
-            midline[aa] = result[aa]['coords'][0]
-        midline = np.round(np.mean(midline)).astype('int')
+            midline = np.zeros(ss+ninitial_fixed_segments)
+            for aa in range(ss+ninitial_fixed_segments):
+                midline[aa] = result[aa]['coords'][0]
+            midline = np.round(np.mean(midline)).astype('int')
 
-        results_img = py_display_sections_local(template, background2, warpdata[:(ss+ninitial_fixed_segments)])
-        # display the result again
-        # need to figure out how to control which figure is used for display  - come back to this ....
-        display_image = results_img[midline, :, :]
-        image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
-        displayrecord.append(image_tk)
-        imagerecord.append({'img':display_image})
+            results_img = py_display_sections_local(template, background2, warpdata[:(ss+ninitial_fixed_segments)])
+            # display the result again
+            # need to figure out how to control which figure is used for display  - come back to this ....
+            display_image = results_img[midline, :, :]
+            image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+            displayrecord.append(image_tk)
+            imagerecord.append({'img':display_image})
 
-        # show fixed point
-        fixedpoint_previous = fixedpoint
-        angle = result[ss + ninitial_fixed_segments]['angle']
-        coords = result[ss + ninitial_fixed_segments]['coords']
-        pos = section_defs[ss + ninitial_fixed_segments]['center']
-        if reverse_order:
-            vpos_connectionpoint = section_defs[ss + ninitial_fixed_segments]['fixedpoint2'] + pos
+            # show fixed point
+            fixedpoint_previous = fixedpoint
+            angle = result[ss + ninitial_fixed_segments]['angle']
+            coords = result[ss + ninitial_fixed_segments]['coords']
+            pos = section_defs[ss + ninitial_fixed_segments]['center']
+            if reverse_order:
+                vpos_connectionpoint = section_defs[ss + ninitial_fixed_segments]['fixedpoint2'] + pos
+            else:
+                vpos_connectionpoint = section_defs[ss + ninitial_fixed_segments]['fixedpoint2'] - pos # vector from the center of the section to the connection point
+            Mx = rotation_matrix(-angle,0)
+            My = rotation_matrix(-angley,1)
+            Mtotal = np.dot(Mx,My)
+            rvpos = np.dot(vpos_connectionpoint, Mtotal) # rotated vector
+            if reverse_order:
+                fixedpoint = coords - rvpos  # mapped location of the fixed point in the image data
+            else:
+                fixedpoint = coords + rvpos  # mapped location of the fixed point in the image data
+
+            entry = {'coords':coords, 'fixedpoint':fixedpoint, 'fixedpoint_previous':fixedpoint_previous}
+            resultsplot.append(entry)
         else:
-            vpos_connectionpoint = section_defs[ss + ninitial_fixed_segments]['fixedpoint2'] - pos # vector from the center of the section to the connection point
-        Mx = rotation_matrix(-angle,0)
-        My = rotation_matrix(-angley,1)
-        Mtotal = np.dot(Mx,My)
-        rvpos = np.dot(vpos_connectionpoint, Mtotal) # rotated vector
-        if reverse_order:
-            fixedpoint = coords - rvpos  # mapped location of the fixed point in the image data
-        else:
-            fixedpoint = coords + rvpos  # mapped location of the fixed point in the image data
-
-        entry = {'coords':coords, 'fixedpoint':fixedpoint, 'fixedpoint_previous':fixedpoint_previous}
-        resultsplot.append(entry)
+            ncordsegments = ss-1
+            result = result[:(ninitial_fixed_segments+ncordsegments)]
+            warpdata = warpdata[:(ninitial_fixed_segments+ncordsegments)]
+            break
 
     if display_output:
         fig = plt.figure(1), plt.imshow(background2[np.round(xs2/2).astype(int),:,:], 'gray')
@@ -1048,8 +1071,8 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
     tck = interpolate.splrep(coords_list[ee, 2], coords_list[ee, 1], s=0)
     yy = interpolate.splev(range(zs2), tck, der=0)
 
-    yy = np.where(yy < 0,0,yy)
-    yy = np.where(yy >= ys2,ys2-1,yy)
+    yy = np.where(yy <= -0.5,0,yy)
+    yy = np.where(yy >= ys2-0.5,ys2-1,yy)
 
     cor_results_img = np.zeros((xs2, zs2))
     for zz in range(zs2):
@@ -1517,7 +1540,7 @@ def align_override_sections(normalization_results, adjusted_sections, niiname, n
     ncordsegments = len(section_defs) - ninitial_fixed_segments
 
     nsections = len(normalization_results)
-    ncordsegments = len(section_defs) - ninitial_fixed_segments
+    ncordsegments = nsections- ninitial_fixed_segments
     angle = np.zeros(ncordsegments)
     angley = np.zeros(ncordsegments)
     coords = np.zeros((ncordsegments,3))

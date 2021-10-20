@@ -166,8 +166,9 @@ def move_files_and_update_database(databasename, dbhome, pname):
 
         # need to delete the existing database sheet before writing the new one
         workbook = openpyxl.load_workbook(databasename)
-        std = workbook.get_sheet_by_name('datarecord')
-        workbook.remove_sheet(std)
+        # std = workbook.get_sheet_by_name('datarecord')
+        # workbook.remove_sheet(std)
+        del workbook['datarecord']
         workbook.save(databasename)
 
         # write it to the database by appending a sheet to the excel file
@@ -201,8 +202,9 @@ def convert_dicom_folder(databasename, databasenumber, basename = 'Series'):
 
     # need to delete the existing database sheet before writing the new one
     workbook = openpyxl.load_workbook(databasename)
-    std = workbook.get_sheet_by_name('datarecord')
-    workbook.remove_sheet(std)
+    # std = workbook.get_sheet_by_name('datarecord')
+    # workbook.remove_sheet(std)
+    del workbook['datarecord']
     workbook.save(databasename)
 
     # write it to the database by appending a sheet to the excel file
