@@ -570,8 +570,9 @@ def py_mirt3D_similarity(main, Xx, Xy, Xz):
     #% main.imsmall(:,:,:,1) - is the float image to be deformed
     #% main.imsmall(:,:,:,2:4) - its x,y,z gradient
     
-    im_int = i3d.warp_image(main['imsmall'][:,:,:,0], Xx, Xy, Xz)
-    
+    # im_int = i3d.warp_image(main['imsmall'][:,:,:,0], Xx, Xy, Xz)
+    im_int = i3d.warp_image_ignorenan(main['imsmall'][:,:,:,0], Xx, Xy, Xz)
+
 #    nanvals = np.isnan(im_int).sum()
 #    print('py_mirt3D_similarity   im_int has ',nanvals,' nan vals and ',np.size(im_int),' vals in total')
 
@@ -743,7 +744,7 @@ def py_mirt3D_grad(X,  main):
 
 #% find the dense transformation for a given position of B-spline control
 #% points (X).
-#[Xx,Xy,Xz]=mirt3D_nodes2grid(X, main.F, main.okno);
+#[Xx,Xy,Xz]=mirt3D_nodes2grid(X, main.F, main.okno)
     Xx,Xy,Xz = py_mirt3D_nodes2grid(X, main['F'], main['okno'])
 
 #% Compute the similarity function value (f) and its gradient (dd) at Xx, Xy
@@ -754,6 +755,7 @@ def py_mirt3D_grad(X,  main):
 #% Find the gradient at each B-spline control point
 #Gr=mirt3D_grid2nodes(ddx, ddy, ddz, main.F, main.okno, main.mg, main.ng, main.kg);
     Gr = py_mirt3D_grid2nodes(ddx, ddy, ddz, main['F'], main['okno'], main['mg'], main['ng'], main['kg'])
+
     return f, Gr, imsmall
         
 
@@ -856,7 +858,10 @@ def py_mirt3D_registration(X, main, optim):
     #clear ddx ddy ddz Xx Xy Xz;
     
 #    print('line 933: np.std(np.stack([ddx, ddy, ddz],axis=3), ddof = 1) = ',np.std(np.stack([ddx, ddy, ddz],axis=3), ddof = 1) )
-    optim['gamma']=optim['gamma']/np.std(np.stack([ddx, ddy, ddz],axis=3), ddof = 1)   # check this is right
+
+    # need to test if gamma value should be scaled to be in a reasonable range
+    # scaling based on dd values seems to be inconsistent
+    # optim['gamma']=optim['gamma']/np.std(np.stack([ddx, ddy, ddz],axis=3), ddof = 1)   # check this is right
     
     #% Start the main registration
     #% compute the objective function and its gradient
@@ -882,7 +887,6 @@ def py_mirt3D_registration(X, main, optim):
     #            % given their currect positions (X) and gradient in (T)
     #            [Xp, fr]=mirt3D_regsolve(X,T,main, optim);
         Xp, fr = py_mirt3D_regsolve(X,T,main, optim)
-               
         #            % compute new function value and new gradient
         #            [fe, Tp, imb]=mirt3D_grad(Xp,  main);
         fe, Tp, imb = py_mirt3D_grad(Xp,  main)
@@ -899,7 +903,7 @@ def py_mirt3D_registration(X, main, optim):
     #                % (this is an optimization heuristic to avoid some local minima)
             optim['gamma']*=optim['anneal']
             f += 0.001*abs(f)
-#            print("    no reduction: {fval:5.3e} dif {fchangeval:5.3e} iter {iterval}  gamma = {gam:5.3e}".format(fval = f, fchangeval = fchange, iterval = iter, gam = optim['gamma']))
+            # print("    no reduction: {fval:5.3e} dif {fchangeval:5.3e} iter {iterval}  gamma = {gam:5.3e}".format(fval = f, fchangeval = fchange, iterval = iter, gam = optim['gamma']))
         else:
     #                % if the new objective function value decreased
     #                % then accept all the variable as true and show the progress
@@ -912,7 +916,6 @@ def py_mirt3D_registration(X, main, optim):
     #                % show progress
     #               disp([upper(main.similarity) ' ' num2str(f) ' dif ' num2str(fchange) ' sub ' num2str(main.level) ' cyc ' num2str(main.cycle) ' vol ' num2str(main.volume) ' iter ' num2str(iter) ' gamma = ' num2str(optim.gamma)]);
             print("{sim} {fval:5.3e} dif {fchangeval:5.3e} sub {mlevel} cyc {mcycle} vol {mvol} iter {iterval}  gamma = {gam:5.3e}".format(sim = main['similarity'], fval = f, fchangeval = fchange, mlevel = main['level'], mcycle = main['cycle'], mvol = main['volume'], iterval = iter, gam = optim['gamma']))
-               
         iter+=1
     
     return X, im
@@ -921,7 +924,7 @@ def py_mirt3D_registration(X, main, optim):
 
 def py_mirt3D_register(refim, im, main, optim):
     # return [res, im_int]
-    verbose = True
+    verbose = False
     #% Check the input options and set the defaults
     #if nargin<2, error('mirt3D_register error! Not enough input parameters.'); end;
     #% Check the proper parameter initilaization
@@ -1148,6 +1151,7 @@ def py_mirt3D_register(refim, im, main, optim):
 # im=mirt3D_transform(refim, res)  applies the transformation
 # stored in res structure (output of mirt3D_register) to the 3D image refim
 
+# for the MATLAB version:
 # Copyright (C) 2007-2010 Andriy Myronenko (myron@csee.ogi.edu)
 # also see http://www.bme.ogi.edu/~myron/matlab/MIRT/
 #

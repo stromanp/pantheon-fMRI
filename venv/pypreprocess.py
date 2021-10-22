@@ -21,10 +21,10 @@ import pynormalization
 # this function assumes the input is given as a time-series, and the images are all coregistered
 # with the 3rd volume in the series, or the 1st volume if only two volumes are provided
 def coregister(filename, nametag, coregistered_prefix = 'c'):
-
+    starttime = time.time()
     #set default main settings for MIRT coregistration
     # use 'ssd', or 'cc' which was used in the previous matlab version of this function
-    main_init = {'similarity':'cc',   # similarity measure, e.g. SSD, CC, SAD, RC, CD2, MS, MI
+    main_init = {'similarity':'ssd',   # similarity measure, e.g. SSD, CC, SAD, RC, CD2, MS, MI
             'subdivide':1,       # use 1 hierarchical level
             'okno':4,           # mesh window size
             'lambda':0.5,     # transformation regularization weight, 0 for none
@@ -32,9 +32,16 @@ def coregister(filename, nametag, coregistered_prefix = 'c'):
     
     #Optimization settings
     optim_init = {'maxsteps':100,    # maximum number of iterations at each hierarchical level
-             'fundif':1e-6,     # tolerance (stopping criterion)
-             'gamma':1.0,         # initial optimization step size 
-             'anneal':0.7}        # annealing rate on the optimization step
+             'fundif':1e-4,     # tolerance (stopping criterion)
+             'gamma':1.0,         # initial optimization step size
+             'anneal':0.1}        # annealing rate on the optimization step
+
+    # original values
+    # optim_init = {'maxsteps':100,    # maximum number of iterations at each hierarchical level
+    #          'fundif':1e-6,     # tolerance (stopping criterion)
+    #          'gamma':1.0,         # initial optimization step size
+    #          'anneal':0.7}        # annealing rate on the optimization step
+
     
     smooth_refimage = False
     smooth_regimage = False
@@ -72,7 +79,8 @@ def coregister(filename, nametag, coregistered_prefix = 'c'):
         
         optim = copy.deepcopy(optim_init)
         main = copy.deepcopy(main_init)
-        
+
+        print('gamma = {}'.format(optim['gamma']))
         res, new_img = mirt.py_mirt3D_register(refimage, regimages, main, optim)
         m = np.max(regimage)
         new_img2 = m*mirt.py_mirt3D_transform(regimage/m,res)
@@ -93,7 +101,10 @@ def coregister(filename, nametag, coregistered_prefix = 'c'):
     niiname = os.path.join(pname, coregistered_prefix+fname)
     resulting_img = nib.Nifti1Image(result, affine)
     nib.save(resulting_img, niiname)
-    
+
+    endtime = time.time()
+    print('coregistration of volume took {} seconds'.format(np.round(endtime-starttime)))
+
     return niiname
 
 #------------slice timing from slice order ------------------------------------------------

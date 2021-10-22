@@ -128,7 +128,7 @@ def rotate3D(input_image, input_angle, refpoint, axis):
 
 
 def warp_image(input_image, mapX, mapY, mapZ):
-    mask = np.zeros(np.shape(input_image))   # create a mask of nan values
+    # mask = np.zeros(np.shape(input_image))   # create a mask of nan values
     mask = np.where(np.isnan(input_image), 1, 0)
     input_image = np.where(np.isnan(input_image), 0, input_image)
     # a = np.where(np.isnan(input_image))
@@ -142,6 +142,11 @@ def warp_image(input_image, mapX, mapY, mapZ):
     output_image = np.where(mapped_mask > 0.5, np.nan, output_image)   # put back the nans
     return output_image
 
+
+def warp_image_ignorenan(input_image, mapX, mapY, mapZ):
+    input_image = np.where(np.isnan(input_image), 0, input_image)
+    output_image = nd.map_coordinates(input_image, [mapX, mapY, mapZ], order = 3, prefilter = True)
+    return output_image
 
 
 def warp_image_nearest(input_image, mapX, mapY, mapZ):
