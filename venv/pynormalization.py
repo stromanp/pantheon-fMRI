@@ -115,7 +115,8 @@ def py_calculate_section_positions(template, img, section_defs, angle_list, pos_
         # check = np.where(np.isnan(temp))
         # temp[check] = 0
         xr,yr,zr = np.shape(temp)
-        window1_display = temp[6, :, :]
+        xmid = np.round(xr/2).astype(int)
+        window1_display = temp[xmid, :, :]
         fig = plt.figure(1), plt.imshow(window1_display, 'gray')
 
         # step through the range of rotation angles and find the best fit
@@ -143,7 +144,6 @@ def py_calculate_section_positions(template, img, section_defs, angle_list, pos_
                 imgRR = np.where(np.isnan(imgRR),0,imgRR)
                 # calculate the cross-correlation between the rotated image and the template section
                 cc = i3d.normxcorr3(imgRR/np.max(imgRR), temp, shape='same')
-
 
                 if np.size(pos_estimate) < 1:
                     pos_weight = np.ones((xs, ys, zs))
@@ -200,7 +200,7 @@ def py_calculate_section_positions(template, img, section_defs, angle_list, pos_
         coords = np.squeeze(cclist[nc, mc, 0:3])
         coordsR = np.squeeze(cclistR[nc, mc, 0:3])
         # angle_list is relative to the rotated template
-        angle = angle_list[nc] - section_defs['xrot']
+        angle = angle_list[nc]- section_defs['xrot']
         angley = angley_list[mc]
 
         print('best angle = ',angle,' angley = ', angley)
@@ -382,6 +382,9 @@ def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fi
     xi, yi, zi = np.meshgrid(x[cx], y[cy], z[cz], indexing='ij')  # coordinates in the rotated image
     xc, yc, zc = np.meshgrid(cx, cy, cz, indexing='ij')
 
+    # it is the image being normalized that is rotated, to align with the template
+    # later, the template section will be rotated and shifted to match the image
+    # - need to keep these angles and rotations consistent
     for nn, angle in enumerate(angle_list):
         imgR = i3d.rotate3D(img, angle, fixedpoint, 0)
 
@@ -413,15 +416,16 @@ def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fi
     # print('mtemp = ', mtemp)
 
     # rotate the positions back to the unrotated image
-    # are these angles positive or negative?
+    # the angles must be negative to get the positions in the unrotated image
     Mx = rotation_matrix(-angle, axis=0)
     My = rotation_matrix(-angley, axis=1)
     Mtotal = np.dot(My, Mx)
     bestpos = np.dot((bestposR - fixedpoint), Mtotal) + fixedpoint   # rotate the coordinates back around fixedpoint
     coords = bestpos   # coordinates of the section center in the non-rotated image
-    coordsR = bestposR
+    coordsR = bestposR # coordinates of the section center in the rotated image
 
     print('best angle = ',angle,' angley = ', angley)
+    print('    angle prediction = ',angle_estimate)
     print('best position:  ',coords)
 
     if (coords[2] < 10) or (coords[2] > zs-10):
@@ -434,12 +438,15 @@ def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fi
     # unlike the brainstem sections, the cord sections are never at an angle, the sections are aligned with the principal axes
     # Xt etc are coordinates in the template
     Xt, Yt, Zt = np.mgrid[(xpos-dx):(xpos+dx):(2*dx+1)*1j, (ypos-dy):(ypos+dy):(2*dy+1)*1j,(zpos-dz):(zpos+dz):(2*dz+1)*1j]
-    # X etc are image coordinates in the rotated image
+    # X etc are image coordinates in the rotated image, which was matched to the fixed template
     X, Y, Z = np.mgrid[(coordsR[0] - dx):(coordsR[0] + dx):(2*dx+1)*1j,
               (coordsR[1] - dy):(coordsR[1] + dy):(2*dy+1)*1j,
               (coordsR[2] - dz):(coordsR[2] + dz):(2*dz+1)*1j]
 
-    # this is for rotating the image coordinates around fixedpoint
+    # now the coordinates need to rotated to the original, unrotated, image
+    # the image was rotated to match the template, so the coordinates for that section must also
+    # be rotated in the same direction to get their values
+    #  - important -- these are the coordinates that are being rotated now, not the image itself
     sa = (np.pi / 180) * angle
     Xr = X
     Yr = (Y - fixedpoint[1])*math.cos(sa) - (Z - fixedpoint[2])*math.sin(sa) + fixedpoint[1]
@@ -453,6 +460,10 @@ def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fi
     Xr = Xrr
     Yr = Yrr
     Zr = Zrr
+
+    # check on rotated coordinates
+    coords_check = np.array([Xr[dx,dy,dz], Yr[dx,dy,dz], Zr[dx,dy,dz]])
+    print('check on best position rotation:  best position = ', coords_check)
 
     # make sure coordinates are within limits
     # use these limits because values will be rounded when used as coordinates
@@ -788,7 +799,7 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
     if np.size(fit_parameters_input) < 1:
         fit_parameters_input = [10, 50, 5, 6, -10, 10, -10, 20]   # default values
 
-    fit_parameters = fit_parameters_input*np.array([1e-4, 1e-4, 1e-4, 1, 1, 1, 1, 1])   # actual parameters are scaled from more intuitive values
+    fit_parameters = fit_parameters_input*np.array([1e-4, 1e-4, 1e-4, 1e-4, 1, 1, 1, 1])   # actual parameters are scaled from more intuitive values
 
     # global zpos2_record
     xs2, ys2, zs2 = np.shape(background2)
@@ -810,7 +821,11 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         print('starting rough mapping for section ',ss, ' ...')
         position_stiffness = fit_parameters[0]
         angle_stiffness = fit_parameters[2]
-        angle_list = np.linspace(fit_parameters[4],fit_parameters[5],np.round((fit_parameters[5]-fit_parameters[4])/2 + 1).astype('int'))
+
+        nsearchvalues = np.round((fit_parameters[5] - fit_parameters[4]) / 2 + 1).astype('int')
+        if nsearchvalues > 11: nsearchvalues = 11
+        angle_list = np.linspace(fit_parameters[4],fit_parameters[5],nsearchvalues)
+        # angle_list = np.linspace(fit_parameters[4],fit_parameters[5],np.round((fit_parameters[5]-fit_parameters[4])/2 + 1).astype('int'))
 
         if (ss == 0) & (np.size(section_defs[0]['start_ref_pos']) > 0):
             pos_estimate = section_defs[0]['start_ref_pos']
@@ -956,16 +971,24 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         angle_list = np.linspace(fit_parameters[6],fit_parameters[7],np.round((fit_parameters[7]-fit_parameters[6])/2 + 1).astype('int'))
 
         if ss == 0:   # the first defined section has to be the one just above the cord sections that are chained together
-            angle = result[0]['angle']
+            #  --- important revision to test -- does the previous section_def angle need to be added for the prediction?
+            angle = result[0]['angle']  + section_defs[0]['xrot']
             coords = result[0]['coords']
             pos = section_defs[0]['center']
             if reverse_order:
                 vpos_connectionpoint = first_region_connection_point + pos
             else:
                 vpos_connectionpoint = first_region_connection_point - pos  # vector from the center of the section to the connection point
+
+            # -- important revision -------- DO NOT make angles negative to get correct rotation
+            # Mx = rotation_matrix(-angle,0)
+            # My = rotation_matrix(-angley,1)
+            # Mtotal = np.dot(Mx,My)
+            # original-----------------
             Mx = rotation_matrix(angle,0)
             My = rotation_matrix(angley,1)
             Mtotal = np.dot(Mx,My)
+            # end of original---------------
             rvpos = np.dot(vpos_connectionpoint, Mtotal)   # rotated vector
             if reverse_order:
                 fixedpoint = coords - rvpos  # mapped location of fixedpoint in the image data
@@ -989,7 +1012,7 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
                 fixedpoint = coords + rvpos  # mapped location of fixedpoint in the image data
 
         angle_estimate = angle
-        angle_stiffness = 1e-3
+        # angle_stiffness = 1e-3
 
         print('cord section ',ss,'   fixed point: ', fixedpoint)   # fixed point is in the image coordinates
         coords, angle, angley, section_mapping_coords, original_section, template_section, map_success = \
@@ -1404,7 +1427,7 @@ def define_sections(template_name, dataname):
         refdata = np.load(cervicalrefnormdata)   # this cervicalrefnormdata has not been defined yet ........(July 22 2020)--------
 
         # ---------need to sort this out for the python version ---------------------------
-        Mcoords = refdata['warpdata'][11]['coords'] # the last section for cervical is the same as the first section for thoracic
+        Mcoords = refdata['warpdata'][-1]['coords'] # the last section for cervical is the same as the first section for thoracic
         new_pixdim = [1,1,1]  # images are resized to 1 mm cubic voxels for normalization
 
         # Mapped_coords = QU_map_one_image_to_another(filename, cervicalrefimg, Mcoords, new_pixdim)
