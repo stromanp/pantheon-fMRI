@@ -760,7 +760,7 @@ if save_wm_template:
     
     # create NIfTI format output of the stitched together template
     template_filename = os.path.join(save_data_path, 'wholeCNS_wm_map.nii.gz')
-    resulting_img = nib.Nifti1Image(stitched_imagewm.astype(int), new_affine)
+    resulting_img = nib.Nifti1Image((255.*stitched_imagewm).astype(int), new_affine)
     nib.save(resulting_img, template_filename)
     
     # extract sections of the region maps corresponding to the CCBS template
@@ -783,7 +783,7 @@ if save_wm_template:
     new_size_1mm = np.floor(small_size*abs(vs)).astype('int')
     new_affine_1mm = np.array([[np.sign(temp_affine[0,0]), 0.0, 0.0, temp_affine[0,3]],[0.0, np.sign(temp_affine[1,1]), 0.0, temp_affine[1,3]],[0.0, 0.0, np.sign(temp_affine[2,2]), temp_affine[2,3]],[0., 0., 0., 1.]])
     temp_data_small = i3d.resize_3D_nearest(temp_data, new_size_1mm)
-    resulting_img_small = nib.Nifti1Image(temp_data_small.astype(int), new_affine_1mm)
+    resulting_img_small = nib.Nifti1Image((255.*temp_data_small).astype(int), new_affine_1mm)
     nib.save(resulting_img_small, temp_filename)
     
     # # CCBS
@@ -793,14 +793,14 @@ if save_wm_template:
     temp_filename = os.path.join(save_data_path, 'CCBS_wm_map.nii.gz')
     vs = np.array([temp_affine[0,0],temp_affine[1,1],temp_affine[2,2]])
     small_size = np.shape(temp_data)
-    resulting_img_small = nib.Nifti1Image(temp_data.astype(int), temp_affine)
+    resulting_img_small = nib.Nifti1Image((255.*temp_data).astype(int), temp_affine)
     nib.save(resulting_img_small, temp_filename)
 
     temp_filename = os.path.join(save_data_path, 'CCBS_wm_map_1mm.nii.gz')
     new_size_1mm = np.floor(small_size*abs(vs)).astype('int')
     new_affine_1mm = np.array([[np.sign(temp_affine[0,0]), 0.0, 0.0, temp_affine[0,3]],[0.0, np.sign(temp_affine[1,1]), 0.0, temp_affine[1,3]],[0.0, 0.0, np.sign(temp_affine[2,2]), temp_affine[2,3]],[0., 0., 0., 1.]])
     temp_data_small = i3d.resize_3D_nearest(temp_data, new_size_1mm)
-    resulting_img_small = nib.Nifti1Image(temp_data_small.astype(int), new_affine_1mm)
+    resulting_img_small = nib.Nifti1Image((255.*temp_data_small).astype(int), new_affine_1mm)
     nib.save(resulting_img_small, temp_filename)
 
 

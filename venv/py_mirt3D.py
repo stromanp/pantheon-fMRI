@@ -930,7 +930,7 @@ def py_mirt3D_register(refim, im, main, optim):
     #% Check the proper parameter initilaization
     #[main,optim]=mirt_check(main,optim,nargin);
     
-    print('py_mirt3D_register   min/max of im are: ',np.min(im), np.max(im))
+    # print('py_mirt3D_register   min/max of im are: ',np.min(im), np.max(im))
     
     main,optim = py_mirt_check(main,optim,4)   # require 4 inputs to py_mirt3D_register, different than in matlab
     
@@ -944,8 +944,8 @@ def py_mirt3D_register(refim, im, main, optim):
         start_time = time.time()
         print('MIRT: Starting 3D registration...')
         print('Using the following parameters:')
-        main
-        optim
+        print(main)
+        print(optim)
     
     #% Original image size 
     dimen=np.shape(refim)

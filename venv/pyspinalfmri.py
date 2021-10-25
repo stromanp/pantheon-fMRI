@@ -1054,7 +1054,7 @@ class NIFrame:
             niiname = dicom_conversion.convert_dicom_folder(self.NIdatabasename, dbnum, self.NIbasename)
             print('NIfTI conversion: converted ',dbnum,' : ',niiname)
             
-        print('NIfTI conversion: finished converted data to NIfTI ...', time.ctime(time.time()))
+        print('NIfTI conversion: finished converting data to NIfTI ...', time.ctime(time.time()))
               
 
 
