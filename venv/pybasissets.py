@@ -239,7 +239,7 @@ def get_whitematter_noise(niiname, normtemplatename, nametag):
     # load templates to find the white matter regions
     resolution = 1
     template_img, regionmap_img, template_affine, anatlabels = load_templates.load_template(normtemplatename, resolution)
-    wmmap, template_img, template_affine = load_templates.load_wm_maps(normtemplatename, resolution)
+    wmmap, template_img, template_affine, roi_map, gmwm_img = load_templates.load_wm_maps(normtemplatename, resolution)
 
     # load the data to get the white matter time-courses
     input_img = nib.load(niiname)
