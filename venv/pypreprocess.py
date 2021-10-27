@@ -32,9 +32,9 @@ def coregister(filename, nametag, coregistered_prefix = 'c'):
     
     #Optimization settings
     optim_init = {'maxsteps':100,    # maximum number of iterations at each hierarchical level
-             'fundif':1e-4,     # tolerance (stopping criterion)
-             'gamma':1.0,         # initial optimization step size
-             'anneal':0.1}        # annealing rate on the optimization step
+             'fundif':1e-6,     # tolerance (stopping criterion)
+             'gamma':0.1,         # initial optimization step size
+             'anneal':0.5}        # annealing rate on the optimization step
 
     # original values
     # optim_init = {'maxsteps':100,    # maximum number of iterations at each hierarchical level
@@ -84,6 +84,7 @@ def coregister(filename, nametag, coregistered_prefix = 'c'):
         res, new_img = mirt.py_mirt3D_register(refimage, regimages, main, optim)
         m = np.max(regimage)
         new_img2 = m*mirt.py_mirt3D_transform(regimage/m,res)
+
         result[:,:,:,tt] = new_img2
 
         if tt == 0:
@@ -106,6 +107,124 @@ def coregister(filename, nametag, coregistered_prefix = 'c'):
     print('coregistration of volume took {} seconds'.format(np.round(endtime-starttime)))
 
     return niiname
+
+
+#-------------coregistration guided by rough normalization results-------------------------
+#------------------------------------------------------------------------------------------
+def guided_coregistration(filename, nametag, normname, coregistered_prefix = 'c'):
+    # use rough normalization section positions to check for larger movements than can be
+    # corrected by MIRT coregistration
+    print('coregistration guided by rough normalization results ...')
+
+    starttime = time.time()
+    # set default main settings for MIRT coregistration
+    # use 'ssd', or 'cc' which was used in the previous matlab version of this function
+    main_init = {'similarity': 'ssd',  # similarity measure, e.g. SSD, CC, SAD, RC, CD2, MS, MI
+                 'subdivide': 1,  # use 1 hierarchical level
+                 'okno': 4,  # mesh window size
+                 'lambda': 0.5,  # transformation regularization weight, 0 for none
+                 'single': 1}
+
+    # Optimization settings
+    optim_init = {'maxsteps': 100,  # maximum number of iterations at each hierarchical level
+                  'fundif': 1e-6,  # tolerance (stopping criterion)
+                  'gamma': 0.1,  # initial optimization step size
+                  'anneal': 0.5}  # annealing rate on the optimization step
+
+    input_img = nib.load(filename)
+    input_data = input_img.get_data()
+    affine = input_img.affine
+
+    xs, ys, zs, ts = np.shape(input_data)
+
+    # coregister to the 3rd volume in the time-series
+    if ts >= 2:
+        refimage = input_data[:, :, :, 2]
+    else:
+        refimage = input_data[:, :, :, 0]
+
+    refimage = refimage/np.max(refimage)
+
+    # check if sections need to be adjusted
+    # load normalization results
+    normdata = np.load(normname, allow_pickle=True).flat[0]
+    result = normdata['result']
+    nsections = len(result)
+
+    # setup
+    pw = 1e-2   #  position_stiffness
+    ddx, ddy, ddz = np.mgrid[range(xs), range(ys), range(zs)]
+
+    # do this for each volume in the time-series
+    tt = 10
+
+    img = input_data[:, :, :, tt]
+    img = img/np.max(img)
+    warpdata = []
+    for nn in range(nsections):
+        angle = result[nn]['angle']
+        angley = result[nn]['angley']
+        coords = result[nn]['coords']
+        original_section = result[nn]['original_section']
+        template_section = result[nn]['template_section']
+        section_mapping_coords = result[nn]['section_mapping_coords']
+
+        # check position - keep rotation angles the same
+        imgR = i3d.rotate3D(img, angle, p0, 0)
+        imgRR = i3d.rotate3D(imgR, angley, p0, 1)
+        cc = i3d.normxcorr3(imgRR/np.max(imgRR), temp, shape='same')
+
+        # find the combination of correlation and proximity to the expected location
+        dist = np.sqrt((ddx - coords[0]) ** 2 + (ddy - coords[1]) ** 2 + (ddz - coords[2]) ** 2)
+        pos_weight = 1 / (pw * dist + 1)
+
+        cc_temp = cc * pos_weight
+        m = np.max(cc_temp)
+        xp, yp, zp = np.where(cc_temp == m)
+        coordsR = np.array([xp[0], yp[0], zp[0]])
+
+        dx,dy,dz = np.shape(result[nn]['template_section'])
+        # get mapping coordinates from the current volume to the original
+        Xt, Yt, Zt = np.mgrid[(coords[0] - dx):(coords[0] + dx):(2 * dx + 1) * 1j, (coords[1] - dy):(coords[1] + dy):(2 * dy + 1) * 1j,
+                     (coords[2] - dz):(coords[2] + dz):(2 * dz + 1) * 1j]
+        # X etc are image coordinates in the rotated image, which was matched to the fixed template
+        X, Y, Z = np.mgrid[(coordsR[0] - dx):(coordsR[0] + dx):(2 * dx + 1) * 1j,
+                  (coordsR[1] - dy):(coordsR[1] + dy):(2 * dy + 1) * 1j,
+                  (coordsR[2] - dz):(coordsR[2] + dz):(2 * dz + 1) * 1j]
+
+        # organize the outputs
+        section_mapping_coords = {'X': X, 'Y': Y, 'Z': Z, 'Xt': Xt, 'Yt': Yt, 'Zt': Zt}
+        warpdata.append(section_mapping_coord)
+
+    # 1) make section positions consistent
+    # 2) calculate new normalization
+    # 3) apply new normalization for rough correction
+    # 4) apply fine-tuning normalization
+
+    # combine the warp fields from each section into one map
+    fit_order = [2, 4, 2]  # "fit_order" could be an input parameter
+    found_stable = False
+    while not found_stable:
+        T, reverse_map_image, forward_map_image, inv_Rcheck = py_combine_warp_fields(warpdata, img, refimage, fit_order)
+
+        if np.any(inv_Rcheck > 1.0e22): print('py_cord_normalize:  matrix inversion may be unstable, y fit order = ',fit_order[1],'  ... will try to correct with a lower fit order')
+        Ys_max = np.max(T['Ys']);  Ys_min = np.min(T['Ys']);   Ymap_check = (Ys_max < (2*ys2)) & (Ys_max > (-ys2))
+        if Ymap_check | (fit_order[1] <= 2):
+            found_stable = True
+        else:
+            fit_order[1] = fit_order[1]-1
+
+    print('py_auto_cord_normalize:  Found a stable warp field solution')
+
+    # apply the warping
+    # then do the fine-tuning registration
+
+
+
+
+# py_combine_warp_fields(warpdata, background2, template, fit_order = [3,3,3])
+    # return  T, reverse_map_image, forward_map_image, inv_Rcheck
+
 
 #------------slice timing from slice order ------------------------------------------------
 #------------------------------------------------------------------------------------------
@@ -264,7 +383,7 @@ def cleandata(niiname, prefix,nametag, clean_prefix = 'x'):
     pname, fname = os.path.split(niiname)
     fnameroot, ext = os.path.splitext(fname)
     input_img = nib.load(niiname)
-    input_data = input_img.get_data()
+    input_data = input_img.get_fdata()
     affine = input_img.affine
 
     # name of white matter confounds excel file ...
@@ -298,13 +417,13 @@ def cleandata(niiname, prefix,nametag, clean_prefix = 'x'):
     ndrop = 2  # make this an input
     basis_set = np.concatenate((wm1[np.newaxis,:],wm2[np.newaxis,:],wm3[np.newaxis,:],np.array(dpvals)),axis=0)
     varcheck = np.var(basis_set[:,ndrop:], axis = 1)
-    a = np.argwhere(varcheck > 1.0e-3)   # set some tolerance on the variance before it is considered essentially zero
+    a = np.argwhere(varcheck > 1.0e-6)   # set some tolerance on the variance before it is considered essentially zero
     basis_set = basis_set[a.flatten(),:]   # keep only the basis elements with non-zero variance (i.e. not constant)
     print('cleandata:  shape of basis_set is ', np.shape(basis_set))
 
     residual, meanvalue = GLMfit.GLMfit_subtract_and_separate(input_data, basis_set, add_constant = True, ndrop = ndrop)
 
-    cleaned_data = 100.*residual/(meanvalue + 1.0e-20)   # express the clean data as percent signal change from the average
+    cleaned_data = 100. + 100.*residual/(meanvalue + 1.0e-20)   # express the clean data as percent signal change from the average
 
     pname, fname = os.path.split(niiname)
     niiname_out = os.path.join(pname, clean_prefix + fname)

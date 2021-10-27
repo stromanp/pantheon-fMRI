@@ -81,7 +81,6 @@ def GLMfit(image_data, basis_set, contrast='None', add_constant = False, ndrop =
         B = np.reshape(Bcontrast, (xs, ys, zs))
         sem = np.reshape(sem_contrast, (xs, ys, zs))
 
-
     return B, sem, T
 
 
@@ -90,6 +89,7 @@ def GLMfit(image_data, basis_set, contrast='None', add_constant = False, ndrop =
 def GLMfit_and_subtract(image_data, basis_set, add_constant = False, ndrop = 2):
     # this function fits the image data to the basis set, and
     # subtracts the fit from the data to give only the residual
+    # but the output needs to be the same shape as the input, so pad to replace the dropped values
     xs,ys,zs,ts = np.shape(image_data[:,:,:,ndrop:])
     nvox = xs*ys*zs
     S = np.reshape(image_data[:,:,:,ndrop:], (nvox,ts))
@@ -142,7 +142,11 @@ def GLMfit_and_subtract(image_data, basis_set, add_constant = False, ndrop = 2):
     # put it back to original shape
     residual = np.reshape(residual,(xs,ys,zs,ts))
 
-    return residual
+    # pad to replace the dropped values - replace with the time-series average
+    npad = ((0,0),(0,0),(0,0),(ndrop,0))
+    residual2 = np.pad(residual, npad, mode = 'mean')
+
+    return residual2
 
 
 #----------------GLMfit_subtract_and_separate------------------------------------------
@@ -191,15 +195,6 @@ def GLMfit_subtract_and_separate(image_data, basis_set, add_constant = False, nd
     B = np.dot(np.dot(S,G.T),iGG)
 
     # calculate the resulting fit values, using all data points
-    xs,ys,zs,ts = np.shape(image_data)
-    nvox = xs*ys*zs
-    S = np.reshape(image_data, (nvox,ts))
-    G = basis_set
-    if add_constant:   # need to add the constant term again, if it was added before
-        if np.size(c) == 0:
-            constant = np.ones((1,ts))
-            G = np.concatenate((G, constant), axis=0)
-
     fit = np.dot(B,G)
     # subtract fit from the original
     residual = S-fit
@@ -210,7 +205,13 @@ def GLMfit_subtract_and_separate(image_data, basis_set, add_constant = False, nd
     meanval =  np.dot(B[:,constant_index,np.newaxis],G[np.newaxis,constant_index,:])
     meanval = np.reshape(meanval,(xs,ys,zs,ts))
 
-    return residual, meanval
+    # want to keep the result the same size as the original - pad the results
+    # pad to replace the dropped values - replace with the time-series average
+    npad = ((0,0),(0,0),(0,0),(ndrop,0))
+    residual2 = np.pad(residual, npad, mode = 'mean')
+    meanval2 = np.pad(meanval, npad, mode = 'mean')
+
+    return residual2, meanval2
 
 
 #----------------compile_data_sets------------------------------------------

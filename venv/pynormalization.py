@@ -939,22 +939,27 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
 
     # 3) map the remaining sections based on the initial sections
     # the later sections are guided by the first section
-    angle = result[0]['angle']
-    coords = result[0]['coords']   # this might be in the rotated template space
-    pos = section_defs[0]['center']
-    first_region_connection_point = section_defs[0]['first_region_connection_point']
-    if reverse_order:
-        vpos_connectionpoint = first_region_connection_point + pos
-    else:
-        vpos_connectionpoint = first_region_connection_point - pos  # vector from the center of the section to the connection point, in the template
-    Mx = rotation_matrix(angle, 0)
-    My = rotation_matrix(angley, 1)
-    Mtotal = np.dot(Mx,My)
-    rvpos = np.dot(vpos_connectionpoint,Mtotal)  # rotated vector
-    if reverse_order:
-        fixedpoint = coords - rvpos  # mapped location of the fixedpoint in the image data
-    else:
-        fixedpoint = coords + rvpos  # mapped location of the fixedpoint in the image data
+
+    #---------is this part redundant?----------------------------------
+    # angle = result[0]['angle']
+    # coords = result[0]['coords']   # this might be in the rotated template space
+    # pos = section_defs[0]['center']
+    # first_region_connection_point = section_defs[0]['first_region_connection_point']
+    # if reverse_order:
+    #     vpos_connectionpoint = first_region_connection_point + pos
+    # else:
+    #     vpos_connectionpoint = first_region_connection_point - pos  # vector from the center of the section to the connection point, in the template
+    #
+    # #  important revision - make these angles negative, for calculating fixation point
+    # Mx = rotation_matrix(-angle, 0)
+    # My = rotation_matrix(-angley, 1)
+    # Mtotal = np.dot(Mx,My)
+    # rvpos = np.dot(vpos_connectionpoint,Mtotal)  # rotated vector
+    # if reverse_order:
+    #     fixedpoint = coords - rvpos  # mapped location of the fixedpoint in the image data
+    # else:
+    #     fixedpoint = coords + rvpos  # mapped location of the fixedpoint in the image data
+    # ---------end of:  is this part redundant?----------------------------------
 
     # draw this line over the figure that was previously displayed ...
     # if display_window == 'None':
@@ -973,21 +978,23 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         if ss == 0:   # the first defined section has to be the one just above the cord sections that are chained together
             #  --- important revision to test -- does the previous section_def angle need to be added for the prediction?
             angle = result[0]['angle']  + section_defs[0]['xrot']
+            angley = result[0]['angley']
             coords = result[0]['coords']
             pos = section_defs[0]['center']
+            first_region_connection_point = section_defs[0]['first_region_connection_point']
             if reverse_order:
                 vpos_connectionpoint = first_region_connection_point + pos
             else:
                 vpos_connectionpoint = first_region_connection_point - pos  # vector from the center of the section to the connection point
 
-            # -- important revision -------- DO NOT make angles negative to get correct rotation
-            # Mx = rotation_matrix(-angle,0)
-            # My = rotation_matrix(-angley,1)
-            # Mtotal = np.dot(Mx,My)
-            # original-----------------
-            Mx = rotation_matrix(angle,0)
-            My = rotation_matrix(angley,1)
+            # -- important revision -------- DO make angles negative to get correct rotation
+            Mx = rotation_matrix(-angle,0)
+            My = rotation_matrix(-angley,1)
             Mtotal = np.dot(Mx,My)
+            # original-----------------
+            # Mx = rotation_matrix(angle,0)
+            # My = rotation_matrix(angley,1)
+            # Mtotal = np.dot(Mx,My)
             # end of original---------------
             rvpos = np.dot(vpos_connectionpoint, Mtotal)   # rotated vector
             if reverse_order:

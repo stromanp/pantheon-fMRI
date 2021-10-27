@@ -224,9 +224,6 @@ def py_mirt3D_initK(siz):
     
     #% create the 1D arrays of eigenvalues in x,y,z directions
     #% create the 1D arrays of eigenvalues in x,y,z directions
-    #v1=cos((pi/M)*(0:M-1)');
-    #v2=cos((pi/N)*(0:N-1));
-    #v3(1,1,:)=cos((pi/L)*(0:L-1)); 
     
     v1 = np.zeros(M)
     for m in range(M):
@@ -253,109 +250,10 @@ def py_mirt3D_initK(siz):
     return K
 
 
-
-#% This function subdivide the current mesh of B-spline control 
-#% points to one level up (twise denser). The new size will be
-#% mg=2*mg-3. The function can subdivide a single mesh or a sequence
-#% meshes simultaneusly.
-#%
-#% The idea is to take each 3D cube of 8 (2x2x2) of B-spline control points
-#% and upsample it to form a new 3D cube of 27 (3x3x3). And repeat for
-#% for all B-spline control points
-#% After upsampling is done, we also need to remove the control points
-#% around the image border, because they are useless at the higher
-#% resolution level, and will only add to the computational time.
-#
-#% Copyright (C) 2007-2010 Andriy Myronenko (myron@csee.ogi.edu)
-#% also see http://www.bme.ogi.edu/~myron/matlab/MIRT/
-#%
-#% This file is part of the Medical Image Registration Toolbox (MIRT).
-
-#def py_mirt3D_subdivide(X, M):
-#    # return Y
-#    
-#    mg,ng, kg, tmp, tmp = np.shape(X)
-#    
-#    x=np.squeeze(X[:,:,:,0,:], axis = 3)
-#    y=np.squeeze(X[:,:,:,1,:], axis = 3)
-#    z=np.squeeze(X[:,:,:,2,:], axis = 3)
-#    
-#    xnew=np.zeros(mg, 2*ng-2, kg, M)
-#    ynew=np.zeros(mg, 2*ng-2, kg, M)
-#    znew=np.zeros(mg, 2*ng-2, kg, M)
-#    
-#    xfill=(x[:,:-1,:,:]+x[:,1:,:,:])/2
-#    yfill=(y[:,:-1,:,:]+y[:,1:,:,:])/2
-#    zfill=(z[:,:-1,:,:]+z[:,1:,:,:])/2
-#    
-#    for i in range(0,ng-1):
-##        a = range(2*i, 2*i+1)
-#        xnew[:,2*i:2*i+1,:,:] = np.stack((x[:,i,:,:], xfill[:,i,:,:]), axis = 1)
-#        ynew[:,2*i:2*i+1,:,:] = np.stack((y[:,i,:,:], yfill[:,i,:,:]), axis = 1)
-#        znew[:,2*i:2*i+1,:,:] = np.stack((z[:,i,:,:], zfill[:,i,:,:]), axis = 1)
-##       znew[:,a,:,:]=cat(2,z(:,i,:,:), zfill(:,i,:,:));
-#    
-#    x=xnew[:,1:,:,:]
-#    y=ynew[:,1:,:,:] 
-#    z=znew[:,1:,:,:] 
-#    
-#    xnew=np.zeros((2*mg-2, 2*ng-3, kg, M))
-#    ynew=np.zeros((2*mg-2, 2*ng-3, kg, M))
-#    znew=np.zeros((2*mg-2, 2*ng-3, kg, M))
-#    
-#    xfill=(x[:-1,:,:,:]+x[1:,:,:,:])/2
-#    yfill=(y[:-1,:,:,:]+y[1:,:,:,:])/2
-#    zfill=(z[:-1,:,:,:]+z[1:,:,:,:])/2
-#    
-##    for i=1:mg-1
-#    for i in range(0,mg-1):
-#        a = range(2*i, 2*i+1)
-##       ynew(2*i-1:2*i,:,:,:)=cat(1,y(i,:,:,:), yfill(i,:,:,:)); 
-#        xnew[a,:,:,:]=np.stack( (x[i,:,:,:], xfill[i,:,:,:]), axis = 0) 
-#        ynew[a,:,:,:]=np.stack( (y[i,:,:,:], yfill[i,:,:,:]), axis = 0) 
-#        znew[a,:,:,:]=np.stack( (z[i,:,:,:], zfill[i,:,:,:]), axis = 0) 
-##       znew[a,:,:,:]=cat(1,z(i,:,:,:), zfill(i,:,:,:));
-#    
-#    x=xnew[1:,:,:,:]
-#    y=ynew[1:,:,:,:]
-#    z=znew[1:,:,:,:]
-#
-#    xnew=np.zeros((2*mg-3, 2*ng-3, 2*kg-2, M))
-#    ynew=np.zeros((2*mg-3, 2*ng-3, 2*kg-2, M))
-#    znew=np.zeros((2*mg-3, 2*ng-3, 2*kg-2, M))
-#    
-##    xfill=(x(:,:,1:end-1,:)+x(:,:,2:end,:))/2;
-#    xfill=(x[:,:,:-1,:]+x[:,:,1:,:])/2
-#    yfill=(y[:,:,:-1,:]+y[:,:,1:,:])/2
-#    zfill=(z[:,:,:-1,:]+z[:,:,1:,:])/2
-#    
-##    for i=1:kg-1
-#    for i in range(0,kg-1):
-#        a = range(2*i, 2*i+1)
-##       ynew(:,:,2*i-1:2*i,:)=cat(3,y(:,:,i,:), yfill(:,:,i,:)); 
-#        xnew[:,:,a,:]=np.stack((x[:,:,i,:], xfill[:,:,i,:]), axis = 2) 
-#        ynew[:,:,a,:]=np.stack((y[:,:,i,:], yfill[:,:,i,:]), axis = 2) 
-#        znew[:,:,a,:]=np.stack((z[:,:,i,:], zfill[:,:,i,:]), axis = 2) 
-#    
-#    x=xnew[:,:,1:,:]
-#    y=ynew[:,:,1:,:]
-#    z=znew[:,:,1:,:]
-#    
-#    Y=np.stack((x, y, z),axis=4)
-#    
-##    Y=permute(Y,[1 2 3 5 4]);
-#    Y = np.transpose(Y, (0,1,2,4,3))
-#    
-#    Y=2*Y-1
-#    return Y
-
-
-
 def py_mirt3D_subdivide2(X):
     # this is very much like py_mirt3D_subdivide, without the extra dimension
     # return Y
-    
-    mg,ng, kg, tmp = np.shape(X)
+    mg, ng, kg, tmp = np.shape(X)
     
     x=X[:,:,:,0]
     y=X[:,:,:,1]
@@ -368,13 +266,22 @@ def py_mirt3D_subdivide2(X):
     xfill=(x[:,:-1,:]+x[:,1:,:])/2
     yfill=(y[:,:-1,:]+y[:,1:,:])/2
     zfill=(z[:,:-1,:]+z[:,1:,:])/2
+
+    print('py_mirt3D_subdivide2:  size of x:  {}'.format(np.shape(x)))
+    print('py_mirt3D_subdivide2:  size of xfill:  {}'.format(np.shape(xfill)))
     
     for i in range(0,ng-1):
-    #        a = range(2*i, 2*i+1)
-        xnew[:,2*i:2*i+2,:] = np.stack((x[:,i,:], xfill[:,i,:]), axis = 1)
-        ynew[:,2*i:2*i+2,:] = np.stack((y[:,i,:], yfill[:,i,:]), axis = 1)
-        znew[:,2*i:2*i+2,:] = np.stack((z[:,i,:], zfill[:,i,:]), axis = 1)
-#       znew[:,a,:,:]=cat(2,z(:,i,:,:), zfill(:,i,:,:));
+        # xnew[:,2*i:2*i+2,:] = np.stack((x[:,i,:], xfill[:,i,:]), axis = 1)
+        # ynew[:,2*i:2*i+2,:] = np.stack((y[:,i,:], yfill[:,i,:]), axis = 1)
+        # znew[:,2*i:2*i+2,:] = np.stack((z[:,i,:], zfill[:,i,:]), axis = 1)
+
+        xnew[:,2*i,:] = x[:,i,:]
+        xnew[:,2*i+1,:] = xfill[:,i,:]
+        ynew[:,2*i,:] = y[:,i,:]
+        ynew[:,2*i+1,:] = yfill[:,i,:]
+        znew[:,2*i,:] = z[:,i,:]
+        znew[:,2*i+1,:] = zfill[:,i,:]
+
     
     x=xnew[:,1:,:]
     y=ynew[:,1:,:] 
@@ -390,12 +297,17 @@ def py_mirt3D_subdivide2(X):
     
 #    for i=1:mg-1
     for i in range(0,mg-1):
-    #        a = range(2*i, 2*i+1)
-    #       ynew(2*i-1:2*i,:,:,:)=cat(1,y(i,:,:,:), yfill(i,:,:,:)); 
-        xnew[2*i:2*i+2,:,:]=np.stack( (x[i,:,:], xfill[i,:,:]), axis = 0) 
-        ynew[2*i:2*i+2,:,:]=np.stack( (y[i,:,:], yfill[i,:,:]), axis = 0) 
-        znew[2*i:2*i+2,:,:]=np.stack( (z[i,:,:], zfill[i,:,:]), axis = 0) 
-    #       znew[a,:,:,:]=cat(1,z(i,:,:,:), zfill(i,:,:,:));
+        # xnew[2*i:2*i+2,:,:]=np.stack( (x[i,:,:], xfill[i,:,:]), axis = 0)
+        # ynew[2*i:2*i+2,:,:]=np.stack( (y[i,:,:], yfill[i,:,:]), axis = 0)
+        # znew[2*i:2*i+2,:,:]=np.stack( (z[i,:,:], zfill[i,:,:]), axis = 0)
+
+        xnew[2*i,:,:] = x[i,:,:]
+        xnew[2*i+1,:,:] = xfill[i,:,:]
+        ynew[2*i,:,:] = y[i,:,:]
+        ynew[2*i+1,:,:] = yfill[i,:,:]
+        znew[2*i,:,:] = z[i,:,:]
+        znew[2*i+1,:,:] = zfill[i,:,:]
+
 
     x=xnew[1:,:,:]
     y=ynew[1:,:,:]
@@ -409,14 +321,18 @@ def py_mirt3D_subdivide2(X):
     xfill=(x[:,:,:-1]+x[:,:,1:])/2
     yfill=(y[:,:,:-1]+y[:,:,1:])/2
     zfill=(z[:,:,:-1]+z[:,:,1:])/2
-    
-    #    for i=1:kg-1
+
     for i in range(0,kg-1):
-    #        a = range(2*i, 2*i+1)
-    #       ynew(:,:,2*i-1:2*i,:)=cat(3,y(:,:,i,:), yfill(:,:,i,:)); 
-        xnew[:,:,2*i:2*i+2]=np.stack((x[:,:,i], xfill[:,:,i]), axis = 2) 
-        ynew[:,:,2*i:2*i+2]=np.stack((y[:,:,i], yfill[:,:,i]), axis = 2) 
-        znew[:,:,2*i:2*i+2]=np.stack((z[:,:,i], zfill[:,:,i]), axis = 2) 
+        # xnew[:,:,2*i:2*i+2]=np.stack((x[:,:,i], xfill[:,:,i]), axis = 2)
+        # ynew[:,:,2*i:2*i+2]=np.stack((y[:,:,i], yfill[:,:,i]), axis = 2)
+        # znew[:,:,2*i:2*i+2]=np.stack((z[:,:,i], zfill[:,:,i]), axis = 2)
+
+        xnew[:,:,2*i] = x[:,:,i]
+        xnew[:,:,2*i+1] = xfill[:,:,i]
+        ynew[:,:,2*i] = y[:,:,i]
+        ynew[:,:,2*i+1] = yfill[:,:,i]
+        znew[:,:,2*i] = z[:,:,i]
+        znew[:,:,2*i+1] = zfill[:,:,i]
     
     x=xnew[:,:,1:]
     y=ynew[:,:,1:]
@@ -424,10 +340,11 @@ def py_mirt3D_subdivide2(X):
     
     Y=np.stack((x, y, z),axis=3)
     
-#    Y=permute(Y,[1 2 3 5 4]);
-#    Y = np.transpose(Y, (0,1,2,4,3))
-    
     Y=2*Y-1
+
+    print('py_mirt3D_subdivide2:  size of input X: {}'.format(np.shape(X)))
+    print('py_mirt3D_subdivide2:  size of output Y: {}'.format(np.shape(Y)))
+
     return Y
 
 
@@ -960,19 +877,10 @@ def py_mirt3D_register(refim, im, main, optim):
     #% Generate B-splines mesh of control points equally spaced with main.okno spacing
     #% at the smallest hierarchical level (the smallest image size)
     #[x, y, z]=meshgrid(1-main.okno:main.okno:M(2)+2*main.okno, 1-main.okno:main.okno:M(1)+2*main.okno, 1-main.okno:main.okno:M(3)+2*main.okno);
-    
-    #    x,y,z = np.mgrid[range(-main['okno'], M[0]+2*main['okno'], main['okno']), range(-main['okno'], M[1]+2*main['okno'], main['okno']), range(-main['okno'], M[2]+2*main['okno'], main['okno']) ]   # coordinates of input points
-#    x,y,z = np.mgrid[-main['okno']:M[0]-1+2*main['okno']:(np.ceil(M[0]/main['okno']+3))*1j, -main['okno']:M[1]-1+2*main['okno']:(np.ceil(M[1]/main['okno']+3))*1j, -main['okno']:M[2]-1+2*main['okno']:(np.ceil(M[2]/main['okno']+3))*1j]
 
     nsteps = np.ceil(M/main['okno'])+3
     topstep = main['okno']*(nsteps-2)
     x,y,z = np.mgrid[-main['okno']:topstep[0]:nsteps[0]*1j, -main['okno']:topstep[1]:nsteps[1]*1j, -main['okno']:topstep[2]:nsteps[2]*1j]
-
-#    nanvals = np.isnan(x).sum()
-#    print('py_mirt3D_register   x has ',nanvals,' nan vals and ',np.size(x),' vals in total')
-#    nanvals = np.isnan(y).sum()
-#    print('py_mirt3D_register   y has ',nanvals,' nan vals and ',np.size(y),' vals in total')
-
 
     #% the size of the B-spline mesh is in (main.mg, main.ng, main.kg) at the smallest
     #% hierarchival level.
@@ -985,18 +893,10 @@ def py_mirt3D_register(refim, im, main, optim):
     #% exactly divided by integer number of control points.
     #main.siz=[(main.mg-3)*main.okno (main.ng-3)*main.okno (main.kg-3)*main.okno];
     main['siz']=[(main['mg']-3)*main['okno'], (main['ng']-3)*main['okno'], (main['kg']-3)*main['okno']]
-    
-#    print('py_mirt3D_register   main[siz] =  ',main['siz'])
-    
-    #main.X=cat(4,x,y,z);  % Put x, y and z control point positions into a single mg x ng x kg x 3  4Dmatrix
-    #main.Xgrid=main.X;    % save the regular grid (used for regularization)
-    
+
     main['X']=np.stack([x,y,z],axis=3)  #% Put x, y and z control point positions into a single mg x ng x kg x 3  4Dmatrix
     main['Xgrid'] = copy.deepcopy(main['X'])    #% save the regular grid (used for regularization)
-    
-#    nanvals = np.isnan(main['X']).sum()
-#    print('py_mirt3D_register  main[X] has ',nanvals,' nan vals and ',np.size(main['X']),' vals in total')
-    
+
     #main.F=mirt3D_F(main.okno); % Init B-spline coefficients
     main['F']=py_mirt3D_F(main['okno'])   #% Init B-spline coefficients
     
@@ -1007,11 +907,7 @@ def py_mirt3D_register(refim, im, main, optim):
     #% and initialize with NaNs. Then patch with the original images,
     #% so that the original images (refim, im) now include the border of NaNs.
     #% NaNs here signalizes the values to be ignored during the registration
-    #tmp=nan(2^(main.subdivide-1)*main.siz);
-    #tmp(1:dimen(1),1:dimen(2),1:dimen(3))=refim;  refim=tmp;
-    #tmp(1:dimen(1),1:dimen(2),1:dimen(3))=im;     im=tmp;
-    #clear tmp;
-    
+
     tmp = np.empty(np.multiply(2**(main['subdivide']-1),main['siz']))
     tmp[:] = np.nan
     
@@ -1044,18 +940,9 @@ def py_mirt3D_register(refim, im, main, optim):
         main['siz']=[(main['mg']-3)*main['okno'], (main['ng']-3)*main['okno'], (main['kg']-3)*main['okno']]
         main['K']=py_mirt3D_initK([main['mg'], main['ng'], main['kg']])  #% Init Laplacian eigenvalues (used for regularization)
         
-        
-        #    main.refimsmall=mirt3D_imresize(refim,main.siz); % resize images
-        #        main['refimsmall']=resize_3D(refim,main['siz'])  #resize images
-        #        factor = np.array(main['siz'])/np.shape(refim)
-        #        main['refimsmall'] = nd.zoom(refim, factor)
-        #        main['refimsmall'] = scimisc.imresize(refim, factor)
-        
         main['refimsmall'] = i3d.resize_3D(refim, main['siz'])
 #        print('py_mirt3D_register   min/max of main[refimsmall]  are: ',np.min(main['refimsmall']), np.max(main['refimsmall'] ))
-        
-        #    main.refimsmall(main.refimsmall<0)=0;  
-        #    main.refimsmall(main.refimsmall>1)=1;
+
         b = np.where(np.isnan(main['refimsmall']))
         main['refimsmall'][b] = 0
         a = np.where(main['refimsmall'] < 0)
@@ -1063,15 +950,7 @@ def py_mirt3D_register(refim, im, main, optim):
         a = np.where(main['refimsmall'] > 1)
         main['refimsmall'][a] = 1
         main['refimsmall'][b] = np.nan
-        #        main['refimsmall']=np.where(main['refimsmall'] < 0, main['refimsmall'], 0)
-        #        main['refimsmall']=np.where(main['refimsmall'] > 1, main['refimsmall'], 1)
-        
-        #    imsmall=mirt3D_imresize(im,main.siz);
-        #    imsmall(imsmall<0)=0;
-        #    imsmall(imsmall>1)=1;
-        #        imsmall=resize_3D(im,main['siz'])  #resize images
-        #        factor = np.shape(im)/np.array(main['siz'])
-        #        imsmall = nd.zoom(im, factor)
+
         imsmall = i3d.resize_3D(im,main['siz'])
 #        print('py_mirt3D_register   min/max of imsmall are: ',np.min(imsmall), np.max(imsmall))
         
@@ -1082,11 +961,8 @@ def py_mirt3D_register(refim, im, main, optim):
         a = np.where(imsmall > 1)
         imsmall[a] = 1
         imsmall[b] = np.nan
-        #        imsmall=np.where(imsmall < 0, imsmall, 0)
-        #        imsmall=np.where(imsmall > 1, imsmall, 1)
-        
-        #    [gradx, grady, gradz]=gradient(imsmall);
-        # the definition of gradx and grady are fliped compared to the matlab version 
+
+        # the definition of gradx and grady are flipped compared to the matlab version
         # because of the row-order vs column-order difference
         gradx, grady, gradz=np.gradient(imsmall)
         
@@ -1135,7 +1011,7 @@ def py_mirt3D_register(refim, im, main, optim):
     m = np.min([dimen[0], M])
     n = np.min([dimen[1], N])
     k = np.min([dimen[2], K])
-    im_int[0:m, 0:n, 0:k] = result[0:m, 0:n, 0:k]
+    im_int[:m, :n, :k] = result[:m, :n, :k]
     
     if verbose:
         print('MIRT: 3D non-rigid registration is succesfully completed.')
@@ -1181,7 +1057,7 @@ def py_mirt3D_transform(refim, res):
 # these lines remove that border.
     im=np.zeros(dimen)
     M,N,K=np.shape(newim)
-    im[0:np.min([dimen[0],M]),0:np.min([dimen[1],N]),0:np.min([dimen[2],K])] = newim[0:np.min([dimen[0],M]), 0:np.min([dimen[1],N]), 0:np.min([dimen[2],K])]
+    im[:np.min([dimen[0],M]),:np.min([dimen[1],N]),:np.min([dimen[2],K])] = newim[:np.min([dimen[0],M]), :np.min([dimen[1],N]), :np.min([dimen[2],K])]
     
     return im
 
