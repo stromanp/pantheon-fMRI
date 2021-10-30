@@ -24,16 +24,16 @@ def coregister(filename, nametag, coregistered_prefix = 'c'):
     starttime = time.time()
     #set default main settings for MIRT coregistration
     # use 'ssd', or 'cc' which was used in the previous matlab version of this function
-    main_init = {'similarity':'ssd',   # similarity measure, e.g. SSD, CC, SAD, RC, CD2, MS, MI
+    main_init = {'similarity':'cc',   # similarity measure, e.g. SSD, CC, SAD, RC, CD2, MS, MI
             'subdivide':1,       # use 1 hierarchical level
             'okno':4,           # mesh window size
             'lambda':0.5,     # transformation regularization weight, 0 for none
             'single':1}
     
     #Optimization settings
-    optim_init = {'maxsteps':100,    # maximum number of iterations at each hierarchical level
-             'fundif':1e-6,     # tolerance (stopping criterion)
-             'gamma':0.1,         # initial optimization step size
+    optim_init = {'maxsteps':500,    # maximum number of iterations at each hierarchical level
+             'fundif':1e-4,     # tolerance (stopping criterion)
+             'gamma':0.05,         # initial optimization step size
              'anneal':0.5}        # annealing rate on the optimization step
 
     # original values
@@ -119,16 +119,16 @@ def guided_coregistration(filename, nametag, normname, coregistered_prefix = 'c'
     starttime = time.time()
     # set default main settings for MIRT coregistration
     # use 'ssd', or 'cc' which was used in the previous matlab version of this function
-    main_init = {'similarity': 'ssd',  # similarity measure, e.g. SSD, CC, SAD, RC, CD2, MS, MI
+    main_init = {'similarity': 'cc',  # similarity measure, e.g. SSD, CC, SAD, RC, CD2, MS, MI
                  'subdivide': 1,  # use 1 hierarchical level
                  'okno': 4,  # mesh window size
                  'lambda': 0.5,  # transformation regularization weight, 0 for none
                  'single': 1}
 
     # Optimization settings
-    optim_init = {'maxsteps': 100,  # maximum number of iterations at each hierarchical level
-                  'fundif': 1e-6,  # tolerance (stopping criterion)
-                  'gamma': 0.1,  # initial optimization step size
+    optim_init = {'maxsteps': 500,  # maximum number of iterations at each hierarchical level
+                  'fundif': 1e-4,  # tolerance (stopping criterion)
+                  'gamma': 0.05,  # initial optimization step size
                   'anneal': 0.5}  # annealing rate on the optimization step
 
     input_img = nib.load(filename)
@@ -152,78 +152,147 @@ def guided_coregistration(filename, nametag, normname, coregistered_prefix = 'c'
     nsections = len(result)
 
     # setup
-    pw = 1e-2   #  position_stiffness
+    pw = 1e-3   #  position_stiffness
     ddx, ddy, ddz = np.mgrid[range(xs), range(ys), range(zs)]
 
     # do this for each volume in the time-series
-    tt = 10
-
-    img = input_data[:, :, :, tt]
-    img = img/np.max(img)
-    warpdata = []
-    for nn in range(nsections):
-        angle = result[nn]['angle']
-        angley = result[nn]['angley']
-        coords = result[nn]['coords']
-        original_section = result[nn]['original_section']
-        template_section = result[nn]['template_section']
-        section_mapping_coords = result[nn]['section_mapping_coords']
-
-        # check position - keep rotation angles the same
-        imgR = i3d.rotate3D(img, angle, p0, 0)
-        imgRR = i3d.rotate3D(imgR, angley, p0, 1)
-        cc = i3d.normxcorr3(imgRR/np.max(imgRR), temp, shape='same')
-
-        # find the combination of correlation and proximity to the expected location
-        dist = np.sqrt((ddx - coords[0]) ** 2 + (ddy - coords[1]) ** 2 + (ddz - coords[2]) ** 2)
-        pos_weight = 1 / (pw * dist + 1)
-
-        cc_temp = cc * pos_weight
-        m = np.max(cc_temp)
-        xp, yp, zp = np.where(cc_temp == m)
-        coordsR = np.array([xp[0], yp[0], zp[0]])
-
-        dx,dy,dz = np.shape(result[nn]['template_section'])
-        # get mapping coordinates from the current volume to the original
-        Xt, Yt, Zt = np.mgrid[(coords[0] - dx):(coords[0] + dx):(2 * dx + 1) * 1j, (coords[1] - dy):(coords[1] + dy):(2 * dy + 1) * 1j,
-                     (coords[2] - dz):(coords[2] + dz):(2 * dz + 1) * 1j]
-        # X etc are image coordinates in the rotated image, which was matched to the fixed template
-        X, Y, Z = np.mgrid[(coordsR[0] - dx):(coordsR[0] + dx):(2 * dx + 1) * 1j,
-                  (coordsR[1] - dy):(coordsR[1] + dy):(2 * dy + 1) * 1j,
-                  (coordsR[2] - dz):(coordsR[2] + dz):(2 * dz + 1) * 1j]
-
-        # organize the outputs
-        section_mapping_coords = {'X': X, 'Y': Y, 'Z': Z, 'Xt': Xt, 'Yt': Yt, 'Zt': Zt}
-        warpdata.append(section_mapping_coord)
-
-    # 1) make section positions consistent
-    # 2) calculate new normalization
-    # 3) apply new normalization for rough correction
-    # 4) apply fine-tuning normalization
-
-    # combine the warp fields from each section into one map
-    fit_order = [2, 4, 2]  # "fit_order" could be an input parameter
-    found_stable = False
-    while not found_stable:
-        T, reverse_map_image, forward_map_image, inv_Rcheck = py_combine_warp_fields(warpdata, img, refimage, fit_order)
-
-        if np.any(inv_Rcheck > 1.0e22): print('py_cord_normalize:  matrix inversion may be unstable, y fit order = ',fit_order[1],'  ... will try to correct with a lower fit order')
-        Ys_max = np.max(T['Ys']);  Ys_min = np.min(T['Ys']);   Ymap_check = (Ys_max < (2*ys2)) & (Ys_max > (-ys2))
-        if Ymap_check | (fit_order[1] <= 2):
-            found_stable = True
+    output_img = np.zeros(np.shape(input_data))
+    transformation_record = []
+    for tt in range(ts):
+        if tt == tref:
+            new_img2 = input_data[:, :, :, tt]
         else:
-            fit_order[1] = fit_order[1]-1
+            print('volume {} of {}    {}'.format(tt + 1, ts, time.ctime()))
+            img = input_data[:, :, :, tt]
+            img = img / np.max(img)
+            warpdata = []
+            map_step = []
+            for nn in range(nsections):
+                angle = result[nn]['angle']
+                angley = result[nn]['angley']
+                coords = result[nn]['coords']  # reference position for regions of interest
+                original_section = result[nn]['original_section']
+                template_section = result[nn]['template_section']
+                # section_mapping_coords = result[nn]['section_mapping_coords']
 
-    print('py_auto_cord_normalize:  Found a stable warp field solution')
+                template = original_section
 
-    # apply the warping
-    # then do the fine-tuning registration
+                # check position - keep rotation angles the same
+                imgR = i3d.rotate3D(img, angle, coords, 0)
+                imgRR = i3d.rotate3D(imgR, angley, coords, 1)
+                cc = i3d.normxcorr3(imgRR, template, shape='same')
+
+                # find the combination of correlation and proximity to the expected location
+                dist = np.sqrt((ddx - coords[0]) ** 2 + (ddy - coords[1]) ** 2 + (ddz - coords[2]) ** 2)
+                dist[dist < 5] = 0
+                pos_weight = 1 / (pw * dist + 1)
+
+                cc_temp = cc * pos_weight
+                m = np.max(cc_temp)
+                xp, yp, zp = np.where(cc_temp == m)
+                coordsR = np.array([xp[0], yp[0], zp[0]])
+
+                # rotate coords back
+                v = coordsR - coords  # vector from rotation point to the best match position
+                Mx = pynormalization.rotation_matrix(-angle, axis=0)
+                My = pynormalization.rotation_matrix(-angley, axis=1)
+                Mtotal = np.dot(My, Mx)
+                bestpos = np.dot(v, Mtotal) + coords
+                new_result[nn]['coords'] = bestpos
+
+                map_step.append({'coords': bestpos})
+
+                dx, dy, dz = np.floor(np.array(np.shape(result[nn]['template_section'])) / 2).astype(int)
+                # get mapping coordinates from the current volume to the original
+                Xt, Yt, Zt = np.mgrid[(coords[0] - dx):(coords[0] + dx):(2 * dx + 1) * 1j,
+                             (coords[1] - dy):(coords[1] + dy):(2 * dy + 1) * 1j,
+                             (coords[2] - dz):(coords[2] + dz):(2 * dz + 1) * 1j]
+                # X etc are image coordinates in the rotated image, which was matched to the fixed template
+                X, Y, Z = np.mgrid[(bestpos[0] - dx):(bestpos[0] + dx):(2 * dx + 1) * 1j,
+                          (bestpos[1] - dy):(bestpos[1] + dy):(2 * dy + 1) * 1j,
+                          (bestpos[2] - dz):(bestpos[2] + dz):(2 * dz + 1) * 1j]
+
+                # organize the outputs
+                section_mapping_coords = {'X': X, 'Y': Y, 'Z': Z, 'Xt': Xt, 'Yt': Yt, 'Zt': Zt}
+                new_result[nn]['section_mapping_coords'] = section_mapping_coords
+                new_result[nn]['angle'] = 0.
+                new_result[nn]['angley'] = 0.
+                warpdata.append(section_mapping_coords)
+
+            # show the results
+            Xlist = np.zeros(nsections)
+            Ylist = np.zeros(nsections)
+            Xlist2 = np.zeros(nsections)
+            Ylist2 = np.zeros(nsections)
+            for nn in range(nsections):
+                Xlist[nn] = result[nn]['coords'][2]
+                Ylist[nn] = result[nn]['coords'][1]
+                Xlist2[nn] = map_step[nn]['coords'][2]
+                Ylist2[nn] = map_step[nn]['coords'][1]
+
+            # fig = plt.figure(21), plt.imshow(refimage[10, :, :], 'gray')
+            # plt.plot(Xlist, Ylist, color="red", linewidth=2)
+            #
+            # fig = plt.figure(22), plt.imshow(img[10, :, :], 'gray')
+            # plt.plot(Xlist2, Ylist2, color="red", linewidth=2)
+
+            # make mapped sections consistent
+            adjusted_sections = []
+            new_result2 = pynormalization.align_override_sections(new_result, adjusted_sections, filename,
+                                                                  normtemplatename)
+            new_warpdata = []
+            for nn in range(len(new_result2)):
+                new_warpdata.append(new_result2[nn]['section_mapping_coords'])
+
+            # combine the warp fields from each section into one map
+            fit_order = [3, 3, 3]
+            T, reverse_map_image, forward_map_image, inv_Rcheck = \
+                    pynormalization.py_combine_warp_fields(new_warpdata,img,refimage,fit_order)
+            img2 = reverse_map_image
 
 
 
+            # convert transformation to res form used in MIRT package
+            main = main_init
+            dimen = np.shape(img2)
+            # % Size at the smallest hierarchical level, when we resize to smaller
+            M = np.ceil(np.array(dimen) / (2 ** (main['subdivide'] - 1)))
+            M = M.astype('int')
 
-# py_combine_warp_fields(warpdata, background2, template, fit_order = [3,3,3])
-    # return  T, reverse_map_image, forward_map_image, inv_Rcheck
+            nsteps = np.ceil(M / main['okno']) + 3
+            topstep = main['okno'] * (nsteps - 2)
+            x, y, z = (np.mgrid[-main['okno']:topstep[0]:nsteps[0] * 1j, -main['okno']:topstep[1]:nsteps[1] * 1j,
+                       -main['okno']:topstep[2]:nsteps[2] * 1j]).astype(int)
+            main['mg'], main['ng'], main['kg'] = np.shape(x)
+
+            # main['siz'] = [(main['mg'] - 3) * main['okno'], (main['ng'] - 3) * main['okno'], (main['kg'] - 3) * main['okno']]
+            #
+            X2 = i3d.resize_3D(X, np.shape(x))  # sample down like res
+            Y2 = i3d.resize_3D(Y, np.shape(x))
+            Z2 = i3d.resize_3D(Z, np.shape(x))
+            Xres = np.concatenate((X2[:, :, :, np.newaxis], Y2[:, :, :, np.newaxis], Z2[:, :, :, np.newaxis]), axis=3)
+            new_res = {'X': Xres, 'okno': main['okno']}
+
+            m = np.max(img)
+            test_img2 = m * mirt.py_mirt3D_transform(img / m, new_res)  # this really is not right
+
+
+
+            # apply the warping
+            # then do the fine-tuning registration
+            optim = copy.deepcopy(optim_init)
+            main = copy.deepcopy(main_init)
+
+            res, new_img = mirt.py_mirt3D_register(refimage, img2, main, optim)
+            m = np.max(img2)
+            new_img2 = m * mirt.py_mirt3D_transform(img2 / m, res)
+
+            transformation_record.append({'res': res})
+
+        output_img[:, :, :, tt] = new_img2
+
+    return output_img
+
 
 
 #------------slice timing from slice order ------------------------------------------------

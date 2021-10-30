@@ -600,10 +600,16 @@ def py_combine_warp_fields(warpdata, background2, template, fit_order = [3,3,3])
     inv_Rcheck = np.zeros(6)  # save the tests for matrix inversion problems
     # new method - ---------------------
     # do a polynomial fit to all of the data coordinates, to make a smooth mapping function
+    # modified Oct 28 2021 to correct possible errors in mixing X and Xt values etc.
+    #
     for nn in range(3):
-        if nn == 0:  L = xL
+        if nn == 0:  L = xL   # original before change Oct 28
         if nn == 1:  L = yL
         if nn == 2:  L = zL
+
+        # if nn == 0:  tL = xtL  # change test Oct 28
+        # if nn == 1:  tL = ytL
+        # if nn == 2:  tL = ztL
 
         G2 = np.ones(np.size(Xt))
         G = np.ones(np.size(xtL))
@@ -617,13 +623,18 @@ def py_combine_warp_fields(warpdata, background2, template, fit_order = [3,3,3])
 
         inv_Rcheck[nn] = np.linalg.cond(np.dot(G.T,G))  # not sure if this is necessary
         iGG = np.linalg.inv(np.dot(G.T,G))
-        m = np.dot(np.dot(iGG,G.T), L)
+        m = np.dot(np.dot(iGG,G.T), L)   # original before change Oct 28
+        # m = np.dot(np.dot(iGG,G.T), tL)   # change test Oct 28
         t_fit = np.dot(G2,m)
         t_fit = np.reshape(t_fit, [xt, yt, zt])
 
-        if nn == 0: X_fit = t_fit
+        if nn == 0: X_fit = t_fit   # original before change Oct 28
         if nn == 1: Y_fit = t_fit
         if nn == 2: Z_fit = t_fit
+
+        # if nn == 0: Xt_fit = t_fit  # change test Oct 28
+        # if nn == 1: Yt_fit = t_fit
+        # if nn == 2: Zt_fit = t_fit
 
     # finished mapping for each axis
 
@@ -640,9 +651,13 @@ def py_combine_warp_fields(warpdata, background2, template, fit_order = [3,3,3])
     x,y,z = np.mgrid[range(xs), range(ys), range(zs)]
 
     for nn in range(3):
-        if nn == 0:  tL = xtL
+        if nn == 0:  tL = xtL   # original before change Oct 28
         if nn == 1:  tL = ytL
         if nn == 2:  tL = ztL
+
+        # if nn == 0:  L = xL  # change test Oct 28
+        # if nn == 1:  L = yL
+        # if nn == 2:  L = zL
 
         G2 = np.ones(np.size(Xs))
         G = np.ones(np.size(xL))
@@ -655,13 +670,18 @@ def py_combine_warp_fields(warpdata, background2, template, fit_order = [3,3,3])
 
         inv_Rcheck[nn+3] = np.linalg.cond(np.dot(G.T,G))   # dont know if this is necessary
         iGG = np.linalg.inv(np.dot(G.T,G))
-        m = np.dot(np.dot(iGG,G.T), tL)
+        m = np.dot(np.dot(iGG,G.T), tL)   # original before change Oct 28
+        # m = np.dot(np.dot(iGG,G.T), L)  # change test Oct 28
         t_fit = np.dot(G2,m)
         t_fit = np.reshape(t_fit, [xs, ys, zs])
 
-        if nn == 0: Xt_fit = t_fit
+        if nn == 0: Xt_fit = t_fit   # original before change Oct 28
         if nn == 1: Yt_fit = t_fit
         if nn == 2: Zt_fit = t_fit
+
+        # if nn == 0: X_fit = t_fit  # change test Oct 28
+        # if nn == 1: Y_fit = t_fit
+        # if nn == 2: Z_fit = t_fit
     # done the smooth mapping for the template coordinates
 
     # forward and reverse transform information
@@ -987,7 +1007,7 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
             else:
                 vpos_connectionpoint = first_region_connection_point - pos  # vector from the center of the section to the connection point
 
-            # -- important revision -------- DO make angles negative to get correct rotation
+            # -- important revision --------  make angles negative to get correct rotation
             Mx = rotation_matrix(-angle,0)
             My = rotation_matrix(-angley,1)
             Mtotal = np.dot(Mx,My)
@@ -1588,7 +1608,8 @@ def align_override_sections(normalization_results, adjusted_sections, niiname, n
     delta_angley = np.zeros(ncordsegments)
     delta_coords = np.zeros((ncordsegments,3))
     weighting = np.ones(ncordsegments)
-    weighting[adjusted_sections - ninitial_fixed_segments] = 10.0  # give more weighting to keeping the adjust sections where they were put to
+    if len(adjusted_sections) > 0:
+        weighting[adjusted_sections - ninitial_fixed_segments] = 10.0  # give more weighting to keeping the adjust sections where they were put to
 
     deltav = 1.0e-1
     alpha = 1.0e-1
@@ -1613,7 +1634,7 @@ def align_override_sections(normalization_results, adjusted_sections, niiname, n
         delta_cost = total_cost - new_total_cost
         entry = {'delta_coords':delta_coords, 'delta_angle':delta_angle, 'delta_angley':delta_angley, 'iteration':nn, 'delta_cost':delta_cost}
         descent_record.append(entry)
-        print('iteration {}: cost = {} '.format(nn,new_total_cost))
+        # print('iteration {}: cost = {} '.format(nn,new_total_cost))
         nn += 1
 
     for ss in range(ncordsegments):

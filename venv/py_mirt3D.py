@@ -391,7 +391,6 @@ def py_mirt3D_nodes2grid(X, F, okno):
 #                % of B-spline basis functions (F) to get the dense coordinates of 
 #                % the voxels within the given patch
                 tmp=X[i:i+4,j:j+4,k:k+4,0]
-
                 tmp2 = np.matmul(F,np.reshape(tmp, (64,1), order = 'F'))
                 Xx[i*okno:(i+1)*okno, j*okno:(j+1)*okno, k*okno:(k+1)*okno] = np.reshape(tmp2,(okno, okno, okno), order = 'F')  # , order = 'F'   
                 
@@ -494,7 +493,11 @@ def py_mirt3D_similarity(main, Xx, Xy, Xz):
 #    print('py_mirt3D_similarity   im_int has ',nanvals,' nan vals and ',np.size(im_int),' vals in total')
 
     # instead of warping the gradient fields, recalculate them
-    gx_int, gy_int, gz_int=np.gradient(im_int)
+    # gx_int, gy_int, gz_int=np.gradient(im_int)
+    #  warp the gradient fields that were already calculated
+    gx_int = i3d.warp_image_ignorenan(main['imsmall'][:,:,:,1], Xx, Xy, Xz)
+    gy_int = i3d.warp_image_ignorenan(main['imsmall'][:,:,:,2], Xx, Xy, Xz)
+    gz_int = i3d.warp_image_ignorenan(main['imsmall'][:,:,:,3], Xx, Xy, Xz)
 
 #    % isolate the interpolated 3D image
 #    imsmall=im_int(:,:,:,1); 
@@ -779,14 +782,21 @@ def py_mirt3D_registration(X, main, optim):
     # need to test if gamma value should be scaled to be in a reasonable range
     # scaling based on dd values seems to be inconsistent
     # optim['gamma']=optim['gamma']/np.std(np.stack([ddx, ddy, ddz],axis=3), ddof = 1)   # check this is right
-    
+
+    # modified the method for scaling gamma to a more effective value
+    stdx = np.std(ddx)
+    stdy = np.std(ddy)
+    stdz = np.std(ddz)
+    sdscalefactor = np.max([stdx, stdy, stdz])
+    optim['gamma'] = optim['gamma'] / sdscalefactor
+
     #% Start the main registration
     #% compute the objective function and its gradient
     #[fe, T, im]=mirt3D_grad(X,  main);              % compute the similarity measure and its gradient
     #[Xp, fr]=mirt3D_regsolve(X,T,main, optim, 1);   % compute the regularization term and update the transformation
     #f=fe+fr;                                        % compute the value of the total objective function (similarity + regularization)
     
-    [fe, T, im] = py_mirt3D_grad(X,  main)
+    fe, T, im = py_mirt3D_grad(X,  main)
     Xp, fr = py_mirt3D_regsolve(X,T,main,optim,1)
     f=fe+fr
 
@@ -917,7 +927,8 @@ def py_mirt3D_register(refim, im, main, optim):
     #    print('dimen =', dimen)
     #    print('shape of refim is ',np.shape(refim))
     #    print('shape of tmp is ',np.shape(tmp))
-    
+
+    tmp[:] = np.nan
     tmp[:dimen[0],:dimen[1],:dimen[2]]=copy.deepcopy(refim)
     refim = copy.deepcopy(tmp)
     tmp[:dimen[0],:dimen[1],:dimen[2]]=copy.deepcopy(im)
