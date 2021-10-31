@@ -111,7 +111,7 @@ def coregister(filename, nametag, coregistered_prefix = 'c'):
 
 #-------------coregistration guided by rough normalization results-------------------------
 #------------------------------------------------------------------------------------------
-def guided_coregistration(filename, nametag, normname, coregistered_prefix = 'c'):
+def guided_coregistration(filename, nametag, normdataname, normtemplatename, coregistered_prefix = 'c'):
     # use rough normalization section positions to check for larger movements than can be
     # corrected by MIRT coregistration
     print('coregistration guided by rough normalization results ...')
@@ -131,24 +131,28 @@ def guided_coregistration(filename, nametag, normname, coregistered_prefix = 'c'
                   'gamma': 0.05,  # initial optimization step size
                   'anneal': 0.5}  # annealing rate on the optimization step
 
-    input_img = nib.load(filename)
-    input_data = input_img.get_data()
-    affine = input_img.affine
+    # input_img = nib.load(filename)
+    # input_data = input_img.get_data()
+    # affine = input_img.affine
+
+    input_data, affine = i3d.load_and_scale_nifti(filename)   # this function also scales the image to 1 mm cubic voxels
 
     xs, ys, zs, ts = np.shape(input_data)
 
     # coregister to the 3rd volume in the time-series
     if ts >= 2:
-        refimage = input_data[:, :, :, 2]
+        tref = 2
     else:
-        refimage = input_data[:, :, :, 0]
+        tref = 0
+    refimage = input_data[:, :, :, tref]
 
     refimage = refimage/np.max(refimage)
 
     # check if sections need to be adjusted
     # load normalization results
-    normdata = np.load(normname, allow_pickle=True).flat[0]
+    normdata = np.load(normdataname, allow_pickle=True).flat[0]
     result = normdata['result']
+    new_result = copy.deepcopy(result)
     nsections = len(result)
 
     # setup
@@ -158,10 +162,12 @@ def guided_coregistration(filename, nametag, normname, coregistered_prefix = 'c'
     # do this for each volume in the time-series
     output_img = np.zeros(np.shape(input_data))
     transformation_record = []
+    coreg_data = []
     for tt in range(ts):
         if tt == tref:
             new_img2 = input_data[:, :, :, tt]
         else:
+            starttime = time.time()
             print('volume {} of {}    {}'.format(tt + 1, ts, time.ctime()))
             img = input_data[:, :, :, tt]
             img = img / np.max(img)
@@ -219,17 +225,17 @@ def guided_coregistration(filename, nametag, normname, coregistered_prefix = 'c'
                 new_result[nn]['angley'] = 0.
                 warpdata.append(section_mapping_coords)
 
+            time1 = time.time()
             # show the results
-            Xlist = np.zeros(nsections)
-            Ylist = np.zeros(nsections)
-            Xlist2 = np.zeros(nsections)
-            Ylist2 = np.zeros(nsections)
-            for nn in range(nsections):
-                Xlist[nn] = result[nn]['coords'][2]
-                Ylist[nn] = result[nn]['coords'][1]
-                Xlist2[nn] = map_step[nn]['coords'][2]
-                Ylist2[nn] = map_step[nn]['coords'][1]
-
+            # Xlist = np.zeros(nsections)
+            # Ylist = np.zeros(nsections)
+            # Xlist2 = np.zeros(nsections)
+            # Ylist2 = np.zeros(nsections)
+            # for nn in range(nsections):
+            #     Xlist[nn] = result[nn]['coords'][2]
+            #     Ylist[nn] = result[nn]['coords'][1]
+            #     Xlist2[nn] = map_step[nn]['coords'][2]
+            #     Ylist2[nn] = map_step[nn]['coords'][1]
             # fig = plt.figure(21), plt.imshow(refimage[10, :, :], 'gray')
             # plt.plot(Xlist, Ylist, color="red", linewidth=2)
             #
@@ -238,8 +244,10 @@ def guided_coregistration(filename, nametag, normname, coregistered_prefix = 'c'
 
             # make mapped sections consistent
             adjusted_sections = []
+            normtemplatename = 'ccbs'
             new_result2 = pynormalization.align_override_sections(new_result, adjusted_sections, filename,
                                                                   normtemplatename)
+            time2 = time.time()
             new_warpdata = []
             for nn in range(len(new_result2)):
                 new_warpdata.append(new_result2[nn]['section_mapping_coords'])
@@ -248,51 +256,56 @@ def guided_coregistration(filename, nametag, normname, coregistered_prefix = 'c'
             fit_order = [3, 3, 3]
             T, reverse_map_image, forward_map_image, inv_Rcheck = \
                     pynormalization.py_combine_warp_fields(new_warpdata,img,refimage,fit_order)
-            img2 = reverse_map_image
 
-
-
-            # convert transformation to res form used in MIRT package
-            main = main_init
-            dimen = np.shape(img2)
-            # % Size at the smallest hierarchical level, when we resize to smaller
-            M = np.ceil(np.array(dimen) / (2 ** (main['subdivide'] - 1)))
-            M = M.astype('int')
-
-            nsteps = np.ceil(M / main['okno']) + 3
-            topstep = main['okno'] * (nsteps - 2)
-            x, y, z = (np.mgrid[-main['okno']:topstep[0]:nsteps[0] * 1j, -main['okno']:topstep[1]:nsteps[1] * 1j,
-                       -main['okno']:topstep[2]:nsteps[2] * 1j]).astype(int)
-            main['mg'], main['ng'], main['kg'] = np.shape(x)
-
-            # main['siz'] = [(main['mg'] - 3) * main['okno'], (main['ng'] - 3) * main['okno'], (main['kg'] - 3) * main['okno']]
-            #
-            X2 = i3d.resize_3D(X, np.shape(x))  # sample down like res
-            Y2 = i3d.resize_3D(Y, np.shape(x))
-            Z2 = i3d.resize_3D(Z, np.shape(x))
-            Xres = np.concatenate((X2[:, :, :, np.newaxis], Y2[:, :, :, np.newaxis], Z2[:, :, :, np.newaxis]), axis=3)
-            new_res = {'X': Xres, 'okno': main['okno']}
-
-            m = np.max(img)
-            test_img2 = m * mirt.py_mirt3D_transform(img / m, new_res)  # this really is not right
-
-
-
-            # apply the warping
-            # then do the fine-tuning registration
+            img1 = i3d.warp_image(img, T['Xs'], T['Ys'], T['Zs'])
+            # now do the fine-tuning with MIRT------------------------------------------
             optim = copy.deepcopy(optim_init)
             main = copy.deepcopy(main_init)
 
-            res, new_img = mirt.py_mirt3D_register(refimage, img2, main, optim)
-            m = np.max(img2)
-            new_img2 = m * mirt.py_mirt3D_transform(img2 / m, res)
+            time3 = time.time()
+            res, norm_img_fine = mirt.py_mirt3D_register(refimage / np.max(refimage), img1 / np.max(img1), main, optim)
+            print('completed fine-tune mapping with py_norm_fine_tuning ...')
+            time4 = time.time()
 
-            transformation_record.append({'res': res})
+            print('guided_coregistration: mapping sections {:.2e} seconds, aligning {:.2e} seconds, combining {:.2e} seconds, fine-tuning {:.2e} seconds'.format(time1-starttime,time2-time1,time3-time2,time4-time3))
 
-        output_img[:, :, :, tt] = new_img2
+            F = mirt.py_mirt3D_F(res['okno']);  # Precompute the matrix B - spline basis functions
+            Xx, Xy, Xz = mirt.py_mirt3D_nodes2grid(res['X'], F, res['okno']);  # obtain the position of all image voxels (Xx, Xy, Xz)
+            # from the positions of B-spline control points (res['X']
 
-    return output_img
+            xs, ys, zs = np.shape(img)
+            X, Y, Z = np.mgrid[range(xs), range(ys), range(zs)]
 
+            # fine-tuning deviation from the original positions
+            dX = Xx[:xs, :ys, :zs] - X
+            dY = Xy[:xs, :ys, :zs] - Y
+            dZ = Xz[:xs, :ys, :zs] - Z
+
+            T2 = T
+            T2['Xs'] += dX
+            T2['Ys'] += dY
+            T2['Zs'] += dZ
+            img3 = i3d.warp_image(img1, T2['Xs'], T2['Ys'], T2['Zs'])
+
+        output_img[:, :, :, tt] = img3
+
+        coreg_data.append({'T':T2, 'map_step':map_step})
+
+    # write result as new NIfTI format image set
+    pname, fname = os.path.split(filename)
+    fnameroot, ext = os.path.splitext(fname)
+    # define names for outputs
+    coregdata_name = os.path.join(pname, 'coregdata' + nametag + '.npy')
+    np.save(coregdata_name, coreg_data)
+
+    niiname = os.path.join(pname, coregistered_prefix + fname)
+    resulting_img = nib.Nifti1Image(output_img, affine)
+    nib.save(resulting_img, niiname)
+
+    endtime = time.time()
+    print('coregistration of volume took {} seconds'.format(np.round(endtime - starttime)))
+
+    return niiname
 
 
 #------------slice timing from slice order ------------------------------------------------
@@ -603,7 +616,13 @@ def run_preprocessing(settingsfile):
             prefix_niiname = os.path.join(fullpath, prefix + filename)
             # run the coregistration ...
             nametag = '_s{}'.format(seriesnumber)
-            niiname = coregister(prefix_niiname, nametag)
+            # original coregistration method
+            #       niiname = coregister(prefix_niiname, nametag)
+            # new guided coregistration method
+            normtemplatename = df1.loc[dbnum, 'normtemplatename']
+            normdataname = df1.loc[dbnum, 'normdataname']
+            normdataname_full = os.path.join(dbhome, normdataname)
+            niiname = guided_coregistration(prefix_niiname, nametag, normdataname_full, normtemplatename)
             print('Coregistration: output name is ',niiname)
 
         print('Coregistration finished ...', time.ctime(time.time()))
@@ -649,7 +668,7 @@ def run_preprocessing(settingsfile):
             fullpath, filename = os.path.split(niiname)
             prefix_niiname = os.path.join(fullpath, prefix + filename)
 
-            normdataname = df1.loc[dbnum.astype('int'), 'normdataname']
+            normdataname = df1.loc[dbnum, 'normdataname']
             normdataname_full = os.path.join(dbhome, normdataname)
             normdata = np.load(normdataname_full, allow_pickle=True).flat[0]
             T = normdata['T']
@@ -716,7 +735,10 @@ def run_preprocessing(settingsfile):
             nametag = '_s{}'.format(seriesnumber)
             wmtc, xlname = pybasissets.get_whitematter_noise(prefix_niiname, normtemplatename, nametag)
             # generate motion confounds - saved as excel file with nifti data
-            motion_xlname = pybasissets.coreg_to_motionparams(niiname, normdataname_full, normtemplatename, nametag)
+            # original motion paramters method
+            #      motion_xlname = pybasissets.coreg_to_motionparams(niiname, normdataname_full, normtemplatename, nametag)
+            # new method based on guided coregistration
+            motion_xlname = pybasissets.guided_coreg_to_motionparams(normdataname_full, normtemplatename, nametag)
 
             # compile these into one basis set file? - see what is easiest for GLM when it is ready
             print('Finished defining basis sets ...', time.ctime(time.time()))

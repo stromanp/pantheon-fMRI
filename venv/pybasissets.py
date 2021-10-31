@@ -232,6 +232,71 @@ def coreg_to_motionparams(niiname, normdataname, normtemplatename, nametag):
     return output_motiondata_xlname
 
 
+#---------guided_coreg_to_motionparams-------------------------------------
+#-------------------------------------------------------------------
+def guided_coreg_to_motionparams(normdataname, normtemplatename, nametag):
+    pname, fname = os.path.split(normdataname)
+    fnameroot, ext = os.path.splitext(fname)
+
+    # define names for coreg data saved in pycoregistration
+    coregdata_name = os.path.join(pname, 'coregdata'+nametag+'.npy')
+    print('coregdata_name = ', coregdata_name)
+    output_motiondata_name = os.path.join(pname, 'motiondata'+nametag+'.npy')
+    coreg_data = np.load(coregdata_name, allow_pickle=True)
+
+    # get the number of volumes from the coregdata
+    # coreg_data is an array of {'T': T2, 'map_step': map_step}
+
+    ts = np.size(coreg_data)
+    nsections = len(coreg_data[0]['map_step'])
+    print('guided_coreg_to_motionparams: number of volumes is {} for {} sections'.format(ts,nsections))
+
+    # use this data to estimate motion parameters
+    if normtemplatename.lower() == 'thoracic':
+        refsections = [0,np.floor(nsections/2).astype(int),nsections]
+    else:   # only setup for ccbs and thoracic cord for now
+        last_section = np.min([nsections, 7])
+        refsections = [2,0, last_section]
+
+    dx2 = np.zeros((3,ts))
+    dy2 = np.zeros((3,ts))
+    dz2 = np.zeros((3,ts))
+
+    motion_parameters = {}
+
+    print('coreg_to_motionparams: compiling motion data ...')
+    for tt in range(ts):
+        coords = coreg_data[tt]['map_step']['coords']
+
+        for ss in range(3):
+            dx2[ss, tt] = coords[refsections[ss][0]]
+            dy2[ss, tt] = coords[refsections[ss][1]]
+            dz2[ss, tt] = coords[refsections[ss][2]]
+
+    print('coreg_to_motionparams: saving results ...')
+    # adjust to the first volume
+    for ss in range(3):
+        dx2[ss, :] = dx2[ss,:] - dx2[ss, 0]
+        dy2[ss, :] = dy2[ss,:] - dy2[ss, 0]
+        dz2[ss, :] = dz2[ss,:] - dz2[ss, 0]
+
+    motion_parameters = {'dx1':dx2[0,:], 'dy1':dy2[0,:], 'dz1':dz2[0,:],
+                         'dx2':dx2[1,:], 'dy2':dy2[1,:], 'dz2':dz2[1,:],
+                         'dx3':dx2[2,:], 'dy3':dy2[2,:], 'dz3':dz2[2,:]}
+
+    # is it better to write the motion parameters to an excel file?
+    # other methods could be used to create the motion parameters file, and have it written to excel for convenience
+    np.save(output_motiondata_name, motion_parameters)
+
+    # put the data in a format for writing to excel
+    # this file goes with the nifti format data, because there is one for each fMRI run
+    motiondata = pd.DataFrame(data = motion_parameters)
+    output_motiondata_xlname = os.path.join(pname, 'motiondata'+nametag+'.xlsx')
+    motiondata.to_excel(output_motiondata_xlname, sheet_name='motion_data')   # write it out to excel
+
+    return output_motiondata_xlname
+
+
 #---------get_whitematter_noise-------------------------------------
 #-------------------------------------------------------------------
 def get_whitematter_noise(niiname, normtemplatename, nametag):

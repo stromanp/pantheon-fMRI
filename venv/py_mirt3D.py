@@ -485,19 +485,13 @@ def py_mirt3D_similarity(main, Xx, Xy, Xz):
     #% main.imsmall is a 4D array where
     #% main.imsmall(:,:,:,1) - is the float image to be deformed
     #% main.imsmall(:,:,:,2:4) - its x,y,z gradient
-    
-    # im_int = i3d.warp_image(main['imsmall'][:,:,:,0], Xx, Xy, Xz)
-    im_int = i3d.warp_image_ignorenan(main['imsmall'][:,:,:,0], Xx, Xy, Xz)
 
-#    nanvals = np.isnan(im_int).sum()
-#    print('py_mirt3D_similarity   im_int has ',nanvals,' nan vals and ',np.size(im_int),' vals in total')
+    # im_int = i3d.warp_image_ignorenan(main['imsmall'][:,:,:,0], Xx, Xy, Xz)
+    im_int = i3d.warp_image_fast(main['imsmall'][:,:,:,0], Xx, Xy, Xz)
 
     # instead of warping the gradient fields, recalculate them
-    # gx_int, gy_int, gz_int=np.gradient(im_int)
-    #  warp the gradient fields that were already calculated
-    gx_int = i3d.warp_image_ignorenan(main['imsmall'][:,:,:,1], Xx, Xy, Xz)
-    gy_int = i3d.warp_image_ignorenan(main['imsmall'][:,:,:,2], Xx, Xy, Xz)
-    gz_int = i3d.warp_image_ignorenan(main['imsmall'][:,:,:,3], Xx, Xy, Xz)
+    # this is faster than 3D warping
+    gx_int, gy_int, gz_int=np.gradient(im_int)
 
 #    % isolate the interpolated 3D image
 #    imsmall=im_int(:,:,:,1); 
@@ -599,12 +593,6 @@ def py_mirt3D_similarity(main, Xx, Xy, Xz):
     ddz=dd*gz_int
     ddz[np.isnan(ddz)]=0
     
-    
-#    print('py_mirt3D_similarity   min/max of ddx are: ',np.min(ddx), np.max(ddx))
-#    print('py_mirt3D_similarity   min/max of ddy are: ',np.min(ddy), np.max(ddy))
-#    print('py_mirt3D_similarity   min/max of ddz are: ',np.min(ddz), np.max(ddz))
-    
-    
     return f,ddx,ddy,ddz,imsmall
     
     
@@ -677,7 +665,6 @@ def py_mirt3D_grad(X,  main):
     Gr = py_mirt3D_grid2nodes(ddx, ddy, ddz, main['F'], main['okno'], main['mg'], main['ng'], main['kg'])
 
     return f, Gr, imsmall
-        
 
 
 #
@@ -818,7 +805,7 @@ def py_mirt3D_registration(X, main, optim):
         #            [fe, Tp, imb]=mirt3D_grad(Xp,  main);
         fe, Tp, imb = py_mirt3D_grad(Xp,  main)
         fp=fe+fr
-        
+
         #            % compute the relative objective function change
         fchange=(fp-f)/f
         
@@ -983,6 +970,13 @@ def py_mirt3D_register(refim, im, main, optim):
 #        print('py_mirt3D_register   gradx has ',nanvals,' nan vals and ',np.size(gradx),' vals in total')
         
         #    main.imsmall=cat(4,imsmall, gradx,grady, gradz); % concatenate the image with its gradients
+
+        # remove any nan values here
+        imsmall = np.where(np.isnan(imsmall),0,imsmall)
+        gradx = np.where(np.isnan(gradx),0,gradx)
+        grady = np.where(np.isnan(grady),0,grady)
+        gradz = np.where(np.isnan(gradz),0,gradz)
+
         main['imsmall']= np.stack([imsmall, gradx, grady, gradz],axis=3)
         
         #    % main.imsmall is a 4D matrix - a concatenation of the image and its x,

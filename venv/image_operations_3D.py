@@ -149,6 +149,11 @@ def warp_image_ignorenan(input_image, mapX, mapY, mapZ):
     return output_image
 
 
+def warp_image_fast(input_image, mapX, mapY, mapZ):
+    output_image = nd.map_coordinates(input_image, [mapX, mapY, mapZ], order = 3, prefilter = True)
+    return output_image
+
+
 def warp_image_nearest(input_image, mapX, mapY, mapZ):
     # warp images, but return the nearest-neighbor result
     output_size = mapX.shape
@@ -387,7 +392,14 @@ def load_and_scale_nifti(niiname):
     input_datar = np.zeros((newsize[0],newsize[1], newsize[2],td))
     for tt in range(td):
         input_datar[:,:,:,tt] = resize_3D(input_data[:, :, :, tt], newsize)
-    return input_datar
+
+    # update the affine matrix
+    voxel_sizes = np.linalg.norm(affine,axis=0)[:3]
+    new_affine = affine
+    new_affine[:,0] = affine[:,0]/voxel_sizes[0]
+    new_affine[:,1] = affine[:,1]/voxel_sizes[1]
+    new_affine[:,2] = affine[:,2]/voxel_sizes[2]
+    return input_datar, new_affine
 
 #
 #def warp_image(input_image, mapX, mapY, mapZ):
