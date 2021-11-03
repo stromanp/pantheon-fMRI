@@ -6,6 +6,7 @@ Created on Tue May  5 19:28:21 2020
 """
 import numpy as np
 import scipy.ndimage as nd
+from scipy import signal
 import math
 import nibabel as nib
 
@@ -288,7 +289,6 @@ def normxcorr3_the_long_way(image, kernel):
 # print('time taken: ', tlapsed, ' seconds')
 
 # normxcorr3 from matlab-------------------------------------
-
 def normxcorr3(image, kernel, shape = 'full'):
     # replicate the matlab version of normxcorr3
 
@@ -356,6 +356,14 @@ def normxcorr3(image, kernel, shape = 'full'):
 
     return C
 
+
+
+# normxcorr3 using scipy-------------------------------------
+def normxcorr3_fast(image, kernel, shape = 'full'):
+    C = signal.correlate(image,kernel,mode=shape)
+    # this method does not actually return a correlation value, so use the relative value
+    C /= np.max(np.abs(C))
+    return C
 
 
 def integralImage(A, szT):
