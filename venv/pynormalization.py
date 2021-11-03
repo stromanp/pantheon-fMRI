@@ -595,46 +595,52 @@ def py_combine_warp_fields(warpdata, background2, template, fit_order = [3,3,3])
     Xt,Yt,Zt = np.mgrid[range(xt), range(yt), range(zt)]
     x,y,z = np.mgrid[range(xs), range(ys), range(zs)]
 
+    xt0 = np.mean(Xt)
+    yt0 = np.mean(Yt)
+    zt0 = np.mean(Zt)
+    xs0 = np.mean(Xs)
+    ys0 = np.mean(Ys)
+    zs0 = np.mean(Zs)
     order = fit_order
 
     inv_Rcheck = np.zeros(6)  # save the tests for matrix inversion problems
     # new method - ---------------------
     # do a polynomial fit to all of the data coordinates, to make a smooth mapping function
-    # modified Oct 28 2021 to correct possible errors in mixing X and Xt values etc.
     #
     for nn in range(3):
-        if nn == 0:  L = xL   # original before change Oct 28
+        if nn == 0:  L = xL
         if nn == 1:  L = yL
         if nn == 2:  L = zL
 
-        # if nn == 0:  tL = xtL  # change test Oct 28
-        # if nn == 1:  tL = ytL
-        # if nn == 2:  tL = ztL
-
         G2 = np.ones(np.size(Xt))
         G = np.ones(np.size(xtL))
-        for ord in range(1,order[nn]+1,1):
-            G2 = np.vstack((G2, Xt.flatten()**ord, Yt.flatten()**ord, Zt.flatten()**ord))
-            G = np.vstack((G, xtL.flatten()**ord, ytL.flatten()**ord, ztL.flatten()**ord))
+        for ord in range(1, order[nn] + 1, 1):
+            G2 = np.vstack((G2, (Xt.flatten() - xt0) ** ord, (Yt.flatten() - yt0) ** ord, (Zt.flatten() - zt0) ** ord))
+            G = np.vstack((G, (xtL.flatten() - xt0) ** ord, (ytL.flatten() - yt0) ** ord, (ztL.flatten() - zt0) ** ord))
 
         # put the matrices the right way around
         G2 = G2.T
         G = G.T
 
-        inv_Rcheck[nn] = np.linalg.cond(np.dot(G.T,G))  # not sure if this is necessary
-        iGG = np.linalg.inv(np.dot(G.T,G))
-        m = np.dot(np.dot(iGG,G.T), L)   # original before change Oct 28
-        # m = np.dot(np.dot(iGG,G.T), tL)   # change test Oct 28
-        t_fit = np.dot(G2,m)
+        # fit = G2 x m  (matrix mult.)
+        # original = G x m
+        # m = inv(G' x G) x G' x original
+
+        # inv_Rcheck[nn] = np.linalg.cond(np.dot(G.T,G))  # not sure if this is necessary
+        # iGG = np.linalg.inv(np.dot(G.T,G))
+        # m = np.dot(np.dot(iGG,G.T), L)
+        # t_fit = np.dot(G2,m)
+
+        inv_Rcheck[nn] = np.linalg.cond(G.T @ G)  # not sure if this is necessary
+        iGG = np.linalg.inv(G.T @ G)
+        m = (iGG @ G.T) @ L
+        t_fit = G2 @ m
+
         t_fit = np.reshape(t_fit, [xt, yt, zt])
 
         if nn == 0: X_fit = t_fit   # original before change Oct 28
         if nn == 1: Y_fit = t_fit
         if nn == 2: Z_fit = t_fit
-
-        # if nn == 0: Xt_fit = t_fit  # change test Oct 28
-        # if nn == 1: Yt_fit = t_fit
-        # if nn == 2: Zt_fit = t_fit
 
     # finished mapping for each axis
 
@@ -651,37 +657,35 @@ def py_combine_warp_fields(warpdata, background2, template, fit_order = [3,3,3])
     x,y,z = np.mgrid[range(xs), range(ys), range(zs)]
 
     for nn in range(3):
-        if nn == 0:  tL = xtL   # original before change Oct 28
+        if nn == 0:  tL = xtL
         if nn == 1:  tL = ytL
         if nn == 2:  tL = ztL
 
-        # if nn == 0:  L = xL  # change test Oct 28
-        # if nn == 1:  L = yL
-        # if nn == 2:  L = zL
-
         G2 = np.ones(np.size(Xs))
         G = np.ones(np.size(xL))
-        for ord in range(1,order[nn]+1,1):
-            G2 = np.vstack((G2, Xs.flatten()**ord, Ys.flatten()**ord, Zs.flatten()**ord))
-            G = np.vstack((G, xL.flatten()**ord, yL.flatten()**ord, zL.flatten()**ord))
+        for ord in range(1, order[nn] + 1, 1):
+            G2 = np.vstack((G2, (Xs.flatten() - xs0) ** ord, (Ys.flatten() - ys0) ** ord, (Zs.flatten() - zs0) ** ord))
+            G = np.vstack((G, (xL.flatten() - xs0) ** ord, (yL.flatten() - ys0) ** ord, (zL.flatten() - zs0) ** ord))
 
         G = G.T
         G2 = G2.T
 
-        inv_Rcheck[nn+3] = np.linalg.cond(np.dot(G.T,G))   # dont know if this is necessary
-        iGG = np.linalg.inv(np.dot(G.T,G))
-        m = np.dot(np.dot(iGG,G.T), tL)   # original before change Oct 28
-        # m = np.dot(np.dot(iGG,G.T), L)  # change test Oct 28
-        t_fit = np.dot(G2,m)
+        # inv_Rcheck[nn+3] = np.linalg.cond(np.dot(G.T,G))   # dont know if this is necessary
+        # iGG = np.linalg.inv(np.dot(G.T,G))
+        # m = np.dot(np.dot(iGG,G.T), tL)
+        # t_fit = np.dot(G2,m)
+
+        inv_Rcheck[nn + 3] = np.linalg.cond(G.T @ G)  # dont know if this is necessary
+        iGG = np.linalg.inv(G.T @ G)
+        m = (iGG @ G.T) @ tL
+        t_fit = G2 @ m
+
         t_fit = np.reshape(t_fit, [xs, ys, zs])
 
-        if nn == 0: Xt_fit = t_fit   # original before change Oct 28
+        if nn == 0: Xt_fit = t_fit
         if nn == 1: Yt_fit = t_fit
         if nn == 2: Zt_fit = t_fit
 
-        # if nn == 0: X_fit = t_fit  # change test Oct 28
-        # if nn == 1: Y_fit = t_fit
-        # if nn == 2: Z_fit = t_fit
     # done the smooth mapping for the template coordinates
 
     # forward and reverse transform information

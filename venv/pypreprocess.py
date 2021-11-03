@@ -190,7 +190,7 @@ def guided_coregistration(filename, nametag, normdataname, normtemplatename, cor
 
                 # find the combination of correlation and proximity to the expected location
                 dist = np.sqrt((ddx - coords[0]) ** 2 + (ddy - coords[1]) ** 2 + (ddz - coords[2]) ** 2)
-                dist[dist < 5] = 0
+                # dist[dist < 5] = 0
                 pos_weight = 1 / (pw * dist + 1)
 
                 cc_temp = cc * pos_weight
@@ -245,46 +245,57 @@ def guided_coregistration(filename, nametag, normdataname, normtemplatename, cor
             # make mapped sections consistent
             adjusted_sections = []
             normtemplatename = 'ccbs'
-            new_result2 = pynormalization.align_override_sections(new_result, adjusted_sections, filename,
-                                                                  normtemplatename)
+            # new_result2 = pynormalization.align_override_sections(new_result, adjusted_sections, filename,
+            #                                                       normtemplatename)
+            new_result2 = new_result    # override this step temporarily
+
+
             time2 = time.time()
             new_warpdata = []
             for nn in range(len(new_result2)):
                 new_warpdata.append(new_result2[nn]['section_mapping_coords'])
 
             # combine the warp fields from each section into one map
-            fit_order = [3, 3, 3]
+            fit_order = [1,1,1]
             T, reverse_map_image, forward_map_image, inv_Rcheck = \
                     pynormalization.py_combine_warp_fields(new_warpdata,img,refimage,fit_order)
 
             img1 = i3d.warp_image(img, T['Xs'], T['Ys'], T['Zs'])
-            # now do the fine-tuning with MIRT------------------------------------------
-            optim = copy.deepcopy(optim_init)
-            main = copy.deepcopy(main_init)
-
             time3 = time.time()
-            res, norm_img_fine = mirt.py_mirt3D_register(refimage / np.max(refimage), img1 / np.max(img1), main, optim)
-            print('completed fine-tune mapping with py_norm_fine_tuning ...')
-            time4 = time.time()
 
-            print('guided_coregistration: mapping sections {:.2e} seconds, aligning {:.2e} seconds, combining {:.2e} seconds, fine-tuning {:.2e} seconds'.format(time1-starttime,time2-time1,time3-time2,time4-time3))
+            do_fine_tuning = False
+            if do_fine_tuning:
+                # now do the fine-tuning with MIRT------------------------------------------
+                optim = copy.deepcopy(optim_init)
+                main = copy.deepcopy(main_init)
 
-            F = mirt.py_mirt3D_F(res['okno']);  # Precompute the matrix B - spline basis functions
-            Xx, Xy, Xz = mirt.py_mirt3D_nodes2grid(res['X'], F, res['okno']);  # obtain the position of all image voxels (Xx, Xy, Xz)
-            # from the positions of B-spline control points (res['X']
+                res, norm_img_fine = mirt.py_mirt3D_register(refimage / np.max(refimage), img1 / np.max(img1), main, optim)
+                print('completed fine-tune mapping with py_norm_fine_tuning ...')
+                time4 = time.time()
 
-            xs, ys, zs = np.shape(img)
-            X, Y, Z = np.mgrid[range(xs), range(ys), range(zs)]
+                print('guided_coregistration: mapping sections {:.1f} seconds, aligning {:.1f} seconds, combining {:.1f} seconds, fine-tuning {:.1f} seconds'.format(time1-starttime,time2-time1,time3-time2,time4-time3))
 
-            # fine-tuning deviation from the original positions
-            dX = Xx[:xs, :ys, :zs] - X
-            dY = Xy[:xs, :ys, :zs] - Y
-            dZ = Xz[:xs, :ys, :zs] - Z
+                F = mirt.py_mirt3D_F(res['okno']);  # Precompute the matrix B - spline basis functions
+                Xx, Xy, Xz = mirt.py_mirt3D_nodes2grid(res['X'], F, res['okno']);  # obtain the position of all image voxels (Xx, Xy, Xz)
+                # from the positions of B-spline control points (res['X']
 
-            T2 = T
-            T2['Xs'] += dX
-            T2['Ys'] += dY
-            T2['Zs'] += dZ
+                xs, ys, zs = np.shape(img)
+                X, Y, Z = np.mgrid[range(xs), range(ys), range(zs)]
+
+                # fine-tuning deviation from the original positions
+                dX = Xx[:xs, :ys, :zs] - X
+                dY = Xy[:xs, :ys, :zs] - Y
+                dZ = Xz[:xs, :ys, :zs] - Z
+
+                T2 = T
+                T2['Xs'] += dX
+                T2['Ys'] += dY
+                T2['Zs'] += dZ
+            else:
+                T2 = T
+                print('guided_coregistration: mapping sections {:.1f} seconds, aligning {:.1f} seconds, combining {:.1f} seconds'.format(time1-starttime,time2-time1,time3-time2))
+
+
             img3 = i3d.warp_image(img1, T2['Xs'], T2['Ys'], T2['Zs'])
 
         output_img[:, :, :, tt] = img3
