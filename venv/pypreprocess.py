@@ -66,6 +66,7 @@ def coregister(filename, nametag, coregistered_prefix = 'c'):
     
     result = np.zeros((xs,ys,zs,ts))
     print('Running coregistration step ...')
+    Qcheck_initial = np.zeros(ts)
     Qcheck = np.zeros(ts)
     for tt in range(ts):
         print('Volume {vnum} of {vtotal}'.format(vnum = tt+1, vtotal = ts))
@@ -88,6 +89,8 @@ def coregister(filename, nametag, coregistered_prefix = 'c'):
 
         R = np.corrcoef(refimage.flatten(),new_img2.flatten())
         Qcheck[tt] = R[0,1]
+        R = np.corrcoef(refimage.flatten(),regimages.flatten())
+        Qcheck_initial[tt] = R[0,1]
 
         result[:,:,:,tt] = new_img2
 
@@ -108,11 +111,13 @@ def coregister(filename, nametag, coregistered_prefix = 'c'):
     nib.save(resulting_img, niiname)
 
     minQ = np.min(Qcheck)
+    minQinitial = np.min(Qcheck_initial)
 
     endtime = time.time()
-    print('coregistration of volume took {} seconds,  min correlation is {}'.format(np.round(endtime-starttime), minQ))
+    print('coregistration of volume took {} seconds,  min correlation is {:.2f}, was originally {:.2f}'.format(np.round(endtime-starttime), minQ, minQinitial))
 
-    return niiname
+    Qcheck = np.concatenate((Qcheck[:,np.newaxis],Qcheck_initial[:,np.newaxis]),axis=1)
+    return niiname, Qcheck
 
 
 #-------------coregistration guided by rough normalization results-------------------------
@@ -634,7 +639,7 @@ def run_preprocessing(settingsfile):
             # run the coregistration ...
             nametag = '_s{}'.format(seriesnumber)
             # original coregistration method
-            niiname = coregister(prefix_niiname, nametag)
+            niiname, Qcheck = coregister(prefix_niiname, nametag)
 
             # new guided coregistration method
             # normtemplatename = df1.loc[dbnum, 'normtemplatename']
