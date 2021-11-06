@@ -33,7 +33,7 @@ def coregister(filename, nametag, coregistered_prefix = 'c'):
     #Optimization settings
     optim_init = {'maxsteps':500,    # maximum number of iterations at each hierarchical level
              'fundif':1e-4,     # tolerance (stopping criterion)
-             'gamma':0.05,         # initial optimization step size
+             'gamma':0.1,         # initial optimization step size
              'anneal':0.5}        # annealing rate on the optimization step
 
     # original values
@@ -66,6 +66,7 @@ def coregister(filename, nametag, coregistered_prefix = 'c'):
     
     result = np.zeros((xs,ys,zs,ts))
     print('Running coregistration step ...')
+    Qcheck = np.zeros(ts)
     for tt in range(ts):
         print('Volume {vnum} of {vtotal}'.format(vnum = tt+1, vtotal = ts))
         regimage = input_data[:,:,:,tt]
@@ -85,6 +86,9 @@ def coregister(filename, nametag, coregistered_prefix = 'c'):
         m = np.max(regimage)
         new_img2 = m*mirt.py_mirt3D_transform(regimage/m,res)
 
+        R = np.corrcoef(refimage.flatten(),new_img2.flatten())
+        Qcheck[tt] = R[0,1]
+
         result[:,:,:,tt] = new_img2
 
         if tt == 0:
@@ -103,8 +107,10 @@ def coregister(filename, nametag, coregistered_prefix = 'c'):
     resulting_img = nib.Nifti1Image(result, affine)
     nib.save(resulting_img, niiname)
 
+    minQ = np.min(Qcheck)
+
     endtime = time.time()
-    print('coregistration of volume took {} seconds'.format(np.round(endtime-starttime)))
+    print('coregistration of volume took {} seconds,  min correlation is {}'.format(np.round(endtime-starttime), minQ))
 
     return niiname
 
@@ -628,12 +634,14 @@ def run_preprocessing(settingsfile):
             # run the coregistration ...
             nametag = '_s{}'.format(seriesnumber)
             # original coregistration method
-            #       niiname = coregister(prefix_niiname, nametag)
+            niiname = coregister(prefix_niiname, nametag)
+
             # new guided coregistration method
-            normtemplatename = df1.loc[dbnum, 'normtemplatename']
-            normdataname = df1.loc[dbnum, 'normdataname']
-            normdataname_full = os.path.join(dbhome, normdataname)
-            niiname = guided_coregistration(prefix_niiname, nametag, normdataname_full, normtemplatename)
+            # normtemplatename = df1.loc[dbnum, 'normtemplatename']
+            # normdataname = df1.loc[dbnum, 'normdataname']
+            # normdataname_full = os.path.join(dbhome, normdataname)
+            # niiname = guided_coregistration(prefix_niiname, nametag, normdataname_full, normtemplatename)
+
             print('Coregistration: output name is ',niiname)
 
         print('Coregistration finished ...', time.ctime(time.time()))
@@ -746,10 +754,12 @@ def run_preprocessing(settingsfile):
             nametag = '_s{}'.format(seriesnumber)
             wmtc, xlname = pybasissets.get_whitematter_noise(prefix_niiname, normtemplatename, nametag)
             # generate motion confounds - saved as excel file with nifti data
+
             # original motion paramters method
-            #      motion_xlname = pybasissets.coreg_to_motionparams(niiname, normdataname_full, normtemplatename, nametag)
+            motion_xlname = pybasissets.coreg_to_motionparams(niiname, normdataname_full, normtemplatename, nametag)
+
             # new method based on guided coregistration
-            motion_xlname = pybasissets.guided_coreg_to_motionparams(normdataname_full, normtemplatename, nametag)
+            # motion_xlname = pybasissets.guided_coreg_to_motionparams(normdataname_full, normtemplatename, nametag)
 
             # compile these into one basis set file? - see what is easiest for GLM when it is ready
             print('Finished defining basis sets ...', time.ctime(time.time()))
