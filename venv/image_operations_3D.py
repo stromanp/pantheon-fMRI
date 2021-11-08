@@ -20,12 +20,12 @@ import nibabel as nib
 #    output_image = RegularGridInterpolator((xo,yo,zo), input_data)
 #    return output_image
 
-def resize_3D(input_data, newsize):
+def resize_3D(input_data, newsize, mode = 'nearest'):
     original_size = np.shape(input_data)
     matrix = [ [original_size[0]/newsize[0], 0, 0], 
               [0, original_size[1]/newsize[1], 0], 
               [0, 0, original_size[2]/newsize[2]] ]
-    output_image = nd.affine_transform(input_data, matrix, offset=0.0, 
+    output_image = nd.affine_transform(input_data, matrix, offset=0.0,
             output_shape=newsize, order=1, mode='nearest', cval=0.0, prefilter=True)
     return output_image
 

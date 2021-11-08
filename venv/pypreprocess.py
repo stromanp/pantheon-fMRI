@@ -16,6 +16,7 @@ import pybasissets
 import GLMfit
 import image_operations_3D as i3d
 import pynormalization
+import openpyxl
 
 # -----coregister------------------------------------------------------------------
 # this function assumes the input is given as a time-series, and the images are all coregistered
@@ -27,14 +28,14 @@ def coregister(filename, nametag, coregistered_prefix = 'c'):
     main_init = {'similarity':'cc',   # similarity measure, e.g. SSD, CC, SAD, RC, CD2, MS, MI
             'subdivide':1,       # use 1 hierarchical level
             'okno':4,           # mesh window size
-            'lambda':0.5,     # transformation regularization weight, 0 for none
+            'lambda':0.1,     # transformation regularization weight, 0 for none
             'single':1}
     
     #Optimization settings
     optim_init = {'maxsteps':500,    # maximum number of iterations at each hierarchical level
              'fundif':1e-4,     # tolerance (stopping criterion)
              'gamma':0.1,         # initial optimization step size
-             'anneal':0.5}        # annealing rate on the optimization step
+             'anneal':0.7}        # annealing rate on the optimization step
 
     # original values
     # optim_init = {'maxsteps':100,    # maximum number of iterations at each hierarchical level
@@ -43,26 +44,51 @@ def coregister(filename, nametag, coregistered_prefix = 'c'):
     #          'anneal':0.7}        # annealing rate on the optimization step
 
     
-    smooth_refimage = False
-    smooth_regimage = False
+    smooth_refimage = True
+    smooth_regimage = True
     
     input_img = nib.load(filename)
-    input_data = input_img.get_data()
+    input_data = input_img.get_fdata()
     affine = input_img.affine
     
     xs,ys,zs,ts = np.shape(input_data)
+
+    #--------------------------------------------------
+    # for registration want spatial dimensions no smaller than 24
+    original_input_data = copy.deepcopy(input_data)
+    dimen = np.array([xs, ys, zs])
+    dimen[dimen < 24] = 24
+    padsize = np.floor((dimen - np.array([xs, ys, zs])) / 2.).astype(int)
+    padding_applied = (padsize > 0).any()
+    if padding_applied:
+        original_input_data = copy.deepcopy(input_data)
+        input_data = np.zeros((dimen[0], dimen[1], dimen[2], ts))
+        x1 = padsize[0]
+        x2 = x1 + xs
+        y1 = padsize[1]
+        y2 = y1 + ys
+        z1 = padsize[2]
+        z2 = z1 + zs
+        for tt in range(ts):
+            input_data[x1:x2, y1:y2, z1:z2, tt] = original_input_data[:, :, :, tt]
+        xs, ys, zs, ts = np.shape(input_data)
+
+    #--------------------------------------------------
     
     # coregister to the 3rd volume in the time-series
-    if ts >= 2:
-        refimage = input_data[:,:,:,2]
-    else:
-        refimage = input_data[:,:,:,0]
+    # if ts >= 2:
+    #     refimage = input_data[:,:,:,2]
+    # else:
+    #     refimage = input_data[:,:,:,0]
+    refimage = np.mean(input_data, axis =3)
             
-    smoothval = (1.1, 1.1, 1.1)
+    smoothval = (1.2, 1.2, 1.2)
     if smooth_refimage:
-        refimage = nd.gaussian_filter(refimage, smoothval)
-        
-    refimage = refimage/np.max(refimage)
+        refimages = nd.gaussian_filter(refimage, smoothval)
+    else:
+        refimages = refimage
+
+    refimages = refimages/np.max(refimages)
     
     result = np.zeros((xs,ys,zs,ts))
     print('Running coregistration step ...')
@@ -83,13 +109,13 @@ def coregister(filename, nametag, coregistered_prefix = 'c'):
         main = copy.deepcopy(main_init)
 
         print('gamma = {}'.format(optim['gamma']))
-        res, new_img = mirt.py_mirt3D_register(refimage, regimages, main, optim)
+        res, new_img = mirt.py_mirt3D_register(refimages, regimages, main, optim)
         m = np.max(regimage)
         new_img2 = m*mirt.py_mirt3D_transform(regimage/m,res)
 
-        R = np.corrcoef(refimage.flatten(),new_img2.flatten())
+        R = np.corrcoef(refimages.flatten(),new_img2.flatten())
         Qcheck[tt] = R[0,1]
-        R = np.corrcoef(refimage.flatten(),regimages.flatten())
+        R = np.corrcoef(refimages.flatten(),regimages.flatten())
         Qcheck_initial[tt] = R[0,1]
 
         result[:,:,:,tt] = new_img2
@@ -105,6 +131,19 @@ def coregister(filename, nametag, coregistered_prefix = 'c'):
     # define names for outputs
     coregdata_name = os.path.join(pname, 'coregdata'+nametag+'.npy')
     np.save(coregdata_name, coreg_data)
+
+    if padding_applied:
+        xs,ys,zs,ts = np.shape(original_input_data)
+        cropped_result = np.zeros((xs,ys,zs,ts))
+        x1 = padsize[0]
+        x2 = x1 + xs
+        y1 = padsize[1]
+        y2 = y1 + ys
+        z1 = padsize[2]
+        z2 = z1 + zs
+        for tt in range(ts):
+            cropped_result[:, :, :, tt] = result[x1:x2, y1:y2, z1:z2, tt]
+        result = cropped_result
 
     niiname = os.path.join(pname, coregistered_prefix+fname)
     resulting_img = nib.Nifti1Image(result, affine)
@@ -646,6 +685,26 @@ def run_preprocessing(settingsfile):
             # normdataname = df1.loc[dbnum, 'normdataname']
             # normdataname_full = os.path.join(dbhome, normdataname)
             # niiname = guided_coregistration(prefix_niiname, nametag, normdataname_full, normtemplatename)
+
+            # now write the new database values
+            keylist = df1.keys()
+            for kname in keylist:
+                if 'Unnamed' in kname: df1.pop(kname)  # remove blank fields from the database
+            # add coregistration quality to database
+            if 'coreg_quality' not in keylist:
+                df1['coreg_quality'] = 0
+            df1.loc[dbnum, 'coreg_quality'] = np.min(Qcheck[:,0])
+
+            # need to delete the existing sheet before writing the new version
+            # delete sheet - need to use openpyxl
+            workbook = openpyxl.load_workbook(PPdatabasename)
+            del workbook['datarecord']
+            workbook.save(PPdatabasename)
+
+            # write it to the database by appending a sheet to the excel file
+            # remove old version of datarecord first
+            with pd.ExcelWriter(PPdatabasename, engine="openpyxl", mode='a') as writer:
+                df1.to_excel(writer, sheet_name='datarecord')
 
             print('Coregistration: output name is ',niiname)
 
