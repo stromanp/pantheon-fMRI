@@ -1029,7 +1029,7 @@ def py_apply_normalization(input_image, T, Tfine = 'none', map_to_normalized_spa
 #------------apply normalization to the template (reverse mapping) for a complete 4D nifti file----------
 #--------------------------------------------------------------------------------------------------------
 def apply_normalization_to_nifti(niiname, T, Tfine = 'None', input_affine = 'None', normprefix = 'p'):
-    input_image = i3d.load_and_scale_nifti(niiname)  # this takes care of resizing the data to 1 mm voxels
+    input_image, affine = i3d.load_and_scale_nifti(niiname)  # this takes care of resizing the data to 1 mm voxels
 
     ts = np.shape(input_image)[3]   # get the size of the time dimension
     xs,ys,zs = np.shape(T['Xs'])   # get the dimensions of the resulting normalized images
@@ -1480,7 +1480,7 @@ def py_norm_fine_tuning(input_image, template, T, input_type = 'normalized'):
 
     if input_type == 'filename':
         niiname = input_image   # input_image is a text string in this case
-        input_image = i3d.load_and_scale_nifti(niiname)
+        input_image, affine = i3d.load_and_scale_nifti(niiname)
         norm_img = py_apply_normalization(input_image[:,:,:,3], T)
         norm_img = np.where(np.isfinite(norm_img), norm_img, 0.)
 
@@ -1851,7 +1851,7 @@ def run_rough_normalization_calculations(niiname, normtemplatename, template_img
     # actually run the normalization steps now
 
     # load the nifti data and rescale to 1 mm voxels
-    input_datar = i3d.load_and_scale_nifti(niiname)
+    input_datar, affiner = i3d.load_and_scale_nifti(niiname)
 
     # displaycount = 0
     # display_record = []
@@ -2033,7 +2033,7 @@ def py_load_modified_normalization(niiname, normtemplatename, new_result):   # ,
     section_defs, ninitial_fixed_segments, reverse_order = define_sections(normtemplatename, niiname)
 
     # load the nifti data and rescale to 1 mm voxels
-    input_datar = i3d.load_and_scale_nifti(niiname)
+    input_datar, affiner = i3d.load_and_scale_nifti(niiname)
     if np.ndim(input_datar) > 3:
         x,y,z,t = np.shape(input_datar)
         if t > 3:

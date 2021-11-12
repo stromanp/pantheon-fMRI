@@ -39,7 +39,7 @@ def load_network_model(networkmodel):
 
     nregions = len(dnclusters)
     ntargets, ncols = dnet.shape
-    nsources_max = ncols-2
+    nsources_max = ncols-1
 
     sem_region_list = []
     ncluster_list = []

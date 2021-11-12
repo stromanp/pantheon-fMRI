@@ -113,9 +113,9 @@ def coregister(filename, nametag, coregistered_prefix = 'c'):
         m = np.max(regimage)
         new_img2 = m*mirt.py_mirt3D_transform(regimage/m,res)
 
-        R = np.corrcoef(refimages.flatten(),new_img2.flatten())
+        R = np.corrcoef(refimage.flatten(),new_img2.flatten())
         Qcheck[tt] = R[0,1]
-        R = np.corrcoef(refimages.flatten(),regimages.flatten())
+        R = np.corrcoef(refimage.flatten(),regimage.flatten())
         Qcheck_initial[tt] = R[0,1]
 
         result[:,:,:,tt] = new_img2

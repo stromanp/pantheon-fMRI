@@ -2997,6 +2997,8 @@ class CLFrame:
         np.save(self.CLregionname,region_data)
         messagetext = 'defining clusters and loading data \ncompleted: ' + time.ctime(time.time())
         self.CLdefinebuttontext.set(messagetext)
+        print(messagetext)
+
 
     def CLload(self):
         # load the data using previous cluster definitions
@@ -3018,6 +3020,7 @@ class CLFrame:
         np.save(self.CLregionname,region_data)
         messagetext = 'loading cluster data completed: \n' + time.ctime(time.time())
         self.CLloadbuttontext.set(messagetext)
+        print(messagetext)
 
     # initialize the values, keeping track of the frame this definition works on (parent), and
     # also the main window containing that frame (controller)
@@ -3035,9 +3038,9 @@ class CLFrame:
         # put some text as a place-holder
         self.CLabel1 = tk.Label(self.parent, text = "1) Select clustering options", fg = 'gray', justify = 'left')
         self.CLabel1.grid(row=0,column=0, sticky='W')
-        self.CLabel2 = tk.Label(self.parent, text = "   Choices are: define new clusters\nand load data, or load data using\nexisting cluster definition", fg = 'gray', justify = 'left')
+        self.CLabel2 = tk.Label(self.parent, text = "   Specify the model definition which\nincludes which regions to load\nand set names for new or existing\ncluster and region data files", fg = 'gray', justify = 'left')
         self.CLabel2.grid(row=1,column=0, sticky='W')
-        self.CLabel3 = tk.Label(self.parent, text = "2) Run selected options", fg = 'gray', justify = 'left')
+        self.CLabel3 = tk.Label(self.parent, text = "2) Define clusters and load data, or\nonly load data using existing\ncluster definition", fg = 'gray', justify = 'left')
         self.CLabel3.grid(row=2,column=0, sticky='W')
 
         # create an entry box so that the user can specify the network file to use

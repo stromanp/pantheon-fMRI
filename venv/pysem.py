@@ -455,7 +455,7 @@ def pysem(cluster_properties, region_properties, timepoints = 0, epoch = 0):
                                     Zgrid1_1[tc,s1c,s2c,ttime,nn] = Z_1
                                     Zgrid1_2[tc,s1c,s2c,ttime,nn] = Z_2
 
-    print('pysem:  finished calculating 2-source SEM values.  {}',format(time.ctime()))
+    print('pysem:  finished calculating 2-source SEM values.  {}'.format(time.ctime()))
 
     return CCrecord, beta2, beta1, Zgrid2, Zgrid1_1, Zgrid1_2
 

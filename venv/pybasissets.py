@@ -322,12 +322,12 @@ def get_whitematter_noise(niiname, normtemplatename, nametag):
         mask = np.zeros((xs,ys,zs))
         z0 = np.round(p * zs).astype('int')
         mask[:, :, range((z0-1),(z0+2))] = 1.   # take all the wm voxels in a selected slice
-        a = np.where((mask > 0) & (wmmap > 50))   # wmmap is scaled 0-255 to span the probability range 0-1
-        nvox = np.size(a)
+        ax, ay, az = np.where((mask > 0) & (wmmap > 50))   # wmmap is scaled 0-255 to span the probability range 0-1
+        nvox = np.size(ax)
         tcdata = np.zeros((nvox,ts))
         for tt in range(ts):
             temp = input_data[:,:,:,tt]
-            tcdata[:,tt] = temp[a].fatten()
+            tcdata[:,tt] = temp[ax,ay,az].flatten()
         singletc = np.mean(tcdata, axis = 0)
         avgtc = np.mean(singletc)
         # convert to percent signal change from average
