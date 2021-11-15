@@ -1890,7 +1890,7 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
 def run_ANOVA_or_ANCOVA2(beta1, beta2, cov1, cov2, covname, formula_key1, formula_key2, formula_key3, atype):
     # make up test values
     NP1 = len(beta1)
-    NP2 = len(beta1)
+    NP2 = len(beta2)
 
     g1 = ['group1']
     g2 = ['group2']
@@ -1899,6 +1899,11 @@ def run_ANOVA_or_ANCOVA2(beta1, beta2, cov1, cov2, covname, formula_key1, formul
     cov = list(cov1) + list(cov2)
 
     d = {'beta': beta, 'Group': group, covname:cov}
+    print('size of beta is {}'.format(np.shape(beta)))
+    print('size of group is {}'.format(np.shape(group)))
+    print('size of cov is {}'.format(np.shape(cov)))
+    print('d = {}'.format(d))
+
     df = pd.DataFrame(data=d)
 
     formula = 'beta ~ ' + formula_key1 + ' + ' + formula_key2 + ' + ' + formula_key3
