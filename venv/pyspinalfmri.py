@@ -902,7 +902,8 @@ class DBFrame:
                 termtext = ',{}'.format(value)
                 dbnumtext += termtext
         print(dbnumtext)
-        self.searchresult_text.set(dbnumtext)
+        dbnumtextshort = '{} values found'.format(len(dbnumlist))
+        self.searchresult_text.set(dbnumtextshort)
         self.DBsearchresult.configure(text=self.searchresult_text.get())
 
         # prompt for a name for saving the list
@@ -3179,6 +3180,8 @@ class SEMFrame:
         nfname,ext = os.path.splitext(nfname)
         settings['SEMresultsdir'] = npname
         self.SEMresultsdir = npname
+        # write the result to the label box for display
+        self.SEMresultsdirtext.set(settings['SEMresultsdir'])
 
         SEMclustername = os.path.join(npname,nfname+'.npy')
 
@@ -3204,6 +3207,8 @@ class SEMFrame:
         if os.path.isdir(npname):
             settings['SEMresultsdir'] = npname
             self.SEMresultsdir = npname
+            # write the result to the label box for display
+            self.SEMresultsdirtext.set(settings['SEMresultsdir'])
         else:
             # select a directory
             npname = settings['SEMresultsdir']
@@ -3250,6 +3255,8 @@ class SEMFrame:
         fname, ext = os.path.splitext(nfname)
         settings['SEMresultsdir'] = npname
         self.SEMresultsdir = npname
+        # write the result to the label box for display
+        self.SEMresultsdirtext.set(settings['SEMresultsdir'])
 
         SEMregionname = os.path.join(npname,fname+'.npy')
 
@@ -3276,6 +3283,8 @@ class SEMFrame:
         if os.path.isdir(npname):
             settings['SEMresultsdir'] = npname
             self.SEMresultsdir = npname
+            # write the result to the label box for display
+            self.SEMresultsdirtext.set(settings['SEMresultsdir'])
         else:
             # select a directory
             npname = settings['SEMresultsdir']
