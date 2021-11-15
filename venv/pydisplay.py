@@ -330,8 +330,8 @@ def pywriteexcel(data, excelname, excelsheet = 'pydata', write_mode = 'replace',
     dataf = pd.DataFrame(data)
 
     if (write_mode == 'replace') or not os.path.exists(excelname):
-        with pd.ExcelWriter(excelname, mode='w') as writer:
+        with pd.ExcelWriter(excelname, engine = 'openpyxl', mode='w') as writer:
             dataf.to_excel(writer, sheet_name=excelsheet, float_format = floatformat)
     else:
-        with pd.ExcelWriter(excelname, mode='a') as writer:
+        with pd.ExcelWriter(excelname, engine = 'openpyxl', mode='a') as writer:
             dataf.to_excel(writer, sheet_name=excelsheet, float_format = floatformat)

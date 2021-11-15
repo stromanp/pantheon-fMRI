@@ -125,6 +125,30 @@ def remove_reps_and_sort(id_list, value_list, data):
 
     return data2, value_list2
 
+def generate_output_name(filename1, filename2, tag, extension):
+    # prep output name
+    p1, f1 = os.path.split(filename1)
+    f1b, e1 = os.path.splitext(f1)
+    if len(filename2) == 0:
+        outputname = os.path.join(p1, f1b + tag + extension)
+    else:
+        p2, f2 = os.path.split(filename2)
+        f2b, e2 = os.path.splitext(f2)
+
+        maxlength = np.max([len(f1b), len(f2b)])
+        runsearch = True
+        pos = 0
+        while runsearch and pos < maxlength:
+            if f1b[pos] == f2b[pos]:
+                pos += 1
+            else:
+                runsearch = False
+        commontag = f1b[:pos]
+        utag1 = f1b[pos:]
+        utag2 = f2b[pos:]
+        outputname = os.path.join(p1, commontag + utag1 + '_' + utag2 + tag + extension)
+    return outputname
+
 
 def GLMregression(data, covariates, axis):
     # function to do GLM regression w.r.t. covariates
@@ -211,6 +235,10 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
     #
     print('running py2ndlevelanalysis:  group_significance:  started at ',time.ctime())
     data = np.load(filename, allow_pickle=True).flat[0]
+
+    # setup output name
+    excelfilename = generate_output_name(filename, '', '_2ndlevel', '.xlsx')
+
     datafiletype = 0
     try:
         keylist = list(data.keys())
@@ -226,13 +254,6 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
         print('SEM results loaded:  type ',semtype)
 
         if semtype == '2source':
-            p,f = os.path.split(filename)
-            f2,e = os.path.splitext(f)
-            excelfilename = os.path.join(p,f2+'_2ndlevel.xlsx')
-
-            # beta2 = np.zeros((nclusters, nclusters, nclusters, ntimepoints, NP, 2))
-            # beta1 = np.zeros((nclusters, nclusters, nclusters, ntimepoints, NP, 2))
-
             cluster_properties = data['cluster_properties']
             cluster_info, rname_list, ncluster_list = get_cluster_position_details(cluster_properties)
 
@@ -329,14 +350,12 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                     print('removing redundant values ...')
                     results2, Svalue_list2 = remove_reps_and_sort(connid_list, Svalue_list, results)
 
-                    p,f = os.path.split(filename)
-                    f2,e = os.path.splitext(f)
-                    excelfilename = os.path.join(p,f2+'_2ndlevel.xlsx')
-                    excelsheetname = '2source beta2 ' + statstype + ' ' + str(tt)
+                    excelsheetname = '2source beta1 ' + statstype + ' ' + str(tt)
                     print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
                     pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
                     print('finished writing results to ',excelfilename)
                 else:
+                    results2 = []
                     print('no significant results found at p < {}'.format(pthreshold))
 
             results_beta1 = results2
@@ -384,6 +403,7 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                     pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
                     print('finished writing results to ',excelfilename)
                 else:
+                    results2 = []
                     print('no significant results found at p < {}'.format(pthreshold))
 
             results_beta2 = results2
@@ -392,10 +412,6 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
 
 
         if semtype == 'network':
-            p,f = os.path.split(filename)
-            f2,e = os.path.splitext(f)
-            excelfilename = os.path.join(p,f2+'_2ndlevel.xlsx')
-
             # results = {'type': 'network', 'resultsnames': outputnamelist, 'network': self.networkmodel,
             #            'regionname': self.SEMregionname, 'clustername': self.SEMclustername, 'DBname': self.DBname,
             #            'DBnum': self.DBnum}
@@ -522,10 +538,6 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
             return excelfilename
 
     if datafiletype == 2:
-        p, f = os.path.split(filename)
-        f2, e = os.path.splitext(f)
-        excelfilename = os.path.join(p, f2 + '_2ndlevel.xlsx')
-
         # analyzing BOLD responses
         region_properties = data['region_properties']
         # regiondata_entry = {'tc': tc, 'tc_sem': tc_sem, 'nruns_per_person': nruns_per_person, 'tsize': tsize,'rname': rname}
@@ -648,6 +660,10 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
     print('running py2ndlevelanalysis:  group_difference_significance:  started at ',time.ctime())
     data1 = np.load(filename1, allow_pickle=True).flat[0]
     data2 = np.load(filename2, allow_pickle=True).flat[0]
+
+    # setup output name
+    excelfilename = generate_output_name(filename1, filename2, '_2ndlevel', '.xlsx')
+
     datafiletype = 0
     try:
         keylist = list(data1.keys())
@@ -663,13 +679,6 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
         print('SEM results loaded:  type ',semtype)
 
         if semtype == '2source':
-            p,f = os.path.split(filename1)
-            f2,e = os.path.splitext(f)
-            excelfilename = os.path.join(p,f2+'_2ndlevel.xlsx')
-
-            # beta2 = np.zeros((nclusters, nclusters, nclusters, ntimepoints, NP, 2))
-            # beta1 = np.zeros((nclusters, nclusters, nclusters, ntimepoints, NP, 2))
-
             cluster_properties = data1['cluster_properties']
             cluster_info, rname_list, ncluster_list = get_cluster_position_details(cluster_properties)
 
@@ -680,6 +689,8 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
 
             ntclusters, ns1sclusters, ns2clusters, ntimepoints, NP2, nbeta = np.shape(beta1_2)
             ntclusters, ns1sclusters, ns2clusters, ntimepoints, NP1, nbeta = np.shape(beta1_1)
+            print('size of beta1_1 is {}'.format(np.shape(beta1_1)))
+            print('size of beta1_2 is {}'.format(np.shape(beta1_2)))
 
             # stats based on group average ----------
             if statstype == 'average':
@@ -693,7 +704,7 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                     # pooled standard deviation:
                     sp = np.sqrt( ((NP1-1)*var_beta1_1 + (NP2-1)*var_beta1_2)/(NP1+NP2-2) )
 
-                    Tbeta1 = (mean_beta1_1 - mean_beta1_2)/(sp*np.sqrt(1/NP1 + 1/NP2))
+                    Tbeta1 = (mean_beta1_1 - mean_beta1_2)/(sp*np.sqrt(1/NP1 + 1/NP2) + 1.0e-20)
 
                     # stats based on group average - sig diff between groups?
                     mean_beta2_1 = np.mean(beta2_1,axis = 4)
@@ -703,9 +714,9 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                     # pooled standard deviation:
                     sp = np.sqrt( ((NP1-1)*var_beta2_1 + (NP2-1)*var_beta2_2)/(NP1+NP2-2) )
 
-                    Tbeta2 = (mean_beta2_1 - mean_beta2_2)/(sp*np.sqrt(1/NP1 + 1/NP2))
+                    Tbeta2 = (mean_beta2_1 - mean_beta2_2)/(sp*np.sqrt(1/NP1 + 1/NP2) + 1.0e-20)
 
-                    Tthresh = stats.t.ppf(1-pthreshold,NP-1)
+                    Tthresh = stats.t.ppf(1-pthreshold,NP1+NP2-1)
 
                     beta1_sig = np.abs(Tbeta1) > Tthresh
                     beta2_sig = np.abs(Tbeta2) > Tthresh
@@ -725,43 +736,12 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                     sem_beta2_diff = np.std(beta_diff)/np.sqrt(NP1)
                     Tbeta2 = mean_beta2_diff/(sem_beta2_diff + 1.0e-10)
 
-                    Tthresh = stats.t.ppf(1-pthreshold,NP-1)
+                    Tthresh = stats.t.ppf(1-pthreshold,NP1-1)
 
                     beta1_sig = np.abs(Tbeta1) > Tthresh
                     beta2_sig = np.abs(Tbeta2) > Tthresh
                     stat_of_interest1 = Tbeta1
                     stat_of_interest2 = Tbeta2
-
-            # stats based on regression with covariates - --------
-            # difference in regression between two groups?
-            # if statstype == 'regression':
-            #     stattitle = 'Zregression'
-            #     Zthresh = stats.norm.ppf(1-pthreshold)
-            #
-            #     terms, NPt = np.shape(covariates)  # need one term per person, for each covariate
-            #     b1, b1sem, R21, Z1, Rcorrelation1, Zcorrelation1 = GLMregression(beta1, covariates, 4)
-            #     b2, b2sem, R22,Z2, Rcorrelation2, Zcorrelation2 = GLMregression(beta2, covariates, 4)
-            #
-            #     beta1_sig = np.abs(Z1) > Zthresh
-            #     beta2_sig = np.abs(Z2) > Zthresh
-            #     stat_of_interest1 = Z1
-            #     stat_of_interest2 = Z2
-            #
-            # #---------------------------------------------------
-            # # difference in correlation between two groups?
-            # if statstype == 'correlation':
-            #     stattitle = 'Zcorr'
-            #     Zthresh = stats.norm.ppf(1-pthreshold)
-            #
-            #     terms, NPt = np.shape(covariates)  # need one term per person, for each covariate
-            #     b1, b1sem, R21, Z1, Rcorrelation1, Zcorrelation1 = GLMregression(beta1, covariates, 4)
-            #     b2, b2sem, R22,Z2, Rcorrelation2, Zcorrelation2 = GLMregression(beta2, covariates, 4)
-            #
-            #     beta1_sig = np.abs(Zcorrelation1) > Zthresh
-            #     beta2_sig = np.abs(Zcorrelation2) > Zthresh
-            #     stat_of_interest1 = Zcorrelation1
-            #     stat_of_interest2 = Zcorrelation2
-            # #---------------------------------------------------
 
             keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2', 'tlimy1',
                     'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2', 'slimz1', 'slimz2','cov']
@@ -803,14 +783,12 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                     print('removing redundant values ...')
                     results2, Svalue_list2 = remove_reps_and_sort(connid_list, Svalue_list, results)
 
-                    p,f = os.path.split(filename)
-                    f2,e = os.path.splitext(f)
-                    excelfilename = os.path.join(p,f2+'_2ndlevel.xlsx')
                     excelsheetname = '2source beta2 ' + statstype + ' ' + str(tt)
                     print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
                     pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
                     print('finished writing results to ',excelfilename)
                 else:
+                    results2 = []
                     print('no significant results found at p < {}'.format(pthreshold))
 
             results_beta1 = results2
@@ -857,6 +835,7 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                     pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
                     print('finished writing results to ',excelfilename)
                 else:
+                    results2 = []
                     print('no significant results found at p < {}'.format(pthreshold))
 
             results_beta2 = results2
@@ -864,10 +843,6 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
             return excelfilename
 
         if semtype == 'network':
-            p,f = os.path.split(filename1)
-            f2,e = os.path.splitext(f)
-            excelfilename = os.path.join(p,f2+'_2ndlevel.xlsx')
-
             # results = {'type': 'network', 'resultsnames': outputnamelist, 'network': self.networkmodel,
             #            'regionname': self.SEMregionname, 'clustername': self.SEMclustername, 'DBname': self.DBname,
             #            'DBnum': self.DBnum}
@@ -1018,10 +993,6 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
             return excelfilename
 
     if datafiletype == 2:
-        p, f = os.path.split(filename1)
-        f2, e = os.path.splitext(f)
-        excelfilename = os.path.join(p, f2 + '_2ndlevel.xlsx')
-
         # analyzing BOLD responses
         region_properties1 = data1['region_properties']
         region_properties2 = data2['region_properties']
@@ -1113,61 +1084,6 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                     entry = dict(zip(keys, values))
                     outputdata.append(entry)
 
-            # # stats based on regression with covariates ----------
-            # if statstype == 'regression':
-            #     Zthresh = stats.norm.ppf(1 - pthreshold)
-            #     b, bsem, R2, Z, Rcorrelation, Zcorrelation = GLMregression(tc_per_person, covariates, 2)
-            #     sig = np.abs(Z) > Zthresh
-            #
-            #     # check significance and write out results
-            #     ncov,NP = np.shape(covariates)
-            #     covnames = []
-            #     for tn in range(ncov): covnames += ['cov'+str(tn+1)]
-            #     covnames += ['intercept']
-            #
-            #     keys = []
-            #     for cc in range(nclusters):
-            #         for tn in range(ncov+1):
-            #             keys = keys + ['b_'+covnames[tn] + ' ' + str(cc), 'bsem_'+covnames[tn] + ' ' + str(cc), 'R2_'+covnames[tn] + ' ' + str(cc), 'sig_'+covnames[tn] + ' ' + str(cc)]
-            #
-            #     outputdata = []
-            #     for tt in range(tsize):
-            #         values = []
-            #         for cc in range(nclusters):
-            #             for tn in range(ncov+1):
-            #                 values = values + [b[cc, tt, tn], bsem[cc, tt, tn], R2[cc, tt, tn], sig[cc, tt, tn]]
-            #         entry = dict(zip(keys, values))
-            #         outputdata.append(entry)
-            #
-            #
-            # # stats based on regression with covariates ----------
-            # if statstype == 'correlation':
-            #     Zthresh = stats.norm.ppf(1 - pthreshold)
-            #     R = np.corrcoef()
-            #     b, bsem, R2, Z, Rcorrelation, Zcorrelation = GLMregression(tc_per_person, covariates, 2)
-            #     sig = np.abs(Zcorrelation) > Zthresh
-            #
-            #     # check significance and write out results
-            #     ncov,NP = np.shape(covariates)
-            #     covnames = []
-            #     for tn in range(ncov): covnames += ['cov'+str(tn+1)]
-            #     covnames += ['intercept']
-            #
-            #     keys = []
-            #     for cc in range(nclusters):
-            #         for tn in range(ncov):
-            #             keys = keys + ['R_'+covnames[tn] + ' ' + str(cc), 'Z_'+covnames[tn] + ' ' + str(cc), 'sig_'+covnames[tn] + ' ' + str(cc)]
-            #
-            #     outputdata = []
-            #     for tt in range(tsize):
-            #         values = []
-            #         for cc in range(nclusters):
-            #             for tn in range(ncov):
-            #                 values = values + [Rcorrelation[cc, tt, tn], Zcorrelation[cc, tt, tn], sig[cc, tt, tn]]
-            #         entry = dict(zip(keys, values))
-            #         outputdata.append(entry)
-            # #---------------------------------------------------
-
             if len(outputdata) > 0:
                 excelsheetname = rname
                 print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
@@ -1190,6 +1106,10 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
     print('running py2ndlevelanalysis:  group_comparison_ANOVA:  started at ',time.ctime())
     data1 = np.load(filename1, allow_pickle=True).flat[0]
     data2 = np.load(filename2, allow_pickle=True).flat[0]
+
+    # setup output name
+    excelfilename = generate_output_name(filename1, filename2, '_2ndlevel', '.xlsx')
+
 
     if np.ndim(covariates1) > 1:
         ncov1, NP1 = np.shape(covariates1)
@@ -1219,10 +1139,6 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
         print('SEM results loaded:  type ',semtype)
 
         if semtype == '2source':
-            p,f = os.path.split(filename1)
-            f2,e = os.path.splitext(f)
-            excelfilename = os.path.join(p,f2+'_2ndlevel.xlsx')
-
             cluster_properties = data1['cluster_properties']
             cluster_info, rname_list, ncluster_list = get_cluster_position_details(cluster_properties)
 
@@ -1258,6 +1174,7 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                                 # one-source
                                 b1 = beta1_1[t, s1, s2, tp, :, nb]
                                 b2 = beta1_2[t, s1, s2, tp, :, nb]
+                                covname = covariate_name
                                 if np.var(b1) > 0 and np.var(b2) > 0:
                                     # anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA2(beta1, beta2, cov1, cov2, covname='cov1', mode='ANOVA')
                                     anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA2(b1, b2, cov1, cov2, covname, formula_key1, formula_key2, formula_key3, atype)
@@ -1315,9 +1232,6 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                     print('removing redundant values ...')
                     results2, Svalue_list2 = remove_reps_and_sort(connid_list, Svalue_list, results)
 
-                    p,f = os.path.split(filename)
-                    f2,e = os.path.splitext(f)
-                    excelfilename = os.path.join(p,f2+'_2ndlevel.xlsx')
                     excelsheetname = '2source beta2 ' + statstype + ' ' + str(tt)
                     print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
                     pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
@@ -1378,10 +1292,6 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
 
 
         if semtype == 'network':
-            p,f = os.path.split(filename1)
-            f2,e = os.path.splitext(f)
-            excelfilename = os.path.join(p,f2+'_2ndlevel.xlsx')
-
             # results = {'type': 'network', 'resultsnames': outputnamelist, 'network': self.networkmodel,
             #            'regionname': self.SEMregionname, 'clustername': self.SEMclustername, 'DBname': self.DBname,
             #            'DBnum': self.DBnum}
@@ -1439,6 +1349,7 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                         formula_key3 = 'C(Group):'+covariate_name
                         atype = 2
 
+                    covname = covariate_name
                     for nc in range(ncombinations):
                         for nt in range(ntimepoints):
                             for ns in range(nsources):
@@ -1513,10 +1424,6 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
 
 
     if datafiletype == 2:
-        p, f = os.path.split(filename1)
-        f2, e = os.path.splitext(f)
-        excelfilename = os.path.join(p, f2 + '_2ndlevel.xlsx')
-
         # analyzing BOLD responses
         region_properties1 = data1['region_properties']
         region_properties2 = data2['region_properties']
@@ -1580,6 +1487,7 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                 formula_key3 = 'C(Group):' + covariate_name
                 atype = 2
 
+            covname = covariate_name
             for nc in range(nclusters):
                 for ts in range(tsize1):
                     tc1 = tc_per_person1[nc,ts,:]
@@ -1619,6 +1527,9 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
     print('running py2ndlevelanalysis:  single_group_ANOVA:  started at ',time.ctime())
     data1 = np.load(filename1, allow_pickle=True).flat[0]
 
+    # setup output name
+    excelfilename = generate_output_name(filename1, '', '_2ndlevel', '.xlsx')
+
     if np.ndim(covariates1) > 2:
         ncov1, NP1 = np.shape(covariates1)
         cov1 = covariates1[0,:]
@@ -1643,10 +1554,6 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
         print('SEM results loaded:  type ',semtype)
 
         if semtype == '2source':
-            p,f = os.path.split(filename1)
-            f2,e = os.path.splitext(f)
-            excelfilename = os.path.join(p,f2+'_2ndlevel.xlsx')
-
             cluster_properties = data1['cluster_properties']
             cluster_info, rname_list, ncluster_list = get_cluster_position_details(cluster_properties)
 
@@ -1732,9 +1639,6 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
                     print('removing redundant values ...')
                     results2, Svalue_list2 = remove_reps_and_sort(connid_list, Svalue_list, results)
 
-                    p,f = os.path.split(filename)
-                    f2,e = os.path.splitext(f)
-                    excelfilename = os.path.join(p,f2+'_2ndlevel.xlsx')
                     excelsheetname = '2source beta2 ' + statstype + ' ' + str(tt)
                     print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
                     pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
@@ -1794,10 +1698,6 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
 
 
         if semtype == 'network':
-            p,f = os.path.split(filename1)
-            f2,e = os.path.splitext(f)
-            excelfilename = os.path.join(p,f2+'_2ndlevel.xlsx')
-
             # results = {'type': 'network', 'resultsnames': outputnamelist, 'network': self.networkmodel,
             #            'regionname': self.SEMregionname, 'clustername': self.SEMclustername, 'DBname': self.DBname,
             #            'DBnum': self.DBnum}
@@ -1921,10 +1821,6 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
 
 
     if datafiletype == 2:
-        p, f = os.path.split(filename1)
-        f2, e = os.path.splitext(f)
-        excelfilename = os.path.join(p, f2 + '_2ndlevel.xlsx')
-
         # analyzing BOLD responses
         region_properties1 = data1['region_properties']
         # regiondata_entry = {'tc': tc, 'tc_sem': tc_sem, 'nruns_per_person': nruns_per_person, 'tsize': tsize,'rname': rname}
@@ -1977,9 +1873,7 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
 
             beta_sig = anova_p < p_threshold
 
-
-
-            #-------------sort and write out the results?-------------------------
+            #-------------sort and write out the results-------------------------
             if len(outputdata) > 0:
                 excelsheetname = rname
                 print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))

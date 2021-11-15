@@ -3741,11 +3741,16 @@ class GRPFrame:
 
             if mode == 'average_per_person':  # average values over entries for the same person
                 filename_list, dbnum_person_list, NP = pydatabase.get_datanames_by_person(DBname, DBnum, prefix, mode='list')
-                fieldvalues = np.zeros(NP)
+                fieldvalues = []
                 for nn in range(NP):
                     DBnum_person = dbnum_person_list[nn]
                     fv1 = list(df1.loc[DBnum_person,fieldname])
-                    fieldvalues[nn] = np.mean(fv1)
+                    if type(fv1[0]) == str:
+                        # print('characteristic is {} value type ... using the first listed value'.format(type(fv1[0])))
+                        fieldvalues += [fv1[0]]
+                    else:
+                        # print('characteristic is {} value type ... using the average value for each participant'.format(type(fv1[0])))
+                        fieldvalues += [np.mean(fv1)]
             else:
                 fieldvalues = list(df1.loc[DBnum,fieldname])
         else:
@@ -3769,11 +3774,16 @@ class GRPFrame:
 
             if mode == 'average_per_person':  # average values over entries for the same person
                 filename_list2, dbnum_person_list2, NP2 = pydatabase.get_datanames_by_person(DBname2, DBnum2, prefix, mode='list')
-                fieldvalues2 = np.zeros(NP2)
+                fieldvalues2 = []
                 for nn in range(NP2):
                     DBnum_person2 = dbnum_person_list2[nn]
                     fv1 = list(df1.loc[DBnum_person2,fieldname])
-                    fieldvalues2[nn] = np.mean(fv1)
+                    if type(fv1[0]) == str:
+                        # print('characteristic is {} value type ... using the first listed value'.format(type(fv1[0])))
+                        fieldvalues2 += [fv1[0]]
+                    else:
+                        # print('characteristic is {} value type ... using the average value for each participant'.format(type(fv1[0])))
+                        fieldvalues2 += [np.mean(fv1)]
             else:
                 fieldvalues2 = list(df1.loc[DBnum2,fieldname])
         else:
