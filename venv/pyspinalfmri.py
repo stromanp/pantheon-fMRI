@@ -3613,9 +3613,13 @@ class SEMFrame:
 class GRPFrame:
 
     def GRPcharacteristicslistclear(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+
         self.GRPcharacteristicscount = 0
         self.GRPcharacteristicslist = []
         self.GRPcharacteristicstext.set('empty')
+        self.GRPcharacteristicsvalues = []
+        self.GRPcharacteristicsvalues2 = []
 
         # in case the database has been updated
         # destroy the old pulldown menu and create a new one with the new choices
@@ -3637,7 +3641,6 @@ class GRPFrame:
         self.GRPfield_menu.grid(row=7, column=2, sticky='EW')
         self.fieldsearch_opt = self.GRPfield_menu  # save this way so that values are not cleared
 
-        settings = np.load(settingsfile, allow_pickle = True).flat[0]
         settings['GRPcharacteristicscount'] = self.GRPcharacteristicscount
         settings['GRPcharacteristicslist'] = self.GRPcharacteristicslist
         settings['GRPcharacteristicsvalues'] = self.GRPcharacteristicsvalues
@@ -3975,9 +3978,13 @@ class GRPFrame:
         if value == 5:
             print('Regression:  only indicate one set of results (first set will be used)')
         if value == 6:
-            print('ANOVA:  select only discrete or categorical values for the personal characteristics')
+            print('ANOVA:  if two sets of results are indicated, they will be considered to be separate groups')
+            print('         only indicate one additional discrete value for the personal characteristic')
+            print('ANOVA:  if one set of results is indicated, then two discrete values need to chosen, for the personal characteristics')
         if value == 7:
-            print('ANCOVA:  select a discrete value first, and a continuous value second, for the personal characteristics')
+            print('ANCOVA:  if two sets of results are indicated, they will be considered to be separate groups')
+            print('         only indicate one additional continuous value for the personal characteristic')
+            print('ANCOVA:  if one set of results is indicated, then one discrete value needs to chosen, and a continuous value chosen 2nd, for the personal characteristics')
 
         settings['GRPanalysistype'] = self.GRPanalysistype
         np.save(settingsfile,settings)
@@ -4132,14 +4139,14 @@ class GRPFrame:
                     covariates1 = GRPcharacteristicsvalues[0,:]
                     covariates2 = GRPcharacteristicsvalues2[0,:]
                     covname = GRPcharacteristicslist[0]
-                    outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, datafile2, covariates1, covariates2, pthreshold, mode = 'ANOVA', covariate_name = covname)
+                    outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, datafile2, covariates1, covariates2, pthreshold, mode = 'ANCOVA', covariate_name = covname)
                 else:
                     # apply ANOVA analysis to beta-values in the first data file named,
                     # with the first two personal characteristics used as one discrete and one continuous variable
                     pthreshold = GRPpvalue
                     covariates1 = GRPcharacteristicsvalues[:1,:]
                     covname = GRPcharacteristicslist[:1]
-                    outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, 'none', covariates1, 'none', pthreshold, mode = 'ANOVA', covariate_name = covname)
+                    outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, 'none', covariates1, 'none', pthreshold, mode = 'ANCOVA', covariate_name = covname)
 
 
             if datafiletype1 == 2:  # BOLD data
@@ -4150,16 +4157,14 @@ class GRPFrame:
                     covariates1 = GRPcharacteristicsvalues[0,:]
                     covariates2 = GRPcharacteristicsvalues2[0,:]
                     covname = GRPcharacteristicslist[0]
-                    outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, datafile2, covariates1, covariates2, pthreshold, mode = 'ANOVA', covariate_name = covname)
+                    outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, datafile2, covariates1, covariates2, pthreshold, mode = 'ANCOVA', covariate_name = covname)
                 else:
                     # apply ANOVA analysis to beta-values in the first data file named,
                     # with the first two personal characteristics used as one discrete and one continuous variable
                     pthreshold = GRPpvalue
                     covariates1 = GRPcharacteristicsvalues[:1,:]
                     covname = GRPcharacteristicslist[:1]
-                    outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, 'none', covariates1, 'none', pthreshold, mode = 'ANOVA', covariate_name = covname)
-
-
+                    outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, 'none', covariates1, 'none', pthreshold, mode = 'ANCOVA', covariate_name = covname)
 
     def __init__(self, parent, controller):
         parent.configure(relief='raised', bd=5, highlightcolor=fgcol3)
@@ -4172,11 +4177,19 @@ class GRPFrame:
         self.networkmodel = settings['networkmodel']
         self.GRPresultsname = settings['GRPresultsname']
         self.GRPresultsname2 = settings['GRPresultsname2']
+        self.GRPpvalue = settings['GRPpvalue']
+
+        settings['GRPcharacteristicscount'] = 0
+        settings['GRPcharacteristicslist'] = []
+        settings['GRPcharacteristicsvalues'] = []
+        settings['GRPcharacteristicsvalues2'] = []
+        np.save(settingsfile,settings)
+
         self.GRPcharacteristicscount = settings['GRPcharacteristicscount']
         self.GRPcharacteristicslist = settings['GRPcharacteristicslist']
         self.GRPcharacteristicsvalues = settings['GRPcharacteristicsvalues']
         self.GRPcharacteristicsvalues2 = settings['GRPcharacteristicsvalues2']
-        self.GRPpvalue = settings['GRPpvalue']
+
 
         # put some text as a place-holder
         self.GRPLabel1 = tk.Label(self.parent, text = "1) Choose data/results files;  \nSEMresults_network..., SEMresults_2source...,\nor region_properties... files", fg = 'gray', justify = 'left')

@@ -21,6 +21,7 @@ import time
 import pandas as pd
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
+import warnings
 
 # 2-source SEM results
 # save the results somehow
@@ -1110,7 +1111,6 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
     # setup output name
     excelfilename = generate_output_name(filename1, filename2, '_2ndlevel', '.xlsx')
 
-
     if np.ndim(covariates1) > 1:
         ncov1, NP1 = np.shape(covariates1)
         cov1 = covariates1[0,:]
@@ -1123,6 +1123,13 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
     else:
         cov2 = covariates2
 
+    # check the data types
+    if mode == 'ANCOVA':
+        cov1 = np.array(cov1).astype(float)
+        cov2 = np.array(cov2).astype(float)
+
+    print('cov1 = {}'.format(cov1))
+    print('cov2 = {}'.format(cov2))
 
     datafiletype = 0
     try:
@@ -1166,19 +1173,18 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                 atype = 2
 
             for t in range(ntclusters):
+                print('{} percent complete {}'.format(100.*t/ntclusters,time.ctime()))
                 for s1 in range(ns1clusters):
                     for s2 in range(ns2clusters):
                         for tp in range(ntimepoints):
                             for nb in range(nbeta):
-
                                 # one-source
                                 b1 = beta1_1[t, s1, s2, tp, :, nb]
                                 b2 = beta1_2[t, s1, s2, tp, :, nb]
                                 covname = covariate_name
                                 if np.var(b1) > 0 and np.var(b2) > 0:
-                                    # anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA2(beta1, beta2, cov1, cov2, covname='cov1', mode='ANOVA')
                                     anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA2(b1, b2, cov1, cov2, covname, formula_key1, formula_key2, formula_key3, atype)
-                                    anova_p_beta1[t,s1,s2,tp,nb,:] = np.array[p_MeoG, p_MeoC, p_intGC]
+                                    anova_p_beta1[t,s1,s2,tp,nb,:] = np.array([p_MeoG, p_MeoC, p_intGC])
 
                                 # two-source
                                 b1 = beta2_1[t, s1, s2, tp, :, nb]
@@ -1186,19 +1192,20 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                                 if np.var(b1) > 0 and np.var(b2) > 0:
                                     # anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA2(beta1, beta2, cov1, cov2, covname='cov1', mode='ANOVA')
                                     anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA2(b1, b2, cov1, cov2, covname, formula_key1, formula_key2, formula_key3, atype)
-                                    anova_p_beta2[t,s1,s2,tp,nb,:] = np.array[p_MeoG, p_MeoC, p_intGC]
+                                    anova_p_beta2[t,s1,s2,tp,nb,:] = np.array([p_MeoG, p_MeoC, p_intGC])
 
-            beta1_sig = anova_p_beta1 < p_threshold
-            beta2_sig = anova_p_beta2 < p_threshold
+            print('100 percent complete {}'.format(time.ctime()))
+            beta1_sig = anova_p_beta1 < pthreshold
+            beta2_sig = anova_p_beta2 < pthreshold
 
             # -----------sorting and writing results---------------------------------
-            keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2', 'tlimy1',
+            keys = ['tname', 'tcluster', 'sname', 'scluster', 'anova_p', 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2', 'tlimy1',
                     'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2', 'slimz1', 'slimz2','cov']
 
             # write out significant results, based on beta1------------------------------
             if np.ndim(beta1_sig) < 6:  # allow for different forms of results (some have multiple stats terms)
                 beta1_sig = np.expand_dims(beta1_sig, axis=-1)
-                stat_of_interest1 = np.expand_dims(stat_of_interest1, axis=-1)
+                # stat_of_interest1 = np.expand_dims(stat_of_interest1, axis=-1)
 
             for tt in range(ntimepoints):
                 results = []
@@ -1208,7 +1215,7 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                 Svalue_list = np.zeros(len(t))
                 connid_list = np.zeros(len(t))   # identify connections - to be able to remove redundant ones later
                 for ii in range(len(t)):
-                    Svalue_list[ii] = stat_of_interest1[t[ii],s1[ii],s2[ii],tt,nb[ii],nc[ii]]
+                    Svalue_list[ii] = beta1_sig[t[ii],s1[ii],s2[ii],tt,nb[ii],nc[ii]]
                     if nb[ii] == 0:
                         s = s1[ii]
                     else:
@@ -1244,7 +1251,7 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
             # now, write out significant results, based on beta2-------------------------
             if np.ndim(beta2_sig) < 6:  # allow for different forms of results (some have multiple stats terms)
                 beta2_sig = np.expand_dims(beta2_sig, axis=-1)
-                stat_of_interest2 = np.expand_dims(stat_of_interest2, axis=-1)
+                # stat_of_interest2 = np.expand_dims(stat_of_interest2, axis=-1)
 
             for tt in range(ntimepoints):
                 results = []
@@ -1254,7 +1261,7 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                 Svalue_list = np.zeros(len(t))
                 connid_list = np.zeros(len(t))   # identify connections - to be able to remove redundant ones later
                 for ii in range(len(t)):
-                    Svalue_list[ii] = stat_of_interest2[t[ii],s1[ii],s2[ii],tt,nb[ii],nc[ii]]
+                    Svalue_list[ii] = beta2_sig[t[ii],s1[ii],s2[ii],tt,nb[ii],nc[ii]]
                     if nb[ii] == 0:
                         s = s1[ii]
                     else:
@@ -1288,8 +1295,6 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
             results_beta2 = results2
 
             return excelfilename
-
-
 
         if semtype == 'network':
             # results = {'type': 'network', 'resultsnames': outputnamelist, 'network': self.networkmodel,
@@ -1333,6 +1338,7 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                 anova_p[tt, nc, nt, ns, :] = np.zeros((ntclusters, ncombinations, ntimepoints,nsources,3))
 
                 for tt in range(ntclusters):
+                    print('{} percent complete {}'.format(100.*t/ntclusters,time.ctime()))
                     targetcoords = cluster_info[targetnum]['cluster_coords'][tt, :]
                     beta1 = sem_one_target1[tt]['b']
                     beta2 = sem_one_target2[tt]['b']
@@ -1357,26 +1363,27 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                                 b2 = beta2[nc,nt,:,ns]
                                 if np.var(b1) > 0 and np.var(b2) > 0:
                                     anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA2(b1, b2, cov1, cov2, covname, formula_key1, formula_key2, formula_key3, atype)
-                                    anova_p[tt,nc,nt,ns,:] = np.array[p_MeoG, p_MeoC, p_intGC]
+                                    anova_p[tt,nc,nt,ns,:] = np.array([p_MeoG, p_MeoC, p_intGC])
 
-                beta_sig = anova_p  < p_threshold
+                print('100 percent complete {}'.format(time.ctime()))
+                beta_sig = anova_p  < pthreshold
 
                 #--------sort and write out the results---------------------------
-                keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
+                keys = ['tname', 'tcluster', 'sname', 'scluster', 'anova_p', 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
                         'tlimy1',
                         'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2',
                         'slimz1', 'slimz2', 'timepoint']
 
                 # organize significant results
                 if np.ndim(beta_sig) < 4:  # allow for different forms of results (some have multiple stats terms)
-                    stat_of_interest = np.expand_dims(stat_of_interest, axis=-1)
+                    # stat_of_interest = np.expand_dims(stat_of_interest, axis=-1)
                     beta_sig = np.expand_dims(beta_sig, axis=-1)
                 combo, nt, ss, nc = np.where(beta_sig)   # significant connections during this time period
 
                 cc = 0   # what about regression with two or more terms?
                 for ii in range(len(combo)):
                     # get region names, cluster numbers, etc.
-                    Svalue = stat_of_interest[combo[ii], nt[ii], ss[ii],cc]
+                    Svalue = beta_sig[combo[ii], nt[ii], ss[ii],cc]
                     timepoint = nt[ii]
                     sourcename = cluster_info[sourcenums[ss[ii]]]['rname']
                     mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums],combo[ii]).astype(int)   # cluster number for each source
@@ -1496,15 +1503,50 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                         anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA2(tc1, tc2, cov1, cov2, covname,
                                                                                     formula_key1, formula_key2,
                                                                                     formula_key3, atype)
-                        anova_p[nc, ts, :] = np.array[p_MeoG, p_MeoC, p_intGC]
+                        anova_p[nc, ts, :] = np.array([p_MeoG, p_MeoC, p_intGC])
 
-            beta_sig = anova_p < p_threshold
+            beta_sig = anova_p < pthreshold
+
+            # --------sort and write out the results---------------------------
+            keys = ['tname', 'tcluster', 'sname', 'scluster', 'anova_p', 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
+                    'tlimy1',
+                    'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2',
+                    'slimz1', 'slimz2', 'timepoint']
+
+            # organize significant results
+            if np.ndim(beta_sig) < 4:  # allow for different forms of results (some have multiple stats terms)
+                # stat_of_interest = np.expand_dims(stat_of_interest, axis=-1)
+                beta_sig = np.expand_dims(beta_sig, axis=-1)
+            combo, nt, ss, nc = np.where(beta_sig)  # significant connections during this time period
+
+            cc = 0  # what about regression with two or more terms?
+            for ii in range(len(combo)):
+                # get region names, cluster numbers, etc.
+                Svalue = beta_sig[combo[ii], nt[ii], ss[ii], cc]
+                timepoint = nt[ii]
+                sourcename = cluster_info[sourcenums[ss[ii]]]['rname']
+                mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums], combo[ii]).astype(
+                    int)  # cluster number for each source
+                sourcecluster = mlist[ss[ii]]
+                sourcecoords = cluster_info[sourcenums[ss[ii]]]['cluster_coords'][sourcecluster, :]
+                sourcelimits = cluster_info[sourcenums[ss[ii]]]['regionlimits']
+
+                connid = nt[ii] * 1e7 + targetnum * 1e5 + tt * 1e3 + sourcenums[ss[ii]] * 10 + sourcecluster
+
+                values = np.concatenate(([targetname, tt, sourcename, sourcecluster, Svalue],
+                                         list(targetcoords), list(targetlimits), list(sourcecoords), list(sourcelimits),
+                                         [timepoint]))
+                entry = dict(zip(keys, values))
+
+                results.append(entry)
+                Svalue_list.append(Svalue)
+                connid_list.append(connid)
 
             #-------------sort and write out the results?-------------------------
-            if len(outputdata) > 0:
+            if len(results) > 0:
                 excelsheetname = rname
                 print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
-                pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'append', '%.3f')
+                pydisplay.pywriteexcel(results, excelfilename, excelsheetname, 'append', '%.3f')
                 print('finished writing results to ',excelfilename)
             else:
                 print('no significant results found at p < {}'.format(pthreshold))
@@ -1538,6 +1580,10 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
         covname2 = covariate_names[1]
     else:
         print('error:  not enough covariates provided for single_group_ANOVA')
+
+    # check data types
+    if mode == 'ANCOVA':
+        cov2 = cov2.astype(float)   # make sure data are not strings, and interpreted as categorical values
 
     datafiletype = 0
     try:
@@ -1578,6 +1624,7 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
                 atype = 2
 
             for t in range(ntclusters):
+                print('{} percent complete {}'.format(100.*t/ntclusters,time.ctime()))
                 for s1 in range(ns1clusters):
                     for s2 in range(ns2clusters):
                         for tp in range(ntimepoints):
@@ -1587,19 +1634,20 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
                                 b1 = beta1[t, s1, s2, tp, :, nb]
                                 if np.var(b1) > 0:
                                     anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA1(b1, cov1, cov2, covname1, covname2, formula_key1, formula_key2, formula_key3, atype)
-                                    anova_p_beta1[t,s1,s2,tp,nb,:] = np.array[p_MeoG, p_MeoC, p_intGC]
+                                    anova_p_beta1[t,s1,s2,tp,nb,:] = np.array([p_MeoG, p_MeoC, p_intGC])
 
                                 # two-source
                                 b1 = beta2[t, s1, s2, tp, :, nb]
                                 if np.var(b1) > 0:
                                     anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA1(b1, cov1, cov2, covname1, covname2, formula_key1, formula_key2, formula_key3, atype)
-                                    anova_p_beta2[t,s1,s2,tp,nb,:] = np.array[p_MeoG, p_MeoC, p_intGC]
+                                    anova_p_beta2[t,s1,s2,tp,nb,:] = np.array([p_MeoG, p_MeoC, p_intGC])
 
-            beta1_sig = anova_p_beta1 < p_threshold
-            beta2_sig = anova_p_beta2 < p_threshold
+            print('100 percent complete {}'.format(time.ctime()))
+            beta1_sig = anova_p_beta1 < pthreshold
+            beta2_sig = anova_p_beta2 < pthreshold
 
             # -----------sorting and writing results---------------------------------
-            keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2', 'tlimy1',
+            keys = ['tname', 'tcluster', 'sname', 'scluster', 'anova_p', 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2', 'tlimy1',
                     'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2', 'slimz1', 'slimz2','cov']
 
             # write out significant results, based on beta1------------------------------
@@ -1733,6 +1781,7 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
                 anova_p = np.zeros((ntclusters, ncombinations, ntimepoints,nsources,3))
 
                 for tt in range(ntclusters):
+                    print('{} percent complete {}'.format(100.*t/ntclusters,time.ctime()))
                     targetcoords = cluster_info[targetnum]['cluster_coords'][tt, :]
                     beta1 = sem_one_target1[tt]['b']
 
@@ -1754,12 +1803,13 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
                                 b1 = beta1[nc,nt,:,ns]
                                 if np.var(b1) > 0 and np.var(b2) > 0:
                                     anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA1(b1, cov1, cov2, covname1, covname2, formula_key1, formula_key2, formula_key3, atype)
-                                    anova_p[tt,nc,nt,ns,:] = np.array[p_MeoG, p_MeoC, p_intGC]
+                                    anova_p[tt,nc,nt,ns,:] = np.array([p_MeoG, p_MeoC, p_intGC])
 
-                beta_sig = anova_p  < p_threshold
+                print('100 percent complete {}'.format(time.ctime()))
+                beta_sig = anova_p  < pthreshold
 
                 #--------sort and write out the results---------------------------
-                keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
+                keys = ['tname', 'tcluster', 'sname', 'scluster', 'anova_p', 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
                         'tlimy1',
                         'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2',
                         'slimz1', 'slimz2', 'timepoint']
@@ -1869,9 +1919,9 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
                         anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA1(tc1, cov1, cov2, covname1, covname2,
                                                                                     formula_key1, formula_key2,
                                                                                     formula_key3, atype)
-                        anova_p[nc, ts, :] = np.array[p_MeoG, p_MeoC, p_intGC]
+                        anova_p[nc, ts, :] = np.array([p_MeoG, p_MeoC, p_intGC])
 
-            beta_sig = anova_p < p_threshold
+            beta_sig = anova_p < pthreshold
 
             #-------------sort and write out the results-------------------------
             if len(outputdata) > 0:
@@ -1899,21 +1949,27 @@ def run_ANOVA_or_ANCOVA2(beta1, beta2, cov1, cov2, covname, formula_key1, formul
     cov = list(cov1) + list(cov2)
 
     d = {'beta': beta, 'Group': group, covname:cov}
-    print('size of beta is {}'.format(np.shape(beta)))
-    print('size of group is {}'.format(np.shape(group)))
-    print('size of cov is {}'.format(np.shape(cov)))
-    print('d = {}'.format(d))
+    # print('size of beta is {}'.format(np.shape(beta)))
+    # print('size of group is {}'.format(np.shape(group)))
+    # print('size of cov is {}'.format(np.shape(cov)))
+    # print('d = {}'.format(d))
 
     df = pd.DataFrame(data=d)
 
     formula = 'beta ~ ' + formula_key1 + ' + ' + formula_key2 + ' + ' + formula_key3
 
-    model = ols(formula, data=df).fit()
-    anova_table = sm.stats.anova_lm(model, typ=atype)
+    try:
+        model = ols(formula, data=df).fit()
+        anova_table = sm.stats.anova_lm(model, typ=atype)
 
-    p_MeoG = anova_table['PR(>F)'][formula_key1]
-    p_MeoC = anova_table['PR(>F)'][formula_key2]
-    p_intGC = anova_table['PR(>F)'][formula_key3]
+        p_MeoG = anova_table['PR(>F)'][formula_key1]
+        p_MeoC = anova_table['PR(>F)'][formula_key2]
+        p_intGC = anova_table['PR(>F)'][formula_key3]
+    except:
+        anova_table = []
+        p_MeoG = 1.0
+        p_MeoC = 1.0
+        p_intGC = 1.0
 
     return anova_table, p_MeoG, p_MeoC, p_intGC
 
@@ -1929,11 +1985,17 @@ def run_ANOVA_or_ANCOVA1(beta1, cov1, cov2, covname1, covname2, formula_key1, fo
 
     formula = 'beta ~ ' + formula_key1 + ' + ' + formula_key2 + ' + ' + formula_key3
 
-    model = ols(formula, data=df).fit()
-    anova_table = sm.stats.anova_lm(model, typ=atype)
+    try:
+        model = ols(formula, data=df).fit()
+        anova_table = sm.stats.anova_lm(model, typ=atype)
 
-    p_MeoG = anova_table['PR(>F)'][formula_key1]
-    p_MeoC = anova_table['PR(>F)'][formula_key2]
-    p_intGC = anova_table['PR(>F)'][formula_key3]
+        p_MeoG = anova_table['PR(>F)'][formula_key1]
+        p_MeoC = anova_table['PR(>F)'][formula_key2]
+        p_intGC = anova_table['PR(>F)'][formula_key3]
+    except:
+        anova_table = []
+        p_MeoG = 1.0
+        p_MeoC = 1.0
+        p_intGC = 1.0
 
     return anova_table, p_MeoG, p_MeoC, p_intGC
