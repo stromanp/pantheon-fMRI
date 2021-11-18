@@ -3837,6 +3837,7 @@ class GRPFrame:
 
         self.GRPresultsnamebrowse2['state'] = tk.NORMAL
         self.GRPresultsnameclear2['state'] = tk.NORMAL
+        self.GRPresultsnameswap['state'] = tk.NORMAL
 
         return self
 
@@ -3942,6 +3943,89 @@ class GRPFrame:
         np.save(settingsfile, settings)
 
         return self
+
+
+    def GRPresultsswapaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+
+        filename1 = settings['GRPresultsname']
+        filename2 = settings['GRPresultsname2']
+        datafiletype1 = settings['GRPdatafiletype1']
+        datafiletype2 = settings['GRPdatafiletype2']
+        DBname1 = settings['DBname']
+        DBname2 = settings['DBname2']
+        DBnum1 = settings['DBnum']
+        DBnum2 = settings['DBnum2']
+
+        # swap all the settings
+        newfname1 = filename2
+        newfname2 = filename1
+
+        newtype1 = datafiletype2
+        newtype2 = datafiletype1
+
+        newDBnum1 = DBnum2
+        newDBnum2 = DBnum1
+
+        newDBname1 = DBname2
+        newDBname2 = DBname1
+
+        self.GRPresultsname = newfname1
+        settings['GRPresultsname'] = newfname1
+        settings['GRPdatafiletype1'] = newtype1
+        settings['DBname'] = newDBname1
+        settings['DBnum'] = newDBnum1
+        self.DBname = newDBname1
+        self.DBnum = newDBnum1
+
+        self.GRPresultsname2 = newfname2
+        settings['GRPresultsname2'] = newfname2
+        settings['GRPdatafiletype2'] = newtype2
+        settings['DBname2'] = newDBname2
+        settings['DBnum2'] = newDBnum2
+        self.DBname2 = newDBname2
+        self.DBnum2 = newDBnum2
+
+        # write the result to the label box for display
+        npname, nfname = os.path.split(self.GRPresultsname)
+        self.GRPresultsnametext.set(nfname)
+        self.GRPresultsdirtext.set(npname)
+
+        # write the result to the label box for display
+        npname, nfname = os.path.split(self.GRPresultsname2)
+        self.GRPresultsnametext2.set(nfname)
+        self.GRPresultsdirtext2.set(npname)
+
+        np.save(settingsfile, settings)   # need to save during intermediate steps because
+                                    # loading the characteristics values checks the settings file
+        # update the group characteristics lists if they have been chosen already------
+        GRPcharacteristicslist_copy = copy.deepcopy(self.GRPcharacteristicslist)
+        for num, fvalue in enumerate(GRPcharacteristicslist_copy):
+            self.GRPcharacteristicslist = [fvalue]
+            print('loading characteristics for field: {}'.format(fvalue))
+            fieldvalues, fieldvalues2 = GRPFrame.get_DB_field_values(self)
+            if num == 0:
+                self.GRPcharacteristicsvalues = np.array(fieldvalues)[np.newaxis,:]
+                self.GRPcharacteristicsvalues2 = np.array(fieldvalues2)[np.newaxis,:]
+            else:
+                self.GRPcharacteristicsvalues = np.concatenate((self.GRPcharacteristicsvalues,np.array(fieldvalues)[np.newaxis,:]),axis=0)
+                self.GRPcharacteristicsvalues2 = np.concatenate((self.GRPcharacteristicsvalues2,np.array(fieldvalues2)[np.newaxis,:]),axis=0)
+
+        print('size of GRPcharacteristicsvalues is ', np.shape(self.GRPcharacteristicsvalues))
+        print('size of GRPcharacteristicsvalues2 is ', np.shape(self.GRPcharacteristicsvalues2))
+
+        self.GRPcharacteristicslist = GRPcharacteristicslist_copy
+        settings['GRPcharacteristicsvalues'] = self.GRPcharacteristicsvalues
+        settings['GRPcharacteristicsvalues2'] = self.GRPcharacteristicsvalues2
+
+        self.GRPresultsnamebrowse2['state'] = tk.NORMAL
+        self.GRPresultsnameclear2['state'] = tk.NORMAL
+        self.GRPresultsnameswap['state'] = tk.NORMAL
+        np.save(settingsfile, settings)
+
+        return self
+
 
     def GRPpvaluesubmit(self):
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
@@ -4209,7 +4293,7 @@ class GRPFrame:
         self.GRPresultsnametext = tk.StringVar()
         self.GRPresultsnametext.set(fname)
 
-        self.GRPlabel1 = tk.Label(self.parent, text = 'Results file:')
+        self.GRPlabel1 = tk.Label(self.parent, text = 'Results file1:')
         self.GRPlabel1.grid(row=0, column=1, sticky='N')
         self.GRPresultsnamelabel = tk.Label(self.parent, textvariable=self.GRPresultsnametext, bg=bgcol, fg="#4B4B4B", font="none 10",
                                       wraplength=300, justify='left')
@@ -4254,6 +4338,10 @@ class GRPFrame:
         self.GRPresultsnameclear2 = tk.Button(self.parent, text='Clear', width=smallbuttonsize, bg=fgcol2, fg='black',
                                           command=self.GRPresultsclearaction2, relief='raised', bd=5, state = initial_state)
         self.GRPresultsnameclear2.grid(row=2, column=4)
+
+        self.GRPresultsnameswap = tk.Button(self.parent, text='Swap 1-2', width=smallbuttonsize, bg=fgcol2, fg='black',
+                                          command=self.GRPresultsswapaction, relief='raised', bd=5, state = initial_state)
+        self.GRPresultsnameswap.grid(row=2, column=5)
 
 
         # ---------radio buttons to indicate type of analysis to do----------------
@@ -4310,7 +4398,7 @@ class GRPFrame:
         self.fieldsearch_opt = self.GRPfield_menu  # save this way so that values are not cleared
 
         # label, button, for running the definition of clusters, and loading data
-        self.GRPcharclearbutton = tk.Button(self.parent, text="Clear/Update", width=bigbigbuttonsize, bg=fgcol1, fg='white',
+        self.GRPcharclearbutton = tk.Button(self.parent, text="Clear/Update", width=smallbuttonsize, bg=fgcol1, fg='white',
                                         command=self.GRPcharacteristicslistclear, relief='raised', bd=5)
         self.GRPcharclearbutton.grid(row=7, column=3)
 

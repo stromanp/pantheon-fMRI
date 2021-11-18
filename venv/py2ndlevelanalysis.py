@@ -433,7 +433,7 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
             Svalue_list = []
             connid_list = []   # identify connections - to be able to remove redundant ones later
             for networkcomponent, fname in enumerate(resultsnames):
-                print('analyzing network component: ',fname)
+                print('analyzing network component: {}'.format(fname))
                 semresults = np.load(fname, allow_pickle=True).flat[0]
                 sem_one_target = semresults['sem_one_target_results']
                 ntclusters = len(sem_one_target)
@@ -866,7 +866,7 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
             connid_list = []   # identify connections - to be able to remove redundant ones later
             for networkcomponent, fname1 in enumerate(resultsnames1):
                 fname2 = resultsnames2[networkcomponent]
-                print('analyzing network component: \n{}\n{}\n',fname1,fname2)
+                print('analyzing network component: \n{}\n{}\n'.format(fname1,fname2))
                 semresults1 = np.load(fname1, allow_pickle=True).flat[0]
                 sem_one_target1 = semresults1['sem_one_target_results']
                 semresults2= np.load(fname2, allow_pickle=True).flat[0]
@@ -892,10 +892,10 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                         if mode == 'unpaired':
                             stattitle = 'Tvalue unpaired'
                             # stats based on group average - sig diff between groups?
-                            mean_beta1 = np.mean(beta1, axis=4)
-                            var_beta1 = np.var(beta1, axis=4)
-                            mean_beta2 = np.mean(beta2, axis=4)
-                            var_beta2 = np.var(beta2, axis=4)
+                            mean_beta1 = np.mean(beta1, axis=2)
+                            var_beta1 = np.var(beta1, axis=2)
+                            mean_beta2 = np.mean(beta2, axis=2)
+                            var_beta2 = np.var(beta2, axis=2)
                             # pooled standard deviation:
                             sp = np.sqrt(((NP1 - 1) * var_beta1 + (NP2 - 1) * var_beta2) / (NP1 + NP2 - 2))
 
@@ -907,7 +907,7 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                             stattitle = 'Tvalue paired'
                             # stats based on group average - sig diff between groups?
                             beta_diff = beta1-beta2
-                            mean_beta_diff = np.mean(beta_diff,axis = 4)
+                            mean_beta_diff = np.mean(beta_diff,axis = 2)
                             sem_beta_diff = np.std(beta_diff)/np.sqrt(NP1)
                             Tbeta = mean_beta_diff/(sem_beta_diff + 1.0e-10)
 
@@ -1338,7 +1338,7 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
             time_list = []
             for networkcomponent, fname1 in enumerate(resultsnames1):
                 fname2 = resultsnames2[networkcomponent]
-                print('analyzing network component: \n{}\n{}\n',fname1,fname2)
+                print('analyzing network component: \n{}\n{}\n'.format(fname1,fname2))
                 semresults1 = np.load(fname1, allow_pickle=True).flat[0]
                 sem_one_target1 = semresults1['sem_one_target_results']
                 semresults2= np.load(fname2, allow_pickle=True).flat[0]
@@ -1355,10 +1355,10 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                 ncombinations, ntimepoints, NP1, nsources = np.shape(sem_one_target1[0]['b'])
                 ncombinations, ntimepoints, NP2, nsources = np.shape(sem_one_target2[0]['b'])
                 # initialize for saving results for each network component
-                anova_p[tt, nc, nt, ns, :] = np.ones((ntclusters, ncombinations, ntimepoints,nsources,3))
+                anova_p = np.ones((ntclusters, ncombinations, ntimepoints,nsources,3))
 
                 for tt in range(ntclusters):
-                    print('{} percent complete {}'.format(100.*t/ntclusters,time.ctime()))
+                    print('{} percent complete {}'.format(100.*tt/ntclusters,time.ctime()))
                     targetcoords = cluster_info[targetnum]['cluster_coords'][tt, :]
                     beta1 = sem_one_target1[tt]['b']
                     beta2 = sem_one_target2[tt]['b']
@@ -2023,3 +2023,39 @@ def run_ANOVA_or_ANCOVA1(beta1, cov1, cov2, covname1, covname2, formula_key1, fo
         p_intGC = 1.0
 
     return anova_table, p_MeoG, p_MeoC, p_intGC
+
+
+def move_network_data(network_filename, newfolder):
+    # dict_keys(['type', 'resultsnames', 'network', 'regionname', 'clustername', 'DBname', 'DBnum'])
+    pname,fname = os.path.split(network_filename)
+    data1 = np.load(network_filename, allow_pickle=True).flat[0]
+
+    if pname == newfolder:   # datafile has already been moved, need to update contents
+        newfilename = network_filename
+    else:
+        newfilename = os.path.join(newfolder,fname)
+
+    # resultsnames
+    newresultsnames = copy.deepcopy(data1['resultsnames'])
+    for nn in range(len(newresultsnames)):
+        p,f = os.path.split(newresultsnames[nn])
+        newresultsnames[nn] = os.path.join(newfolder,f)
+
+    # clustername
+    newclustername = copy.deepcopy(data1['clustername'])
+    p,f = os.path.split(newclustername)
+    newclustername = os.path.join(newfolder,f)
+
+    # regionname
+    newregionname = copy.deepcopy(data1['regionname'])
+    p,f = os.path.split(newregionname)
+    newregionname = os.path.join(newfolder,f)
+
+    newdata = copy.deepcopy(data1)
+    newdata['resultsnames'] = newresultsnames
+    newdata['clustername'] = newclustername
+    newdata['regionname'] = newregionname
+
+    # write the result
+    np.save(newfilename,newdata)
+
