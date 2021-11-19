@@ -4145,7 +4145,8 @@ class GRPFrame:
         if GRPanalysistype == 'Correlation':
             pthreshold = GRPpvalue
             covariates = GRPcharacteristicsvalues
-            outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='correlation', covariates=covariates)
+            covariatesnames = GRPcharacteristicslist
+            outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='correlation', covariates=covariates, covnames=covariatesnames)
 
             # if datafiletype1 == 1:
             #     # look for significant correlations between beta-values and the first personal characteristic in the list
@@ -4162,7 +4163,8 @@ class GRPFrame:
         if GRPanalysistype == 'Regression':
             pthreshold = GRPpvalue
             covariates = GRPcharacteristicsvalues
-            outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='regression', covariates=covariates)
+            covariatesnames = GRPcharacteristicslist
+            outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='regression', covariates=covariates,covnames=covariatesnames)
 
             # if datafiletype1 == 1:
             #     # look for significant correlations between beta-values and the first personal characteristic in the list

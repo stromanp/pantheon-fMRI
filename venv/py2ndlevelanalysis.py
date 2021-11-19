@@ -126,7 +126,7 @@ def remove_reps_and_sort(id_list, value_list, data):
 
     return data2, value_list2
 
-def generate_output_name(filename1, filename2, tag, extension):
+def generate_output_name(commontag_input, filename1, filename2, tag, extension):
     # prep output name
     p1, f1 = os.path.split(filename1)
     f1b, e1 = os.path.splitext(f1)
@@ -147,7 +147,9 @@ def generate_output_name(filename1, filename2, tag, extension):
         commontag = f1b[:pos]
         utag1 = f1b[pos:]
         utag2 = f2b[pos:]
-        commontag = 'Group_'
+
+        if len(commontag_input) > 0:
+            commontag = commontag_input
         outputname = os.path.join(p1, commontag + utag1 + '_' + utag2 + tag + extension)
     return outputname
 
@@ -231,7 +233,7 @@ def GLMregression(data, covariates, axis):
 #------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------
 # look for significant group-average beta-value differences from zero
-def group_significance(filename, pthreshold, statstype = 'average', covariates = 'none'):
+def group_significance(filename, pthreshold, statstype = 'average', covariates = 'none', covnames = 'none'):
     # test fMRI results for 1) significant differences from zero (statstype = 'average')
     # or regression (statstype = 'regression') or correlations (statstype = 'correlation') with covariates
     #
@@ -239,7 +241,12 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
     data = np.load(filename, allow_pickle=True).flat[0]
 
     # setup output name
-    excelfilename = generate_output_name(filename, '', '', '.xlsx')
+    tag = ''
+    if covnames != 'none':
+        tag = ''
+        for tname in covnames:  tag += tname+' '
+        tag = '_' + tag[:-1]  # take off the trailing space
+    excelfilename = generate_output_name('Group_',filename, '', tag, '.xlsx')
 
     datafiletype = 0
     try:
@@ -313,7 +320,8 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
             #---------------------------------------------------
 
             keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2', 'tlimy1',
-                    'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2', 'slimz1', 'slimz2','cov']
+                    'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2', 'slimz1', 'slimz2',
+                    't','s1','s2','tt','nb','nc']
 
             # write out significant results, based on beta1------------------------------
             if np.ndim(beta1_sig) < 6:  # allow for different forms of results (some have multiple stats terms)
@@ -341,9 +349,10 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                     targetlimits = cluster_info[targetnumber]['regionlimits']
                     sourcecoords = cluster_info[sourcenumber]['cluster_coords'][sourcecluster,:]
                     sourcelimits = cluster_info[sourcenumber]['regionlimits']
+                    connection_info = [t[ii],s1[ii],s2[ii],tt,nb[ii],nc[ii]]
 
                     values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]],
-                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),[nc[ii]]))
+                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),connection_info))
                     entry = dict(zip(keys, values))
                     results.append(entry)
 
@@ -482,7 +491,7 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                     keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
                             'tlimy1',
                             'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2',
-                            'slimz1', 'slimz2', 'timepoint']
+                            'slimz1', 'slimz2', 'combo','nt','ss','nc']
 
                     # organize significant results
                     if np.ndim(beta_sig) < 4:  # allow for different forms of results (some have multiple stats terms)
@@ -490,10 +499,10 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                         beta_sig = np.expand_dims(beta_sig, axis=-1)
                     combo, nt, ss, nc = np.where(beta_sig)   # significant connections during this time period
 
-                    cc = 0   # what about regression with two or more terms?
+                    # cc = 0   # what about regression with two or more terms?
                     for ii in range(len(combo)):
                         # get region names, cluster numbers, etc.
-                        Svalue = stat_of_interest[combo[ii], nt[ii], ss[ii],cc]
+                        Svalue = stat_of_interest[combo[ii], nt[ii], ss[ii],nc[ii]]
                         timepoint = nt[ii]
                         sourcename = cluster_info[sourcenums[ss[ii]]]['rname']
                         mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums],combo[ii]).astype(int)   # cluster number for each source
@@ -503,8 +512,10 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
 
                         connid = nt[ii]*1e7 + targetnum*1e5 + tt*1e3 + sourcenums[ss[ii]]*10 + sourcecluster
 
+                        connection_info = [combo[ii], nt[ii], ss[ii], nc[ii]]
                         values = np.concatenate(([targetname, tt, sourcename, sourcecluster, Svalue],
-                             list(targetcoords), list(targetlimits), list(sourcecoords), list(sourcelimits), [timepoint]))
+                             list(targetcoords), list(targetlimits), list(sourcecoords), list(sourcelimits), connection_info))
+
                         entry = dict(zip(keys, values))
 
                         results.append(entry)
@@ -655,7 +666,7 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
 #------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------
 # look for significant group-average beta-value differences from zero
-def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpaired', statstype = 'average', covariates = 'none'):
+def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpaired', statstype = 'average', covariates = 'none', covnames = 'none'):
     # test fMRI results for 1) significant differences from zero (statstype = 'average')
     # or regression (statstype = 'regression') or correlations (statstype = 'correlation') with covariates
     #
@@ -664,7 +675,12 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
     data2 = np.load(filename2, allow_pickle=True).flat[0]
 
     # setup output name
-    excelfilename = generate_output_name(filename1, filename2, '', '.xlsx')
+    tag = ''
+    if covnames != 'none':
+        tag = ''
+        for tname in covnames:  tag += tname+' '
+        tag = tag[:-1]  # take off the trailing space
+    excelfilename = generate_output_name('Group_',filename1, filename2, tag, '.xlsx')
 
     datafiletype = 0
     try:
@@ -746,7 +762,8 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                     stat_of_interest2 = Tbeta2
 
             keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2', 'tlimy1',
-                    'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2', 'slimz1', 'slimz2','cov']
+                    'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2', 'slimz1', 'slimz2',
+                    't','s1','s2','tt','nb','nc']
 
             # write out significant results, based on beta1------------------------------
             if np.ndim(beta1_sig) < 6:  # allow for different forms of results (some have multiple stats terms)
@@ -774,9 +791,9 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                     targetlimits = cluster_info[targetnumber]['regionlimits']
                     sourcecoords = cluster_info[sourcenumber]['cluster_coords'][sourcecluster,:]
                     sourcelimits = cluster_info[sourcenumber]['regionlimits']
-
+                    connection_info = [t[ii],s1[ii],s2[ii],tt,nb[ii],nc[ii]]
                     values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]],
-                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),[nc[ii]]))
+                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),connection_info))
                     entry = dict(zip(keys, values))
                     results.append(entry)
 
@@ -821,9 +838,10 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                     targetlimits = cluster_info[targetnumber]['regionlimits']
                     sourcecoords = cluster_info[sourcenumber]['cluster_coords'][sourcecluster,:]
                     sourcelimits = cluster_info[sourcenumber]['regionlimits']
+                    connection_info = [t[ii],s1[ii],s2[ii],tt,nb[ii],nc[ii]]
 
                     values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]],
-                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),[nc[ii]]))
+                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),connection_info))
                     entry = dict(zip(keys, values))
                     results.append(entry)
 
@@ -937,7 +955,7 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                     keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
                             'tlimy1',
                             'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2',
-                            'slimz1', 'slimz2', 'timepoint']
+                            'slimz1', 'slimz2', 'combo','nt','ss','nc']
 
                     # organize significant results
                     if np.ndim(beta_sig) < 4:  # allow for different forms of results (some have multiple stats terms)
@@ -945,10 +963,10 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                         beta_sig = np.expand_dims(beta_sig, axis=-1)
                     combo, nt, ss, nc = np.where(beta_sig)   # significant connections during this time period
 
-                    cc = 0   # what about regression with two or more terms?
+                    # cc = 0   # what about regression with two or more terms?
                     for ii in range(len(combo)):
                         # get region names, cluster numbers, etc.
-                        Svalue = stat_of_interest[combo[ii], nt[ii], ss[ii],cc]
+                        Svalue = stat_of_interest[combo[ii], nt[ii], ss[ii],nc[ii]]
                         timepoint = nt[ii]
                         sourcename = cluster_info[sourcenums[ss[ii]]]['rname']
                         mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums],combo[ii]).astype(int)   # cluster number for each source
@@ -958,8 +976,9 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
 
                         connid = nt[ii]*1e7 + targetnum*1e5 + tt*1e3 + sourcenums[ss[ii]]*10 + sourcecluster
 
+                        connection_info = [combo[ii], nt[ii], ss[ii],nc[ii]]
                         values = np.concatenate(([targetname, tt, sourcename, sourcecluster, Svalue],
-                             list(targetcoords), list(targetlimits), list(sourcecoords), list(sourcelimits), [timepoint]))
+                             list(targetcoords), list(targetlimits), list(sourcecoords), list(sourcelimits), connection_info))
                         entry = dict(zip(keys, values))
 
                         results.append(entry)
@@ -1110,7 +1129,8 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
     data2 = np.load(filename2, allow_pickle=True).flat[0]
 
     # setup output name
-    excelfilename = generate_output_name(filename1, filename2, '', '.xlsx')
+    tag = '_' + covariate_name
+    excelfilename = generate_output_name(mode+'_',filename1, filename2, tag, '.xlsx')
 
     if np.ndim(covariates1) > 1:
         ncov1, NP1 = np.shape(covariates1)
@@ -1206,7 +1226,8 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
             # -----------sorting and writing results---------------------------------
 
             keys = ['tname', 'tcluster', 'sname', 'scluster', statstype, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2', 'tlimy1',
-                    'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2', 'slimz1', 'slimz2']
+                    'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2', 'slimz1', 'slimz2',
+                    't','s1','s2','tt','nb','nc']
 
             # write out significant results, based on beta1------------------------------
             for tt in range(ntimepoints):
@@ -1232,8 +1253,9 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                     sourcecoords = cluster_info[sourcenumber]['cluster_coords'][sourcecluster,:]
                     sourcelimits = cluster_info[sourcenumber]['regionlimits']
 
+                    connection_info = [t[ii],s1[ii],s2[ii],tt,nb[ii],nc[ii]]
                     values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]],
-                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits)))
+                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits), connection_info))
                     entry = dict(zip(keys, values))
                     results.append(entry)
 
@@ -1284,8 +1306,9 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                     sourcecoords = cluster_info[sourcenumber]['cluster_coords'][sourcecluster,:]
                     sourcelimits = cluster_info[sourcenumber]['regionlimits']
 
+                    connection_info = [t[ii], s1[ii], s2[ii], tt, nb[ii], nc[ii]]
                     values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]],
-                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits)))
+                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits), connection_info))
                     entry = dict(zip(keys, values))
                     results.append(entry)
 
@@ -1337,6 +1360,8 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
             nc_list = []
             time_list = []
             for networkcomponent, fname1 in enumerate(resultsnames1):
+            # for networkcomponent in range(2,5):  # this is just for testing
+            #     fname1 = resultsnames1[networkcomponent]
                 fname2 = resultsnames2[networkcomponent]
                 print('analyzing network component: \n{}\n{}\n'.format(fname1,fname2))
                 semresults1 = np.load(fname1, allow_pickle=True).flat[0]
@@ -1344,7 +1369,6 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                 semresults2= np.load(fname2, allow_pickle=True).flat[0]
                 sem_one_target2 = semresults2['sem_one_target_results']
                 ntclusters = len(sem_one_target1)
-
                 target = network[networkcomponent]['target']
                 sources = network[networkcomponent]['sources']
                 targetnum = network[networkcomponent]['targetnum']
@@ -1395,7 +1419,7 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                 keys = ['tname', 'tcluster', 'sname', 'scluster', statstype, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
                         'tlimy1',
                         'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2',
-                        'slimz1', 'slimz2', 'timepoint']
+                        'slimz1', 'slimz2', 'tt','ncombo','timepoint','ss','nc']
 
                 for timepoint in range(ntimepoints):
                     # organize significant results
@@ -1405,15 +1429,16 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                         # get region names, cluster numbers, etc.
                         Svalue = stat_of_interest[tt[ii],ncombo[ii], timepoint, ss[ii],nc[ii]]
                         sourcename = cluster_info[sourcenums[ss[ii]]]['rname']
-                        mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums],combo[ii]).astype(int)   # cluster number for each source
+                        mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums],ncombo[ii]).astype(int)   # cluster number for each source
                         sourcecluster = mlist[ss[ii]]
                         sourcecoords = cluster_info[sourcenums[ss[ii]]]['cluster_coords'][sourcecluster, :]
                         sourcelimits = cluster_info[sourcenums[ss[ii]]]['regionlimits']
 
                         connid = timepoint*1e7 + targetnum*1e5 + tt[ii]*1e3 + sourcenums[ss[ii]]*10 + sourcecluster
 
-                        values = np.concatenate(([targetname, tt, sourcename, sourcecluster, Svalue],
-                             list(targetcoords), list(targetlimits), list(sourcecoords), list(sourcelimits), [timepoint]))
+                        connection_info = [tt[ii],ncombo[ii], timepoint, ss[ii],nc[ii]]
+                        values = np.concatenate(([targetname, tt[ii], sourcename, sourcecluster, Svalue],
+                             list(targetcoords), list(targetlimits), list(sourcecoords), list(sourcelimits), connection_info))
                         entry = dict(zip(keys, values))
 
                         results.append(entry)
@@ -1422,19 +1447,26 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                         nc_list.append(nc[ii])
                         time_list.append(timepoint)
 
+            # save intermediate results for testing
+            ptemp,ftemp = os.path.split(excelfilename)
+            intermediate_name = os.path.join(ptemp,'intermediate_results.npy')
+            intermediate_data = {'results':results, 'Svalue_list':Svalue_list, 'connid_list':connid_list, 'nc_list':nc_list, 'time_list':time_list}
+            np.save(intermediate_name, intermediate_data)
+
             # eliminate redundant values, for repeats keep the one with the largest Tvalue
             tagnamelist = ['MeoG','MeoC','Interaction']
             if len(results) > 0:
                 # separate by time and effect type
                 for tt in range(ntimepoints):
                     for nc in range(3):
-                        aa = np.where( (time_list == tt) and (nc_list == nc))[0]
+                        # aa = np.where( (np.array(time_list) == tt) and (np.array(nc_list) == nc))[0]
+                        aa = [a for a in range(len(time_list)) if ((time_list[a] == tt) and (nc_list[a] == nc))]
                         if len(aa) > 0:
                             tagname = tagnamelist[nc]
-                            results1 = []
-                            for aval in aa: results1.append(results[aval])
-                            connid1 = connid_list[aa]
-                            Svalue1 = Svalue_list[aa]
+
+                            results1 = [results[aval] for aval in aa]
+                            connid1 = [connid_list[aval] for aval in aa]
+                            Svalue1 = [Svalue_list[aval] for aval in aa]
 
                             print('removing redundant values ... time {}  effect {}'.format(tt,nc))
                             results2, Svalue_list2 = remove_reps_and_sort(np.array(connid1), np.array(Svalue1), results1)
@@ -1532,7 +1564,7 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
             keys = ['tname', 'tcluster', 'sname', 'scluster', 'anova_p', 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
                     'tlimy1',
                     'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2',
-                    'slimz1', 'slimz2', 'timepoint']
+                    'slimz1', 'slimz2', 'combo','nt','ss','nc']
 
             # organize significant results
             if np.ndim(beta_sig) < 4:  # allow for different forms of results (some have multiple stats terms)
@@ -1540,10 +1572,10 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                 beta_sig = np.expand_dims(beta_sig, axis=-1)
             combo, nt, ss, nc = np.where(beta_sig)  # significant connections during this time period
 
-            cc = 0  # what about regression with two or more terms?
+            # cc = 0  # what about regression with two or more terms?
             for ii in range(len(combo)):
                 # get region names, cluster numbers, etc.
-                Svalue = beta_sig[combo[ii], nt[ii], ss[ii], cc]
+                Svalue = beta_sig[combo[ii], nt[ii], ss[ii], nc[ii]]
                 timepoint = nt[ii]
                 sourcename = cluster_info[sourcenums[ss[ii]]]['rname']
                 mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums], combo[ii]).astype(
@@ -1554,9 +1586,10 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
 
                 connid = nt[ii] * 1e7 + targetnum * 1e5 + tt * 1e3 + sourcenums[ss[ii]] * 10 + sourcecluster
 
+                connection_info = [combo[ii], nt[ii], ss[ii], nc[ii]]
                 values = np.concatenate(([targetname, tt, sourcename, sourcecluster, Svalue],
                                          list(targetcoords), list(targetlimits), list(sourcecoords), list(sourcelimits),
-                                         [timepoint]))
+                                         connection_info))
                 entry = dict(zip(keys, values))
 
                 results.append(entry)
@@ -1591,7 +1624,13 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
     data1 = np.load(filename1, allow_pickle=True).flat[0]
 
     # setup output name
-    excelfilename = generate_output_name(filename1, '', '', '.xlsx')
+    tag = ''
+    if covnames != 'none':
+        tag = ''
+        for tname in covnames:  tag += tname+'_'
+        tag = tag[:-1]  # take off the trailing character
+
+    excelfilename = generate_output_name(mode+'_',filename1, '', tag, '.xlsx')
 
     if np.ndim(covariates1) > 2:
         ncov1, NP1 = np.shape(covariates1)
@@ -1670,7 +1709,8 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
             # -----------sorting and writing results---------------------------------
             statstype = 'anova_p'
             keys = ['tname', 'tcluster', 'sname', 'scluster', statstype, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2', 'tlimy1',
-                    'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2', 'slimz1', 'slimz2','cov']
+                    'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2', 'slimz1', 'slimz2',
+                    't','s1','s2','tt','nb','nc']
 
             # write out significant results, based on beta1------------------------------
             if np.ndim(beta1_sig) < 6:  # allow for different forms of results (some have multiple stats terms)
@@ -1699,8 +1739,9 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
                     sourcecoords = cluster_info[sourcenumber]['cluster_coords'][sourcecluster,:]
                     sourcelimits = cluster_info[sourcenumber]['regionlimits']
 
+                    connection_info = [t[ii],s1[ii],s2[ii],tt,nb[ii],nc[ii]]
                     values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]],
-                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),[nc[ii]]))
+                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),connection_info))
                     entry = dict(zip(keys, values))
                     results.append(entry)
 
@@ -1745,8 +1786,9 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
                     sourcecoords = cluster_info[sourcenumber]['cluster_coords'][sourcecluster,:]
                     sourcelimits = cluster_info[sourcenumber]['regionlimits']
 
+                    connection_info = [t[ii], s1[ii], s2[ii], tt, nb[ii], nc[ii]]
                     values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]],
-                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),[nc[ii]]))
+                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),connection_info))
                     entry = dict(zip(keys, values))
                     results.append(entry)
 
@@ -1835,7 +1877,7 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
                 keys = ['tname', 'tcluster', 'sname', 'scluster', statstype, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
                         'tlimy1',
                         'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2',
-                        'slimz1', 'slimz2', 'timepoint']
+                        'slimz1', 'slimz2', 'combo','nt','ss','nc']
 
                 # organize significant results
                 if np.ndim(beta_sig) < 4:  # allow for different forms of results (some have multiple stats terms)
@@ -1843,10 +1885,10 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
                     beta_sig = np.expand_dims(beta_sig, axis=-1)
                 combo, nt, ss, nc = np.where(beta_sig)   # significant connections during this time period
 
-                cc = 0   # what about regression with two or more terms?
+                # cc = 0   # what about regression with two or more terms?
                 for ii in range(len(combo)):
                     # get region names, cluster numbers, etc.
-                    Svalue = stat_of_interest[combo[ii], nt[ii], ss[ii],cc]
+                    Svalue = stat_of_interest[combo[ii], nt[ii], ss[ii],nc[ii]]
                     timepoint = nt[ii]
                     sourcename = cluster_info[sourcenums[ss[ii]]]['rname']
                     mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums],combo[ii]).astype(int)   # cluster number for each source
@@ -1856,8 +1898,9 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
 
                     connid = nt[ii]*1e7 + targetnum*1e5 + tt*1e3 + sourcenums[ss[ii]]*10 + sourcecluster
 
+                    connection_info = [combo[ii], nt[ii], ss[ii],nc[ii]]
                     values = np.concatenate(([targetname, tt, sourcename, sourcecluster, Svalue],
-                         list(targetcoords), list(targetlimits), list(sourcecoords), list(sourcelimits), [timepoint]))
+                         list(targetcoords), list(targetlimits), list(sourcecoords), list(sourcelimits), connection_info))
                     entry = dict(zip(keys, values))
 
                     results.append(entry)
