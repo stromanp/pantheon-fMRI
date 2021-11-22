@@ -422,12 +422,21 @@ def load_template_and_masks(region_name, resolution, verbose=False):
         gmwm_img = gmwm_img[cc[0]:cc[1], cc[2]:cc[3], cc[4]:cc[5]]
         gmwm_affine = template_affine
 
+    # mask gray matter regions in the cord
+    # if gm and wm regions are defined for cord regions, then apply the gm mask to the regions
+    if np.ndim(gmwm_img) > 0:
+        xt,yt,zt = np.shape(gmwm_img)
+        for z in range(zt):
+            tslice = regionmap_img[:,:,z]
+            slice = gmwm_img[:,:,z]
+            v = list(np.unique(slice))
+            if v == [0,1,2]:  # check that this slice has gm and wm regions labeled properly
+                ax,ay = np.where(slice != 2)   # find non-gm voxels
+                tslice[ax,ay] = 0
+                regionmap_img[:, :, z] = tslice
 
 
     v = np.unique(regionmap_img)
-    # print('found {num} unique values in region map'.format(num=np.size(v)))
-    #    print('values are ',v)
-
     if verbose:
         # see if atlas lines up with the brain
         # overlay region maps on anatomical

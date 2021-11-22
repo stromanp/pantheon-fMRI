@@ -335,3 +335,213 @@ def pywriteexcel(data, excelname, excelsheet = 'pydata', write_mode = 'replace',
     else:
         with pd.ExcelWriter(excelname, engine = 'openpyxl', mode='a') as writer:
             dataf.to_excel(writer, sheet_name=excelsheet, float_format = floatformat)
+
+
+
+
+#-------------display group-level analyses---------------------------------------------------
+# 2-source SEM results
+# results = {'type': '2source', 'CCrecord': CCrecord, 'beta2': beta2, 'beta1': beta1, 'Zgrid2': Zgrid2,
+#            'Zgrid1_1': Zgrid1_1, 'Zgrid1_2': Zgrid1_2, 'DBname': self.DBname, 'DBnum': self.DBnum,
+#            'cluster_properties': cluster_properties}
+#
+# for testing 2source data
+# filename1 = r'D:/threat_safety_python/SEMresults/SEMresults_2source_record_female.npy'
+# filename2 = r'D:/threat_safety_python/SEMresults/SEMresults_2source_record_male.npy'
+# excelfilename = r'D:/threat_safety_python/SEMresults/SEMresults_2source_record_female.xlsx'
+# excelsheetname = '2S beta1 average 1'
+# # get information about the results to be displayed, from excel files (output by py2ndlevelanalysis.py)
+# xls = pd.ExcelFile(excelfilename, engine='openpyxl')
+# df1 = pd.read_excel(xls, excelsheetname)
+# fields = list(df1.keys())
+# t = df1['t']
+# s1 = df1['s1']
+# s2 = df1['s2']
+# timepoint = df1['tt']
+# nb = df1['nb']
+#
+#
+# # network SEM results
+# #  dict_keys(['type', 'resultsnames', 'network', 'regionname', 'clustername', 'DBname', 'DBnum'])
+# #   within each entry in 'resultnames':
+# #                    'sem_one_target_results'
+# #                              array of ['b', 'R2', 'networkcomponent', 'targetcluster'] for each target cluster
+#
+# for testing network data
+# filename1 = r'D:/threat_safety_python/SEMresults/SEMresults_network_record_female.npy'
+# filename2 = r'D:/threat_safety_python/SEMresults/SEMresults_network_record_male.npy'
+# excelfilename = r'D:/threat_safety_python/SEMresults/SEMresults_network_record_female.xlsx'
+# excelsheetname = 'network average 0'
+# # get information about the results to be displayed, from excel files (output by py2ndlevelanalysis.py)
+# xls = pd.ExcelFile(excelfilename, engine='openpyxl')
+# df1 = pd.read_excel(xls, excelsheetname)
+# fields = list(df1.keys())
+# networkcomponent = df1['networkcomponent']
+# tt = df1['tt']
+# combo = df1['combo']
+# timepoint = df1['timepoint']
+# ss = df1['ss']
+
+
+def display_whisker_plots(filename1, filename2, field_to_plot):
+#
+    data1 = np.load(filename1, allow_pickle=True).flat[0]
+    if len(filename2) > 0:
+        data2 = np.load(filename2, allow_pickle=True).flat[0]
+        twogroup = True
+    else:
+        data2 = []
+        twogroup = False
+
+    if data1['type'] == '2source':
+        # 2-source SEM data
+        nclusterlist = [data1['cluster_properties'][nn]['nclusters'] for nn in range(len(data1))]
+        namelist = [data1['cluster_properties'][nn]['rname'] for nn in range(len(data1))]
+
+        pdata1 = data1[field_to_plot]
+        if twogroup:  pdata2 = data2[field_to_plot]
+        nt,ns1,ns2,ntime,NP,nc = np.shape(pdata1)   # number of clusters in target, source1, source2,
+                                                    # number of timepoints, number of people, and nc (nc=2) for the number of terms
+        # collect the data values to plot
+        # t[ii], s1[ii], s2[ii], timepoint[ii], nb[ii]
+        plotdata_g1 = []
+        plotdata_g2 = []
+        plotlabel = []
+        for nn in range(len(t)):
+            # if nn != 28:
+            d = pdata1[t[nn],s1[nn],s2[nn],timepoint[nn],:,nb[nn]]   # one group data for one connection
+            plotdata_g1.append(d)
+            if nb[nn] == 0:
+                s = s1[nn]
+            else:
+                s = s2[nn]
+            regionnamet, clusternumt, regionnumt = py2ndlevelanalysis.get_cluster_info(namelist, nclusterlist, t[nn])
+            regionnames, clusternums, regionnums = py2ndlevelanalysis.get_cluster_info(namelist, nclusterlist, s)
+            if len(regionnamet) > 4: regionnamet = regionnamet[:4]
+            if len(regionnames) > 4: regionnames = regionnames[:4]
+            textlabel = '{:4s}{}-{:4s}{}'.format(regionnamet,clusternumt,regionnames,clusternums)
+            plotlabel.append(textlabel)
+            if twogroup:
+                d2 = pdata2[t[nn],s1[nn],s2[nn],timepoint[nn],:,nb[nn]]
+                plotdata_g2.append(d2)
+
+        # create the boxplot
+        fig = plt.figure(16)
+        ax1 = plt.axes()
+        ax1.set_title(field_to_plot)
+        if twogroup:
+            ppos_list = []
+            for nn in range(len(plotdata_g1)):
+                ppos = (nn-1)*3 + 1
+                onecat = [plotdata_g1[nn], plotdata_g2[nn]]
+                bp = plt.boxplot(onecat, positions=[ppos, ppos+1], widths=0.6, notch = True, showfliers = False)
+                setBoxColors(bp)
+                ppos_list.append(ppos+0.5)
+            ax1.set_xticks(ppos_list)
+            ax1.set_xticklabels(plotlabel, rotation = 90)
+            plt.tight_layout()
+        else:
+            ax1.boxplot(plotdata_g1, notch = True, showfliers = False)
+            ax1.set_xticklabels(plotlabel, rotation = 90)
+            plt.tight_layout()
+
+        fig.savefig('filename.eps', format='eps')
+    else:
+        # network data
+        resultsnames = data1['resultsnames']
+        clustername = data1['clustername']
+        clusterdata = np.load(clustername, allow_pickle=True).flat[0]
+        nclusterlist = np.array([clusterdata['cluster_properties'][nn]['nclusters'] for nn in range(len(clusterdata['cluster_properties']))])
+        namelist = [clusterdata['cluster_properties'][nn]['rname'] for nn in range(len(clusterdata['cluster_properties']))]
+        networkmodel = data1['network']
+        network, ncluster_list, sem_region_list = pyclustering.load_network_model(networkmodel)
+
+        if twogroup: resultsnames2 = data2['resultsnames']
+
+        # need to sort the input list by network component number ...
+        aa = np.argsort(networkcomponent)
+        networkcomponent2 = [networkcomponent[x] for x in aa]
+        tt2 = [tt[x] for x in aa]
+        combo2 = [combo[x] for x in aa]
+        timepoint2 = [timepoint[x] for x in aa]
+        ss2 = [ss[x] for x in aa]
+
+        networknumberlist = np.unique(networkcomponent2)
+
+        # collect the data values to plot
+        plotdata_g1 = []
+        plotdata_g2 = []
+        plotlabel = []
+        for networknumber in networknumberlist:
+            fname1 = resultsnames[networknumber]
+            ndata = np.load(fname1, allow_pickle=True).flat[0]
+            ntclusters = len(ndata['sem_one_target_results'])
+
+            targetname = network[networknumber]['target']
+            if len(targetname) > 4: targetname = targetname[:4]
+            sources = network[networknumber]['sources']
+            targetnum = network[networknumber]['targetnum']
+            sourcenums = network[networknumber]['sourcenums']
+
+            if twogroup:
+                fname2 = resultsnames2[networknumber]
+                ndata2 = np.load(fname2, allow_pickle=True).flat[0]
+
+            for nn in range(len(networkcomponent2)):
+                if networkcomponent2[nn] == networknumber:
+                    pdata1 = ndata['sem_one_target_results'][tt2[nn]]['b']
+                    ncombo, ntime, NP, ns = np.shape(pdata1)
+
+                    d = pdata1[combo2[nn],timepoint2[nn],:,ss2[nn]]   # one group data for one connection
+                    plotdata_g1.append(d)
+
+                    # sourcename = cluster_info[sourcenums[ss2[nn]]]['rname']
+                    sourcename = namelist[sourcenums[ss2[nn]]]
+                    mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums], combo2[nn]).astype(int)  # cluster number for each source
+                    sourcecluster = mlist[ss2[nn]]
+
+                    if len(sourcename) > 4: sourcename = sourcename[:4]
+                    textlabel = '{:4s}{}-{:4s}{}'.format(targetname,tt2[nn],sourcename,sourcecluster)
+                    plotlabel.append(textlabel)
+                    if twogroup:
+                        pdata2 = ndata2['sem_one_target_results'][tt2[nn]]['b']
+                        d = pdata2[combo2[nn],timepoint2[nn],:,ss2[nn]]   # one group data for one connection
+                        plotdata_g2.append(d)
+
+        # create the boxplot
+        fig = plt.figure(16)
+        ax1 = plt.axes()
+        ax1.set_title('Network')
+        if twogroup:
+            ppos_list = []
+            for nn in range(len(plotdata_g1)):
+                ppos = (nn-1)*3 + 1
+                onecat = [plotdata_g1[nn], plotdata_g2[nn]]
+                bp = plt.boxplot(onecat, positions=[ppos, ppos+1], widths=0.6, notch = True, showfliers = False)
+                setBoxColors(bp)
+                ppos_list.append(ppos+0.5)
+            ax1.set_xticks(ppos_list)
+            ax1.set_xticklabels(plotlabel, rotation = 90)
+            plt.tight_layout()
+        else:
+            ax1.boxplot(plotdata_g1, notch = True, showfliers = False)
+            ax1.set_xticklabels(plotlabel, rotation = 90)
+            plt.tight_layout()
+
+        fig.savefig('filename.eps', format='eps')
+
+
+def setBoxColors(bp):
+    plt.setp(bp['boxes'][0], color='blue')
+    plt.setp(bp['caps'][0], color='blue')
+    plt.setp(bp['caps'][1], color='blue')
+    plt.setp(bp['whiskers'][0], color='blue')
+    plt.setp(bp['whiskers'][1], color='blue')
+    plt.setp(bp['medians'][0], color='blue')
+
+    plt.setp(bp['boxes'][1], color='red')
+    plt.setp(bp['caps'][2], color='red')
+    plt.setp(bp['caps'][3], color='red')
+    plt.setp(bp['whiskers'][2], color='red')
+    plt.setp(bp['whiskers'][3], color='red')
+    plt.setp(bp['medians'][1], color='red')
