@@ -545,3 +545,253 @@ def setBoxColors(bp):
     plt.setp(bp['whiskers'][2], color='red')
     plt.setp(bp['whiskers'][3], color='red')
     plt.setp(bp['medians'][1], color='red')
+
+
+
+
+# for testing 2source data
+# filename1 = r'D:/threat_safety_python/SEMresults/SEMresults_2source_record_female.npy'
+# filename2 = r'D:/threat_safety_python/SEMresults/SEMresults_2source_record_male.npy'
+# excelfilename = r'D:/threat_safety_python/SEMresults/SEMresults_2source_record_female_painrating.xlsx'
+# excelsheetname = '2S beta2 regression 0'
+# field_to_plot = 'beta2'
+# # # get information about the results to be displayed, from excel files (output by py2ndlevelanalysis.py)
+# xls = pd.ExcelFile(excelfilename, engine='openpyxl')
+# df1 = pd.read_excel(xls, excelsheetname)
+# fields = list(df1.keys())
+# # only one connection value to be entered
+# t = df1['t'][0]
+# s1 = df1['s1'][0]
+# s2 = df1['s2'][0]
+# timepoint = df1['tt'][0]
+# nb = df1['nb'][0]
+#
+#
+# network SEM results
+#  dict_keys(['type', 'resultsnames', 'network', 'regionname', 'clustername', 'DBname', 'DBnum'])
+#   within each entry in 'resultnames':
+#                    'sem_one_target_results'
+#                              array of ['b', 'R2', 'networkcomponent', 'targetcluster'] for each target cluster
+
+# for testing network data
+# filename1 = r'D:/threat_safety_python/SEMresults/SEMresults_network_record_female.npy'
+# filename2 = r'D:/threat_safety_python/SEMresults/SEMresults_network_record_male.npy'
+# excelfilename = r'D:/threat_safety_python/SEMresults/SEMresults_network_record_male_normpain.xlsx'
+# excelsheetname = 'network correlation 1'
+# # get information about the results to be displayed, from excel files (output by py2ndlevelanalysis.py)
+# xls = pd.ExcelFile(excelfilename, engine='openpyxl')
+# df1 = pd.read_excel(xls, excelsheetname)
+# fields = list(df1.keys())
+# networkcomponent = df1['networkcomponent'][0]
+# tt = df1['tt'][0]
+# combo = df1['combo'][0]
+# timepoint = df1['timepoint'][0]
+# ss = df1['ss'][0]
+# figure_output_filename
+
+def display_correlation_plots(filename1, filename2, field_to_plot, covariates1, covariates2, covariatename = 'none'):
+#
+# inputs can either provide the covariates for each group, or give the covariate name to be read from the database file
+# both types of inputs are not needed. If covariate values are provided, they will be used.
+#
+    data1 = np.load(filename1, allow_pickle=True).flat[0]
+    if len(filename2) > 0:
+        data2 = np.load(filename2, allow_pickle=True).flat[0]
+        twogroup = True
+    else:
+        data2 = []
+        twogroup = False
+
+    if (len(covariates1) == 0) and (len(covariatename) != 'none'):
+        covariates1 = get_covariate_values(data1['DBname'], data1['DBnum'], covariatename, mode='average_per_person')
+
+    if twogroup and (len(covariates2) == 0) and (len(covariatename) != 'none'):
+        covariates2 = get_covariate_values(data2['DBname'], data2['DBnum'], covariatename, mode='average_per_person')
+
+    if data1['type'] == '2source':
+        # 2-source SEM data
+        nclusterlist = [data1['cluster_properties'][nn]['nclusters'] for nn in range(len(data1))]
+        namelist = [data1['cluster_properties'][nn]['rname'] for nn in range(len(data1))]
+
+        pdata1 = data1[field_to_plot]
+        if twogroup:  pdata2 = data2[field_to_plot]
+        nt,ns1,ns2,ntime,NP,nc = np.shape(pdata1)   # number of clusters in target, source1, source2,
+                                                    # number of timepoints, number of people, and nc (nc=2) for the number of terms
+        # collect the data values to plot
+        d = pdata1[t,s1,s2,timepoint,:,nb]   # one group data for one connection
+        if twogroup: d2 = pdata2[t, s1, s2, timepoint, :, nb]
+
+        if nb == 0:
+            s = s1
+        else:
+            s = s2
+
+        regionnamet, clusternumt, regionnumt = py2ndlevelanalysis.get_cluster_info(namelist, nclusterlist, t)
+        regionnames, clusternums, regionnums = py2ndlevelanalysis.get_cluster_info(namelist, nclusterlist, s)
+        if len(regionnamet) > 4: regionnamet = regionnamet[:4]
+        if len(regionnames) > 4: regionnames = regionnames[:4]
+        textlabel = '{:4s}{}-{:4s}{}'.format(regionnamet,clusternumt,regionnames,clusternums)
+
+        # prep regression lines
+        b, fit, R2 = simple_GLMfit(covariates1, d)
+        if twogroup: b2, fit2, R22 = simple_GLMfit(covariates2, d2)
+
+        # create the line plot
+        fig = plt.figure(16)
+        ax1 = plt.axes()
+        ax1.set_title(textlabel + ' ' + field_to_plot)
+        ax1.plot(covariates1,d,'bo')
+        ax1.plot(covariates1,fit,'b-')
+        if twogroup:
+            ax1.plot(covariates2,d2,'ro')
+            ax1.plot(covariates2,fit2,'r-')
+
+        # add annotations
+        ii = np.argmin(covariates1)
+        x = covariates1[ii]
+        y = fit[ii]
+        if b[0] < 0:  # negative slope
+            y += 0.1  # shift text upward
+        else:
+            y -= 0.1  # shift text downward
+        R2text = 'R2 = {:.3f}'.format(R2)
+        plt.text(x,y, R2text, color = 'b')
+
+        if twogroup:
+            # add annotations
+            ii = np.argmin(covariates2)
+            x = covariates2[ii]
+            y = fit2[ii]
+            if b2[0] < 0:  # negative slope
+                y += 0.1  # shift text upward
+            else:
+                y -= 0.1  # shift text downward
+            R22text = 'R2 = {:.3f}'.format(R22)
+            ax1.text(x,y,R22text, color = 'r')
+
+        # need input for file name
+        fig.savefig('correlation_plot.eps', format='eps')
+    else:
+        # network data
+        resultsnames = data1['resultsnames']
+        clustername = data1['clustername']
+        clusterdata = np.load(clustername, allow_pickle=True).flat[0]
+        nclusterlist = np.array([clusterdata['cluster_properties'][nn]['nclusters'] for nn in range(len(clusterdata['cluster_properties']))])
+        namelist = [clusterdata['cluster_properties'][nn]['rname'] for nn in range(len(clusterdata['cluster_properties']))]
+        networkmodel = data1['network']
+        network, ncluster_list, sem_region_list = pyclustering.load_network_model(networkmodel)
+
+        if twogroup: resultsnames2 = data2['resultsnames']
+
+        # get the data values
+        fname1 = resultsnames[networkcomponent]
+        ndata = np.load(fname1, allow_pickle=True).flat[0]
+        ntclusters = len(ndata['sem_one_target_results'])
+
+        targetname = network[networkcomponent]['target']
+        if len(targetname) > 4: targetname = targetname[:4]
+        sources = network[networkcomponent]['sources']
+        targetnum = network[networkcomponent]['targetnum']
+        sourcenums = network[networkcomponent]['sourcenums']
+
+        pdata1 = ndata['sem_one_target_results'][tt]['b']
+        d = pdata1[combo, timepoint, :, ss]  # one group data for one connection
+
+        targetname = network[networkcomponent]['target']
+        if len(targetname) > 4: targetname = targetname[:4]
+        sourcename = namelist[sourcenums[ss]]
+        mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums], combo).astype(int)  # cluster number for each source
+        sourcecluster = mlist[ss]
+
+        if len(sourcename) > 4: sourcename = sourcename[:4]
+        textlabel = '{:4s}{}-{:4s}{}'.format(targetname, tt, sourcename, sourcecluster)
+
+        if twogroup:
+            fname2 = resultsnames2[networkcomponent]
+            ndata2 = np.load(fname2, allow_pickle=True).flat[0]
+            pdata2 = ndata2['sem_one_target_results'][tt]['b']
+            d2 = pdata2[combo, timepoint, :, ss]  # one group data for one connection
+
+        # prep regression lines
+        b, fit, R2 = simple_GLMfit(covariates1, d)
+        if twogroup: b2, fit2, R22 = simple_GLMfit(covariates2, d2)
+
+        # create the line plot
+        fig = plt.figure(18)
+        ax1 = plt.axes()
+        ax1.set_title(textlabel + ' ' + field_to_plot)
+        ax1.plot(covariates1,d,'bo')
+        ax1.plot(covariates1,fit,'b-')
+        if twogroup:
+            ax1.plot(covariates2,d2,'ro')
+            ax1.plot(covariates2,fit2,'r-')
+
+        # add annotations
+        ii = np.argmin(covariates1)
+        x = covariates1[ii]
+        y = fit[ii]
+        if b[0] < 0:  # negative slope
+            y += 0.1  # shift text upward
+        else:
+            y -= 0.1  # shift text downward
+        R2text = 'R2 = {:.3f}'.format(R2)
+        plt.text(x,y, R2text, color = 'b')
+
+        if twogroup:
+            # add annotations
+            ii = np.argmin(covariates2)
+            x = covariates2[ii]
+            y = fit2[ii]
+            if b2[0] < 0:  # negative slope
+                y += 0.1  # shift text upward
+            else:
+                y -= 0.1  # shift text downward
+            R22text = 'R2 = {:.3f}'.format(R22)
+            ax1.text(x,y,R22text, color = 'r')
+
+        # need input for file name
+        fig.savefig('correlation_plot.eps', format='eps')
+
+
+def get_covariate_values(DBname, DBnum, covariatename, mode = 'average_per_person'):
+# load covariate values from a database, given the database name and entry numbers, and covariate name
+    xls = pd.ExcelFile(DBname, engine = 'openpyxl')
+    df1 = pd.read_excel(xls, 'datarecord')
+
+    if mode == 'average_per_person':  # average values over entries for the same person
+        filename_list, dbnum_person_list, NP = pydatabase.get_datanames_by_person(DBname, DBnum, '', mode='list')
+        fieldvalues = []
+        for nn in range(NP):
+            DBnum_person = dbnum_person_list[nn]
+            fv1 = list(df1.loc[DBnum_person,covariatename])
+            if type(fv1[0]) == str:
+                # print('characteristic is {} value type ... using the first listed value'.format(type(fv1[0])))
+                fieldvalues += [fv1[0]]
+            else:
+                # print('characteristic is {} value type ... using the average value for each participant'.format(type(fv1[0])))
+                fieldvalues += [np.mean(fv1)]
+    else:
+        fieldvalues = list(df1.loc[DBnum,covariatename])
+
+    return fieldvalues
+
+
+
+def simple_GLMfit(x, y):
+    # function to do GLM regression w.r.t. covariates
+    # y = mx + b
+    # Y = bG
+    x = np.array(x)
+    nvals = len(x)
+    G = np.concatenate((x[np.newaxis,:], np.ones((1,nvals))),axis=0)   #  2 x nvals
+    iGG = np.linalg.inv(G @ G.T)
+    b = y @ G.T @ iGG
+    fit = b @ G
+
+    ssq = np.sum((y-np.mean(y))**2)
+    residual_ssq = np.sum((y-fit)**2)
+    tol = 1.0e-10
+    R2 = 1.0 - residual_ssq/(ssq + tol)   # determine how much variance is explained, not including the average offset
+
+
+    return b, fit, R2

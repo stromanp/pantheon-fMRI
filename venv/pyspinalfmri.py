@@ -172,12 +172,12 @@ class mainspinalfmri_window:
         page_name = OptionsFrame.__name__
         self.frames[page_name] = Optionsbase
 
-        IMGbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
-        IMGbase.grid(row=1, column=1, sticky="nsew")
-        IMGFrame = IMGDispFrame(IMGbase, self)
-        page_name = IMGDispFrame.__name__
-        self.frames[page_name] = IMGbase
-        self.imgwindow = IMGFrame
+        # IMGbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
+        # IMGbase.grid(row=1, column=1, sticky="nsew")
+        # IMGFrame = IMGDispFrame(IMGbase, self)
+        # page_name = IMGDispFrame.__name__
+        # self.frames[page_name] = IMGbase
+        # self.imgwindow = IMGFrame
 
         # The remaining frames are on the bottom of the main window, and are on top of each other
         # All of these frames are defined at the same time, but only the top one is visible
@@ -229,6 +229,13 @@ class mainspinalfmri_window:
         page_name = GRPFrame.__name__
         self.frames[page_name] = GRPbase
 
+        DISPbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
+        DISPbase.grid(row=1, column=1, sticky="nsew")
+        DisplayFrame(DISPbase, self)
+        page_name = DisplayFrame.__name__
+        self.frames[page_name] = DISPbase
+
+        # self.imgwindow = DISPFrame
 
         # start with the Database information frame on top
         self.show_frame('DBFrame')
@@ -242,134 +249,99 @@ class mainspinalfmri_window:
             frame = self.frames[page_name]
             frame.tkraise()
 
-    def get_display_window(self, windownumber):
-        # access the display windows
-        window, image_in_window = self.imgwindow.get_window(windownumber)
-        return window, image_in_window
+    # def get_display_window(self, windownumber):
+    #     # access the display windows
+    #     window, image_in_window = self.imgwindow.get_window(windownumber)
+    #     return window, image_in_window
 
 
 
 # ------Create the Window for displaying images, results, etc.---------------------
-class IMGDispFrame:
-    # defines the image display window, separate from the main window so the main window is not too bulky
-    def __init__(self, parent, controller):
-        # tk.Frame.__init__(self, master)
-        self.parent = parent
-        self.displaycontroller = controller
-
-        # need to initialize these here and use them later to save some display items
-        self.photo1 = []
-        self.photo2 = []
-
-        # first create the frames that do not move
-        self.frames = {}  # this is to keep a record of the frame names, so that one can be moved to the top when wanted
-        # create an initial fixed frame with labels etc
-        # The frame with pictures, labels, etc, is Fbase and is on the top row
-        Fbasew = tk.Frame(self.parent, relief='raised', bd=5, highlightcolor=fgcol2)
-        Fbasew.grid(row=0, column=0, columnspan=2)
-        BaseFrame2(Fbasew, self)
-        page_name = BaseFrame2.__name__
-
-        # create the display windows - 4 of them, for displaying images, results, etc...
-        # make objects in the display frame - for testing as place holders
-        # load in a picture, for no good reason, and display it in the window to look nice :)
-        photo1 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
-        controller.photod1 = photo1  # need to keep a copy so it is not cleared from memory
-        # put this figure, in the 1st row, 1st column, of a grid layout for the window
-        # and make the background black
-        self.W1 = tk.Canvas(master = self.parent, width=photo1.width(), height=photo1.height(), bg='black')
-        self.W1.grid(row=1, column=0, sticky='W')
-        self.image_in_W1 = self.W1.create_image(0, 0, image=photo1, anchor = tk.NW)
-        # self.W1 = W1
-        self.frames['window1'] = self.W1
-        self.frames['image_in_window1'] = self.image_in_W1
-
-        # load in another picture, because if one picture is good, two is better
-        photo2 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
-        controller.photod2 = photo2  # need to keep a copy so it is not cleared from memory
-        # put in another figure, for pure artistic value, in the 1st row, 2nd column, of a grid layout for the window
-        # and make the background black
-        self.W2 = tk.Canvas(master=self.parent, width=photo2.width(), height=photo2.height(), bg='black')
-        self.W2.grid(row=1, column=1, sticky='W')
-        self.image_in_W2 = self.W2.create_image(0, 0, image=photo2, anchor=tk.NW)
-        self.frames['window2'] = self.W2
-        self.frames['image_in_window2'] = self.image_in_W2
-
-        photo3 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
-        controller.photod3 = photo3  # need to keep a copy so it is not cleared from memory
-        self.W3 = tk.Canvas(master=self.parent, width=photo3.width(), height=photo3.height(), bg='black')
-        self.W3.grid(row=2, column=0, sticky='W')
-        self.image_in_W3 = self.W3.create_image(0, 0, image=photo3, anchor=tk.NW)
-        self.frames['window3'] = self.W3
-        self.frames['image_in_window3'] = self.image_in_W3
-
-        photo4 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
-        controller.photod4 = photo4  # need to keep a copy so it is not cleared from memory
-        self.W4 = tk.Canvas(master=self.parent, width=photo4.width(), height=photo4.height(), bg='black')
-        self.W4.grid(row=2, column=1, sticky='W')
-        self.image_in_W4 = self.W4.create_image(0, 0, image=photo4, anchor = tk.NW)
-        self.frames['window4'] = self.W4
-        self.frames['image_in_window4'] = self.image_in_W4
-
-        controller.W1 = self.W1  # pass upward for access
-        controller.W2 = self.W2  # pass upward for access
-        controller.W3 = self.W3  # pass upward for access
-        controller.W4 = self.W4  # pass upward for access
-
-
-    def get_window(self, window_number):
-        if window_number == 1:
-            window = self.frames['window1']
-            image_in_window = self.frames['image_in_window1']
-            print('returning window number 1')
-        if window_number == 2:
-            window = self.frames['window2']
-            image_in_window = self.frames['image_in_window2']
-            print('returning window number 2')
-        if window_number == 3:
-            window = self.frames['window3']
-            image_in_window = self.frames['image_in_window3']
-            print('returning window number 3')
-        if window_number == 4:
-            window = self.frames['window4']
-            image_in_window = self.frames['image_in_window4']
-            print('returning window number 4')
-        return window, image_in_window
-
-
-# --------------------DISPLAY FRAME---------------------------------------------------------------
-# Definition of the frame that holds image display windows
-class DisplayFrame:
-    # initialize the values, keeping track of the frame this definition works on (parent), and
-    # also the main window containing that frame (controller)
-    def __init__(self, parent, controller):
-        parent.configure(relief='raised', bd=5, highlightcolor=fgcol2)  # just defining some visual features
-        self.parent = parent
-        self.controller = controller
-
-        # make objects in the display frame - for testing as place holders
-        # load in a picture, for no good reason, and display it in the window to look nice :)
-        photo1 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
-        controller.photod1 = photo1  # need to keep a copy so it is not cleared from memory
-        # put this figure, in the 1st row, 1st column, of a grid layout for the window
-        # and make the background black
-        self.W1 = tk.Label(self.parent, image=photo1, bg='grey94').grid(row=0, column=0, sticky='W')
-
-        # load in another picture, because if one picture is good, two is better
-        photo2 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
-        controller.photod2 = photo2  # need to keep a copy so it is not cleared from memory
-        # put in another figure, for pure artistic value, in the 1st row, 2nd column, of a grid layout for the window
-        # and make the background black
-        self.W2 = tk.Label(self.parent, image=photo2, bg='grey94').grid(row=0, column=1, sticky='W')
-
-        photo3 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
-        controller.photod3 = photo3  # need to keep a copy so it is not cleared from memory
-        self.W3 = tk.Label(self.parent, image=photo3, bg='grey94').grid(row=1, column=0, sticky='W')
-
-        photo4 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
-        controller.photod4 = photo4  # need to keep a copy so it is not cleared from memory
-        self.W4 = tk.Label(self.parent, image=photo2, bg='grey94').grid(row=1, column=1, sticky='W')
-
+# class IMGDispFrame:
+#     # defines the image display window, separate from the main window so the main window is not too bulky
+#     def __init__(self, parent, controller):
+#         # tk.Frame.__init__(self, master)
+#         self.parent = parent
+#         self.displaycontroller = controller
+#
+#         # need to initialize these here and use them later to save some display items
+#         self.photo1 = []
+#         self.photo2 = []
+#
+#         # first create the frames that do not move
+#         self.frames = {}  # this is to keep a record of the frame names, so that one can be moved to the top when wanted
+#         # create an initial fixed frame with labels etc
+#         # The frame with pictures, labels, etc, is Fbase and is on the top row
+#         Fbasew = tk.Frame(self.parent, relief='raised', bd=5, highlightcolor=fgcol2)
+#         Fbasew.grid(row=0, column=0, columnspan=2)
+#         BaseFrame2(Fbasew, self)
+#         page_name = BaseFrame2.__name__
+#
+#         # create the display windows - 4 of them, for displaying images, results, etc...
+#         # make objects in the display frame - for testing as place holders
+#         # load in a picture, for no good reason, and display it in the window to look nice :)
+#         photo1 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
+#         controller.photod1 = photo1  # need to keep a copy so it is not cleared from memory
+#         # put this figure, in the 1st row, 1st column, of a grid layout for the window
+#         # and make the background black
+#         self.W1 = tk.Canvas(master = self.parent, width=photo1.width(), height=photo1.height(), bg='black')
+#         self.W1.grid(row=1, column=0, sticky='W')
+#         self.image_in_W1 = self.W1.create_image(0, 0, image=photo1, anchor = tk.NW)
+#         # self.W1 = W1
+#         self.frames['window1'] = self.W1
+#         self.frames['image_in_window1'] = self.image_in_W1
+#
+#         # load in another picture, because if one picture is good, two is better
+#         photo2 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
+#         controller.photod2 = photo2  # need to keep a copy so it is not cleared from memory
+#         # put in another figure, for pure artistic value, in the 1st row, 2nd column, of a grid layout for the window
+#         # and make the background black
+#         self.W2 = tk.Canvas(master=self.parent, width=photo2.width(), height=photo2.height(), bg='black')
+#         self.W2.grid(row=1, column=1, sticky='W')
+#         self.image_in_W2 = self.W2.create_image(0, 0, image=photo2, anchor=tk.NW)
+#         self.frames['window2'] = self.W2
+#         self.frames['image_in_window2'] = self.image_in_W2
+#
+#         photo3 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
+#         controller.photod3 = photo3  # need to keep a copy so it is not cleared from memory
+#         self.W3 = tk.Canvas(master=self.parent, width=photo3.width(), height=photo3.height(), bg='black')
+#         self.W3.grid(row=2, column=0, sticky='W')
+#         self.image_in_W3 = self.W3.create_image(0, 0, image=photo3, anchor=tk.NW)
+#         self.frames['window3'] = self.W3
+#         self.frames['image_in_window3'] = self.image_in_W3
+#
+#         photo4 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
+#         controller.photod4 = photo4  # need to keep a copy so it is not cleared from memory
+#         self.W4 = tk.Canvas(master=self.parent, width=photo4.width(), height=photo4.height(), bg='black')
+#         self.W4.grid(row=2, column=1, sticky='W')
+#         self.image_in_W4 = self.W4.create_image(0, 0, image=photo4, anchor = tk.NW)
+#         self.frames['window4'] = self.W4
+#         self.frames['image_in_window4'] = self.image_in_W4
+#
+#         controller.W1 = self.W1  # pass upward for access
+#         controller.W2 = self.W2  # pass upward for access
+#         controller.W3 = self.W3  # pass upward for access
+#         controller.W4 = self.W4  # pass upward for access
+#
+#
+#     def get_window(self, window_number):
+#         if window_number == 1:
+#             window = self.frames['window1']
+#             image_in_window = self.frames['image_in_window1']
+#             print('returning window number 1')
+#         if window_number == 2:
+#             window = self.frames['window2']
+#             image_in_window = self.frames['image_in_window2']
+#             print('returning window number 2')
+#         if window_number == 3:
+#             window = self.frames['window3']
+#             image_in_window = self.frames['image_in_window3']
+#             print('returning window number 3')
+#         if window_number == 4:
+#             window = self.frames['window4']
+#             image_in_window = self.frames['image_in_window4']
+#             print('returning window number 4')
+#         return window, image_in_window
 
 #--------------------BASE FRAME---------------------------------------------------------------
 # Definition of the frame that holds pictures, labels, etc.
@@ -499,9 +471,9 @@ class OptionsFrame:
         self.buttons['groupanalysis'] = self.groupanalysis
 
         # button for selecting and running the group-level analysis steps
-        self.imgdisplay = tk.Button(self.parent, text = 'Display', width = smallbuttonsize, bg = fgcol1, fg = 'white', font = "none 9 bold", command = lambda: self.options_show_frame('IMGDispFrame', 'imgdisplay'), relief='raised', bd = 5)
-        self.imgdisplay.grid(row = 8, column = 0)
-        self.buttons['imgdisplay'] = self.imgdisplay
+        self.display = tk.Button(self.parent, text = 'Display', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: self.options_show_frame('DisplayFrame', 'display'), relief='raised', bd = 5)
+        self.display.grid(row = 8, column = 0)
+        self.buttons['display'] = self.display
         
         # define a button to exit the GUI
         # also, define the function for what to do when this button is pressed
@@ -2231,6 +2203,9 @@ class GLMFrame:
         parent.configure(relief='raised', bd=5, highlightcolor=fgcol3)
         self.parent = parent
         self.controller = controller
+
+        # initialize some values
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
         self.DBname = settings['DBname']
         self.DBnum = settings['DBnum']
         self.GLM1_option = settings['GLM1_option']
@@ -3029,6 +3004,9 @@ class CLFrame:
         parent.configure(relief='raised', bd=5, highlightcolor=fgcol3)
         self.parent = parent
         self.controller = controller
+
+        # initialize some values
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
         self.DBname = settings['DBname']
         self.DBnum = settings['DBnum']
         self.CLprefix = settings['CLprefix']
@@ -3454,6 +3432,9 @@ class SEMFrame:
         parent.configure(relief='raised', bd=5, highlightcolor=fgcol3)
         self.parent = parent
         self.controller = controller
+
+        # initialize some values
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
         self.DBname = settings['DBname']
         self.DBnum = settings['DBnum']
         self.SEMprefix = settings['SEMprefix']
@@ -4256,6 +4237,9 @@ class GRPFrame:
         parent.configure(relief='raised', bd=5, highlightcolor=fgcol3)
         self.parent = parent
         self.controller = controller
+
+        # initialize some values
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
         self.DBname = settings['DBname']
         self.DBnum = settings['DBnum']
         self.DBname2 = settings['DBname2']   # for 2nd set of comparison results
@@ -4429,6 +4413,171 @@ class GRPFrame:
                                         command=self.GRPrunanalysis, relief='raised', bd=5)
         self.GRPrunbutton.grid(row=10, column=1, columnspan = 2)
 
+
+# --------------------DISPLAY FRAME---------------------------------------------------------------
+# Definition of the frame that holds image display windows
+class DisplayFrame:
+
+    def DISPupdateaction(self):
+        # initialize some values
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
+        self.DBname2 = settings['DBname2']  # for 2nd set of comparison results
+        self.DBnum2 = settings['DBnum2']
+        self.networkmodel = settings['networkmodel']
+        self.DISPresultsname = settings['GRPresultsname']
+        self.DISPresultsname2 = settings['GRPresultsname2']
+        self.DISPcharacteristicscount = settings['GRPcharacteristicscount']
+        self.DISPcharacteristicslist = settings['GRPcharacteristicslist']
+        self.DISPcharacteristicsvalues = settings['GRPcharacteristicsvalues']
+        self.DISPcharacteristicsvalues2 = settings['GRPcharacteristicsvalues2']
+
+        pname, fname = os.path.split(self.DISPresultsname)
+        self.DISPresultsdirtext.set(pname)
+        self.DISPresultsnametext.set(fname)
+        pname, fname = os.path.split(self.DISPresultsname2)
+        self.DISPresultsdirtext2.set(pname)
+        self.DISPresultsnametext2.set(fname)
+
+        # covariate names
+        chartext = ''
+        for names in self.DISPcharacteristicslist:
+            chartext += names + ','
+        chartext = chartext[:-1]
+        self.DISPcovtext.set(chartext)
+
+        print('DISPLAY function:  files and values have been updated.  {}'.format(time.ctime()))
+
+    # initialize the values, keeping track of the frame this definition works on (parent), and
+    # also the main window containing that frame (controller)
+    def __init__(self, parent, controller):
+        parent.configure(relief='raised', bd=5, highlightcolor=fgcol3)
+        self.parent = parent
+        self.controller = controller
+
+        # initialize some values
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
+        self.DBname2 = settings['DBname2']  # for 2nd set of comparison results
+        self.DBnum2 = settings['DBnum2']
+        self.networkmodel = settings['networkmodel']
+        self.DISPresultsname = settings['GRPresultsname']
+        self.DISPresultsname2 = settings['GRPresultsname2']
+        self.DISPcharacteristicscount = settings['GRPcharacteristicscount']
+        self.DISPcharacteristicslist = settings['GRPcharacteristicslist']
+        self.DISPcharacteristicsvalues = settings['GRPcharacteristicsvalues']
+        self.DISPcharacteristicsvalues2 = settings['GRPcharacteristicsvalues2']
+
+        # put some text as a place-holder
+        self.DISPLabel1 = tk.Label(self.parent,
+                                   text="1) The results to be displayed are linked to the Group Analysis tab",
+                                   fg='gray', justify='left')
+        self.DISPLabel1.grid(row=0, column=0, rowspan=2, sticky='W')
+        self.DISPLabel1 = tk.Label(self.parent,
+                                   text="2) Select the 2source or Network analysis results in the Group tab", fg='gray',
+                                   justify='left')
+        self.DISPLabel1.grid(row=2, column=0, rowspan=2, sticky='W')
+        self.DISPLabel2 = tk.Label(self.parent,
+                                   text="3) Indicate which type of results, and which specific values to show",
+                                   fg='gray', justify='left')
+        self.DISPLabel2.grid(row=4, column=0, rowspan=2, sticky='W')
+        self.DISPLabel3 = tk.Label(self.parent, text="4) Generate the output figures with the Run button", fg='gray',
+                                   justify='left')
+        self.DISPLabel3.grid(row=6, column=0, sticky='W')
+
+        # make a label to show the current setting of the network definition file directory name
+        # file1 (in case there are two sets of results to be compared)-------------------------------
+        pname, fname = os.path.split(self.DISPresultsname)
+        self.DISPresultsdirtext = tk.StringVar()
+        self.DISPresultsdirtext.set(pname)
+        self.DISPresultsnametext = tk.StringVar()
+        self.DISPresultsnametext.set(fname)
+
+        self.DISPlabel1 = tk.Label(self.parent, text='Results file1:')
+        self.DISPlabel1.grid(row=0, column=1, sticky='N')
+        self.DISPresultsnamelabel = tk.Label(self.parent, textvariable=self.DISPresultsnametext, bg=bgcol, fg="#4B4B4B",
+                                             font="none 10",
+                                             wraplength=300, justify='left')
+        self.DISPresultsnamelabel.grid(row=0, column=2, sticky='S')
+        self.DISPresultsdirlabel = tk.Label(self.parent, textvariable=self.DISPresultsdirtext, bg=bgcol, fg="#4B4B4B",
+                                            font="none 8",
+                                            wraplength=300, justify='left')
+        self.DISPresultsdirlabel.grid(row=1, column=2, sticky='N')
+        # define a button to browse and select an existing network definition file, and write out the selected name
+        # also, define the function for what to do when this button is pressed
+
+        # file2 (in case there are two sets of results to be compared)-------------------------------
+        pname, fname = os.path.split(self.DISPresultsname2)
+        self.DISPresultsdirtext2 = tk.StringVar()
+        self.DISPresultsdirtext2.set(pname)
+        self.DISPresultsnametext2 = tk.StringVar()
+        self.DISPresultsnametext2.set(fname)
+
+        self.DISPlabel2 = tk.Label(self.parent, text='Results file2:')
+        self.DISPlabel2.grid(row=2, column=1, sticky='N')
+        self.DISPresultsnamelabel2 = tk.Label(self.parent, textvariable=self.DISPresultsnametext2, bg=bgcol,
+                                              fg="#4B4B4B", font="none 10",
+                                              wraplength=300, justify='left')
+        self.DISPresultsnamelabel2.grid(row=2, column=2, sticky='S')
+        self.DISPresultsdirlabel2 = tk.Label(self.parent, textvariable=self.DISPresultsdirtext2, bg=bgcol, fg="#4B4B4B",
+                                             font="none 8",
+                                             wraplength=300, justify='left')
+        self.DISPresultsdirlabel2.grid(row=3, column=2, sticky='N')
+
+        # covariate names
+        chartext = ''
+        for names in self.DISPcharacteristicslist:
+            chartext += names + ','
+        chartext = chartext[:-1]
+        self.DISPcovtext = tk.StringVar()
+        self.DISPcovtext.set(chartext)
+
+        self.DISPchartextlabel = tk.Label(self.parent, text='Covariates: ')
+        self.DISPchartextlabel.grid(row=4, column=1, sticky='N')
+        self.DISPchartextlabel2 = tk.Label(self.parent, textvariable=self.DISPcovtext, bg=bgcol, fg="#4B4B4B", font="none 8",
+                                             wraplength=300, justify='left')
+        self.DISPchartextlabel2.grid(row=4, column=2, sticky='N')
+
+        # button to update values if they have been changed in the Group frame
+        self.DISPupdatebutton = tk.Button(self.parent, text='Refresh', width=smallbuttonsize, bg=fgcol2, fg='black',
+                                          command=self.DISPupdateaction, relief='raised', bd=5)
+        self.DISPupdatebutton.grid(row=0, column=3)
+
+        # create entry boxes to indicate which results to plot
+        # need:
+        # 1) field_to_plot  -  which entry in the data to show?
+        # 2) boxplot or correlation plot?
+        # 3) networkcomponent, tt, combo, timepoint, ss for network results or
+        #     t, s2, s2, timepoint, nb for 2source results
+        # 4) optional excel file for indicating which result to show
+        #       - which excel entries to show?  seletions or all?
+        # 5) option for entering/changing values instead of only from excel
+
+
+        # make objects in the display frame - for testing as place holders
+        # load in a picture, for no good reason, and display it in the window to look nice :)
+        photo1 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
+        controller.photod1 = photo1  # need to keep a copy so it is not cleared from memory
+        # put this figure, in the 1st row, 1st column, of a grid layout for the window
+        # and make the background black
+        self.W1 = tk.Label(self.parent, image=photo1, bg='grey94').grid(row=5, column=1, sticky='W')
+
+        # load in another picture, because if one picture is good, two is better
+        photo2 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
+        controller.photod2 = photo2  # need to keep a copy so it is not cleared from memory
+        # put in another figure, for pure artistic value, in the 1st row, 2nd column, of a grid layout for the window
+        # and make the background black
+        self.W2 = tk.Label(self.parent, image=photo2, bg='grey94').grid(row=5, column=2, sticky='W')
+
+        photo3 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
+        controller.photod3 = photo3  # need to keep a copy so it is not cleared from memory
+        self.W3 = tk.Label(self.parent, image=photo3, bg='grey94').grid(row=6, column=1, sticky='W')
+
+        photo4 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
+        controller.photod4 = photo4  # need to keep a copy so it is not cleared from memory
+        self.W4 = tk.Label(self.parent, image=photo2, bg='grey94').grid(row=6, column=2, sticky='W')
 
 
 #----------MAIN calling function----------------------------------------------------
