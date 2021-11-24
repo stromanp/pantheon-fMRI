@@ -762,6 +762,46 @@ class DBFrame:
         return textv
 
 
+    def DBparsenumlist(self, entered_text, maxvalue):
+        # need to make sure we are working with numbers, not text
+        # first, replace any double spaces with single spaces, and then replace spaces with commas
+        entered_text = re.sub('\ +', ',', entered_text)
+        entered_text = re.sub('\,\,+', ',', entered_text)
+        # remove any leading or trailing commas
+        if entered_text[0] == ',': entered_text = entered_text[1:]
+        if entered_text[-1] == ',': entered_text = entered_text[:-1]
+
+        # fix up the text bit, allow the user to specify ranges of numbers with a colon
+        # need to change the text to write out the range
+        # first see if there are any colons included in the text
+        # this part is complicated - need to find any pairs of numbers separated by a colon, to indicate a range
+        m = re.search(r'\d*:\d*', entered_text)
+        while m:
+            # m[0] is the string that matches what we are looking for - two numbers separated by a colon
+            # in m[0] we find where there is the colon, with m[0].find(':')
+            # so, within m[0] everything in the range of :m[0].find(':') is the first number
+            # and everything in the range of (m[0].find(':')+1): is the second number
+            num1 = int(m[0][:m[0].find(':')])
+            num2 = int(m[0][(m[0].find(':') + 1):])
+            # now create the long string that we need to replace the short form indicated with the colon
+            numbers = np.arange(num1, num2 + 1)
+            numtext = ''
+            for n in numbers:
+                numtext1 = '{:d},'.format(n)
+                numtext += numtext1
+            # now insert this where the colon separated pair of number came out
+            new_text = entered_text[:m.start()] + numtext + entered_text[(m.end() + 1):]
+            entered_text = new_text
+            m = re.search(r'\d*:\d*', entered_text)
+
+        entered_values = np.fromstring(entered_text, dtype=int, sep=',')
+
+        # check upper limit
+        entered_values = entered_values[entered_values <= maxvalue]
+
+        return entered_values
+
+
         # action when the button is pressed to submit the DB entry number list
     def DBnumsubmitclick(self):
         # first load the settings file so that values can be used later
@@ -782,44 +822,8 @@ class DBFrame:
         # allow for "all" to be entered
         if entered_text == 'all': entered_text = str(0) + ':' + str(dbnum_max)
 
-        # need to make sure we are working with numbers, not text
-        # first, replace any double spaces with single spaces, and then replace spaces with commas
-        entered_text = re.sub('\ +',',',entered_text)
-        entered_text = re.sub('\,\,+',',',entered_text)
-        # remove any leading or trailing commas
-        if entered_text[0] == ',': entered_text = entered_text[1:]
-        if entered_text[-1] == ',': entered_text = entered_text[:-1]
-        
-        self.DBnumsave_text = entered_text
-        
-        # fix up the text bit, allow the user to specify ranges of numbers with a colon
-        # need to change the text to write out the range
-        # first see if there are any colons included in the text
-        # this part is complicated - need to find any pairs of numbers separated by a colon, to indicate a range
-        m = re.search(r'\d*:\d*', entered_text)
-        while m:
-            # m[0] is the string that matches what we are looking for - two numbers separated by a colon
-            # in m[0] we find where there is the colon, with m[0].find(':')
-            # so, within m[0] everything in the range of :m[0].find(':') is the first number
-            # and everything in the range of (m[0].find(':')+1): is the second number
-            num1 = int(m[0][:m[0].find(':')])
-            num2 = int(m[0][(m[0].find(':')+1):])
-            # now create the long string that we need to replace the short form indicated with the colon
-            numbers = np.arange(num1,num2+1)
-            numtext = ''
-            for n in numbers:
-                numtext1 = '{:d},'.format(n)
-                numtext += numtext1
-            # now insert this where the colon separated pair of number came out
-            new_text = entered_text[:m.start()] + numtext + entered_text[(m.end()+1):]
-            entered_text = new_text
-            m = re.search(r'\d*:\d*', entered_text)
-            
-        entered_values = np.fromstring( entered_text, dtype=int, sep=',')
-
-        # check upper limit
-        entered_values = entered_values[entered_values <= dbnum_max]
         # parse the entered text into values
+        entered_values = self.DBparsenumlist(entered_text, dbnum_max)
         print(entered_values)
 
         # convert back to shorter string for display
@@ -4266,7 +4270,7 @@ class GRPFrame:
         self.GRPLabel1.grid(row=0,column=0,rowspan=2, sticky='W')
         self.GRPLabel1 = tk.Label(self.parent, text = "2) Select group-level analysis options\nChoices are: Bayesian regression of BOLD\nresponses, analyses of SEM results w.r.t.\npersonal characteristics", fg = 'gray', justify = 'left')
         self.GRPLabel1.grid(row=2,column=0,rowspan=2, sticky='W')
-        self.GRPLabel2 = tk.Label(self.parent, text = "3) For Bayesian regression select correlation\n for the analysis type, and for group comparisons choose\n2 results files", fg = 'gray', justify = 'left')
+        self.GRPLabel2 = tk.Label(self.parent, text = "3) For Bayesian regression select correlation\n for the analysis type, and for group\ncomparisons choose 2 results files", fg = 'gray', justify = 'left')
         self.GRPLabel2.grid(row=4,column=0,rowspan=2, sticky='W')
         self.GRPLabel3 = tk.Label(self.parent, text = "4) Run selected group-level analysis", fg = 'gray', justify = 'left')
         self.GRPLabel3.grid(row=6,column=0, sticky='W')
@@ -4418,6 +4422,55 @@ class GRPFrame:
 # Definition of the frame that holds image display windows
 class DisplayFrame:
 
+    def get_data_fields(self):
+        if os.path.isfile(self.DISPresultsname):
+            data = np.load(self.DISPresultsname, allow_pickle=True).flat[0]
+            self.DISPdatatype = data['type']
+            if data['type'] == '2source':
+                fields = ['beta1','beta2','CCrecord','Zgrid1_1','Zgrid1_2','Zgrid2']
+            if data['type'] == 'network':
+                fields = ['b','R2']
+        else:
+            self.DISPdatatype = 'unknown'
+            fields = 'empty'
+        return fields
+
+    def DISPfieldchoice(self,value):
+        # get the field value choices for the selected field
+        fvalue = self.field_var.get()
+        self.field_var.set(value)
+        print('data field selected is: {}'.format(value))
+        self.DISP_get_connectiondata_fields()
+
+        return self
+
+    def DISP_get_connectiondata_fields(self):
+        # 3) networkcomponent, tt, combo, timepoint, ss for network results "b" or "R2"
+        #                   or  t, s1, s2, timepoint, nb for 2source results "beta1" or "beta2"
+        #                   or timepoint, t, s for "CCrecord"
+        #                   or t, s1, s2, timepoint for "Zgrid2" or "Zgrid1_1" or "Zgrid1_2"
+        datafield = self.field_var.get()
+        print('DISP_get_connectiondata_fields:   datafield = {}'.format(datafield))
+        self.connectiondata = ['not defined']*5
+        self.connectiondata_names = ['not defined']*5
+
+        if self.DISPdatatype == '2source':
+            if datafield == 'beta1' or datafield == 'beta2':
+                self.connectiondata = ['t', 's1', 's2', 'tt', 'nb']
+                self.connectiondata_names = ['target', 'source1', 'source2', 'timepoint', 'conn. num.']
+            if datafield == 'CCrecord':
+                self.connectiondata = ['timepoint', 't', 's']
+                self.connectiondata_names = ['timepoint', 'target', 'source']
+            if datafield == 'Zgrid2' or datafield == 'Zgrid1_1' or datafield == 'Zgrid1_2':
+                self.connectiondata = ['t', 's1', 's2', 'timepoint']
+                self.connectiondata_names = ['target', 'source1', 'source2', 'timepoint']
+        if self.DISPdatatype == 'network':
+            if datafield == 'b' or datafield == 'R2':
+                self.connectiondata = ['networkcomponent', 'tt', 'combo', 'timepoint', 'ss']
+                self.connectiondata_names = ['networkcomponent', 'target', 'source comb.', 'timepoint', 'source num.']
+        return self
+
+
     def DISPupdateaction(self):
         # initialize some values
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
@@ -4447,7 +4500,258 @@ class DisplayFrame:
         chartext = chartext[:-1]
         self.DISPcovtext.set(chartext)
 
+        # update field choices
+        fields = self.get_data_fields()
+        if len(fields) > 0:
+            self.field_var.set(fields[0])
+        else:
+            self.field_var.set('empty')
+        self.DISPfields = fields
+        self.fieldchoice_opt.destroy()
+        field_menu = tk.OptionMenu(self.parent, self.field_var, *fields, command=self.DISPfieldchoice)
+        field_menu.grid(row=5, column=2, sticky='EW')
+        self.fieldchoice_opt = field_menu  # save this way so that values are not cleared
+
+        # update connection data fields----------------------------------------------
+        self.DISP_get_connectiondata_fields()   # update self.connectiondata and self.connectiondata_names
+        print('DISPfields set to {}'.format(self.DISPfields))
+        print('connectiondata_names set to {}'.format(self.connectiondata_names))
+
+        nvalues = len(self.connectiondata_names)
+        self.DISPboxname1.set(self.connectiondata_names[0])
+        self.DISPboxname2.set(self.connectiondata_names[1])
+        self.DISPboxname3.set(self.connectiondata_names[2])
+        if nvalues > 3:
+            self.DISPboxname4.set(self.connectiondata_names[3])
+        else:
+            self.DISPboxname4.set('not needed')
+        if nvalues > 4:
+            self.DISPboxname5.set(self.connectiondata_names[4])
+        else:
+            self.DISPboxname5.set('not needed')
+
+        # reset entry box values
+        self.DISPboxenter1.delete(0, 'end')  # collect the text from the text entry box
+        self.DISPboxenter1.insert(0, 'not set')  # collect the text from the text entry box
+        self.DISPboxnumtext1.set('not set')
+        self.DISPboxenter2.delete(0, 'end')  # collect the text from the text entry box
+        self.DISPboxenter2.insert(0, 'not set')  # collect the text from the text entry box
+        self.DISPboxnumtext2.set('not set')
+        self.DISPboxenter3.delete(0, 'end')  # collect the text from the text entry box
+        self.DISPboxenter3.insert(0, 'not set')  # collect the text from the text entry box
+        self.DISPboxnumtext3.set('not set')
+        self.DISPboxenter4.delete(0, 'end')  # collect the text from the text entry box
+        self.DISPboxenter4.insert(0, 'not set')  # collect the text from the text entry box
+        self.DISPboxnumtext4.set('not set')
+        self.DISPboxenter5.delete(0, 'end')  # collect the text from the text entry box
+        self.DISPboxenter5.insert(0, 'not set')  # collect the text from the text entry box
+        self.DISPboxnumtext5.set('not set')
+
+        # reset excel file name information etc.
+        self.DISPexcelnameinput = 'not defined'
+        self.DISPexcelsheetnamelist = ['not defined']
+        self.DISPexcelentrynums = 'not defined'
+
+        self.DISPexcelnametext.set(self.DISPexcelnameinput)
+
+        # update the pulldown menu with the sheet names
+        self.excelsheetchoice_opt.destroy()
+        self.sheetname_var.set('not defined')
+        excelsheet_menu = tk.OptionMenu(self.parent, self.sheetname_var, *self.DISPexcelsheetnamelist, command=self.DISPexcelsheetchoice)
+        excelsheet_menu.grid(row=8, column=6, sticky='EW')
+        self.excelsheetchoice_opt = excelsheet_menu  # save this way so that values are not cleared
+        self.DISPexcelsheetinput = self.DISPexcelsheetnamelist[0]
+
         print('DISPLAY function:  files and values have been updated.  {}'.format(time.ctime()))
+
+
+    def DISPsetmethodtype(self):
+        value = self.DISPplotmethod.get()
+        if value == 1:
+            self.DISPmethod = 'boxplot'
+        if value == 2:
+            self.DISPmethod = 'lineplot'
+        print('Plot method set to: ',self.DISPmethod)
+        return self
+
+
+    def DISPboxsubmitclick(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        # get inputs from DISPbox entries (values of which connections to display)
+        # how many values are we looking for?
+        nvalues = len(self.connectiondata)   # nvalues is always between 3 and 5
+
+        self.connectiondata_values = {}
+        # box1
+        entered_text = self.DISPboxenter1.get()  # collect the text from the text entry box
+        entered_values = np.fromstring(entered_text, dtype=int, sep=',')
+        fieldname = self.connectiondata[0]
+        self.connectiondata_values[fieldname] = entered_values
+        if len(entered_values) == 1:
+            numtext = '1 value'
+        else:
+            numtext = '{} values'.format(len(entered_values))
+        self.DISPboxnumtext1.set(numtext)
+
+        # box2
+        entered_text = self.DISPboxenter2.get()  # collect the text from the text entry box
+        entered_values = np.fromstring(entered_text, dtype=int, sep=',')
+        fieldname = self.connectiondata[1]
+        self.connectiondata_values[fieldname] = entered_values
+        if len(entered_values) == 1:
+            numtext = '1 value'
+        else:
+            numtext = '{} values'.format(len(entered_values))
+        self.DISPboxnumtext2.set(numtext)
+
+        # box3
+        entered_text = self.DISPboxenter3.get()  # collect the text from the text entry box
+        entered_values = np.fromstring(entered_text, dtype=int, sep=',')
+        fieldname = self.connectiondata[2]
+        self.connectiondata_values[fieldname] = entered_values
+        if len(entered_values) == 1:
+            numtext = '1 value'
+        else:
+            numtext = '{} values'.format(len(entered_values))
+        self.DISPboxnumtext3.set(numtext)
+
+        # box4
+        if nvalues > 3:
+            entered_text = self.DISPboxenter4.get()  # collect the text from the text entry box
+            entered_values = np.fromstring(entered_text, dtype=int, sep=',')
+            fieldname = self.connectiondata[3]
+            self.connectiondata_values[fieldname] = entered_values
+            if len(entered_values) == 1:
+                numtext = '1 value'
+            else:
+                numtext = '{} values'.format(len(entered_values))
+            self.DISPboxnumtext4.set(numtext)
+        else:
+            self.DISPboxenter4.delete(0,'end')
+            self.DISPboxenter4.insert(0,'no values needed')
+            self.DISPboxnumtext4.set('no values')
+
+        # box5
+        if nvalues > 4:
+            entered_text = self.DISPboxenter5.get()  # collect the text from the text entry box
+            entered_values = np.fromstring(entered_text, dtype=int, sep=',')
+            fieldname = self.connectiondata[4]
+            self.connectiondata_values[fieldname] = entered_values
+            if len(entered_values) == 1:
+                numtext = '1 value'
+            else:
+                numtext = '{} values'.format(len(entered_values))
+            self.DISPboxnumtext5.set(numtext)
+        else:
+            self.DISPboxenter5.delete(0,'end')
+            self.DISPboxenter5.insert(0,'no values needed')
+            self.DISPboxnumtext5.set('no values')
+
+        return self
+
+
+    def DISPexcelnamebrowseclick(self):
+        # first load the settings file so that values can be used later
+        # settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
+        filechoice = tkf.askopenfilename(title="Select results excel file",
+                                         filetypes=(("excel files", "*.xlsx"), ("all files", "*.*")))
+        print('DISP excel file = ', filechoice)
+        self.DISPexcelnameinput = filechoice
+        self.DISPexcelnametext.set(filechoice)
+        # get the list of sheet names
+        xls = pd.ExcelFile(filechoice, engine='openpyxl')
+        self.DISPexcelsheetnamelist = xls.sheet_names
+
+        # update the pulldown menu with the sheet names
+        # update field choices
+        self.excelsheetchoice_opt.destroy()
+        if len(self.DISPexcelsheetnamelist) > 0:
+            self.sheetname_var.set(self.DISPexcelsheetnamelist[0])
+        else:
+            self.sheetname_var.set('empty')
+        excelsheet_menu = tk.OptionMenu(self.parent, self.sheetname_var, *self.DISPexcelsheetnamelist, command=self.DISPexcelsheetchoice)
+        excelsheet_menu.grid(row=8, column=6, sticky='EW')
+        self.excelsheetchoice_opt = excelsheet_menu  # save this way so that values are not cleared
+        self.DISPexcelsheetinput = self.DISPexcelsheetnamelist[0]
+
+        print('DISPLAY:  excel field name set to {}'.format(self.DISPexcelnameinput))
+        print('DISPLAY:  excel sheet name set to {}'.format(self.DISPexcelsheetinput))
+
+        return self
+
+    def DISPexcelsheetchoice(self,value):
+        self.DISPexcelsheetinput = value
+        print('DISPLAY:  excel sheet name set to {}'.format(self.DISPexcelsheetinput))
+        return self
+
+
+    def DISPentrynumsubmitclick(self):
+        entered_text = self.DISPentrynumenter.get()  # collect the text from the text entry box
+        # get the excel file name that these row numbers refer to
+        excelfilename = self.DISPexcelnameinput
+        excelsheetname = self.DISPexcelsheetinput
+
+        xls = pd.ExcelFile(excelfilename, engine='openpyxl')
+        df1 = pd.read_excel(xls, excelsheetname)
+        nvalues = len(df1)
+
+        # allow for "all" to be entered
+        if entered_text == 'all': entered_text = str(0) + ':' + str(nvalues)
+        # parse the entered text into values
+        entered_values = DBFrame.DBparsenumlist(self, entered_text, nvalues)
+        self.DISPexcelentrynums = entered_values
+        print(entered_values)
+
+        # convert back to shorter string for display
+        value_list_for_display = DBFrame.DBdisplaynumlist(self, entered_values)
+        self.DISPentrynumenter.delete(0, 'end')
+        self.DISPentrynumenter.insert(0, value_list_for_display)
+
+        # update the values of the connection data, based on the excel file choices
+
+        fields = self.connectiondata
+        rownums = self.DISPexcelentrynums
+        print('fields = {}'.format(fields))
+        print('rownums = {}'.format(rownums))
+
+        self.connectiondata_values = {}
+        for nn in range(len(fields)):
+            fieldname = fields[nn]
+            values = df1.loc[rownums,fieldname]
+            value_text = ''
+            for v in values: value_text += str(v)+', '
+            value_text = value_text[:-2]
+            self.connectiondata_values[fieldname] = values
+            if len(values) == 1:
+                numtext = '1 value'
+            else:
+                numtext = '{} values'.format(len(values))
+
+            if nn == 0:
+                self.DISPboxenter1.delete(0,'end')  # collect the text from the text entry box
+                self.DISPboxenter1.insert(0,value_text)  # collect the text from the text entry box
+                self.DISPboxnumtext1.set(numtext)
+            if nn == 1:
+                self.DISPboxenter2.delete(0,'end')  # collect the text from the text entry box
+                self.DISPboxenter2.insert(0,value_text)  # collect the text from the text entry box
+                self.DISPboxnumtext2.set(numtext)
+            if nn == 2:
+                self.DISPboxenter3.delete(0,'end')  # collect the text from the text entry box
+                self.DISPboxenter3.insert(0,value_text)  # collect the text from the text entry box
+                self.DISPboxnumtext3.set(numtext)
+            if nn == 3:
+                self.DISPboxenter4.delete(0,'end')  # collect the text from the text entry box
+                self.DISPboxenter4.insert(0,value_text)  # collect the text from the text entry box
+                self.DISPboxnumtext4.set(numtext)
+            if nn == 4:
+                self.DISPboxenter5.delete(0,'end')  # collect the text from the text entry box
+                self.DISPboxenter5.insert(0,value_text)  # collect the text from the text entry box
+                self.DISPboxnumtext5.set(numtext)
+
+        return self
+
 
     # initialize the values, keeping track of the frame this definition works on (parent), and
     # also the main window containing that frame (controller)
@@ -4455,6 +4759,7 @@ class DisplayFrame:
         parent.configure(relief='raised', bd=5, highlightcolor=fgcol3)
         self.parent = parent
         self.controller = controller
+        self.DISPmethod = 'boxplot'
 
         # initialize some values
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
@@ -4469,21 +4774,28 @@ class DisplayFrame:
         self.DISPcharacteristicslist = settings['GRPcharacteristicslist']
         self.DISPcharacteristicsvalues = settings['GRPcharacteristicsvalues']
         self.DISPcharacteristicsvalues2 = settings['GRPcharacteristicsvalues2']
+        self.DISPdatatype = 'unknown'
+        self.DISPfields = self.get_data_fields()
+        self.DISPexcelnameinput = 'not defined'
+        self.DISPexcelsheetnamelist = ['not defined']
+        self.DISPexcelentrynums = 'not defined'
+        self.connectiondata_names = ['not defined']*5
+        self.connectiondata = ['not defined']*5
 
         # put some text as a place-holder
         self.DISPLabel1 = tk.Label(self.parent,
-                                   text="1) The results to be displayed are linked to the Group Analysis tab",
+                                   text="1) The results to be displayed are\nlinked to the Group Analysis tab",
                                    fg='gray', justify='left')
         self.DISPLabel1.grid(row=0, column=0, rowspan=2, sticky='W')
         self.DISPLabel1 = tk.Label(self.parent,
-                                   text="2) Select the 2source or Network analysis results in the Group tab", fg='gray',
+                                   text="2) Select the 2source or Network analysis\nresults in the Group tab", fg='gray',
                                    justify='left')
         self.DISPLabel1.grid(row=2, column=0, rowspan=2, sticky='W')
         self.DISPLabel2 = tk.Label(self.parent,
-                                   text="3) Indicate which type of results, and which specific values to show",
+                                   text="3) Indicate which type of results, and\nwhich specific values to show",
                                    fg='gray', justify='left')
         self.DISPLabel2.grid(row=4, column=0, rowspan=2, sticky='W')
-        self.DISPLabel3 = tk.Label(self.parent, text="4) Generate the output figures with the Run button", fg='gray',
+        self.DISPLabel3 = tk.Label(self.parent, text="4) Generate the output figures\nwith the Run button", fg='gray',
                                    justify='left')
         self.DISPLabel3.grid(row=6, column=0, sticky='W')
 
@@ -4499,11 +4811,11 @@ class DisplayFrame:
         self.DISPlabel1.grid(row=0, column=1, sticky='N')
         self.DISPresultsnamelabel = tk.Label(self.parent, textvariable=self.DISPresultsnametext, bg=bgcol, fg="#4B4B4B",
                                              font="none 10",
-                                             wraplength=300, justify='left')
+                                             wraplength=250, justify='left')
         self.DISPresultsnamelabel.grid(row=0, column=2, sticky='S')
         self.DISPresultsdirlabel = tk.Label(self.parent, textvariable=self.DISPresultsdirtext, bg=bgcol, fg="#4B4B4B",
                                             font="none 8",
-                                            wraplength=300, justify='left')
+                                            wraplength=250, justify='left')
         self.DISPresultsdirlabel.grid(row=1, column=2, sticky='N')
         # define a button to browse and select an existing network definition file, and write out the selected name
         # also, define the function for what to do when this button is pressed
@@ -4519,11 +4831,11 @@ class DisplayFrame:
         self.DISPlabel2.grid(row=2, column=1, sticky='N')
         self.DISPresultsnamelabel2 = tk.Label(self.parent, textvariable=self.DISPresultsnametext2, bg=bgcol,
                                               fg="#4B4B4B", font="none 10",
-                                              wraplength=300, justify='left')
+                                              wraplength=250, justify='left')
         self.DISPresultsnamelabel2.grid(row=2, column=2, sticky='S')
         self.DISPresultsdirlabel2 = tk.Label(self.parent, textvariable=self.DISPresultsdirtext2, bg=bgcol, fg="#4B4B4B",
                                              font="none 8",
-                                             wraplength=300, justify='left')
+                                             wraplength=250, justify='left')
         self.DISPresultsdirlabel2.grid(row=3, column=2, sticky='N')
 
         # covariate names
@@ -4555,29 +4867,189 @@ class DisplayFrame:
         #       - which excel entries to show?  seletions or all?
         # 5) option for entering/changing values instead of only from excel
 
+        # 1) field_to_plot  -  which entry in the data to show?-----------------------------
+        # create pull-down menu with list of fields that can be selected from the data
+        # fieldvalues = DBFrame.get_DB_field_values(self)
+        self.DISPlabel3 = tk.Label(self.parent, text = "Select data field:")
+        self.DISPlabel3.grid(row=5,column=1, sticky='W')
 
+        self.field_var = tk.StringVar()
+        if len(self.DISPfields) > 0:
+            self.field_var.set(self.DISPfields[0])
+        else:
+            self.field_var.set('empty')
+        self.DISP_get_connectiondata_fields()   # update self.connectiondata and self.connectiondata_names
+        print('DISPfields set to {}'.format(self.DISPfields))
+        print('connectiondata_names set to {}'.format(self.connectiondata_names))
+
+        field_menu = tk.OptionMenu(self.parent, self.field_var, *self.DISPfields, command = self.DISPfieldchoice)
+        field_menu.grid(row=5, column=2, sticky='EW')
+        self.fieldchoice_opt = field_menu   # save this way so that values are not cleared
+
+        # 2) boxplot or correlation plot?--------------------------------------------------
+        self.DISPlabel4 = tk.Label(self.parent, text="Plot Method:")
+        self.DISPlabel4.grid(row=6, column=1, sticky='W')
+        self.DISPplotmethod = tk.IntVar(None,1)
+        self.DISPmethod1 = tk.Radiobutton(self.parent, text = 'Box Plot', width = smallbuttonsize, fg = 'black',
+                                          command = self.DISPsetmethodtype, variable = self.DISPplotmethod, value = 1)
+        self.DISPmethod1.grid(row = 6, column = 2, sticky="W")
+
+        self.DISPmethod2 = tk.Radiobutton(self.parent, text = 'XY Scatter Plot', width = smallbuttonsize, fg = 'black',
+                                          command = self.DISPsetmethodtype, variable = self.DISPplotmethod, value = 2)
+        self.DISPmethod2.grid(row = 6, column = 3, sticky="W")
+
+        #--------------------------------------------------------------------------------------------------------
+        # 3) networkcomponent, tt, combo, timepoint, ss for network results "b" or "R2"
+        #                   or  t, s1, s2, timepoint, nb for 2source results "beta1" or "beta2"
+        #                   or timepoint, t, s for "CCrecord"
+        #                   or t, s1, s2, timepoint for "Zgrid2" or "Zgrid1_1" or "Zgrid1_2"
+        # 4) optional excel file for indicating which result to show
+        #       - which excel entries to show?  seletions or all?
+        # 5) option for entering/changing values instead of only from excel
+
+        # provide 5 text boxes for inputing values,  one for each entry in self.connectiondata, and self.connectiondata_names
+        nvalues = len(self.connectiondata_names)  # for initializing values
+        # box1
+        self.DISPboxname1 = tk.StringVar(self.parent, self.connectiondata_names[0])
+        # self.DISPboxname1.set(self.connectiondata_names[0])
+        self.DISPboxlabel1 = tk.Label(self.parent, textvariable=self.DISPboxname1)
+        self.DISPboxlabel1.grid(row=7, column=1, sticky='W')
+        # create entry box1
+        self.DISPboxenter1 = tk.Entry(self.parent, width=20, bg="white")
+        self.DISPboxenter1.grid(row=7, column=2, sticky="W")
+        self.DISPboxenter1.insert(0, 'not set')
+        self.DISPboxnumtext1 = tk.StringVar()
+        self.DISPboxnumtext1.set('no values set')
+        self.DISPboxnum1 = tk.Label(self.parent, textvariable=self.DISPboxnumtext1)
+        self.DISPboxnum1.grid(row=7, column=3, sticky='W')
+
+        # box2
+        self.DISPboxname2 = tk.StringVar(self.parent, self.connectiondata_names[1])
+        # self.DISPboxname2.set(self.connectiondata_names[1])
+        self.DISPboxlabel2 = tk.Label(self.parent, textvariable=self.DISPboxname2)
+        self.DISPboxlabel2.grid(row=8, column=1, sticky='W')
+        # create entry box2
+        self.DISPboxenter2 = tk.Entry(self.parent, width=20, bg="white")
+        self.DISPboxenter2.grid(row=8, column=2, sticky="W")
+        self.DISPboxenter2.insert(0, 'not set')
+        self.DISPboxnumtext2 = tk.StringVar()
+        self.DISPboxnumtext2.set('no values set')
+        self.DISPboxnum2 = tk.Label(self.parent, textvariable=self.DISPboxnumtext2)
+        self.DISPboxnum2.grid(row=8, column=3, sticky='W')
+
+        # box3
+        self.DISPboxname3 = tk.StringVar(self.parent, self.connectiondata_names[2])
+        self.DISPboxlabel3 = tk.Label(self.parent, textvariable=self.DISPboxname3)
+        self.DISPboxlabel3.grid(row=9, column=1, sticky='W')
+        # create entry box3
+        self.DISPboxenter3 = tk.Entry(self.parent, width=20, bg="white")
+        self.DISPboxenter3.grid(row=9, column=2, sticky="W")
+        self.DISPboxenter3.insert(0, 'not set')
+        self.DISPboxnumtext3 = tk.StringVar(self.parent, 'no values set')
+        self.DISPboxnum3 = tk.Label(self.parent, textvariable=self.DISPboxnumtext3)
+        self.DISPboxnum3.grid(row=9, column=3, sticky='W')
+
+        # box4
+        if nvalues > 3:
+            nameval = self.connectiondata_names[3]
+        else:
+            nameval = 'not needed'
+        self.DISPboxname4 = tk.StringVar(self.parent, nameval)
+        self.DISPboxlabel4 = tk.Label(self.parent, textvariable=self.DISPboxname4)
+        self.DISPboxlabel4.grid(row=10, column=1, sticky='W')
+        # create entry box4
+        self.DISPboxenter4 = tk.Entry(self.parent, width=20, bg="white")
+        self.DISPboxenter4.grid(row=10, column=2, sticky="W")
+        self.DISPboxenter4.insert(0, 'not set')
+        self.DISPboxnumtext4 = tk.StringVar(self.parent, 'no values set')
+        self.DISPboxnum4 = tk.Label(self.parent, textvariable=self.DISPboxnumtext4)
+        self.DISPboxnum4.grid(row=10, column=3, sticky='W')
+
+        # box5
+        if nvalues > 4:
+            nameval = self.connectiondata_names[4]
+        else:
+            nameval = 'not needed'
+        self.DISPboxname5 = tk.StringVar(self.parent, nameval)
+        self.DISPboxlabel5 = tk.Label(self.parent, textvariable=self.DISPboxname5)
+        self.DISPboxlabel5.grid(row=11, column=1, sticky='W')
+        # create entry box5
+        self.DISPboxenter5 = tk.Entry(self.parent, width=20, bg="white")
+        self.DISPboxenter5.grid(row=11, column=2, sticky="W")
+        self.DISPboxenter5.insert(0, 'not set')
+        self.DISPboxnumtext5 = tk.StringVar(self.parent, 'no values set')
+        self.DISPboxnum5 = tk.Label(self.parent, textvariable=self.DISPboxnumtext5)
+        self.DISPboxnum5.grid(row=11, column=3, sticky='W')
+
+        # the entry box needs a "submit" button so that the program knows when to take the entered values
+        self.DISPboxsubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol1, fg='white',
+                                     command=self.DISPboxsubmitclick, relief='raised', bd=5)
+        self.DISPboxsubmit.grid(row=7, column=4, sticky='W')
+
+
+        # option to select an excel file instead-----------------------------------------------------
+        # make a label to show the current setting of the database name
+        self.DISPexcelnamelabel = tk.Label(self.parent, text='Excel file name:')
+        self.DISPexcelnamelabel.grid(row=7, column=5, sticky='W')
+        self.DISPexcelnametext = tk.StringVar()
+        self.DISPexcelnametext.set(self.DISPexcelnameinput)
+        self.DISPexcelnamelabel = tk.Label(self.parent, textvariable=self.DISPexcelnametext, bg=bgcol, fg="black", font="none 10",
+                                     wraplength=200, justify='left')
+        self.DISPexcelnamelabel.grid(row=7, column=6, sticky='W')
+        # define a browse button
+        self.DISPexcelnamebrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg=fgcol1, fg='white',
+                                  command=self.DISPexcelnamebrowseclick, relief='raised', bd=5)
+        self.DISPexcelnamebrowse.grid(row=7, column=7)
+
+        # create pulldown menu for the sheet name
+        self.DISPexcelsheetnamelabel = tk.Label(self.parent, text='Excel sheet name:')
+        self.DISPexcelsheetnamelabel.grid(row=8, column=5, sticky='W')
+        self.sheetname_var = tk.StringVar()
+        if len(self.DISPexcelsheetnamelist) > 0:
+            self.sheetname_var.set(self.DISPexcelsheetnamelist[0])
+        else:
+            self.sheetname_var.set('empty')
+        excelsheet_menu = tk.OptionMenu(self.parent, self.sheetname_var, *self.DISPexcelsheetnamelist, command=self.DISPexcelsheetchoice)
+        excelsheet_menu.grid(row=8, column=6, sticky='EW')
+        self.excelsheetchoice_opt = excelsheet_menu  # save this way so that values are not cleared
+
+        # box for entering values of which excel file rows to read
+        self.DISPexcelentrynumlabel = tk.Label(self.parent, text='Excel rows:')
+        self.DISPexcelentrynumlabel.grid(row=9, column=5, sticky='W')
+        # create entry box
+        self.DISPentrynumenter = tk.Entry(self.parent, width=20, bg="white")
+        self.DISPentrynumenter.grid(row=9, column=6, sticky="W")
+        self.DISPentrynumenter.insert(0, self.DISPexcelentrynums)
+        # the entry box needs a "submit" button so that the program knows when to take the entered values
+        self.DISPentrynumsubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol1, fg='white',
+                                     command=self.DISPentrynumsubmitclick, relief='raised', bd=5)
+        self.DISPentrynumsubmit.grid(row=9, column=7)
+
+
+
+        rowstart = 12
         # make objects in the display frame - for testing as place holders
         # load in a picture, for no good reason, and display it in the window to look nice :)
         photo1 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
         controller.photod1 = photo1  # need to keep a copy so it is not cleared from memory
         # put this figure, in the 1st row, 1st column, of a grid layout for the window
         # and make the background black
-        self.W1 = tk.Label(self.parent, image=photo1, bg='grey94').grid(row=5, column=1, sticky='W')
+        self.W1 = tk.Label(self.parent, image=photo1, bg='grey94').grid(row=rowstart, column=1, sticky='W')
 
         # load in another picture, because if one picture is good, two is better
         photo2 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
         controller.photod2 = photo2  # need to keep a copy so it is not cleared from memory
         # put in another figure, for pure artistic value, in the 1st row, 2nd column, of a grid layout for the window
         # and make the background black
-        self.W2 = tk.Label(self.parent, image=photo2, bg='grey94').grid(row=5, column=2, sticky='W')
+        self.W2 = tk.Label(self.parent, image=photo2, bg='grey94').grid(row=rowstart, column=2, sticky='W')
 
         photo3 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
         controller.photod3 = photo3  # need to keep a copy so it is not cleared from memory
-        self.W3 = tk.Label(self.parent, image=photo3, bg='grey94').grid(row=6, column=1, sticky='W')
+        self.W3 = tk.Label(self.parent, image=photo3, bg='grey94').grid(row=rowstart+1, column=1, sticky='W')
 
         photo4 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
         controller.photod4 = photo4  # need to keep a copy so it is not cleared from memory
-        self.W4 = tk.Label(self.parent, image=photo2, bg='grey94').grid(row=6, column=2, sticky='W')
+        self.W4 = tk.Label(self.parent, image=photo2, bg='grey94').grid(row=rowstart+1, column=2, sticky='W')
 
 
 #----------MAIN calling function----------------------------------------------------
