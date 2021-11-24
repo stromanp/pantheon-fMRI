@@ -56,6 +56,7 @@ import pysem
 import py2ndlevelanalysis
 import copy
 import math
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 matplotlib.use('TkAgg')   # explicitly set this - it might help with displaying figures in different environments
 
@@ -971,7 +972,7 @@ class NIFrame:
         self.NIorganizedata = tk.Button(self.parent, text = 'Organize Data', width = bigbuttonsize, bg = fgcol1, fg = 'white', command = self.NIorganizeclick, font = "none 9 bold", relief='raised', bd = 5)
         self.NIorganizedata.grid(row = 1, column = 1, columnspan = 2)
 
-        # for now, just put a button that will eventually call the NIfTI conversion program
+        # butotn to call the NIfTI conversion program
         self.NIrunconvert = tk.Button(self.parent, text = 'Convert', width = bigbuttonsize, bg = fgcol1, fg = 'white', command = self.NIconversionclick, font = "none 9 bold", relief='raised', bd = 5)
         self.NIrunconvert.grid(row = 2, column = 1, columnspan = 2)
 
@@ -4698,9 +4699,9 @@ class DisplayFrame:
         nvalues = len(df1)
 
         # allow for "all" to be entered
-        if entered_text == 'all': entered_text = str(0) + ':' + str(nvalues)
+        if entered_text == 'all': entered_text = str(0) + ':' + str(nvalues-1)
         # parse the entered text into values
-        entered_values = DBFrame.DBparsenumlist(self, entered_text, nvalues)
+        entered_values = DBFrame.DBparsenumlist(self, entered_text, nvalues-1)
         self.DISPexcelentrynums = entered_values
         print(entered_values)
 
@@ -4751,6 +4752,27 @@ class DisplayFrame:
                 self.DISPboxnumtext5.set(numtext)
 
         return self
+
+
+    def DISPgeneratefigs(self):
+        # use the input data and generate the figures
+        filename1 = self.DISPresultsname
+        filename2 = self.DISPresultsname2
+        covariates1 = self.DISPcharacteristicsvalues
+        covariates2 = self.DISPcharacteristicsvalues2
+
+        connectiondata = self.connectiondata_values
+        field_to_plot = self.field_var.get()
+
+        self.DISPmethod  # boxplot or scatter plot
+
+        if self.DISPmethod == 'boxplot':
+            # generate box plot
+            pydisplay.display_whisker_plots(filename1, filename2, connectiondata, field_to_plot, self.Canvas1, self.PlotAx1)
+
+        if self.DISPmethod == 'lineplot':
+            # generate line plot
+            pydisplay.display_correlation_plots(filename1, filename2, connectiondata, field_to_plot, covariates1, covariates2, 'none', self.Canvas1, self.PlotAx1)
 
 
     # initialize the values, keeping track of the frame this definition works on (parent), and
@@ -5025,31 +5047,44 @@ class DisplayFrame:
                                      command=self.DISPentrynumsubmitclick, relief='raised', bd=5)
         self.DISPentrynumsubmit.grid(row=9, column=7)
 
+        # button to generate the plot
+        # for now, just put a button that will eventually call the NIfTI conversion program
+        self.DISPrunbutton = tk.Button(self.parent, text = 'Generate Figures', width = bigbigbuttonsize, bg = fgcol1, fg = 'white', command = self.DISPgeneratefigs, font = "none 9 bold", relief='raised', bd = 5)
+        self.DISPrunbutton.grid(row = 12, column = 1, columnspan = 2)
 
+        # create the plot figure and axes---------------------------------------------------
+        rowstart = 14
+        self.PlotFigure1 = plt.figure(99, figsize=(2, 1.67), dpi=100)
+        self.PlotAx1 = self.PlotFigure1.add_subplot(111)
+        self.Canvas1 = FigureCanvasTkAgg(self.PlotFigure1 , self.parent)
+        self.Canvas1.get_tk_widget().grid(row=rowstart, column=1, sticky='W')
+        # df1 = df1[['Country', 'GDP_Per_Capita']].groupby('Country').sum()
+        # df1.plot(kind='bar', legend=True, ax=ax1)
+        self.PlotAx1.set_title('Plot to be created here')
 
-        rowstart = 12
-        # make objects in the display frame - for testing as place holders
-        # load in a picture, for no good reason, and display it in the window to look nice :)
-        photo1 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
-        controller.photod1 = photo1  # need to keep a copy so it is not cleared from memory
-        # put this figure, in the 1st row, 1st column, of a grid layout for the window
-        # and make the background black
-        self.W1 = tk.Label(self.parent, image=photo1, bg='grey94').grid(row=rowstart, column=1, sticky='W')
-
-        # load in another picture, because if one picture is good, two is better
-        photo2 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
-        controller.photod2 = photo2  # need to keep a copy so it is not cleared from memory
-        # put in another figure, for pure artistic value, in the 1st row, 2nd column, of a grid layout for the window
-        # and make the background black
-        self.W2 = tk.Label(self.parent, image=photo2, bg='grey94').grid(row=rowstart, column=2, sticky='W')
-
-        photo3 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
-        controller.photod3 = photo3  # need to keep a copy so it is not cleared from memory
-        self.W3 = tk.Label(self.parent, image=photo3, bg='grey94').grid(row=rowstart+1, column=1, sticky='W')
-
-        photo4 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
-        controller.photod4 = photo4  # need to keep a copy so it is not cleared from memory
-        self.W4 = tk.Label(self.parent, image=photo2, bg='grey94').grid(row=rowstart+1, column=2, sticky='W')
+        #
+        # # make objects in the display frame - for testing as place holders
+        # # load in a picture, for no good reason, and display it in the window to look nice :)
+        # photo1 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
+        # controller.photod1 = photo1  # need to keep a copy so it is not cleared from memory
+        # # put this figure, in the 1st row, 1st column, of a grid layout for the window
+        # # and make the background black
+        # self.W1 = tk.Label(self.parent, image=photo1, bg='grey94').grid(row=rowstart, column=1, sticky='W')
+        #
+        # # load in another picture, because if one picture is good, two is better
+        # photo2 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
+        # controller.photod2 = photo2  # need to keep a copy so it is not cleared from memory
+        # # put in another figure, for pure artistic value, in the 1st row, 2nd column, of a grid layout for the window
+        # # and make the background black
+        # self.W2 = tk.Label(self.parent, image=photo2, bg='grey94').grid(row=rowstart, column=2, sticky='W')
+        #
+        # photo3 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
+        # controller.photod3 = photo3  # need to keep a copy so it is not cleared from memory
+        # self.W3 = tk.Label(self.parent, image=photo3, bg='grey94').grid(row=rowstart+1, column=1, sticky='W')
+        #
+        # photo4 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
+        # controller.photod4 = photo4  # need to keep a copy so it is not cleared from memory
+        # self.W4 = tk.Label(self.parent, image=photo2, bg='grey94').grid(row=rowstart+1, column=2, sticky='W')
 
 
 #----------MAIN calling function----------------------------------------------------

@@ -964,7 +964,7 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                     keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
                             'tlimy1',
                             'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2',
-                            'slimz1', 'slimz2', 'networkcomponent','tcluster', 'combo','nt','ss']
+                            'slimz1', 'slimz2', 'networkcomponent', 'tt', 'combo', 'timepoint', 'ss']
 
                     # organize significant results
                     # if np.ndim(beta_sig) < 4:  # allow for different forms of results (some have multiple stats terms)
@@ -1000,7 +1000,7 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                 results2, Svalue_list2 = remove_reps_and_sort(np.array(connid_list), np.array(Svalue_list), results)
 
                 # separate by timepoints
-                timepoint_list = [int(results2[ii]['nt']) for ii in range(len(results2))]
+                timepoint_list = [int(results2[ii]['timepoint']) for ii in range(len(results2))]
                 times = np.unique(timepoint_list)
                 print('time point values: ',times)
 
@@ -1426,7 +1426,7 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                 keys = ['tname', 'tcluster', 'sname', 'scluster', statstype, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
                         'tlimy1',
                         'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2',
-                        'slimz1', 'slimz2', 'networkcomponent', 'tt','ncombo','timepoint','ss','nc']
+                        'slimz1', 'slimz2', 'networkcomponent', 'tt','combo','timepoint','ss','nc']
 
                 for timepoint in range(ntimepoints):
                     # organize significant results
@@ -1886,7 +1886,7 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
                 keys = ['tname', 'tcluster', 'sname', 'scluster', statstype, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
                         'tlimy1',
                         'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2',
-                        'slimz1', 'slimz2', 'tt','combo','nt','ss','nc']
+                        'slimz1', 'slimz2', 'networkcomponent', 'tt', 'combo', 'timepoint', 'ss','nc']
 
                 # organize significant results
                 # if np.ndim(beta_sig) < 4:  # allow for different forms of results (some have multiple stats terms)
@@ -1907,7 +1907,7 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
 
                     connid = nt[ii]*1e7 + targetnum*1e5 + tt[ii]*1e3 + sourcenums[ss[ii]]*10 + sourcecluster
 
-                    connection_info = [tt[ii],combo[ii], nt[ii], ss[ii],nc[ii]]
+                    connection_info = [networkcompoent, tt[ii],combo[ii], nt[ii], ss[ii],nc[ii]]
                     values = np.concatenate(([targetname, tt[ii], sourcename, sourcecluster, Svalue],
                          list(targetcoords), list(targetlimits), list(sourcecoords), list(sourcelimits), connection_info))
                     entry = dict(zip(keys, values))

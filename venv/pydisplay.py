@@ -5,6 +5,8 @@ import load_templates
 import scipy.ndimage as nd
 import pandas as pd
 import os
+import py2ndlevelanalysis
+import matplotlib.pyplot as plt
 
 # setup color scales for displays
 def colormap(values):
@@ -383,7 +385,7 @@ def pywriteexcel(data, excelname, excelsheet = 'pydata', write_mode = 'replace',
 # ss = df1['ss']
 
 
-def display_whisker_plots(filename1, filename2, field_to_plot):
+def display_whisker_plots(filename1, filename2, connectiondata, field_to_plot, TargetCanvas = [], TargetAxes = []):
 #
     data1 = np.load(filename1, allow_pickle=True).flat[0]
     if len(filename2) > 0:
@@ -394,6 +396,13 @@ def display_whisker_plots(filename1, filename2, field_to_plot):
         twogroup = False
 
     if data1['type'] == '2source':
+        # connection data for 2source results
+        t = connectiondata['t']
+        s1 = connectiondata['s1']
+        s2 = connectiondata['s2']
+        timepoint = connectiondata['tt']
+        nb = connectiondata['nb']
+
         # 2-source SEM data
         nclusterlist = [data1['cluster_properties'][nn]['nclusters'] for nn in range(len(data1))]
         namelist = [data1['cluster_properties'][nn]['rname'] for nn in range(len(data1))]
@@ -426,27 +435,43 @@ def display_whisker_plots(filename1, filename2, field_to_plot):
                 plotdata_g2.append(d2)
 
         # create the boxplot
-        fig = plt.figure(16)
-        ax1 = plt.axes()
-        ax1.set_title(field_to_plot)
+        # if type(TargetFigure) == list:
+        #     fig = plt.figure(99)
+        #     ax1 = plt.axes()
+        # else:
+        #     # plt.figure(TargetFigure)
+        #     fig = plt.figure(99)
+        #     ax1 = plt.axes(TargetAxes)
+
+        TargetAxes.clear()
         if twogroup:
             ppos_list = []
             for nn in range(len(plotdata_g1)):
                 ppos = (nn-1)*3 + 1
                 onecat = [plotdata_g1[nn], plotdata_g2[nn]]
-                bp = plt.boxplot(onecat, positions=[ppos, ppos+1], widths=0.6, notch = True, showfliers = False)
+                bp = TargetAxes.boxplot(onecat, positions=[ppos, ppos+1], widths=0.6, notch = True, showfliers = False)
                 setBoxColors(bp)
                 ppos_list.append(ppos+0.5)
-            ax1.set_xticks(ppos_list)
-            ax1.set_xticklabels(plotlabel, rotation = 90)
+            TargetAxes.set_xticks(ppos_list)
+            TargetAxes.set_xticklabels(plotlabel, rotation = 90)
             plt.tight_layout()
         else:
-            ax1.boxplot(plotdata_g1, notch = True, showfliers = False)
-            ax1.set_xticklabels(plotlabel, rotation = 90)
+            TargetAxes.boxplot(plotdata_g1, notch = True, showfliers = False)
+            TargetAxes.set_xticklabels(plotlabel, rotation = 90)
             plt.tight_layout()
 
-        fig.savefig('filename.eps', format='eps')
+        TargetAxes.set_title(field_to_plot)
+        TargetCanvas.draw()
+        # TargetCanvas.savefig('filename.eps', format='eps')
+
     else:
+        # connection data for network results
+        networkcomponent = connectiondata['networkcomponent']
+        tt = connectiondata['tt']
+        combo = connectiondata['combo']
+        timepoint = connectiondata['timepoint']
+        ss = connectiondata['ss']
+
         # network data
         resultsnames = data1['resultsnames']
         clustername = data1['clustername']
@@ -509,26 +534,33 @@ def display_whisker_plots(filename1, filename2, field_to_plot):
                         plotdata_g2.append(d)
 
         # create the boxplot
-        fig = plt.figure(16)
-        ax1 = plt.axes()
-        ax1.set_title('Network')
+        # if type(TargetFigure) == list:
+        #     fig = plt.figure(99)
+        #     ax1 = plt.axes()
+        # else:
+        #     # plt.figure(TargetFigure)
+        #     fig = plt.figure(99)
+        #     ax1 = plt.axes(TargetAxes)
+        TargetAxes.clear()
         if twogroup:
             ppos_list = []
             for nn in range(len(plotdata_g1)):
                 ppos = (nn-1)*3 + 1
                 onecat = [plotdata_g1[nn], plotdata_g2[nn]]
-                bp = plt.boxplot(onecat, positions=[ppos, ppos+1], widths=0.6, notch = True, showfliers = False)
+                bp = TargetAxes.boxplot(onecat, positions=[ppos, ppos+1], widths=0.6, notch = True, showfliers = False)
                 setBoxColors(bp)
                 ppos_list.append(ppos+0.5)
-            ax1.set_xticks(ppos_list)
-            ax1.set_xticklabels(plotlabel, rotation = 90)
+            TargetAxes.set_xticks(ppos_list)
+            TargetAxes.set_xticklabels(plotlabel, rotation = 90)
             plt.tight_layout()
         else:
-            ax1.boxplot(plotdata_g1, notch = True, showfliers = False)
-            ax1.set_xticklabels(plotlabel, rotation = 90)
+            TargetAxes.boxplot(plotdata_g1, notch = True, showfliers = False)
+            TargetAxes.set_xticklabels(plotlabel, rotation = 90)
             plt.tight_layout()
 
-        fig.savefig('filename.eps', format='eps')
+        TargetAxes.set_title('Network')
+        TargetCanvas.draw()
+        # fig.savefig('filename.eps', format='eps')
 
 
 def setBoxColors(bp):
@@ -589,7 +621,7 @@ def setBoxColors(bp):
 # ss = df1['ss'][0]
 # figure_output_filename
 
-def display_correlation_plots(filename1, filename2, field_to_plot, covariates1, covariates2, covariatename = 'none'):
+def display_correlation_plots(filename1, filename2, connectiondata, field_to_plot, covariates1, covariates2, covariatename = 'none', TargetCanvas = [], TargetAxes = []):
 #
 # inputs can either provide the covariates for each group, or give the covariate name to be read from the database file
 # both types of inputs are not needed. If covariate values are provided, they will be used.
@@ -609,6 +641,13 @@ def display_correlation_plots(filename1, filename2, field_to_plot, covariates1, 
         covariates2 = get_covariate_values(data2['DBname'], data2['DBnum'], covariatename, mode='average_per_person')
 
     if data1['type'] == '2source':
+        # connection data for 2source results
+        t = connectiondata['t']
+        s1 = connectiondata['s1']
+        s2 = connectiondata['s2']
+        timepoint = connectiondata['timepoint']
+        nb = connectiondata['nb']
+
         # 2-source SEM data
         nclusterlist = [data1['cluster_properties'][nn]['nclusters'] for nn in range(len(data1))]
         namelist = [data1['cluster_properties'][nn]['rname'] for nn in range(len(data1))]
@@ -637,14 +676,20 @@ def display_correlation_plots(filename1, filename2, field_to_plot, covariates1, 
         if twogroup: b2, fit2, R22 = simple_GLMfit(covariates2, d2)
 
         # create the line plot
-        fig = plt.figure(16)
-        ax1 = plt.axes()
-        ax1.set_title(textlabel + ' ' + field_to_plot)
-        ax1.plot(covariates1,d,'bo')
-        ax1.plot(covariates1,fit,'b-')
+        # if type(TargetFigure) == list:
+        #     fig = plt.figure(99)
+        #     ax1 = plt.axes()
+        # else:
+        #     # plt.figure(TargetFigure)
+        #     fig = plt.figure(99)
+        #     ax1 = plt.axes(TargetAxes)
+        TargetAxes.clear()
+        TargetAxes.plot(covariates1,d,'bo')
+        TargetAxes.plot(covariates1,fit,'b-')
+        TargetAxes.set_title(textlabel + ' ' + field_to_plot)
         if twogroup:
-            ax1.plot(covariates2,d2,'ro')
-            ax1.plot(covariates2,fit2,'r-')
+            TargetAxes.plot(covariates2,d2,'ro')
+            TargetAxes.plot(covariates2,fit2,'r-')
 
         # add annotations
         ii = np.argmin(covariates1)
@@ -667,11 +712,20 @@ def display_correlation_plots(filename1, filename2, field_to_plot, covariates1, 
             else:
                 y -= 0.1  # shift text downward
             R22text = 'R2 = {:.3f}'.format(R22)
-            ax1.text(x,y,R22text, color = 'r')
+            TargetAxes.text(x,y,R22text, color = 'r')
 
+        TargetCanvas.draw()
         # need input for file name
-        fig.savefig('correlation_plot.eps', format='eps')
+        # TargetCanvas.savefig('correlation_plot.eps', format='eps')
+
     else:
+        # connection data for network results
+        networkcomponent = connectiondata['networkcomponent']
+        tt = connectiondata['tt']
+        combo = connectiondata['combo']
+        timepoint = connectiondata['timepoint']
+        ss = connectiondata['ss']
+
         # network data
         resultsnames = data1['resultsnames']
         clustername = data1['clustername']
@@ -717,14 +771,20 @@ def display_correlation_plots(filename1, filename2, field_to_plot, covariates1, 
         if twogroup: b2, fit2, R22 = simple_GLMfit(covariates2, d2)
 
         # create the line plot
-        fig = plt.figure(18)
-        ax1 = plt.axes()
-        ax1.set_title(textlabel + ' ' + field_to_plot)
-        ax1.plot(covariates1,d,'bo')
-        ax1.plot(covariates1,fit,'b-')
+        # if type(TargetFigure) == list:
+        #     fig = plt.figure(99)
+        #     ax1 = plt.axes()
+        # else:
+        #     # plt.figure(TargetFigure)
+        #     fig = plt.figure(99)
+        #     ax1 = plt.axes(TargetAxes)
+        TargetAxes.clear()
+        TargetAxes.plot(covariates1,d,'bo')
+        TargetAxes.plot(covariates1,fit,'b-')
+        TargetAxes.set_title(textlabel + ' ' + field_to_plot)
         if twogroup:
-            ax1.plot(covariates2,d2,'ro')
-            ax1.plot(covariates2,fit2,'r-')
+            TargetAxes.plot(covariates2,d2,'ro')
+            TargetAxes.plot(covariates2,fit2,'r-')
 
         # add annotations
         ii = np.argmin(covariates1)
@@ -735,7 +795,7 @@ def display_correlation_plots(filename1, filename2, field_to_plot, covariates1, 
         else:
             y -= 0.1  # shift text downward
         R2text = 'R2 = {:.3f}'.format(R2)
-        plt.text(x,y, R2text, color = 'b')
+        TargetAxes.text(x,y, R2text, color = 'b')
 
         if twogroup:
             # add annotations
@@ -747,10 +807,11 @@ def display_correlation_plots(filename1, filename2, field_to_plot, covariates1, 
             else:
                 y -= 0.1  # shift text downward
             R22text = 'R2 = {:.3f}'.format(R22)
-            ax1.text(x,y,R22text, color = 'r')
+            TargetAxes.text(x,y,R22text, color = 'r')
 
+        TargetCanvas.draw()
         # need input for file name
-        fig.savefig('correlation_plot.eps', format='eps')
+        # TargetCanvas.savefig('correlation_plot.eps', format='eps')
 
 
 def get_covariate_values(DBname, DBnum, covariatename, mode = 'average_per_person'):
