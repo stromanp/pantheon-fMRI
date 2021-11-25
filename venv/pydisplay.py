@@ -6,6 +6,7 @@ import scipy.ndimage as nd
 import pandas as pd
 import os
 import py2ndlevelanalysis
+import pydatabase
 import matplotlib.pyplot as plt
 
 # setup color scales for displays
@@ -634,19 +635,19 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
         data2 = []
         twogroup = False
 
-    if (len(covariates1) == 0) and (len(covariatename) != 'none'):
+    if (len(covariates1) == 0) and (covariatename != 'none'):
         covariates1 = get_covariate_values(data1['DBname'], data1['DBnum'], covariatename, mode='average_per_person')
 
-    if twogroup and (len(covariates2) == 0) and (len(covariatename) != 'none'):
+    if twogroup and (len(covariates2) == 0) and (covariatename != 'none'):
         covariates2 = get_covariate_values(data2['DBname'], data2['DBnum'], covariatename, mode='average_per_person')
 
     if data1['type'] == '2source':
         # connection data for 2source results
-        t = connectiondata['t']
-        s1 = connectiondata['s1']
-        s2 = connectiondata['s2']
-        timepoint = connectiondata['timepoint']
-        nb = connectiondata['nb']
+        t = connectiondata['t'][0]
+        s1 = connectiondata['s1'][0]
+        s2 = connectiondata['s2'][0]
+        timepoint = connectiondata['tt'][0]
+        nb = connectiondata['nb'][0]
 
         # 2-source SEM data
         nclusterlist = [data1['cluster_properties'][nn]['nclusters'] for nn in range(len(data1))]
@@ -676,19 +677,12 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
         if twogroup: b2, fit2, R22 = simple_GLMfit(covariates2, d2)
 
         # create the line plot
-        # if type(TargetFigure) == list:
-        #     fig = plt.figure(99)
-        #     ax1 = plt.axes()
-        # else:
-        #     # plt.figure(TargetFigure)
-        #     fig = plt.figure(99)
-        #     ax1 = plt.axes(TargetAxes)
         TargetAxes.clear()
-        TargetAxes.plot(covariates1,d,'bo')
+        TargetAxes.plot(covariates1,d,'bo', markersize=4)
         TargetAxes.plot(covariates1,fit,'b-')
         TargetAxes.set_title(textlabel + ' ' + field_to_plot)
         if twogroup:
-            TargetAxes.plot(covariates2,d2,'ro')
+            TargetAxes.plot(covariates2,d2,'ro', markersize=4)
             TargetAxes.plot(covariates2,fit2,'r-')
 
         # add annotations
@@ -720,11 +714,11 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
 
     else:
         # connection data for network results
-        networkcomponent = connectiondata['networkcomponent']
-        tt = connectiondata['tt']
-        combo = connectiondata['combo']
-        timepoint = connectiondata['timepoint']
-        ss = connectiondata['ss']
+        networkcomponent = connectiondata['networkcomponent'][0]
+        tt = connectiondata['tt'][0]
+        combo = connectiondata['combo'][0]
+        timepoint = connectiondata['timepoint'][0]
+        ss = connectiondata['ss'][0]
 
         # network data
         resultsnames = data1['resultsnames']
@@ -771,19 +765,12 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
         if twogroup: b2, fit2, R22 = simple_GLMfit(covariates2, d2)
 
         # create the line plot
-        # if type(TargetFigure) == list:
-        #     fig = plt.figure(99)
-        #     ax1 = plt.axes()
-        # else:
-        #     # plt.figure(TargetFigure)
-        #     fig = plt.figure(99)
-        #     ax1 = plt.axes(TargetAxes)
         TargetAxes.clear()
-        TargetAxes.plot(covariates1,d,'bo')
+        TargetAxes.plot(covariates1,d,'bo', markersize=4)
         TargetAxes.plot(covariates1,fit,'b-')
         TargetAxes.set_title(textlabel + ' ' + field_to_plot)
         if twogroup:
-            TargetAxes.plot(covariates2,d2,'ro')
+            TargetAxes.plot(covariates2,d2,'ro', markersize=4)
             TargetAxes.plot(covariates2,fit2,'r-')
 
         # add annotations

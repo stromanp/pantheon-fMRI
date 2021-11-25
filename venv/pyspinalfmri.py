@@ -4772,7 +4772,7 @@ class DisplayFrame:
 
         if self.DISPmethod == 'lineplot':
             # generate line plot
-            pydisplay.display_correlation_plots(filename1, filename2, connectiondata, field_to_plot, covariates1, covariates2, 'none', self.Canvas1, self.PlotAx1)
+            pydisplay.display_correlation_plots(filename1, filename2, connectiondata, field_to_plot, covariates1[0,:], covariates2[0,:], 'none', self.Canvas1, self.PlotAx1)
 
 
     # initialize the values, keeping track of the frame this definition works on (parent), and
@@ -5054,7 +5054,7 @@ class DisplayFrame:
 
         # create the plot figure and axes---------------------------------------------------
         rowstart = 14
-        self.PlotFigure1 = plt.figure(99, figsize=(2, 1.67), dpi=100)
+        self.PlotFigure1 = plt.figure(99, figsize=(3, 2), dpi=100)
         self.PlotAx1 = self.PlotFigure1.add_subplot(111)
         self.Canvas1 = FigureCanvasTkAgg(self.PlotFigure1 , self.parent)
         self.Canvas1.get_tk_widget().grid(row=rowstart, column=1, sticky='W')
