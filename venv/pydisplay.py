@@ -190,9 +190,9 @@ def pydisplayanatregions(templatename, anatnames, colorlist = []):
             x2 = (rownum+1)*xs-1
             y1 = colnum*ys
             y2 = (colnum+1)*ys-1
-            redrot = red[:,yc1:yc2,zz];  redrot = redrot[:,::-1].T
-            greenrot = green[:,yc1:yc2,zz];  greenrot = greenrot[:,::-1].T
-            bluerot = blue[:,yc1:yc2,zz];  bluerot = bluerot[:,::-1].T
+            redrot = red[:,:,zz];  redrot = redrot[:,::-1].T
+            greenrot = green[:,:,zz];  greenrot = greenrot[:,::-1].T
+            bluerot = blue[:,:,zz];  bluerot = bluerot[:,::-1].T
             outputimg[y1:y2,x1:x2,0:3] = np.dstack((redrot,greenrot,bluerot))
 
     if templatename == 'ccbs':
@@ -225,7 +225,7 @@ def pydisplayanatregions(templatename, anatnames, colorlist = []):
             x2 = (colnum+1)*xs
             y1 = rownum*ys2
             y2 = (rownum+1)*ys2
-            # need to rotate each from by 90 degrees
+            # need to rotate each frame by 90 degrees
             redrot = red[:,yc1:yc2,zz];  redrot = redrot[:,::-1].T
             greenrot = green[:,yc1:yc2,zz];  greenrot = greenrot[:,::-1].T
             bluerot = blue[:,yc1:yc2,zz];  bluerot = bluerot[:,::-1].T
@@ -233,6 +233,174 @@ def pydisplayanatregions(templatename, anatnames, colorlist = []):
 
     outputimg[outputimg>1.] = 1.0
     outputimg[outputimg<0.] = 0.0
+
+    return outputimg
+
+
+# display named regions in different colors
+def pydisplayanatregionslice(templatename, anatname, orientation, displayslice = [], colorlist = []):
+    resolution = 1
+    template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_img = load_templates.load_template_and_masks(templatename, resolution)
+
+    anatnamelist = []
+    for name in anatlabels['names']:
+        anatnamelist.append(name)
+
+    if len(colorlist) == 0:
+        colorlist = [0,1,0]  # make it green by default
+
+    try:
+        rnum  = anatnamelist.index(anatname)
+        regionindex = anatlabels['numbers'][rnum]
+    except:
+        print('pydisplayanatregionslice: region ',anatname,' is not in the anatomical map (ignoring this region)')
+        rnum = 0
+        outputimg = []
+        return outputimg
+
+    background = template_img.astype('double')
+    background = background/np.max(background)
+    red = copy.deepcopy(background)
+    green = copy.deepcopy(background)
+    blue = copy.deepcopy(background)
+
+    # color the region
+    cx, cy, cz = np.where(regionmap_img == regionindex)
+    red[cx,cy,cz] = colorlist[0]
+    green[cx,cy,cz] = colorlist[1]
+    blue[cx,cy,cz] = colorlist[2]
+
+    #--------------------------------------------------------------
+    # this might work for brain regions as well
+    if templatename == 'brain':
+        # display brain data
+        if orientation == 'axial':
+            if len(displayslice) == 0: displayslice = np.round(np.mean(cz)).astype(int)
+            redrot = red[:,:,displayslice];  redrot = redrot[:,::-1].T
+            greenrot = green[:,:,displayslice];  greenrot = greenrot[:,::-1].T
+            bluerot = blue[:,:,displayslice];  bluerot = bluerot[:,::-1].T
+            outputimg = np.dstack((redrot,greenrot,bluerot))
+
+        if orientation == 'sagittal':
+            if len(displayslice) == 0: displayslice = np.round(np.mean(cx)).astype(int)
+            redrot = red[displayslice,:,:];  # redrot = redrot[:,::-1].T
+            greenrot = green[displayslice,:,:];  # greenrot = greenrot[:,::-1].T
+            bluerot = blue[displayslice,:,:];  # bluerot = bluerot[:,::-1].T
+            outputimg = np.dstack((redrot,greenrot,bluerot))
+
+        if orientation == 'coronal':
+            if len(displayslice) == 0: displayslice = np.round(np.mean(cy)).astype(int)
+            redrot = red[:,displayslice,:];  # redrot = redrot[:,::-1].T
+            greenrot = green[:,displayslice,:];  # greenrot = greenrot[:,::-1].T
+            bluerot = blue[:,displayslice,:];  # bluerot = bluerot[:,::-1].T
+            outputimg = np.dstack((redrot,greenrot,bluerot))
+    else:
+        if templatename == 'ccbs':
+            # display brainstem/cord
+            yc1 = 20;  yc2 = 76;  ys2 = yc2-yc1
+        else:
+            # display any other part of the cord
+            yc1 = 20;  yc2 = 41;  ys2 = yc2-yc1
+
+        if orientation == 'axial':
+            if len(displayslice) == 0: displayslice = np.round(np.mean(cz)).astype(int)
+            redrot = red[:,yc1:yc2,displayslice];  redrot = redrot[:,::-1].T
+            greenrot = green[:,yc1:yc2,displayslice];  greenrot = greenrot[:,::-1].T
+            bluerot = blue[:,yc1:yc2,displayslice];  bluerot = bluerot[:,::-1].T
+            outputimg = np.dstack((redrot,greenrot,bluerot))
+
+        if orientation == 'sagittal':
+            if len(displayslice) == 0: displayslice = np.round(np.mean(cx)).astype(int)
+            redrot = red[displayslice,yc1:yc2,:];  # redrot = redrot[:,::-1].T
+            greenrot = green[displayslice,yc1:yc2,:];  # greenrot = greenrot[:,::-1].T
+            bluerot = blue[displayslice,yc1:yc2,:];  # bluerot = bluerot[:,::-1].T
+            outputimg = np.dstack((redrot,greenrot,bluerot))
+
+        if orientation == 'coronal':
+            if len(displayslice) == 0: displayslice = np.round(np.mean(cy)).astype(int)
+            redrot = red[:,displayslice,:];  # redrot = redrot[:,::-1].T
+            greenrot = green[:,displayslice,:];  # greenrot = greenrot[:,::-1].T
+            bluerot = blue[:,displayslice,:];  # bluerot = bluerot[:,::-1].T
+            outputimg = np.dstack((redrot,greenrot,bluerot))
+
+    return outputimg
+
+
+# display named regions in different colors
+def pydisplayvoxelregionslice(templatename, cx, cy, cz, orientation, displayslice = [], colorlist = []):
+    resolution = 1
+    template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_img = load_templates.load_template_and_masks(templatename, resolution)
+
+    anatnamelist = []
+    for name in anatlabels['names']:
+        anatnamelist.append(name)
+
+    if len(colorlist) == 0:
+        colorlist = [0,1,0]  # make it green by default
+
+    background = template_img.astype('double')
+    background = background/np.max(background)
+    red = copy.deepcopy(background)
+    green = copy.deepcopy(background)
+    blue = copy.deepcopy(background)
+
+    # color the region
+    red[cx,cy,cz] = colorlist[0]
+    green[cx,cy,cz] = colorlist[1]
+    blue[cx,cy,cz] = colorlist[2]
+
+    #--------------------------------------------------------------
+    # this might work for brain regions as well
+    if templatename == 'brain':
+        # display brain data
+        if orientation == 'axial':
+            if len(displayslice) == 0: displayslice = np.round(np.mean(cz)).astype(int)
+            redrot = red[:,:,displayslice];  redrot = redrot[:,::-1].T
+            greenrot = green[:,:,displayslice];  greenrot = greenrot[:,::-1].T
+            bluerot = blue[:,:,displayslice];  bluerot = bluerot[:,::-1].T
+            outputimg = np.dstack((redrot,greenrot,bluerot))
+
+        if orientation == 'sagittal':
+            if len(displayslice) == 0: displayslice = np.round(np.mean(cx)).astype(int)
+            redrot = red[displayslice,:,:];  # redrot = redrot[:,::-1].T
+            greenrot = green[displayslice,:,:];  # greenrot = greenrot[:,::-1].T
+            bluerot = blue[displayslice,:,:];  # bluerot = bluerot[:,::-1].T
+            outputimg = np.dstack((redrot,greenrot,bluerot))
+
+        if orientation == 'coronal':
+            if len(displayslice) == 0: displayslice = np.round(np.mean(cy)).astype(int)
+            redrot = red[:,displayslice,:];  # redrot = redrot[:,::-1].T
+            greenrot = green[:,displayslice,:];  # greenrot = greenrot[:,::-1].T
+            bluerot = blue[:,displayslice,:];  # bluerot = bluerot[:,::-1].T
+            outputimg = np.dstack((redrot,greenrot,bluerot))
+    else:
+        if templatename == 'ccbs':
+            # display brainstem/cord
+            yc1 = 20;  yc2 = 76;  ys2 = yc2-yc1
+        else:
+            # display any other part of the cord
+            yc1 = 20;  yc2 = 41;  ys2 = yc2-yc1
+
+        if orientation == 'axial':
+            if len(displayslice) == 0: displayslice = np.round(np.mean(cz)).astype(int)
+            redrot = red[:,yc1:yc2,displayslice];  redrot = redrot[:,::-1].T
+            greenrot = green[:,yc1:yc2,displayslice];  greenrot = greenrot[:,::-1].T
+            bluerot = blue[:,yc1:yc2,displayslice];  bluerot = bluerot[:,::-1].T
+            outputimg = np.dstack((redrot,greenrot,bluerot))
+
+        if orientation == 'sagittal':
+            if len(displayslice) == 0: displayslice = np.round(np.mean(cx)).astype(int)
+            redrot = red[displayslice,yc1:yc2,:];  # redrot = redrot[:,::-1].T
+            greenrot = green[displayslice,yc1:yc2,:];  # greenrot = greenrot[:,::-1].T
+            bluerot = blue[displayslice,yc1:yc2,:];  # bluerot = bluerot[:,::-1].T
+            outputimg = np.dstack((redrot,greenrot,bluerot))
+
+        if orientation == 'coronal':
+            if len(displayslice) == 0: displayslice = np.round(np.mean(cy)).astype(int)
+            redrot = red[:,displayslice,:];  # redrot = redrot[:,::-1].T
+            greenrot = green[:,displayslice,:];  # greenrot = greenrot[:,::-1].T
+            bluerot = blue[:,displayslice,:];  # bluerot = bluerot[:,::-1].T
+            outputimg = np.dstack((redrot,greenrot,bluerot))
 
     return outputimg
 
@@ -340,54 +508,14 @@ def pywriteexcel(data, excelname, excelsheet = 'pydata', write_mode = 'replace',
             dataf.to_excel(writer, sheet_name=excelsheet, float_format = floatformat)
 
 
-
-
+#----------------------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------------------------
 #-------------display group-level analyses---------------------------------------------------
-# 2-source SEM results
-# results = {'type': '2source', 'CCrecord': CCrecord, 'beta2': beta2, 'beta1': beta1, 'Zgrid2': Zgrid2,
-#            'Zgrid1_1': Zgrid1_1, 'Zgrid1_2': Zgrid1_2, 'DBname': self.DBname, 'DBnum': self.DBnum,
-#            'cluster_properties': cluster_properties}
-#
-# for testing 2source data
-# filename1 = r'D:/threat_safety_python/SEMresults/SEMresults_2source_record_female.npy'
-# filename2 = r'D:/threat_safety_python/SEMresults/SEMresults_2source_record_male.npy'
-# excelfilename = r'D:/threat_safety_python/SEMresults/SEMresults_2source_record_female.xlsx'
-# excelsheetname = '2S beta1 average 1'
-# # get information about the results to be displayed, from excel files (output by py2ndlevelanalysis.py)
-# xls = pd.ExcelFile(excelfilename, engine='openpyxl')
-# df1 = pd.read_excel(xls, excelsheetname)
-# fields = list(df1.keys())
-# t = df1['t']
-# s1 = df1['s1']
-# s2 = df1['s2']
-# timepoint = df1['tt']
-# nb = df1['nb']
-#
-#
-# # network SEM results
-# #  dict_keys(['type', 'resultsnames', 'network', 'regionname', 'clustername', 'DBname', 'DBnum'])
-# #   within each entry in 'resultnames':
-# #                    'sem_one_target_results'
-# #                              array of ['b', 'R2', 'networkcomponent', 'targetcluster'] for each target cluster
-#
-# for testing network data
-# filename1 = r'D:/threat_safety_python/SEMresults/SEMresults_network_record_female.npy'
-# filename2 = r'D:/threat_safety_python/SEMresults/SEMresults_network_record_male.npy'
-# excelfilename = r'D:/threat_safety_python/SEMresults/SEMresults_network_record_female.xlsx'
-# excelsheetname = 'network average 0'
-# # get information about the results to be displayed, from excel files (output by py2ndlevelanalysis.py)
-# xls = pd.ExcelFile(excelfilename, engine='openpyxl')
-# df1 = pd.read_excel(xls, excelsheetname)
-# fields = list(df1.keys())
-# networkcomponent = df1['networkcomponent']
-# tt = df1['tt']
-# combo = df1['combo']
-# timepoint = df1['timepoint']
-# ss = df1['ss']
-
-
 def display_whisker_plots(filename1, filename2, connectiondata, field_to_plot, TargetCanvas = [], TargetAxes = []):
 #
+    titlefont=8
+    labelfont=6
+
     data1 = np.load(filename1, allow_pickle=True).flat[0]
     if len(filename2) > 0:
         data2 = np.load(filename2, allow_pickle=True).flat[0]
@@ -436,14 +564,6 @@ def display_whisker_plots(filename1, filename2, connectiondata, field_to_plot, T
                 plotdata_g2.append(d2)
 
         # create the boxplot
-        # if type(TargetFigure) == list:
-        #     fig = plt.figure(99)
-        #     ax1 = plt.axes()
-        # else:
-        #     # plt.figure(TargetFigure)
-        #     fig = plt.figure(99)
-        #     ax1 = plt.axes(TargetAxes)
-
         TargetAxes.clear()
         if twogroup:
             ppos_list = []
@@ -454,14 +574,15 @@ def display_whisker_plots(filename1, filename2, connectiondata, field_to_plot, T
                 setBoxColors(bp)
                 ppos_list.append(ppos+0.5)
             TargetAxes.set_xticks(ppos_list)
-            TargetAxes.set_xticklabels(plotlabel, rotation = 90)
+            TargetAxes.set_xticklabels(plotlabel, rotation = 90, fontsize=labelfont)
             plt.tight_layout()
         else:
             TargetAxes.boxplot(plotdata_g1, notch = True, showfliers = False)
-            TargetAxes.set_xticklabels(plotlabel, rotation = 90)
+            TargetAxes.set_xticklabels(plotlabel, rotation = 90, fontsize=labelfont)
             plt.tight_layout()
 
-        TargetAxes.set_title(field_to_plot)
+        plt.yticks(fontsize=labelfont)
+        TargetAxes.set_title(field_to_plot, fontsize=titlefont)
         TargetCanvas.draw()
         # TargetCanvas.savefig('filename.eps', format='eps')
 
@@ -535,13 +656,6 @@ def display_whisker_plots(filename1, filename2, connectiondata, field_to_plot, T
                         plotdata_g2.append(d)
 
         # create the boxplot
-        # if type(TargetFigure) == list:
-        #     fig = plt.figure(99)
-        #     ax1 = plt.axes()
-        # else:
-        #     # plt.figure(TargetFigure)
-        #     fig = plt.figure(99)
-        #     ax1 = plt.axes(TargetAxes)
         TargetAxes.clear()
         if twogroup:
             ppos_list = []
@@ -552,14 +666,15 @@ def display_whisker_plots(filename1, filename2, connectiondata, field_to_plot, T
                 setBoxColors(bp)
                 ppos_list.append(ppos+0.5)
             TargetAxes.set_xticks(ppos_list)
-            TargetAxes.set_xticklabels(plotlabel, rotation = 90)
+            TargetAxes.set_xticklabels(plotlabel, rotation = 90, fontsize=labelfont)
             plt.tight_layout()
         else:
             TargetAxes.boxplot(plotdata_g1, notch = True, showfliers = False)
-            TargetAxes.set_xticklabels(plotlabel, rotation = 90)
+            TargetAxes.set_xticklabels(plotlabel, rotation = 90, fontsize=labelfont)
             plt.tight_layout()
 
-        TargetAxes.set_title('Network')
+        plt.yticks(fontsize=labelfont)
+        TargetAxes.set_title('Network', fontsize=titlefont)
         TargetCanvas.draw()
         # fig.savefig('filename.eps', format='eps')
 
@@ -580,53 +695,16 @@ def setBoxColors(bp):
     plt.setp(bp['medians'][1], color='red')
 
 
-
-
-# for testing 2source data
-# filename1 = r'D:/threat_safety_python/SEMresults/SEMresults_2source_record_female.npy'
-# filename2 = r'D:/threat_safety_python/SEMresults/SEMresults_2source_record_male.npy'
-# excelfilename = r'D:/threat_safety_python/SEMresults/SEMresults_2source_record_female_painrating.xlsx'
-# excelsheetname = '2S beta2 regression 0'
-# field_to_plot = 'beta2'
-# # # get information about the results to be displayed, from excel files (output by py2ndlevelanalysis.py)
-# xls = pd.ExcelFile(excelfilename, engine='openpyxl')
-# df1 = pd.read_excel(xls, excelsheetname)
-# fields = list(df1.keys())
-# # only one connection value to be entered
-# t = df1['t'][0]
-# s1 = df1['s1'][0]
-# s2 = df1['s2'][0]
-# timepoint = df1['tt'][0]
-# nb = df1['nb'][0]
-#
-#
-# network SEM results
-#  dict_keys(['type', 'resultsnames', 'network', 'regionname', 'clustername', 'DBname', 'DBnum'])
-#   within each entry in 'resultnames':
-#                    'sem_one_target_results'
-#                              array of ['b', 'R2', 'networkcomponent', 'targetcluster'] for each target cluster
-
-# for testing network data
-# filename1 = r'D:/threat_safety_python/SEMresults/SEMresults_network_record_female.npy'
-# filename2 = r'D:/threat_safety_python/SEMresults/SEMresults_network_record_male.npy'
-# excelfilename = r'D:/threat_safety_python/SEMresults/SEMresults_network_record_male_normpain.xlsx'
-# excelsheetname = 'network correlation 1'
-# # get information about the results to be displayed, from excel files (output by py2ndlevelanalysis.py)
-# xls = pd.ExcelFile(excelfilename, engine='openpyxl')
-# df1 = pd.read_excel(xls, excelsheetname)
-# fields = list(df1.keys())
-# networkcomponent = df1['networkcomponent'][0]
-# tt = df1['tt'][0]
-# combo = df1['combo'][0]
-# timepoint = df1['timepoint'][0]
-# ss = df1['ss'][0]
-# figure_output_filename
-
+#----------------------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------------------------
 def display_correlation_plots(filename1, filename2, connectiondata, field_to_plot, covariates1, covariates2, covariatename = 'none', TargetCanvas = [], TargetAxes = []):
 #
 # inputs can either provide the covariates for each group, or give the covariate name to be read from the database file
 # both types of inputs are not needed. If covariate values are provided, they will be used.
 #
+    titlefont=8
+    labelfont=6
+
     data1 = np.load(filename1, allow_pickle=True).flat[0]
     if len(filename2) > 0:
         data2 = np.load(filename2, allow_pickle=True).flat[0]
@@ -678,11 +756,11 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
 
         # create the line plot
         TargetAxes.clear()
-        TargetAxes.plot(covariates1,d,'bo', markersize=4)
+        TargetAxes.plot(covariates1,d,'bo', markersize=3)
         TargetAxes.plot(covariates1,fit,'b-')
-        TargetAxes.set_title(textlabel + ' ' + field_to_plot)
+        TargetAxes.set_title(textlabel + ' ' + field_to_plot, fontsize=titlefont)
         if twogroup:
-            TargetAxes.plot(covariates2,d2,'ro', markersize=4)
+            TargetAxes.plot(covariates2,d2,'ro', markersize=3)
             TargetAxes.plot(covariates2,fit2,'r-')
 
         # add annotations
@@ -694,7 +772,7 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
         else:
             y -= 0.1  # shift text downward
         R2text = 'R2 = {:.3f}'.format(R2)
-        plt.text(x,y, R2text, color = 'b')
+        plt.text(x,y, R2text, color = 'b', fontsize=labelfont)
 
         if twogroup:
             # add annotations
@@ -706,8 +784,11 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
             else:
                 y -= 0.1  # shift text downward
             R22text = 'R2 = {:.3f}'.format(R22)
-            TargetAxes.text(x,y,R22text, color = 'r')
+            TargetAxes.text(x,y,R22text, color = 'r', fontsize=labelfont)
 
+        plt.xticks(fontsize=labelfont)
+        plt.yticks(fontsize=labelfont)
+        plt.tight_layout()
         TargetCanvas.draw()
         # need input for file name
         # TargetCanvas.savefig('correlation_plot.eps', format='eps')
@@ -768,7 +849,7 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
         TargetAxes.clear()
         TargetAxes.plot(covariates1,d,'bo', markersize=4)
         TargetAxes.plot(covariates1,fit,'b-')
-        TargetAxes.set_title(textlabel + ' ' + field_to_plot)
+        TargetAxes.set_title(textlabel + ' ' + field_to_plot, fontsize=titlefont)
         if twogroup:
             TargetAxes.plot(covariates2,d2,'ro', markersize=4)
             TargetAxes.plot(covariates2,fit2,'r-')
@@ -782,7 +863,7 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
         else:
             y -= 0.1  # shift text downward
         R2text = 'R2 = {:.3f}'.format(R2)
-        TargetAxes.text(x,y, R2text, color = 'b')
+        TargetAxes.text(x,y, R2text, color = 'b', fontsize=labelfont)
 
         if twogroup:
             # add annotations
@@ -794,8 +875,11 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
             else:
                 y -= 0.1  # shift text downward
             R22text = 'R2 = {:.3f}'.format(R22)
-            TargetAxes.text(x,y,R22text, color = 'r')
+            TargetAxes.text(x,y,R22text, color = 'r', fontsize=labelfont)
 
+        plt.xticks(fontsize=labelfont)
+        plt.yticks(fontsize=labelfont)
+        plt.tight_layout()
         TargetCanvas.draw()
         # need input for file name
         # TargetCanvas.savefig('correlation_plot.eps', format='eps')
@@ -824,7 +908,6 @@ def get_covariate_values(DBname, DBnum, covariatename, mode = 'average_per_perso
     return fieldvalues
 
 
-
 def simple_GLMfit(x, y):
     # function to do GLM regression w.r.t. covariates
     # y = mx + b
@@ -841,5 +924,68 @@ def simple_GLMfit(x, y):
     tol = 1.0e-10
     R2 = 1.0 - residual_ssq/(ssq + tol)   # determine how much variance is explained, not including the average offset
 
-
     return b, fit, R2
+
+#----------------------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------------------------
+def display_anatomical_figure(filename, connectiondata, templatename, regioncolor, orientation, TargetCanvas = [], TargetAxes = []):
+
+    # get the connection and region information
+    data1 = np.load(filename, allow_pickle=True).flat[0]
+
+    if data1['type'] == '2source':
+        # connection data for 2source results
+        t = connectiondata['t'][0]
+        s1 = connectiondata['s1'][0]
+        s2 = connectiondata['s2'][0]
+        timepoint = connectiondata['tt'][0]
+        nb = connectiondata['nb'][0]
+
+        # 2-source SEM data
+        nclusterlist = [data1['cluster_properties'][nn]['nclusters'] for nn in range(len(data1))]
+        namelist = [data1['cluster_properties'][nn]['rname'] for nn in range(len(data1))]
+
+        if nb == 0:
+            s = s1
+        else:
+            s = s2
+
+        regionnamet, clusternumt, regionnumt = py2ndlevelanalysis.get_cluster_info(namelist, nclusterlist, t)
+        regionnames, clusternums, regionnums = py2ndlevelanalysis.get_cluster_info(namelist, nclusterlist, s)
+
+        # get the voxel coordinates for the target region
+        IDX = data1['cluster_properties'][regionnumt]['IDX']
+        idxx = np.where(IDX == clusternumt)
+        cx = data1['cluster_properties'][regionnumt]['cx'][idxx]
+        cy = data1['cluster_properties'][regionnumt]['cy'][idxx]
+        cz = data1['cluster_properties'][regionnumt]['cz'][idxx]
+
+    else:
+        # connection data for network results
+        networkcomponent = connectiondata['networkcomponent'][0]
+        tt = connectiondata['tt'][0]
+        # combo = connectiondata['combo'][0]
+        # timepoint = connectiondata['timepoint'][0]
+        # ss = connectiondata['ss'][0]
+
+        # network data
+        resultsnames = data1['resultsnames']
+        clustername = data1['clustername']
+        clusterdata = np.load(clustername, allow_pickle=True).flat[0]
+        nclusterlist = np.array([clusterdata['cluster_properties'][nn]['nclusters'] for nn in range(len(clusterdata['cluster_properties']))])
+        namelist = [clusterdata['cluster_properties'][nn]['rname'] for nn in range(len(clusterdata['cluster_properties']))]
+
+        IDX = clusterdata['cluster_properties'][networkcomponent]['IDX']
+        idxx = np.where(IDX == tt)
+        cx = clusterdata['cluster_properties'][networkcomponent]['cx'][idxx]
+        cy = clusterdata['cluster_properties'][networkcomponent]['cy'][idxx]
+        cz = clusterdata['cluster_properties'][networkcomponent]['cz'][idxx]
+
+    #-------------------------------------------------------------------------------------
+    # display one slice of an anatomical region in the selected target figure
+    outputimg = pydisplayvoxelregionslice(templatename, cx, cy, cz, orientation, displayslice = [], colorlist = regioncolor)
+    TargetAxes.clear()
+    TargetAxes.imshow(outputimg)
+    plt.axis('off')
+    plt.tight_layout()
+    TargetCanvas.draw()

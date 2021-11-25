@@ -4558,9 +4558,9 @@ class DisplayFrame:
         # update the pulldown menu with the sheet names
         self.excelsheetchoice_opt.destroy()
         self.sheetname_var.set('not defined')
-        excelsheet_menu = tk.OptionMenu(self.parent, self.sheetname_var, *self.DISPexcelsheetnamelist, command=self.DISPexcelsheetchoice)
-        excelsheet_menu.grid(row=8, column=6, sticky='EW')
-        self.excelsheetchoice_opt = excelsheet_menu  # save this way so that values are not cleared
+        self.excelsheet_menu = tk.OptionMenu(self.parent, self.sheetname_var, *self.DISPexcelsheetnamelist, command=self.DISPexcelsheetchoice)
+        self.excelsheet_menu.grid(row=15, column=2, sticky='EW')
+        self.excelsheetchoice_opt = self.excelsheet_menu  # save this way so that values are not cleared
         self.DISPexcelsheetinput = self.DISPexcelsheetnamelist[0]
 
         print('DISPLAY function:  files and values have been updated.  {}'.format(time.ctime()))
@@ -4673,7 +4673,7 @@ class DisplayFrame:
         else:
             self.sheetname_var.set('empty')
         excelsheet_menu = tk.OptionMenu(self.parent, self.sheetname_var, *self.DISPexcelsheetnamelist, command=self.DISPexcelsheetchoice)
-        excelsheet_menu.grid(row=8, column=6, sticky='EW')
+        excelsheet_menu.grid(row=15, column=2, sticky='EW')
         self.excelsheetchoice_opt = excelsheet_menu  # save this way so that values are not cleared
         self.DISPexcelsheetinput = self.DISPexcelsheetnamelist[0]
 
@@ -4773,6 +4773,10 @@ class DisplayFrame:
         if self.DISPmethod == 'lineplot':
             # generate line plot
             pydisplay.display_correlation_plots(filename1, filename2, connectiondata, field_to_plot, covariates1[0,:], covariates2[0,:], 'none', self.Canvas1, self.PlotAx1)
+            xls = pd.ExcelFile(self.DBname, engine='openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
+            normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
+            pydisplay.display_anatomical_figure(filename1, connectiondata, normtemplatename, [1,0,0], 'sagittal', self.Canvas2, self.PlotAx2)
 
 
     # initialize the values, keeping track of the frame this definition works on (parent), and
@@ -4930,46 +4934,49 @@ class DisplayFrame:
         # 5) option for entering/changing values instead of only from excel
 
         # provide 5 text boxes for inputing values,  one for each entry in self.connectiondata, and self.connectiondata_names
+
+        self.DISPsectionlabel1 = tk.Label(self.parent, text='Specify which data to display:')
+        self.DISPsectionlabel1.grid(row=7, column=1, columnspan = 2, sticky='W')
         nvalues = len(self.connectiondata_names)  # for initializing values
         # box1
         self.DISPboxname1 = tk.StringVar(self.parent, self.connectiondata_names[0])
         # self.DISPboxname1.set(self.connectiondata_names[0])
         self.DISPboxlabel1 = tk.Label(self.parent, textvariable=self.DISPboxname1)
-        self.DISPboxlabel1.grid(row=7, column=1, sticky='W')
+        self.DISPboxlabel1.grid(row=8, column=1, sticky='W')
         # create entry box1
         self.DISPboxenter1 = tk.Entry(self.parent, width=20, bg="white")
-        self.DISPboxenter1.grid(row=7, column=2, sticky="W")
+        self.DISPboxenter1.grid(row=8, column=2, sticky="W")
         self.DISPboxenter1.insert(0, 'not set')
         self.DISPboxnumtext1 = tk.StringVar()
         self.DISPboxnumtext1.set('no values set')
         self.DISPboxnum1 = tk.Label(self.parent, textvariable=self.DISPboxnumtext1)
-        self.DISPboxnum1.grid(row=7, column=3, sticky='W')
+        self.DISPboxnum1.grid(row=8, column=3, sticky='W')
 
         # box2
         self.DISPboxname2 = tk.StringVar(self.parent, self.connectiondata_names[1])
         # self.DISPboxname2.set(self.connectiondata_names[1])
         self.DISPboxlabel2 = tk.Label(self.parent, textvariable=self.DISPboxname2)
-        self.DISPboxlabel2.grid(row=8, column=1, sticky='W')
+        self.DISPboxlabel2.grid(row=9, column=1, sticky='W')
         # create entry box2
         self.DISPboxenter2 = tk.Entry(self.parent, width=20, bg="white")
-        self.DISPboxenter2.grid(row=8, column=2, sticky="W")
+        self.DISPboxenter2.grid(row=9, column=2, sticky="W")
         self.DISPboxenter2.insert(0, 'not set')
         self.DISPboxnumtext2 = tk.StringVar()
         self.DISPboxnumtext2.set('no values set')
         self.DISPboxnum2 = tk.Label(self.parent, textvariable=self.DISPboxnumtext2)
-        self.DISPboxnum2.grid(row=8, column=3, sticky='W')
+        self.DISPboxnum2.grid(row=9, column=3, sticky='W')
 
         # box3
         self.DISPboxname3 = tk.StringVar(self.parent, self.connectiondata_names[2])
         self.DISPboxlabel3 = tk.Label(self.parent, textvariable=self.DISPboxname3)
-        self.DISPboxlabel3.grid(row=9, column=1, sticky='W')
+        self.DISPboxlabel3.grid(row=10, column=1, sticky='W')
         # create entry box3
         self.DISPboxenter3 = tk.Entry(self.parent, width=20, bg="white")
-        self.DISPboxenter3.grid(row=9, column=2, sticky="W")
+        self.DISPboxenter3.grid(row=10, column=2, sticky="W")
         self.DISPboxenter3.insert(0, 'not set')
         self.DISPboxnumtext3 = tk.StringVar(self.parent, 'no values set')
         self.DISPboxnum3 = tk.Label(self.parent, textvariable=self.DISPboxnumtext3)
-        self.DISPboxnum3.grid(row=9, column=3, sticky='W')
+        self.DISPboxnum3.grid(row=10, column=3, sticky='W')
 
         # box4
         if nvalues > 3:
@@ -4978,14 +4985,14 @@ class DisplayFrame:
             nameval = 'not needed'
         self.DISPboxname4 = tk.StringVar(self.parent, nameval)
         self.DISPboxlabel4 = tk.Label(self.parent, textvariable=self.DISPboxname4)
-        self.DISPboxlabel4.grid(row=10, column=1, sticky='W')
+        self.DISPboxlabel4.grid(row=11, column=1, sticky='W')
         # create entry box4
         self.DISPboxenter4 = tk.Entry(self.parent, width=20, bg="white")
-        self.DISPboxenter4.grid(row=10, column=2, sticky="W")
+        self.DISPboxenter4.grid(row=11, column=2, sticky="W")
         self.DISPboxenter4.insert(0, 'not set')
         self.DISPboxnumtext4 = tk.StringVar(self.parent, 'no values set')
         self.DISPboxnum4 = tk.Label(self.parent, textvariable=self.DISPboxnumtext4)
-        self.DISPboxnum4.grid(row=10, column=3, sticky='W')
+        self.DISPboxnum4.grid(row=11, column=3, sticky='W')
 
         # box5
         if nvalues > 4:
@@ -4994,73 +5001,78 @@ class DisplayFrame:
             nameval = 'not needed'
         self.DISPboxname5 = tk.StringVar(self.parent, nameval)
         self.DISPboxlabel5 = tk.Label(self.parent, textvariable=self.DISPboxname5)
-        self.DISPboxlabel5.grid(row=11, column=1, sticky='W')
+        self.DISPboxlabel5.grid(row=12, column=1, sticky='W')
         # create entry box5
         self.DISPboxenter5 = tk.Entry(self.parent, width=20, bg="white")
-        self.DISPboxenter5.grid(row=11, column=2, sticky="W")
+        self.DISPboxenter5.grid(row=12, column=2, sticky="W")
         self.DISPboxenter5.insert(0, 'not set')
         self.DISPboxnumtext5 = tk.StringVar(self.parent, 'no values set')
         self.DISPboxnum5 = tk.Label(self.parent, textvariable=self.DISPboxnumtext5)
-        self.DISPboxnum5.grid(row=11, column=3, sticky='W')
+        self.DISPboxnum5.grid(row=12, column=3, sticky='W')
 
         # the entry box needs a "submit" button so that the program knows when to take the entered values
-        self.DISPboxsubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol1, fg='white',
+        self.DISPboxsubmit = tk.Button(self.parent, text="Submit Connection Details", width=bigbigbuttonsize, bg=fgcol2, fg='black',
                                      command=self.DISPboxsubmitclick, relief='raised', bd=5)
-        self.DISPboxsubmit.grid(row=7, column=4, sticky='W')
+        self.DISPboxsubmit.grid(row=13, column=1, sticky='W')
 
 
         # option to select an excel file instead-----------------------------------------------------
         # make a label to show the current setting of the database name
         self.DISPexcelnamelabel = tk.Label(self.parent, text='Excel file name:')
-        self.DISPexcelnamelabel.grid(row=7, column=5, sticky='W')
+        self.DISPexcelnamelabel.grid(row=14, column=1, sticky='W')
         self.DISPexcelnametext = tk.StringVar()
         self.DISPexcelnametext.set(self.DISPexcelnameinput)
         self.DISPexcelnamelabel = tk.Label(self.parent, textvariable=self.DISPexcelnametext, bg=bgcol, fg="black", font="none 10",
                                      wraplength=200, justify='left')
-        self.DISPexcelnamelabel.grid(row=7, column=6, sticky='W')
+        self.DISPexcelnamelabel.grid(row=14, column=2, sticky='W')
         # define a browse button
-        self.DISPexcelnamebrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg=fgcol1, fg='white',
+        self.DISPexcelnamebrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg=fgcol2, fg='black',
                                   command=self.DISPexcelnamebrowseclick, relief='raised', bd=5)
-        self.DISPexcelnamebrowse.grid(row=7, column=7)
+        self.DISPexcelnamebrowse.grid(row=14, column=3)
 
         # create pulldown menu for the sheet name
         self.DISPexcelsheetnamelabel = tk.Label(self.parent, text='Excel sheet name:')
-        self.DISPexcelsheetnamelabel.grid(row=8, column=5, sticky='W')
+        self.DISPexcelsheetnamelabel.grid(row=15, column=1, sticky='W')
         self.sheetname_var = tk.StringVar()
         if len(self.DISPexcelsheetnamelist) > 0:
             self.sheetname_var.set(self.DISPexcelsheetnamelist[0])
         else:
             self.sheetname_var.set('empty')
-        excelsheet_menu = tk.OptionMenu(self.parent, self.sheetname_var, *self.DISPexcelsheetnamelist, command=self.DISPexcelsheetchoice)
-        excelsheet_menu.grid(row=8, column=6, sticky='EW')
-        self.excelsheetchoice_opt = excelsheet_menu  # save this way so that values are not cleared
+        self.excelsheet_menu = tk.OptionMenu(self.parent, self.sheetname_var, *self.DISPexcelsheetnamelist, command=self.DISPexcelsheetchoice)
+        self.excelsheet_menu.grid(row=15, column=2, sticky='W')
+        self.excelsheetchoice_opt = self.excelsheet_menu  # save this way so that values are not cleared
 
         # box for entering values of which excel file rows to read
         self.DISPexcelentrynumlabel = tk.Label(self.parent, text='Excel rows:')
-        self.DISPexcelentrynumlabel.grid(row=9, column=5, sticky='W')
+        self.DISPexcelentrynumlabel.grid(row=16, column=1, sticky='W')
         # create entry box
         self.DISPentrynumenter = tk.Entry(self.parent, width=20, bg="white")
-        self.DISPentrynumenter.grid(row=9, column=6, sticky="W")
+        self.DISPentrynumenter.grid(row=16, column=2, sticky="W")
         self.DISPentrynumenter.insert(0, self.DISPexcelentrynums)
         # the entry box needs a "submit" button so that the program knows when to take the entered values
-        self.DISPentrynumsubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol1, fg='white',
+        self.DISPentrynumsubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg='black',
                                      command=self.DISPentrynumsubmitclick, relief='raised', bd=5)
-        self.DISPentrynumsubmit.grid(row=9, column=7)
+        self.DISPentrynumsubmit.grid(row=16, column=3)
 
         # button to generate the plot
         # for now, just put a button that will eventually call the NIfTI conversion program
         self.DISPrunbutton = tk.Button(self.parent, text = 'Generate Figures', width = bigbigbuttonsize, bg = fgcol1, fg = 'white', command = self.DISPgeneratefigs, font = "none 9 bold", relief='raised', bd = 5)
-        self.DISPrunbutton.grid(row = 12, column = 1, columnspan = 2)
+        self.DISPrunbutton.grid(row = 17, column = 1, columnspan = 2)
 
-        # create the plot figure and axes---------------------------------------------------
-        rowstart = 14
-        self.PlotFigure1 = plt.figure(99, figsize=(3, 2), dpi=100)
+        #-----------------------------------------------------------------------------------------------
+        # create the plot figures and axes--------------------------------------------------------------
+        rowstart = 5
+        self.PlotFigure1 = plt.figure(91, figsize=(3, 2), dpi=100)
         self.PlotAx1 = self.PlotFigure1.add_subplot(111)
         self.Canvas1 = FigureCanvasTkAgg(self.PlotFigure1 , self.parent)
-        self.Canvas1.get_tk_widget().grid(row=rowstart, column=1, sticky='W')
-        # df1 = df1[['Country', 'GDP_Per_Capita']].groupby('Country').sum()
-        # df1.plot(kind='bar', legend=True, ax=ax1)
+        self.Canvas1.get_tk_widget().grid(row=rowstart, column=4, rowspan = 7, columnspan = 2, sticky='W')
         self.PlotAx1.set_title('Plot to be created here')
+
+        self.PlotFigure2 = plt.figure(92, figsize=(3, 2), dpi=100)
+        self.PlotAx2 = self.PlotFigure2.add_subplot(111)
+        self.Canvas2 = FigureCanvasTkAgg(self.PlotFigure2 , self.parent)
+        self.Canvas2.get_tk_widget().grid(row=rowstart+7, column=4, rowspan = 7, columnspan = 2, sticky='W')
+        self.PlotAx2.set_title('Anat fig to be shown here')
 
         #
         # # make objects in the display frame - for testing as place holders
