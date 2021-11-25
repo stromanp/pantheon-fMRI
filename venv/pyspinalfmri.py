@@ -4769,6 +4769,15 @@ class DisplayFrame:
         if self.DISPmethod == 'boxplot':
             # generate box plot
             pydisplay.display_whisker_plots(filename1, filename2, connectiondata, field_to_plot, self.Canvas1, self.PlotAx1)
+            k = list(connectiondata.keys())
+            nvals = len(connectiondata[k[0]])
+            if nvals > 1:
+                self.PlotAx2.clear()
+            else:
+                xls = pd.ExcelFile(self.DBname, engine='openpyxl')
+                df1 = pd.read_excel(xls, 'datarecord')
+                normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
+                pydisplay.display_anatomical_figure(filename1, connectiondata, normtemplatename, [1, 0, 0], 'sagittal', self.Canvas2, self.PlotAx2)
 
         if self.DISPmethod == 'lineplot':
             # generate line plot
