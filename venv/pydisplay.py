@@ -960,13 +960,20 @@ def display_anatomical_figure(filename, connectiondata, templatename, regioncolo
         cy = data1['cluster_properties'][regionnumt]['cy'][idxx]
         cz = data1['cluster_properties'][regionnumt]['cz'][idxx]
 
+        # get the voxel coordinates for the source region
+        IDX = data1['cluster_properties'][regionnums]['IDX']
+        idxx = np.where(IDX == clusternums)
+        cx2 = data1['cluster_properties'][regionnums]['cx'][idxx]
+        cy2 = data1['cluster_properties'][regionnums]['cy'][idxx]
+        cz2 = data1['cluster_properties'][regionnums]['cz'][idxx]
+
     else:
         # connection data for network results
         networkcomponent = connectiondata['networkcomponent'][0]
         tt = connectiondata['tt'][0]
-        # combo = connectiondata['combo'][0]
-        # timepoint = connectiondata['timepoint'][0]
-        # ss = connectiondata['ss'][0]
+        combo = connectiondata['combo'][0]
+        timepoint = connectiondata['timepoint'][0]
+        ss = connectiondata['ss'][0]
 
         # network data
         resultsnames = data1['resultsnames']
@@ -975,17 +982,43 @@ def display_anatomical_figure(filename, connectiondata, templatename, regioncolo
         nclusterlist = np.array([clusterdata['cluster_properties'][nn]['nclusters'] for nn in range(len(clusterdata['cluster_properties']))])
         namelist = [clusterdata['cluster_properties'][nn]['rname'] for nn in range(len(clusterdata['cluster_properties']))]
 
-        IDX = clusterdata['cluster_properties'][networkcomponent]['IDX']
+        networkmodel = data1['network']
+        network, ncluster_list, sem_region_list = pyclustering.load_network_model(networkmodel)
+
+        sources = network[networkcomponent]['sources']
+        targetnum = network[networkcomponent]['targetnum']
+        sourcenums = network[networkcomponent]['sourcenums']
+        sourcename = namelist[sourcenums[ss]]
+        mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums], combo).astype(int)  # cluster number for each source
+        sourcecluster = mlist[ss]
+
+        # get the voxel coordinates for the target region
+        IDX = clusterdata['cluster_properties'][targetnum]['IDX']
         idxx = np.where(IDX == tt)
-        cx = clusterdata['cluster_properties'][networkcomponent]['cx'][idxx]
-        cy = clusterdata['cluster_properties'][networkcomponent]['cy'][idxx]
-        cz = clusterdata['cluster_properties'][networkcomponent]['cz'][idxx]
+        cx = clusterdata['cluster_properties'][targetnum]['cx'][idxx]
+        cy = clusterdata['cluster_properties'][targetnum]['cy'][idxx]
+        cz = clusterdata['cluster_properties'][targetnum]['cz'][idxx]
+
+        # get the voxel coordinates for the source region
+        IDX = clusterdata['cluster_properties'][sourcenums[ss]]['IDX']
+        idxx = np.where(IDX == sourcecluster)
+        cx2 = clusterdata['cluster_properties'][sourcenums[ss]]['cx'][idxx]
+        cy2 = clusterdata['cluster_properties'][sourcenums[ss]]['cy'][idxx]
+        cz2 = clusterdata['cluster_properties'][sourcenums[ss]]['cz'][idxx]
 
     #-------------------------------------------------------------------------------------
     # display one slice of an anatomical region in the selected target figure
     outputimg = pydisplayvoxelregionslice(templatename, cx, cy, cz, orientation, displayslice = [], colorlist = regioncolor)
+    regioncolor2 = 1.0-np.array(regioncolor)
+    outputimg2 = pydisplayvoxelregionslice(templatename, cx2, cy2, cz2, orientation, displayslice = [], colorlist = regioncolor2)
+
+    xs,ys,nc = np.shape(outputimg)
+    if xs > ys:
+        bigimg = np.concatenate((outputimg,outputimg2),axis = 1)
+    else:
+        bigimg = np.concatenate((outputimg,outputimg2),axis = 0)
     TargetAxes.clear()
-    TargetAxes.imshow(outputimg)
+    TargetAxes.imshow(bigimg)
     plt.axis('off')
     plt.tight_layout()
     TargetCanvas.draw()
