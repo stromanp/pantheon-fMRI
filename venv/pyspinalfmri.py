@@ -4563,6 +4563,19 @@ class DisplayFrame:
         return self
 
 
+    def DISPsetanattype(self):
+        value = self.DISPshowanat.get()
+        if value == 1:
+            self.DISPanatorientation = 'axial'
+        if value == 2:
+            self.DISPanatorientation = 'sagittal'
+        if value == 3:
+            self.DISPanatorientation = 'coronal'
+        print('Anatomical orientation set to: ',self.DISPanatorientation)
+        return self
+
+
+
     def DISPboxsubmitclick(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
@@ -4664,14 +4677,14 @@ class DisplayFrame:
         self.excelsheetchoice_opt = excelsheet_menu  # save this way so that values are not cleared
         self.DISPexcelsheetinput = self.DISPexcelsheetnamelist[0]
 
-        print('DISPLAY:  excel field name set to {}'.format(self.DISPexcelnameinput))
-        print('DISPLAY:  excel sheet name set to {}'.format(self.DISPexcelsheetinput))
+        # print('DISPLAY:  excel field name set to {}'.format(self.DISPexcelnameinput))
+        # print('DISPLAY:  excel sheet name set to {}'.format(self.DISPexcelsheetinput))
 
         return self
 
     def DISPexcelsheetchoice(self,value):
         self.DISPexcelsheetinput = value
-        print('DISPLAY:  excel sheet name set to {}'.format(self.DISPexcelsheetinput))
+        # print('DISPLAY:  excel sheet name set to {}'.format(self.DISPexcelsheetinput))
         return self
 
 
@@ -4709,9 +4722,12 @@ class DisplayFrame:
             fieldname = fields[nn]
             values = df1.loc[rownums,fieldname]
             value_text = ''
-            for v in values: value_text += str(v)+', '
+            value_num = []
+            for v in values:
+                value_text += str(v)+', '
+                value_num += [int(v)]
             value_text = value_text[:-2]
-            self.connectiondata_values[fieldname] = values
+            self.connectiondata_values[fieldname] = value_num
             if len(values) == 1:
                 numtext = '1 value'
             else:
@@ -4758,13 +4774,13 @@ class DisplayFrame:
             k = list(connectiondata.keys())
             nvals = len(connectiondata[k[0]])
             if nvals > 1:
-                self.PlotAx2.clear()
+                self.controller.PlotAx4.clear()
             else:
                 xls = pd.ExcelFile(self.DBname, engine='openpyxl')
                 df1 = pd.read_excel(xls, 'datarecord')
                 normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
-                # pydisplay.display_anatomical_figure(filename1, connectiondata, normtemplatename, [1, 0, 0], 'sagittal', self.Canvas2, self.PlotAx2)
-                pydisplay.display_anatomical_figure(filename1, connectiondata, normtemplatename, [1, 0, 0], 'sagittal', self.controller.Canvas4, self.controller.PlotAx4)
+                # pydisplay.display_anatomical_figure(filename1, connectiondata, normtemplatename, [1, 0, 0], self.DISPanatorientation, self.Canvas2, self.PlotAx2)
+                pydisplay.display_anatomical_figure(filename1, connectiondata, normtemplatename, [1, 0, 0], self.DISPanatorientation, self.controller.Canvas4, self.controller.PlotAx4)
 
         if self.DISPmethod == 'lineplot':
             # generate line plot
@@ -4773,8 +4789,8 @@ class DisplayFrame:
             xls = pd.ExcelFile(self.DBname, engine='openpyxl')
             df1 = pd.read_excel(xls, 'datarecord')
             normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
-            # pydisplay.display_anatomical_figure(filename1, connectiondata, normtemplatename, [1,0,0], 'sagittal', self.Canvas2, self.PlotAx2)
-            pydisplay.display_anatomical_figure(filename1, connectiondata, normtemplatename, [1,0,0], 'sagittal', self.controller.Canvas4, self.controller.PlotAx4)
+            # pydisplay.display_anatomical_figure(filename1, connectiondata, normtemplatename, [1,0,0], self.DISPanatorientation, self.Canvas2, self.PlotAx2)
+            pydisplay.display_anatomical_figure(filename1, connectiondata, normtemplatename, [1,0,0], self.DISPanatorientation, self.controller.Canvas4, self.controller.PlotAx4)
 
 
     # initialize the values, keeping track of the frame this definition works on (parent), and
@@ -4784,6 +4800,7 @@ class DisplayFrame:
         self.parent = parent
         self.controller = controller
         self.DISPmethod = 'boxplot'
+        self.DISPanatorientation = 'sagittal'
 
         # initialize some values
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
@@ -4837,11 +4854,11 @@ class DisplayFrame:
         self.DISPresultsnamelabel = tk.Label(self.parent, textvariable=self.DISPresultsnametext, bg=bgcol, fg="#4B4B4B",
                                              font="none 10",
                                              wraplength=250, justify='left')
-        self.DISPresultsnamelabel.grid(row=0, column=2, sticky='S')
+        self.DISPresultsnamelabel.grid(row=0, column=2, columnspan=2, sticky='S')
         self.DISPresultsdirlabel = tk.Label(self.parent, textvariable=self.DISPresultsdirtext, bg=bgcol, fg="#4B4B4B",
                                             font="none 8",
                                             wraplength=250, justify='left')
-        self.DISPresultsdirlabel.grid(row=1, column=2, sticky='N')
+        self.DISPresultsdirlabel.grid(row=1, column=2, columnspan=2, sticky='N')
         # define a button to browse and select an existing network definition file, and write out the selected name
         # also, define the function for what to do when this button is pressed
 
@@ -4857,11 +4874,11 @@ class DisplayFrame:
         self.DISPresultsnamelabel2 = tk.Label(self.parent, textvariable=self.DISPresultsnametext2, bg=bgcol,
                                               fg="#4B4B4B", font="none 10",
                                               wraplength=250, justify='left')
-        self.DISPresultsnamelabel2.grid(row=2, column=2, sticky='S')
+        self.DISPresultsnamelabel2.grid(row=2, column=2, columnspan=2, sticky='S')
         self.DISPresultsdirlabel2 = tk.Label(self.parent, textvariable=self.DISPresultsdirtext2, bg=bgcol, fg="#4B4B4B",
                                              font="none 8",
                                              wraplength=250, justify='left')
-        self.DISPresultsdirlabel2.grid(row=3, column=2, sticky='N')
+        self.DISPresultsdirlabel2.grid(row=3, column=2, columnspan=2, sticky='N')
 
         # covariate names
         chartext = ''
@@ -4874,13 +4891,13 @@ class DisplayFrame:
         self.DISPchartextlabel = tk.Label(self.parent, text='Covariates: ')
         self.DISPchartextlabel.grid(row=4, column=1, sticky='N')
         self.DISPchartextlabel2 = tk.Label(self.parent, textvariable=self.DISPcovtext, bg=bgcol, fg="#4B4B4B", font="none 8",
-                                             wraplength=300, justify='left')
-        self.DISPchartextlabel2.grid(row=4, column=2, sticky='N')
+                                             wraplength=250, justify='left')
+        self.DISPchartextlabel2.grid(row=4, column=2, columnspan=2, sticky='N')
 
         # button to update values if they have been changed in the Group frame
         self.DISPupdatebutton = tk.Button(self.parent, text='Refresh', width=smallbuttonsize, bg=fgcol2, fg='black',
                                           command=self.DISPupdateaction, relief='raised', bd=5)
-        self.DISPupdatebutton.grid(row=0, column=3)
+        self.DISPupdatebutton.grid(row=0, column=4)
 
         # create entry boxes to indicate which results to plot
         # need:
@@ -4908,12 +4925,12 @@ class DisplayFrame:
         print('connectiondata_names set to {}'.format(self.connectiondata_names))
 
         field_menu = tk.OptionMenu(self.parent, self.field_var, *self.DISPfields, command = self.DISPfieldchoice)
-        field_menu.grid(row=5, column=2, sticky='EW')
+        field_menu.grid(row=5, column=2, columnspan=2, sticky='EW')
         self.fieldchoice_opt = field_menu   # save this way so that values are not cleared
 
         # 2) boxplot or correlation plot?--------------------------------------------------
         self.DISPlabel4 = tk.Label(self.parent, text="Plot Method:")
-        self.DISPlabel4.grid(row=6, column=1, sticky='W')
+        self.DISPlabel4.grid(row=6, column=1, sticky='E')
         self.DISPplotmethod = tk.IntVar(None,1)
         self.DISPmethod1 = tk.Radiobutton(self.parent, text = 'Box Plot', width = smallbuttonsize, fg = 'black',
                                           command = self.DISPsetmethodtype, variable = self.DISPplotmethod, value = 1)
@@ -4922,6 +4939,23 @@ class DisplayFrame:
         self.DISPmethod2 = tk.Radiobutton(self.parent, text = 'XY Scatter Plot', width = smallbuttonsize, fg = 'black',
                                           command = self.DISPsetmethodtype, variable = self.DISPplotmethod, value = 2)
         self.DISPmethod2.grid(row = 6, column = 3, sticky="W")
+
+        # 2b) show anatomical images (if appropriate)?------------------------------------
+        self.DISPlabel5 = tk.Label(self.parent, text="Show Anat.:")
+        self.DISPlabel5.grid(row=6, column=4, sticky='E')
+
+        self.DISPshowanat = tk.IntVar(None,2)
+        self.DISPanat1 = tk.Radiobutton(self.parent, text = 'Axial', width = smallbuttonsize, fg = 'black',
+                                          command = self.DISPsetanattype, variable = self.DISPshowanat, value = 1)
+        self.DISPanat1.grid(row = 6, column = 5, sticky="W")
+
+        self.DISPanat2 = tk.Radiobutton(self.parent, text = 'Sagittal', width = smallbuttonsize, fg = 'black',
+                                          command = self.DISPsetanattype, variable = self.DISPshowanat, value = 2)
+        self.DISPanat2.grid(row = 6, column = 6, sticky="W")
+
+        self.DISPanat3 = tk.Radiobutton(self.parent, text = 'Coronal', width = smallbuttonsize, fg = 'black',
+                                          command = self.DISPsetanattype, variable = self.DISPshowanat, value = 3)
+        self.DISPanat3.grid(row = 6, column = 7, sticky="W")
 
         #--------------------------------------------------------------------------------------------------------
         # 3) networkcomponent, tt, combo, timepoint, ss for network results "b" or "R2"
@@ -4934,7 +4968,7 @@ class DisplayFrame:
 
         # provide 5 text boxes for inputing values,  one for each entry in self.connectiondata, and self.connectiondata_names
 
-        self.DISPsectionlabel1 = tk.Label(self.parent, text='Specify which data to display:')
+        self.DISPsectionlabel1 = tk.Label(self.parent, text='Specify data to display:')
         self.DISPsectionlabel1.grid(row=7, column=1, columnspan = 2, sticky='W')
         nvalues = len(self.connectiondata_names)  # for initializing values
         # box1
@@ -5010,9 +5044,9 @@ class DisplayFrame:
         self.DISPboxnum5.grid(row=12, column=3, sticky='W')
 
         # the entry box needs a "submit" button so that the program knows when to take the entered values
-        self.DISPboxsubmit = tk.Button(self.parent, text="Submit Connection Details", width=bigbigbuttonsize, bg=fgcol2, fg='black',
+        self.DISPboxsubmit = tk.Button(self.parent, text="Submit Conn. Details", width=bigbigbuttonsize, bg=fgcol2, fg='black',
                                      command=self.DISPboxsubmitclick, relief='raised', bd=5)
-        self.DISPboxsubmit.grid(row=13, column=1, sticky='W')
+        self.DISPboxsubmit.grid(row=13, column=1, columnspan=2, sticky='W')
 
         # option to select an excel file instead-----------------------------------------------------
         # make a label to show the current setting of the database name
@@ -5021,12 +5055,12 @@ class DisplayFrame:
         self.DISPexcelnametext = tk.StringVar()
         self.DISPexcelnametext.set(self.DISPexcelnameinput)
         self.DISPexcelnamelabel = tk.Label(self.parent, textvariable=self.DISPexcelnametext, bg=bgcol, fg="black", font="none 10",
-                                     wraplength=200, justify='left')
-        self.DISPexcelnamelabel.grid(row=14, column=2, sticky='W')
+                                     wraplength=250, justify='left')
+        self.DISPexcelnamelabel.grid(row=14, column=2, columnspan=2, sticky='W')
         # define a browse button
         self.DISPexcelnamebrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg=fgcol2, fg='black',
                                   command=self.DISPexcelnamebrowseclick, relief='raised', bd=5)
-        self.DISPexcelnamebrowse.grid(row=14, column=3)
+        self.DISPexcelnamebrowse.grid(row=14, column = 4)
 
         # create pulldown menu for the sheet name
         self.DISPexcelsheetnamelabel = tk.Label(self.parent, text='Excel sheet name:')
@@ -5037,7 +5071,7 @@ class DisplayFrame:
         else:
             self.sheetname_var.set('empty')
         self.excelsheet_menu = tk.OptionMenu(self.parent, self.sheetname_var, *self.DISPexcelsheetnamelist, command=self.DISPexcelsheetchoice)
-        self.excelsheet_menu.grid(row=15, column=2, sticky='W')
+        self.excelsheet_menu.grid(row=15, column=2, columnspan=2, sticky='W')
         self.excelsheetchoice_opt = self.excelsheet_menu  # save this way so that values are not cleared
 
         # box for entering values of which excel file rows to read
@@ -5050,7 +5084,7 @@ class DisplayFrame:
         # the entry box needs a "submit" button so that the program knows when to take the entered values
         self.DISPentrynumsubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg='black',
                                      command=self.DISPentrynumsubmitclick, relief='raised', bd=5)
-        self.DISPentrynumsubmit.grid(row=16, column=3)
+        self.DISPentrynumsubmit.grid(row=16, column=4)
 
         # button to generate the plot
         # for now, just put a button that will eventually call the NIfTI conversion program

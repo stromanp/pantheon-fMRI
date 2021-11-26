@@ -8,6 +8,8 @@ import os
 import py2ndlevelanalysis
 import pydatabase
 import matplotlib.pyplot as plt
+import pyclustering
+import pysem
 
 # setup color scales for displays
 def colormap(values):
@@ -557,7 +559,7 @@ def display_whisker_plots(filename1, filename2, connectiondata, field_to_plot, T
             regionnames, clusternums, regionnums = py2ndlevelanalysis.get_cluster_info(namelist, nclusterlist, s)
             if len(regionnamet) > 4: regionnamet = regionnamet[:4]
             if len(regionnames) > 4: regionnames = regionnames[:4]
-            textlabel = '{:4s}{}-{:4s}{}'.format(regionnamet,clusternumt,regionnames,clusternums)
+            textlabel = '{:4s}{}-{:4s}{}'.format(regionnames,clusternums,regionnamet,clusternumt)
             plotlabel.append(textlabel)
             if twogroup:
                 d2 = pdata2[t[nn],s1[nn],s2[nn],timepoint[nn],:,nb[nn]]
@@ -574,15 +576,16 @@ def display_whisker_plots(filename1, filename2, connectiondata, field_to_plot, T
                 setBoxColors(bp)
                 ppos_list.append(ppos+0.5)
             TargetAxes.set_xticks(ppos_list)
-            TargetAxes.set_xticklabels(plotlabel, rotation = 90, fontsize=labelfont)
+            TargetAxes.set_xticklabels(plotlabel, rotation = 45, fontsize=labelfont)
             # plt.tight_layout()
         else:
             TargetAxes.boxplot(plotdata_g1, notch = True, showfliers = False)
-            TargetAxes.set_xticklabels(plotlabel, rotation = 90, fontsize=labelfont)
+            TargetAxes.set_xticklabels(plotlabel, rotation = 45, fontsize=labelfont)
             # plt.tight_layout()
 
-        plt.yticks(fontsize=labelfont)
         TargetAxes.set_title(field_to_plot, fontsize=titlefont)
+        plt.yticks(fontsize=labelfont)
+        plt.tight_layout()
         TargetCanvas.draw()
         # TargetCanvas.savefig('filename.eps', format='eps')
 
@@ -605,21 +608,62 @@ def display_whisker_plots(filename1, filename2, connectiondata, field_to_plot, T
 
         if twogroup: resultsnames2 = data2['resultsnames']
 
-        # need to sort the input list by network component number ...
-        aa = np.argsort(networkcomponent)
-        networkcomponent2 = [networkcomponent[x] for x in aa]
-        tt2 = [tt[x] for x in aa]
-        combo2 = [combo[x] for x in aa]
-        timepoint2 = [timepoint[x] for x in aa]
-        ss2 = [ss[x] for x in aa]
+        # # need to sort the input list by network component number ...
+        # aa = np.argsort(networkcomponent)
+        # networkcomponent2 = [networkcomponent[x] for x in aa]
+        # tt2 = [tt[x] for x in aa]
+        # combo2 = [combo[x] for x in aa]
+        # timepoint2 = [timepoint[x] for x in aa]
+        # ss2 = [ss[x] for x in aa]
+        # networknumberlist = np.unique(networkcomponent2)
+        #
+        # # collect the data values to plot
+        # plotdata_g1 = []
+        # plotdata_g2 = []
+        # plotlabel = []
+        # for networknumber in networknumberlist:
+        #     fname1 = resultsnames[networknumber]
+        #     ndata = np.load(fname1, allow_pickle=True).flat[0]
+        #     ntclusters = len(ndata['sem_one_target_results'])
+        #
+        #     targetname = network[networknumber]['target']
+        #     if len(targetname) > 4: targetname = targetname[:4]
+        #     sources = network[networknumber]['sources']
+        #     targetnum = network[networknumber]['targetnum']
+        #     sourcenums = network[networknumber]['sourcenums']
+        #
+        #     if twogroup:
+        #         fname2 = resultsnames2[networknumber]
+        #         ndata2 = np.load(fname2, allow_pickle=True).flat[0]
+        #
+        #     for nn in range(len(networkcomponent2)):
+        #         if networkcomponent2[nn] == networknumber:
+        #             pdata1 = ndata['sem_one_target_results'][tt2[nn]]['b']
+        #             ncombo, ntime, NP, ns = np.shape(pdata1)
+        #
+        #             d = pdata1[combo2[nn],timepoint2[nn],:,ss2[nn]]   # one group data for one connection
+        #             plotdata_g1.append(d)
+        #
+        #             # sourcename = cluster_info[sourcenums[ss2[nn]]]['rname']
+        #             sourcename = namelist[sourcenums[ss2[nn]]]
+        #             mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums], combo2[nn]).astype(int)  # cluster number for each source
+        #             sourcecluster = mlist[ss2[nn]]
+        #
+        #             if len(sourcename) > 4: sourcename = sourcename[:4]
+        #             textlabel = '{:4s}{}-{:4s}{}'.format(targetname,tt2[nn],sourcename,sourcecluster)
+        #             plotlabel.append(textlabel)
+        #             if twogroup:
+        #                 pdata2 = ndata2['sem_one_target_results'][tt2[nn]]['b']
+        #                 d = pdata2[combo2[nn],timepoint2[nn],:,ss2[nn]]   # one group data for one connection
+        #                 plotdata_g2.append(d)
 
-        networknumberlist = np.unique(networkcomponent2)
 
+        # do not bother sorting by network component number ...
         # collect the data values to plot
         plotdata_g1 = []
         plotdata_g2 = []
         plotlabel = []
-        for networknumber in networknumberlist:
+        for nn,networknumber in enumerate(networkcomponent):
             fname1 = resultsnames[networknumber]
             ndata = np.load(fname1, allow_pickle=True).flat[0]
             ntclusters = len(ndata['sem_one_target_results'])
@@ -634,26 +678,24 @@ def display_whisker_plots(filename1, filename2, connectiondata, field_to_plot, T
                 fname2 = resultsnames2[networknumber]
                 ndata2 = np.load(fname2, allow_pickle=True).flat[0]
 
-            for nn in range(len(networkcomponent2)):
-                if networkcomponent2[nn] == networknumber:
-                    pdata1 = ndata['sem_one_target_results'][tt2[nn]]['b']
-                    ncombo, ntime, NP, ns = np.shape(pdata1)
+            pdata1 = ndata['sem_one_target_results'][tt[nn]]['b']
+            ncombo, ntime, NP, ns = np.shape(pdata1)
 
-                    d = pdata1[combo2[nn],timepoint2[nn],:,ss2[nn]]   # one group data for one connection
-                    plotdata_g1.append(d)
+            d = pdata1[combo[nn],timepoint[nn],:,ss[nn]]   # one group data for one connection
+            plotdata_g1.append(d)
 
-                    # sourcename = cluster_info[sourcenums[ss2[nn]]]['rname']
-                    sourcename = namelist[sourcenums[ss2[nn]]]
-                    mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums], combo2[nn]).astype(int)  # cluster number for each source
-                    sourcecluster = mlist[ss2[nn]]
+            # sourcename = cluster_info[sourcenums[ss2[nn]]]['rname']
+            sourcename = namelist[sourcenums[ss[nn]]]
+            mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums], combo[nn]).astype(int)  # cluster number for each source
+            sourcecluster = mlist[ss[nn]]
 
-                    if len(sourcename) > 4: sourcename = sourcename[:4]
-                    textlabel = '{:4s}{}-{:4s}{}'.format(targetname,tt2[nn],sourcename,sourcecluster)
-                    plotlabel.append(textlabel)
-                    if twogroup:
-                        pdata2 = ndata2['sem_one_target_results'][tt2[nn]]['b']
-                        d = pdata2[combo2[nn],timepoint2[nn],:,ss2[nn]]   # one group data for one connection
-                        plotdata_g2.append(d)
+            if len(sourcename) > 4: sourcename = sourcename[:4]
+            textlabel = '{:4s}{}-{:4s}{}'.format(sourcename,sourcecluster,targetname,tt[nn])
+            plotlabel.append(textlabel)
+            if twogroup:
+                pdata2 = ndata2['sem_one_target_results'][tt[nn]]['b']
+                d = pdata2[combo[nn],timepoint[nn],:,ss[nn]]   # one group data for one connection
+                plotdata_g2.append(d)
 
         # create the boxplot
         TargetAxes.clear()
@@ -666,11 +708,11 @@ def display_whisker_plots(filename1, filename2, connectiondata, field_to_plot, T
                 setBoxColors(bp)
                 ppos_list.append(ppos+0.5)
             TargetAxes.set_xticks(ppos_list)
-            TargetAxes.set_xticklabels(plotlabel, rotation = 90, fontsize=labelfont)
+            TargetAxes.set_xticklabels(plotlabel, rotation = 45, fontsize=labelfont)
             # plt.tight_layout()
         else:
             TargetAxes.boxplot(plotdata_g1, notch = True, showfliers = False)
-            TargetAxes.set_xticklabels(plotlabel, rotation = 90, fontsize=labelfont)
+            TargetAxes.set_xticklabels(plotlabel, rotation = 45, fontsize=labelfont)
             # plt.tight_layout()
 
         plt.tight_layout()
@@ -796,6 +838,8 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
 
     else:
         # connection data for network results
+        print('connectiondata = {}'.format(connectiondata))
+
         networkcomponent = connectiondata['networkcomponent'][0]
         tt = connectiondata['tt'][0]
         combo = connectiondata['combo'][0]
@@ -834,7 +878,7 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
         sourcecluster = mlist[ss]
 
         if len(sourcename) > 4: sourcename = sourcename[:4]
-        textlabel = '{:4s}{}-{:4s}{}'.format(targetname, tt, sourcename, sourcecluster)
+        textlabel = '{:4s}{}-{:4s}{}'.format(sourcename, sourcecluster, targetname, tt)
 
         if twogroup:
             fname2 = resultsnames2[networkcomponent]
