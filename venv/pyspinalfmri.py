@@ -236,7 +236,19 @@ class mainspinalfmri_window:
         page_name = DisplayFrame.__name__
         self.frames[page_name] = DISPbase
 
-        # self.imgwindow = DISPFrame
+        DISPbase2 = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
+        DISPbase2.grid(row=1, column=1, sticky="nsew")
+        frameref = DisplayFrame2(DISPbase2, self)
+        page_name = DisplayFrame2.__name__
+        self.frames[page_name] = DISPbase2
+
+        self.PlotFigure3 = frameref.PlotFigure3
+        self.PlotAx3 = frameref.PlotAx3
+        self.Canvas3 = frameref.Canvas3
+
+        self.PlotFigure4 = frameref.PlotFigure4
+        self.PlotAx4 = frameref.PlotAx4
+        self.Canvas4 = frameref.Canvas4
 
         # start with the Database information frame on top
         self.show_frame('DBFrame')
@@ -475,11 +487,18 @@ class OptionsFrame:
         self.display = tk.Button(self.parent, text = 'Display', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: self.options_show_frame('DisplayFrame', 'display'), relief='raised', bd = 5)
         self.display.grid(row = 8, column = 0)
         self.buttons['display'] = self.display
-        
+
+        # button for selecting and running the group-level analysis steps
+        self.display2 = tk.Button(self.parent, text = 'Display2', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: self.options_show_frame('DisplayFrame2', 'display2'), relief='raised', bd = 5)
+        self.display2.grid(row = 9, column = 0)
+        self.buttons['display2'] = self.display2
+
         # define a button to exit the GUI
         # also, define the function for what to do when this button is pressed
         self.exit_button = tk.Button(self.parent, text = 'Exit', width = smallbuttonsize, bg = 'grey80', fg = 'black', font = "none 9 bold", command = self.close_window, relief='sunken', bd = 5)
-        self.exit_button.grid(row = 9, column = 0)
+        self.exit_button.grid(row = 10, column = 0)
+
+
 
         # exit function
     def close_window(self):
@@ -1175,33 +1194,33 @@ class NCFrame:
 
         # button to recalculate normalization after manual over-ride
         self.NCrun = tk.Button(self.parent, text = 'Recalculate', width = bigbigbuttonsize, bg = fgcol3, fg = 'white', command = self.NCrecalculate_after_override, font = "none 9 bold", relief='raised', bd = 5)
-        self.NCrun.grid(row = 7, column = 5)
+        self.NCrun.grid(row = 7, column = 4)
 
 
         # entry box and button to copy rough normalization from another database number
         self.NCcopy_label = tk.Label(self.parent, text="Copy rough normalization from another data set:")
-        self.NCcopy_label.grid(row=8, column=5, columnspan = 2, sticky='E')
-        self.NCcopy_label = tk.Label(self.parent, text="Datbase number:")
-        self.NCcopy_label.grid(row=9, column=5, sticky='E')
+        self.NCcopy_label.grid(row=8, column=4, columnspan = 3, sticky='SE')
+        self.NCcopy_label2 = tk.Label(self.parent, text="Datbase number:")
+        self.NCcopy_label2.grid(row=9, column=4, sticky='E')
         # create the Entry box, for position stiffness upper
         self.NCcopyentry = tk.Entry(self.parent, width=8, bg="white")
-        self.NCcopyentry.grid(row=9, column=6, sticky="W")
+        self.NCcopyentry.grid(row=9, column=5, sticky="W")
         self.NCcopyentry.insert(0, self.copydbnumber)
         # the entry box needs a "submit" button so that the program knows when to take the entered values
         self.NCcopysubmit = tk.Button(self.parent, text = "Copy", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.NCcopyroughnorm, relief='raised', bd = 5)
-        self.NCcopysubmit.grid(row = 9, column = 7)
+        self.NCcopysubmit.grid(row = 9, column = 6)
 
 
         img1 = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
         controller.img1d = img1  # need to keep a copy so it is not cleared from memory
         self.window1 = tk.Canvas(master = self.parent, width=img1.width(), height=img1.height(), bg='black')
-        self.window1.grid(row=7, column=0,rowspan = 2, columnspan = 2, sticky='NW')
+        self.window1.grid(row=7, column=0,rowspan = 3, columnspan = 2, sticky='NW')
         self.windowdisplay1 = self.window1.create_image(0, 0, image=img1, anchor=tk.NW)
 
         img2 = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
         controller.img2d = img2  # need to keep a copy so it is not cleared from memory
         self.window2 = tk.Canvas(master = self.parent, width=img2.width(), height=img2.height(), bg='black')
-        self.window2.grid(row=7, column=2,rowspan = 2, columnspan = 2, sticky='NW')
+        self.window2.grid(row=7, column=2,rowspan = 3, columnspan = 2, sticky='NW')
         self.windowdisplay2 = self.window2.create_image(0, 0, image=img2, anchor=tk.NW)
 
 
@@ -1388,10 +1407,6 @@ class NCFrame:
         normname = df1.loc[dbnum, 'normdataname']
         normdataname_full = os.path.join(dbhome, normname)
 
-        # fullpath, filename = os.path.split(niiname)
-        # tag = '_s' + str(seriesnumber)
-        # normdataname_full = os.path.join(fullpath, normdatasavename + tag + '.npy')
-
         # get normdataname to copy from
         dbhomeC = df1.loc[copydbnum, 'datadir']
         normnameC = df1.loc[copydbnum, 'normdataname']
@@ -1416,34 +1431,6 @@ class NCFrame:
                     'norm_image_fine': norm_image_fine, 'template_affine': template_affine, 'imagerecord': imagerecord,
                     'result': result}
         np.save(normdataname_full, normdata)
-
-
-        # input_datar = i3d.load_and_scale_nifti(niiname)
-        # if np.ndim(input_datar) > 3:
-        #     x, y, z, t = np.shape(input_datar)
-        #     if t > 3:
-        #         t0 = 3
-        #     else:
-        #         t0 = 0
-        #     input_image = input_datar[:, :, :, t0]
-        # else:
-        #     x, y, z = np.shape(input_datar)
-        #     input_image = input_datar
-        #
-        # background2 = input_image
-        # xs,ys,zs = np.shape(input_image)
-        # xmid = np.round(xs/2).astype(int)
-        # img = input_image[xmid,:,:]
-        # img = (255.*img/np.max(img)).astype(int)
-        # image_tk = ImageTk.PhotoImage(Image.fromarray(img))
-        # self.controller.img1d = image_tk  # keep a copy so it persists
-        # imagerecord = []
-        # imagerecord.append({'img':img})
-        #
-        # resolution = 1
-        # template_img, regionmap_img, template_affine, anatlabels, wmmap_img, roi_map, gmwm_img = load_templates.load_template_and_masks(
-        #     normtemplatename, resolution)
-        # normdata['imagerecord'] = imagerecord
 
         print('saving normdata to {}'.format(normdataname_full))
         np.save(normdataname_full, normdata)   # overwrite the norm data with the copy
@@ -4714,8 +4701,8 @@ class DisplayFrame:
 
         fields = self.connectiondata
         rownums = self.DISPexcelentrynums
-        print('fields = {}'.format(fields))
-        print('rownums = {}'.format(rownums))
+        # print('fields = {}'.format(fields))
+        # print('rownums = {}'.format(rownums))
 
         self.connectiondata_values = {}
         for nn in range(len(fields)):
@@ -4764,11 +4751,10 @@ class DisplayFrame:
         connectiondata = self.connectiondata_values
         field_to_plot = self.field_var.get()
 
-        self.DISPmethod  # boxplot or scatter plot
-
         if self.DISPmethod == 'boxplot':
             # generate box plot
-            pydisplay.display_whisker_plots(filename1, filename2, connectiondata, field_to_plot, self.Canvas1, self.PlotAx1)
+            # pydisplay.display_whisker_plots(filename1, filename2, connectiondata, field_to_plot, self.Canvas1, self.PlotAx1)
+            pydisplay.display_whisker_plots(filename1, filename2, connectiondata, field_to_plot, self.controller.Canvas3, self.controller.PlotAx3)
             k = list(connectiondata.keys())
             nvals = len(connectiondata[k[0]])
             if nvals > 1:
@@ -4777,15 +4763,18 @@ class DisplayFrame:
                 xls = pd.ExcelFile(self.DBname, engine='openpyxl')
                 df1 = pd.read_excel(xls, 'datarecord')
                 normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
-                pydisplay.display_anatomical_figure(filename1, connectiondata, normtemplatename, [1, 0, 0], 'sagittal', self.Canvas2, self.PlotAx2)
+                # pydisplay.display_anatomical_figure(filename1, connectiondata, normtemplatename, [1, 0, 0], 'sagittal', self.Canvas2, self.PlotAx2)
+                pydisplay.display_anatomical_figure(filename1, connectiondata, normtemplatename, [1, 0, 0], 'sagittal', self.controller.Canvas4, self.controller.PlotAx4)
 
         if self.DISPmethod == 'lineplot':
             # generate line plot
-            pydisplay.display_correlation_plots(filename1, filename2, connectiondata, field_to_plot, covariates1[0,:], covariates2[0,:], 'none', self.Canvas1, self.PlotAx1)
+            # pydisplay.display_correlation_plots(filename1, filename2, connectiondata, field_to_plot, covariates1[0,:], covariates2[0,:], 'none', self.Canvas1, self.PlotAx1)
+            pydisplay.display_correlation_plots(filename1, filename2, connectiondata, field_to_plot, covariates1[0,:], covariates2[0,:], 'none', self.controller.Canvas3, self.controller.PlotAx3)
             xls = pd.ExcelFile(self.DBname, engine='openpyxl')
             df1 = pd.read_excel(xls, 'datarecord')
             normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
-            pydisplay.display_anatomical_figure(filename1, connectiondata, normtemplatename, [1,0,0], 'sagittal', self.Canvas2, self.PlotAx2)
+            # pydisplay.display_anatomical_figure(filename1, connectiondata, normtemplatename, [1,0,0], 'sagittal', self.Canvas2, self.PlotAx2)
+            pydisplay.display_anatomical_figure(filename1, connectiondata, normtemplatename, [1,0,0], 'sagittal', self.controller.Canvas4, self.controller.PlotAx4)
 
 
     # initialize the values, keeping track of the frame this definition works on (parent), and
@@ -4816,6 +4805,7 @@ class DisplayFrame:
         self.DISPexcelentrynums = 'not defined'
         self.connectiondata_names = ['not defined']*5
         self.connectiondata = ['not defined']*5
+        self.connectiondata_values = []
 
         # put some text as a place-holder
         self.DISPLabel1 = tk.Label(self.parent,
@@ -5024,7 +5014,6 @@ class DisplayFrame:
                                      command=self.DISPboxsubmitclick, relief='raised', bd=5)
         self.DISPboxsubmit.grid(row=13, column=1, sticky='W')
 
-
         # option to select an excel file instead-----------------------------------------------------
         # make a label to show the current setting of the database name
         self.DISPexcelnamelabel = tk.Label(self.parent, text='Excel file name:')
@@ -5070,42 +5059,44 @@ class DisplayFrame:
 
         #-----------------------------------------------------------------------------------------------
         # create the plot figures and axes--------------------------------------------------------------
-        rowstart = 5
-        self.PlotFigure1 = plt.figure(91, figsize=(3, 2), dpi=100)
-        self.PlotAx1 = self.PlotFigure1.add_subplot(111)
-        self.Canvas1 = FigureCanvasTkAgg(self.PlotFigure1 , self.parent)
-        self.Canvas1.get_tk_widget().grid(row=rowstart, column=4, rowspan = 7, columnspan = 2, sticky='W')
-        self.PlotAx1.set_title('Plot to be created here')
+        # rowstart = 5
+        # self.PlotFigure1 = plt.figure(91, figsize=(3, 2), dpi=100)
+        # self.PlotAx1 = self.PlotFigure1.add_subplot(111)
+        # self.Canvas1 = FigureCanvasTkAgg(self.PlotFigure1 , self.parent)
+        # self.Canvas1.get_tk_widget().grid(row=rowstart, column=4, rowspan = 7, columnspan = 2, sticky='W')
+        # self.PlotAx1.set_title('Plot to be created here')
+        #
+        # self.PlotFigure2 = plt.figure(92, figsize=(3, 2), dpi=100)
+        # self.PlotAx2 = self.PlotFigure2.add_subplot(111)
+        # self.Canvas2 = FigureCanvasTkAgg(self.PlotFigure2 , self.parent)
+        # self.Canvas2.get_tk_widget().grid(row=rowstart+7, column=4, rowspan = 7, columnspan = 2, sticky='W')
+        # self.PlotAx2.set_title('Anat fig to be shown here')
 
-        self.PlotFigure2 = plt.figure(92, figsize=(3, 2), dpi=100)
-        self.PlotAx2 = self.PlotFigure2.add_subplot(111)
-        self.Canvas2 = FigureCanvasTkAgg(self.PlotFigure2 , self.parent)
-        self.Canvas2.get_tk_widget().grid(row=rowstart+7, column=4, rowspan = 7, columnspan = 2, sticky='W')
-        self.PlotAx2.set_title('Anat fig to be shown here')
 
-        #
-        # # make objects in the display frame - for testing as place holders
-        # # load in a picture, for no good reason, and display it in the window to look nice :)
-        # photo1 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
-        # controller.photod1 = photo1  # need to keep a copy so it is not cleared from memory
-        # # put this figure, in the 1st row, 1st column, of a grid layout for the window
-        # # and make the background black
-        # self.W1 = tk.Label(self.parent, image=photo1, bg='grey94').grid(row=rowstart, column=1, sticky='W')
-        #
-        # # load in another picture, because if one picture is good, two is better
-        # photo2 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
-        # controller.photod2 = photo2  # need to keep a copy so it is not cleared from memory
-        # # put in another figure, for pure artistic value, in the 1st row, 2nd column, of a grid layout for the window
-        # # and make the background black
-        # self.W2 = tk.Label(self.parent, image=photo2, bg='grey94').grid(row=rowstart, column=2, sticky='W')
-        #
-        # photo3 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
-        # controller.photod3 = photo3  # need to keep a copy so it is not cleared from memory
-        # self.W3 = tk.Label(self.parent, image=photo3, bg='grey94').grid(row=rowstart+1, column=1, sticky='W')
-        #
-        # photo4 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
-        # controller.photod4 = photo4  # need to keep a copy so it is not cleared from memory
-        # self.W4 = tk.Label(self.parent, image=photo2, bg='grey94').grid(row=rowstart+1, column=2, sticky='W')
+class DisplayFrame2:
+
+    def __init__(self, parent, controller):
+        parent.configure(relief='raised', bd=5, highlightcolor=fgcol3)
+        self.parent = parent
+        self.controller = controller
+        self.DISPmethod = 'boxplot'
+
+        # initialize some values
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+
+        # -----------------------------------------------------------------------------------------------
+        # create the plot figures and axes--------------------------------------------------------------
+        self.PlotFigure3 = plt.figure(93, figsize=(4, 4), dpi=100)
+        self.PlotAx3 = self.PlotFigure3.add_subplot(111)
+        self.Canvas3 = FigureCanvasTkAgg(self.PlotFigure3, self.parent)
+        self.Canvas3.get_tk_widget().grid(row=0, column=0, sticky='W')
+        self.PlotAx3.set_title('data to be plotted here')
+
+        self.PlotFigure4 = plt.figure(94, figsize=(4, 4), dpi=100)
+        self.PlotAx4 = self.PlotFigure4.add_subplot(111)
+        self.Canvas4 = FigureCanvasTkAgg(self.PlotFigure4, self.parent)
+        self.Canvas4.get_tk_widget().grid(row=0, column=1, sticky='W')
+        self.PlotAx4.set_title('anatomical images to be displayed here')
 
 
 #----------MAIN calling function----------------------------------------------------

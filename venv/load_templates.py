@@ -220,7 +220,7 @@ def load_template(region_name, resolution, verbose = False):
     
     stop_time = time.time()
     run_time = stop_time-start_time
-    print('loaded template in {h} hours {m} minutes {s} seconds'.format(h = np.floor(run_time/3600), m = np.floor(np.mod(run_time/60, 60)), s = np.round(np.mod(run_time,60))))
+    # print('loaded template in {h} hours {m} minutes {s} seconds'.format(h = np.floor(run_time/3600), m = np.floor(np.mod(run_time/60, 60)), s = np.round(np.mod(run_time,60))))
 
     anatlabels = {'names':namelist, 'numbers':numberlist}
 
@@ -474,9 +474,9 @@ def load_template_and_masks(region_name, resolution, verbose=False):
 
     stop_time = time.time()
     run_time = stop_time - start_time
-    print('loaded template in {h} hours {m} minutes {s} seconds'.format(h=np.floor(run_time / 3600),
-                                                                        m=np.floor(np.mod(run_time / 60, 60)),
-                                                                        s=np.round(np.mod(run_time, 60))))
+    # print('loaded template in {h} hours {m} minutes {s} seconds'.format(h=np.floor(run_time / 3600),
+    #                                                                     m=np.floor(np.mod(run_time / 60, 60)),
+    #                                                                     s=np.round(np.mod(run_time, 60))))
 
     anatlabels = {'names': namelist, 'numbers': numberlist}
     roi_map = (regionmap_img > 0) | (wmmap_img > 0)

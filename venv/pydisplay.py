@@ -575,11 +575,11 @@ def display_whisker_plots(filename1, filename2, connectiondata, field_to_plot, T
                 ppos_list.append(ppos+0.5)
             TargetAxes.set_xticks(ppos_list)
             TargetAxes.set_xticklabels(plotlabel, rotation = 90, fontsize=labelfont)
-            plt.tight_layout()
+            # plt.tight_layout()
         else:
             TargetAxes.boxplot(plotdata_g1, notch = True, showfliers = False)
             TargetAxes.set_xticklabels(plotlabel, rotation = 90, fontsize=labelfont)
-            plt.tight_layout()
+            # plt.tight_layout()
 
         plt.yticks(fontsize=labelfont)
         TargetAxes.set_title(field_to_plot, fontsize=titlefont)
@@ -667,12 +667,13 @@ def display_whisker_plots(filename1, filename2, connectiondata, field_to_plot, T
                 ppos_list.append(ppos+0.5)
             TargetAxes.set_xticks(ppos_list)
             TargetAxes.set_xticklabels(plotlabel, rotation = 90, fontsize=labelfont)
-            plt.tight_layout()
+            # plt.tight_layout()
         else:
             TargetAxes.boxplot(plotdata_g1, notch = True, showfliers = False)
             TargetAxes.set_xticklabels(plotlabel, rotation = 90, fontsize=labelfont)
-            plt.tight_layout()
+            # plt.tight_layout()
 
+        plt.tight_layout()
         plt.yticks(fontsize=labelfont)
         TargetAxes.set_title('Network', fontsize=titlefont)
         TargetCanvas.draw()
@@ -788,7 +789,7 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
 
         plt.xticks(fontsize=labelfont)
         plt.yticks(fontsize=labelfont)
-        plt.tight_layout()
+        # plt.tight_layout()
         TargetCanvas.draw()
         # need input for file name
         # TargetCanvas.savefig('correlation_plot.eps', format='eps')
@@ -879,7 +880,7 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
 
         plt.xticks(fontsize=labelfont)
         plt.yticks(fontsize=labelfont)
-        plt.tight_layout()
+        # plt.tight_layout()
         TargetCanvas.draw()
         # need input for file name
         # TargetCanvas.savefig('correlation_plot.eps', format='eps')
@@ -1020,5 +1021,5 @@ def display_anatomical_figure(filename, connectiondata, templatename, regioncolo
     TargetAxes.clear()
     TargetAxes.imshow(bigimg)
     plt.axis('off')
-    plt.tight_layout()
+    # plt.tight_layout()
     TargetCanvas.draw()
