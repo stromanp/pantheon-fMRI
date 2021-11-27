@@ -3361,8 +3361,10 @@ class SEMFrame:
 
         CCrecord, beta2, beta1, Zgrid2, Zgrid1_1, Zgrid1_2 = pysem.pysem(cluster_properties, region_properties, self.SEMtimepoints, self.SEMepoch)
 
+        DBname = region_data['DBname']   # keep the values that were saved with the data
+        DBnum = region_data['DBnum']
         # save the results somehow
-        results = {'type':'2source','CCrecord':CCrecord, 'beta2':beta2, 'beta1':beta1, 'Zgrid2':Zgrid2, 'Zgrid1_1':Zgrid1_1,'Zgrid1_2':Zgrid1_2, 'DBname':self.DBname, 'DBnum':self.DBnum, 'cluster_properties':cluster_properties}
+        results = {'type':'2source','CCrecord':CCrecord, 'beta2':beta2, 'beta1':beta1, 'Zgrid2':Zgrid2, 'Zgrid1_1':Zgrid1_1,'Zgrid1_2':Zgrid1_2, 'DBname':DBname, 'DBnum':DBnum, 'cluster_properties':cluster_properties}
         resultsrecordname = os.path.join(self.SEMresultsdir, 'SEMresults_2source_record_' + self.SEMsavetag + '.npy')
         np.save(resultsrecordname, results)
 
@@ -3398,8 +3400,10 @@ class SEMFrame:
 
         outputnamelist = pysem.pysem_network(cluster_properties, region_properties, self.networkmodel, self.SEMtimepoints, self.SEMepoch, self.SEMresultsdir, self.SEMsavetag, self.SEMresumerun)
 
+        DBname = region_data['DBname']   # keep the values that were saved with the data
+        DBnum = region_data['DBnum']
         # save the results somehow
-        results = {'type':'network','resultsnames':outputnamelist, 'network':self.networkmodel, 'regionname':self.SEMregionname, 'clustername':self.SEMclustername, 'DBname':self.DBname, 'DBnum':self.DBnum}
+        results = {'type':'network','resultsnames':outputnamelist, 'network':self.networkmodel, 'regionname':self.SEMregionname, 'clustername':self.SEMclustername, 'DBname':DBname, 'DBnum':DBnum}
         resultsrecordname = os.path.join(self.SEMresultsdir, 'SEMresults_network_record_' + self.SEMsavetag + '.npy')
         np.save(resultsrecordname, results)
 

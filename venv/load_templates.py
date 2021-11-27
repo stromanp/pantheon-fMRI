@@ -233,7 +233,7 @@ def load_template(region_name, resolution, verbose = False):
 #-------------------------------------------------------------
 def load_template_and_masks(region_name, resolution, verbose=False):
     '''
-    template_img, regionmap_img, template_affine, anatlabels, wmmap_img, roi_map = ...
+    template_img, regionmap_img, template_affine, anatlabels, wmmap_img, roi_map, gmwm_img = ...
         load_template_and_masks(region_name, resolution, verbose)
     :param region_name: choices are 'brain', 'ccbs' or  a range of cord segments separated by the word ''to'' such
             as ''T1toT12''

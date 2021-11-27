@@ -181,7 +181,7 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, networkmodel, regionmap
             tc_sem[aa,:] = np.std(regiondata[cc, :], axis=0)/np.sqrt(nvox)
 
         clusterdef_entry = {'cx':cx, 'cy':cy, 'cz':cz,'IDX':IDX, 'nclusters':nclusters, 'rname':rname, 'regionindex':regionindex, 'regionnum':regionnum}
-        regiondata_entry = {'tc':tc, 'tc_sem':tc_sem, 'nruns_per_person':nruns_per_person, 'tsize':tsize}
+        regiondata_entry = {'tc':tc, 'tc_sem':tc_sem, 'nruns_per_person':nruns_per_person, 'tsize':tsize, 'rname':rname, 'DBname':DBname, 'DBnum':DBnum, 'prefix':prefix}
         region_properties.append(regiondata_entry)
         cluster_properties.append(clusterdef_entry)
 
@@ -287,7 +287,7 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, networkmodel):
                 tc[aa, :] = np.mean(regiondata[cc, :], axis=0)
                 tc_sem[aa, :] = np.std(regiondata[cc, :], axis=0) / np.sqrt(nvox)
 
-            regiondata_entry = {'tc': tc, 'tc_sem': tc_sem, 'nruns_per_person': nruns_per_person, 'tsize': tsize, 'rname':rname}
+            regiondata_entry = {'tc': tc, 'tc_sem': tc_sem, 'nruns_per_person': nruns_per_person, 'tsize': tsize, 'rname':rname, 'DBname':DBname, 'DBnum':DBnum, 'prefix':prefix}
             region_properties.append(regiondata_entry)
 
     return region_properties
