@@ -309,6 +309,7 @@ def pysem(cluster_properties, region_properties, timepoints = 0, epoch = 0):
     nclusterstotal = np.sum(nclusterlist)
 
     tsize = region_properties[0]['tsize']
+    print('pysem:  tsize = {}'.format(tsize))
     nruns_per_person = region_properties[0]['nruns_per_person']
     NP = len(nruns_per_person)   # number of people in the data set
 
@@ -363,6 +364,19 @@ def pysem(cluster_properties, region_properties, timepoints = 0, epoch = 0):
                 tplist1.append({'tp':tpoints})
             tplist.append(tplist1)
 
+    tcdata_centered = copy.deepcopy(tcdata)
+    for ttime in range(ntimepoints):
+        for nn in range(NP):
+            tp = tplist[ttime][nn]['tp']
+            tcdata1 = tcdata[:, tp]
+            for ee in range(nruns_per_person[nn]):
+                tpe1 = ee * epoch
+                tpe2 = (ee + 1) * epoch
+                tcdata1_mean = np.mean(tcdata1[:, tpe1:tpe2], axis=1)
+                # tcdata1_mean = np.repeat(tcdata1_mean[:,np.newaxis],epoch*nruns_per_person[nn],axis=1)
+                tcdata1_mean = np.repeat(tcdata1_mean[:, np.newaxis], epoch, axis=1)
+                tcdata1[:, tpe1:tpe2] = tcdata1[:, tpe1:tpe2] - tcdata1_mean  # need to set the mean for each epoch to zero
+            tcdata_centered[:,tp] = tcdata1
 
     # change to setting data to mean = 0 when it is first loaded
     CCrecord = np.zeros((ntimepoints,NP,nclusters,nclusters))
@@ -374,10 +388,7 @@ def pysem(cluster_properties, region_properties, timepoints = 0, epoch = 0):
             print('tp includes {} points'.format(len(tp)))
             print('nruns is {} and tsize/run is {}'.format(nruns_per_person[nn],epoch))
 
-            tcdata1 = tcdata[:,tp]
-            tcdata1_mean = np.mean(tcdata1,axis=1)
-            tcdata1_mean = np.repeat(tcdata1_mean[:,np.newaxis],epoch*nruns_per_person[nn],axis=1)
-            tcdata1 = tcdata1 - tcdata1_mean
+            tcdata1 = tcdata_centered[:,tp]
             # variance/covariance grid
             covmatrix = np.cov(tcdata1)
 
@@ -408,7 +419,7 @@ def pysem(cluster_properties, region_properties, timepoints = 0, epoch = 0):
         t2 = np.sum(nclusterlist[:(tregion+1)]).astype(int)
         tclusters = list(range(t1,t2))
         for tc in tclusters:
-            targetdata = tcdata[tc, :]
+            targetdata = tcdata_centered[tc, :]
             # print('pysem: calculating for cluster {} of target {} s1 region {} s2 region {} ...{}'.format(tc+1,tregion,s1region,s2region,time.ctime(time.time())))
 
             s1regions = np.setdiff1d(list(range(nregions)), tregion)
@@ -426,13 +437,13 @@ def pysem(cluster_properties, region_properties, timepoints = 0, epoch = 0):
                         s2clusters = list(range(s21, s22))
                         for s2c in s2clusters:
 
-                            X = tcdata[[s1c, s2c], :]
+                            X = tcdata_centered[[s1c, s2c], :]
                             # do the SEM fit thing, per person:
                             for ttime in range(ntimepoints):
                                 for nn in range(NP):
                                     tp = tplist[ttime][nn]['tp']
 
-                                    targetdata1 = targetdata[tp] - np.mean(targetdata[tp])
+                                    targetdata1 = targetdata[tp]  # - np.mean(targetdata[tp])
                                     X1 = X[:,tp]
                                     X1mean = np.mean(X1,axis=1)
                                     X1 = X1 - np.repeat(X1mean[:,np.newaxis],len(tp),axis=1)
@@ -528,6 +539,21 @@ def pysem_network(cluster_properties, region_properties, networkmodel, timepoint
                 tplist1.append({'tp':tpoints})
             tplist.append(tplist1)
 
+
+    tcdata_centered = copy.deepcopy(tcdata)
+    for ttime in range(ntimepoints):
+        for nn in range(NP):
+            tp = tplist[ttime][nn]['tp']
+            tcdata1 = tcdata[:, tp]
+            for ee in range(nruns_per_person[nn]):
+                tpe1 = ee * epoch
+                tpe2 = (ee + 1) * epoch
+                tcdata1_mean = np.mean(tcdata1[:, tpe1:tpe2], axis=1)
+                # tcdata1_mean = np.repeat(tcdata1_mean[:,np.newaxis],epoch*nruns_per_person[nn],axis=1)
+                tcdata1_mean = np.repeat(tcdata1_mean[:, np.newaxis], epoch, axis=1)
+                tcdata1[:, tpe1:tpe2] = tcdata1[:, tpe1:tpe2] - tcdata1_mean  # need to set the mean for each epoch to zero
+            tcdata_centered[:,tp] = tcdata1
+
     # check if a previous failed run is being resumed
     targetstart = 0
     componentstart = 0
@@ -602,18 +628,18 @@ def pysem_network(cluster_properties, region_properties, networkmodel, timepoint
             for ttime in range(ntimepoints):
                 for nn in range(NP):
                     tp = tplist[ttime][nn]['tp']
-                    targetdata = tcdata[targetdataindex,tp]
-                    targetdata1 = targetdata - np.mean(targetdata)
+                    targetdata = tcdata_centered[targetdataindex,tp]
+                    targetdata1 = targetdata # - np.mean(targetdata)
 
                     for index in range(ncombinations):
                         sourceclusters = ind2sub_ndims(nclusterlist[sourcenums], index)   # the cluster numbers to use for each source region
                         sourcedataindices = dataindices_from_sourceclusters(nclusterlist, sourcenums,index).astype(int)
 
-                        sourcedata = tcdata[sourcedataindices,:]
+                        sourcedata = tcdata_centered[sourcedataindices,:]
                         sourcedata = sourcedata[:,tp]
 
-                        Smean = np.mean(sourcedata, axis=1)
-                        sourcedata1 = sourcedata - np.repeat(Smean[:, np.newaxis], len(tp), axis=1)
+                        # Smean = np.mean(sourcedata, axis=1)
+                        sourcedata1 = sourcedata # - np.repeat(Smean[:, np.newaxis], len(tp), axis=1)
 
                         Lweight = 1e-2
                         alpha = 1e-2

@@ -4170,10 +4170,10 @@ class GRPFrame:
                     # apply ANOVA analysis to beta-values in the first data file named,
                     # with the first two personal characteristics used as discrete variables
                     pthreshold = GRPpvalue
-                    covariates1 = GRPcharacteristicsvalues[:1,:]
-                    covname = GRPcharacteristicslist[:1]
-                    outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, 'none', covariates1, 'none', pthreshold, mode = 'ANOVA', covariate_name = covname)
-
+                    covariates1 = GRPcharacteristicsvalues[:2,:]
+                    covname = GRPcharacteristicslist[:2]
+                    # outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, 'none', covariates1, 'none', pthreshold, mode = 'ANOVA', covariate_name = covname)
+                    outputfilename = py2ndlevelanalysis.single_group_ANOVA(datafile1, covariates1, pthreshold, mode='ANOVA', covariate_names=covname)
 
             if datafiletype1 == 2:  # BOLD data
                 if datafiletype2 == 2:
@@ -4188,9 +4188,10 @@ class GRPFrame:
                     # apply ANOVA analysis to beta-values in the first data file named,
                     # with the first two personal characteristics used as discrete variables
                     pthreshold = GRPpvalue
-                    covariates1 = GRPcharacteristicsvalues[:1,:]
-                    covname = GRPcharacteristicslist[:1]
-                    outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, 'none', covariates1, 'none', pthreshold, mode = 'ANOVA', covariate_name = covname)
+                    covariates1 = GRPcharacteristicsvalues[:2,:]
+                    covname = GRPcharacteristicslist[:2]
+                    # outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, 'none', covariates1, 'none', pthreshold, mode = 'ANOVA', covariate_name = covname)
+                    outputfilename = py2ndlevelanalysis.single_group_ANOVA(datafile1, covariates1, pthreshold, mode='ANOVA', covariate_names=covname)
 
 
         if GRPanalysistype == 'ANCOVA':
@@ -4207,9 +4208,10 @@ class GRPFrame:
                     # apply ANOVA analysis to beta-values in the first data file named,
                     # with the first two personal characteristics used as one discrete and one continuous variable
                     pthreshold = GRPpvalue
-                    covariates1 = GRPcharacteristicsvalues[:1,:]
-                    covname = GRPcharacteristicslist[:1]
-                    outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, 'none', covariates1, 'none', pthreshold, mode = 'ANCOVA', covariate_name = covname)
+                    covariates1 = GRPcharacteristicsvalues[:2,:]
+                    covname = GRPcharacteristicslist[:2]
+                    # outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, 'none', covariates1, 'none', pthreshold, mode = 'ANCOVA', covariate_name = covname)
+                    outputfilename = py2ndlevelanalysis.single_group_ANOVA(datafile1, covariates1, pthreshold, mode='ANCOVA', covariate_names=covname)
 
 
             if datafiletype1 == 2:  # BOLD data
@@ -4225,9 +4227,220 @@ class GRPFrame:
                     # apply ANOVA analysis to beta-values in the first data file named,
                     # with the first two personal characteristics used as one discrete and one continuous variable
                     pthreshold = GRPpvalue
-                    covariates1 = GRPcharacteristicsvalues[:1,:]
-                    covname = GRPcharacteristicslist[:1]
-                    outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, 'none', covariates1, 'none', pthreshold, mode = 'ANCOVA', covariate_name = covname)
+                    covariates1 = GRPcharacteristicsvalues[:2,:]
+                    covname = GRPcharacteristicslist[:2]
+                    # outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, 'none', covariates1, 'none', pthreshold, mode = 'ANCOVA', covariate_name = covname)
+                    outputfilename = py2ndlevelanalysis.single_group_ANOVA(datafile1, covariates1, pthreshold, mode='ANCOVA', covariate_names=covname)
+
+
+    def GRPmake2groups(self):
+        # split data file into two groups
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        GRPanalysistype = settings['GRPanalysistype']
+        # Sig1, Sig2, Sig2paired, Correlation, ANOVA, or ANCOVA
+
+        # check on the data to be used
+        datafile1 = settings['GRPresultsname']
+        datafile2 = settings['GRPresultsname2']
+        datafiletype1 = settings['GRPdatafiletype1']
+        datafiletype2 = settings['GRPdatafiletype2']
+        GRPcharacteristicslist = settings['GRPcharacteristicslist']
+        GRPcharacteristicsvalues = settings['GRPcharacteristicsvalues']
+        GRPcharacteristicsvalues2 = settings['GRPcharacteristicsvalues2']
+        GRPpvalue = settings['GRPpvalue']
+
+        if len(GRPcharacteristicslist) == 0:
+            print('GRPmake2groups:  no characteristics selected ...')
+            print('A categorical group characteristic must be selected that defines two distinct groups, for splitting a data file')
+            return 0
+        else:
+            print('GRPmake2groups: with data file type: ',datafiletype1, '  into groups based on: ',GRPcharacteristicslist[0])
+
+        # get the group names and indices------------------------------------------------
+        if np.ndim(GRPcharacteristicsvalues) > 1:
+            groups, ii = np.unique(GRPcharacteristicsvalues[0, :], return_inverse=True)
+        else:
+            groups, ii = np.unique(GRPcharacteristicsvalues, return_inverse=True)
+        g1 = np.where(ii == 0)[0]
+        g2 = np.where(ii == 1)[0]
+
+        if len(groups) > 2:
+            print('GRPmake2groups: more than two groups indicated by selected characteristic - cannot proceed. ')
+            return 0
+
+        # load the data----------------------------------------------------------------
+        data = np.load(datafile1, allow_pickle=True).flat[0]
+
+        filename_list, dbnum_person_list, NP = pydatabase.get_datanames_by_person(data['DBname'], data['DBnum'], '', mode='list')
+        DBnumlist1 = []
+        for x in g1: DBnumlist1 += dbnum_person_list[x][:]
+        DBnumlist2 = []
+        for x in g2: DBnumlist2 += dbnum_person_list[x][:]
+
+        if datafiletype1 == 0:  print('selected data file does not have the required format')
+        if datafiletype1 == 2:  print('time-course data selected .... not ready for this yet')
+
+        if datafiletype1 == 1:
+            print('SEM results selected')
+            if data['type'] == '2source':
+                # dict_keys(['type', 'CCrecord', 'beta2', 'beta1', 'Zgrid2', 'Zgrid1_1', 'Zgrid1_2', 'DBname', 'DBnum',
+                #            'cluster_properties'])
+                # beta1  [nr x nr x nr x ntime x NP x 2]
+                # beta2  [nr x nr x nr x ntime x NP x 2]
+                # CCrecord  [ntime x NP x nr x nr]
+                # Zgrid1_1  [nr x nr x nr x ntime x NP]
+                # Zgrid1_2  [nr x nr x nr x ntime x NP]
+                # Zgrid2  [nr x nr x nr x ntime x NP]
+
+                data1 = {'type':data['type'], 'beta1':data['beta1'][:,:,:,:,g1,:], 'beta2':data['beta2'][:,:,:,:,g1,:],
+                         'CCrecord': data['CCrecord'][:, g1, :, :], 'Zgrid1_1':data['Zgrid1_1'][:,:,:,:,g1],
+                         'Zgrid1_2':data['Zgrid1_2'][:,:,:,:,g1], 'Zgrid2':data['Zgrid2'][:,:,:,:,g1],
+                         'DBname':data['DBname'],'DBnum':DBnumlist1, 'cluster_properties':data['cluster_properties']}
+
+                data2 = {'type':data['type'], 'beta1':data['beta1'][:,:,:,:,g2,:], 'beta2':data['beta2'][:,:,:,:,g2,:],
+                         'CCrecord': data['CCrecord'][:, g2, :, :], 'Zgrid1_1':data['Zgrid1_1'][:,:,:,:,g2],
+                         'Zgrid1_2':data['Zgrid1_2'][:,:,:,:,g2], 'Zgrid2':data['Zgrid2'][:,:,:,:,g2],
+                         'DBname':data['DBname'],'DBnum':DBnumlist2, 'cluster_properties':data['cluster_properties']}
+
+                # setup new names
+                [p,f] = os.path.split(datafile1)
+                [f1,e] = os.path.splitext(f)
+                newdatafile1 = os.path.join(p, '{}_{}{}'.format(f1,groups[0],e))
+                newdatafile2 = os.path.join(p, '{}_{}{}'.format(f1,groups[1],e))
+
+                # write the new data files
+                np.save(newdatafile1,data1)
+                print('GRPmake2groups: writing results to {}'.format(newdatafile1))
+                np.save(newdatafile2,data2)
+                print('GRPmake2groups: writing results to {}'.format(newdatafile2))
+
+            if data['type'] == 'network':
+                # dict_keys(['type', 'resultsnames', 'network', 'regionname', 'clustername', 'DBname', 'DBnum'])
+                # data in regionname
+                # dict_keys(['region_properties', 'DBname', 'DBnum'])
+                # array of region properties
+                # dict_keys(['tc', 'tc_sem', 'nruns_per_person', 'tsize', 'rname'])
+                # tc [nclusters x tsize*nruns]
+                # tc_sem [nclusters x tsize*nruns]
+                # nruns_per_person [NP]
+
+                # data in regionname
+                rdatafile1 = data['regionname']
+                rdata1 = np.load(rdatafile1, allow_pickle=True).flat[0]
+
+                nregions = len(rdata1['region_properties'])
+                nruns_per_person = rdata1['region_properties'][0]['nruns_per_person']
+                tsize = rdata1['region_properties'][0]['tsize']
+
+                nruns_per_person1 = nruns_per_person[g1]
+                nruns_per_person2 = nruns_per_person[g2]
+
+                # create list of timepoints for data in group1---------------------
+                tp_list1 = []
+                for gg in g1:
+                    r1 = np.sum(nruns_per_person[:gg])*tsize
+                    r2 = np.sum(nruns_per_person[:(gg+1)])*tsize
+                    tp_person = list(range(r1,r2))
+                    tp_list1 += tp_person
+                # create list of timepoints for data in group2---------------------
+                tp_list2 = []
+                for gg in g2:
+                    r1 = np.sum(nruns_per_person[:gg])*tsize
+                    r2 = np.sum(nruns_per_person[:(gg+1)])*tsize
+                    tp_person = list(range(r1,r2))
+                    tp_list2 += tp_person
+
+                region_properties1 = copy.deepcopy(rdata1['region_properties'])
+                region_properties2 = copy.deepcopy(rdata2['region_properties'])
+                for nn in range(nregions):
+                    region_properties1[nn]['tc'] = region_properties1[nn]['tc'][:,tp_list1]
+                    region_properties1[nn]['tc_sem'] = region_properties1[nn]['tc_sem'][:,tp_list1]
+                    region_properties1[nn]['nruns_per_person'] = nruns_per_person1
+
+                    region_properties2[nn]['tc'] = region_properties2[nn]['tc'][:,tp_list2]
+                    region_properties2[nn]['tc_sem'] = region_properties2[nn]['tc_sem'][:,tp_list2]
+                    region_properties2[nn]['nruns_per_person'] = nruns_per_person2
+
+                # dict_keys(['region_properties', 'DBname', 'DBnum'])
+                new_regiondata1 = {'region_properties':region_properties1,'DBname':rdata1['DBname'],'DBnum':DBnumlist1}
+                new_regiondata2 = {'region_properties':region_properties2,'DBname':rdata1['DBname'],'DBnum':DBnumlist2}
+
+                # new region name
+                [p,f] = os.path.split(rdatafile1)
+                [f1,e] = os.path.splitext(f)
+                new_regionname1 = os.path.join(p, '{}_{}{}'.format(f1,groups[0],e))
+                new_regionname2 = os.path.join(p, '{}_{}{}'.format(f1,groups[1],e))
+
+                # write the new region data files
+                np.save(new_regionname1,new_regiondata1)
+                print('GRPmake2groups: writing results to {}'.format(new_regionname1))
+                np.save(new_regionname2,new_regiondata2)
+                print('GRPmake2groups: writing results to {}'.format(new_regionname2))
+
+                # data in clustername is the same for every group
+
+                networkname = data1['network']
+                network, ncluster_list, sem_region_list = pyclustering.load_network_model(networkname)
+
+                # data in resultsnames
+                resultsnames = data['resultsnames']
+                new_resultsnames1 = copy.deepcopy(resultsnames)
+                new_resultsnames2 = copy.deepcopy(resultsnames)
+                ncomponents = len(resultsnames)
+                for nn in range(ncomponents):
+                    # array of resultsfields
+                    results = np.load(resultsnames[nn], allow_pickle=True).flat[0]
+                    results_g1 = copy.deepcopy(results)
+                    results_g2 = copy.deepcopy(results)
+                    ntargetclusters = len(results['sem_one_target_results'])
+                    for nt in range(ntargetclusters):
+                        # b  [ncombo x ntime x NP x 6]
+                        # R2 [ncombo x ntime x NP]
+                        results_g1['sem_one_target_results'][nt]['b'] = results['sem_one_target_results'][nt]['b'][:,:,g1,:]
+                        results_g1['sem_one_target_results'][nt]['R2'] = results['sem_one_target_results'][nt]['R2'][:,:,g1]
+
+                        results_g2['sem_one_target_results'][nt]['b'] = results['sem_one_target_results'][nt]['b'][:,:,g2,:]
+                        results_g2['sem_one_target_results'][nt]['R2'] = results['sem_one_target_results'][nt]['R2'][:,:,g2]
+
+                    # new names
+                    # find the old name tag and add to it
+                    target = network[nn]['target']
+                    spos = resultsnames[nn].find(target)
+                    rn1 = resultsnames[nn][:spos] + groups[0] + '_' + resultsnames[nn][spos:]
+                    rn2 = resultsnames[nn][:spos] + groups[1] + '_' + resultsnames[nn][spos:]
+
+                    new_resultsnames1[nn] = rn1
+                    new_resultsnames2[nn] = rn2
+
+                    # write the new region data files
+                    np.save(rn1, results_g1)
+                    print('GRPmake2groups: writing results to {}'.format(rn1))
+                    np.save(rn2, results_g2)
+                    print('GRPmake2groups: writing results to {}'.format(rn2))
+
+                # write out new
+                new_rdata = {'type': rdata1['type'], 'resultsnames':new_resultsnames1, 'network':rdata1['network'],
+                         'regionname':new_regionname1, 'clustername':rdata1['clustername'],
+                         'DBname':rdata1['DBname'], 'DBnum':DBnumlist1}
+
+                new_rdata2 = {'type': rdata1['type'], 'resultsnames':new_resultsnames2, 'network':rdata1['network'],
+                         'regionname':new_regionname2, 'clustername':rdata1['clustername'],
+                         'DBname':rdata1['DBname'], 'DBnum':DBnumlist2}
+
+                # setup new names
+                [p,f] = os.path.split(datafile1)
+                [f1,e] = os.path.splitext(f)
+                newdatafile1 = os.path.join(p, '{}_{}{}'.format(f1,groups[0],e))
+                newdatafile2 = os.path.join(p, '{}_{}{}'.format(f1,groups[1],e))
+
+                # write the new data files
+                np.save(newdatafile1, new_rdata1)
+                print('GRPmake2groups: writing results to {}'.format(newdatafile1))
+                np.save(newdatafile2, new_rdata2)
+                print('GRPmake2groups: writing results to {}'.format(newdatafile2))
+
+        print('Finished splitting results files into two groups.')
+        return self
 
     def __init__(self, parent, controller):
         parent.configure(relief='raised', bd=5, highlightcolor=fgcol3)
@@ -4255,7 +4468,6 @@ class GRPFrame:
         self.GRPcharacteristicslist = settings['GRPcharacteristicslist']
         self.GRPcharacteristicsvalues = settings['GRPcharacteristicsvalues']
         self.GRPcharacteristicsvalues2 = settings['GRPcharacteristicsvalues2']
-
 
         # put some text as a place-holder
         self.GRPLabel1 = tk.Label(self.parent, text = "1) Choose data/results files;  \nSEMresults_network..., SEMresults_2source...,\nor region_properties... files", fg = 'gray', justify = 'left')
@@ -4326,47 +4538,53 @@ class GRPFrame:
         self.GRPresultsnameswap.grid(row=2, column=5)
 
 
+        # label, button, for splitting data sets based on a selected characteristic
+        self.GRPsplitgroupbutton = tk.Button(self.parent, text="Split Results", width=smallbuttonsize, bg=fgcol2, fg='black',
+                                        command=self.GRPmake2groups, relief='raised', bd=5)
+        self.GRPsplitgroupbutton.grid(row=4, column=2, sticky = 'N')
+
+
         # ---------radio buttons to indicate type of analysis to do----------------
         # checkboxes to indicate 1) signficiance from zero, 2) group differences, 3) correlation
         self.GRPanalysistypevalue = tk.IntVar(None,1)
         self.GRPsig1 = tk.Radiobutton(self.parent, text = 'Sign. non-zero', width = bigbuttonsize, fg = 'black',
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 1)
-        self.GRPsig1.grid(row = 4, column = 1, sticky="W")
+        self.GRPsig1.grid(row = 5, column = 1, sticky="W")
 
         self.var2 = tk.IntVar()
         self.GRPsig2 = tk.Radiobutton(self.parent, text = 'Avg. Group Diff.', width = bigbuttonsize, fg = 'black',
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 2)
-        self.GRPsig2.grid(row = 5, column = 1, sticky="W")
+        self.GRPsig2.grid(row = 6, column = 1, sticky="W")
 
         self.var3 = tk.IntVar()
         self.GRPsig2p = tk.Radiobutton(self.parent, text = 'Paired Group Diff.', width = bigbuttonsize, fg = 'black',
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 3)
-        self.GRPsig2p.grid(row = 6, column = 1, sticky="W")
+        self.GRPsig2p.grid(row = 7, column = 1, sticky="W")
 
         self.var4 = tk.IntVar()
         self.GRPcorr = tk.Radiobutton(self.parent, text = 'Correlation', width = bigbuttonsize, fg = 'black',
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 4)
-        self.GRPcorr.grid(row = 4, column = 2, sticky="W")
+        self.GRPcorr.grid(row = 5, column = 2, sticky="W")
 
         self.var5 = tk.IntVar()
         self.GRPcorr = tk.Radiobutton(self.parent, text = 'Regression', width = bigbuttonsize, fg = 'black',
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 5)
-        self.GRPcorr.grid(row = 5, column = 2, sticky="W")
+        self.GRPcorr.grid(row = 6, column = 2, sticky="W")
 
 
         self.var6 = tk.IntVar()
         self.GRPcorr = tk.Radiobutton(self.parent, text = 'ANOVA', width = bigbuttonsize, fg = 'black',
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 6)
-        self.GRPcorr.grid(row = 4, column = 3, sticky="W")
+        self.GRPcorr.grid(row = 5, column = 3, sticky="W")
 
         self.var7 = tk.IntVar()
         self.GRPcorr = tk.Radiobutton(self.parent, text = 'ANCOVA', width = bigbuttonsize, fg = 'black',
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 7)
-        self.GRPcorr.grid(row = 5, column = 3, sticky="W")
+        self.GRPcorr.grid(row = 6, column = 3, sticky="W")
 
         # indicate which "personal characteristics" to use - selected from database
         self.GRPlabel2 = tk.Label(self.parent, text = "Select characteristic:")
-        self.GRPlabel2.grid(row=7,column=1, sticky='W')
+        self.GRPlabel2.grid(row=8,column=1, sticky='W')
         # fieldvalues = DBFrame.get_DB_field_values(self)
         self.fields = self.get_DB_fields()
         self.field_var = tk.StringVar()
@@ -4376,16 +4594,16 @@ class GRPFrame:
             self.field_var.set('empty')
 
         self.GRPfield_menu = tk.OptionMenu(self.parent, self.field_var, *self.fields, command=self.DBfieldchoice)
-        self.GRPfield_menu.grid(row=7, column=2, sticky='EW')
+        self.GRPfield_menu.grid(row=8, column=2, sticky='EW')
         self.fieldsearch_opt = self.GRPfield_menu  # save this way so that values are not cleared
 
         # label, button, for running the definition of clusters, and loading data
         self.GRPcharclearbutton = tk.Button(self.parent, text="Clear/Update", width=smallbuttonsize, bg=fgcol1, fg='white',
                                         command=self.GRPcharacteristicslistclear, relief='raised', bd=5)
-        self.GRPcharclearbutton.grid(row=7, column=3)
+        self.GRPcharclearbutton.grid(row=8, column=3)
 
         self.GRPlabel3 = tk.Label(self.parent, text = 'Characteristics list:')
-        self.GRPlabel3.grid(row=8, column=1, sticky='N')
+        self.GRPlabel3.grid(row=9, column=1, sticky='N')
 
         self.GRPcharacteristicscount = 0
         self.GRPcharacteristicslist = []
@@ -4393,21 +4611,21 @@ class GRPFrame:
         self.GRPcharacteristicstext.set('not defined yet')
         self.GRPcharacteristicsdisplay = tk.Label(self.parent, textvariable=self.GRPcharacteristicstext, bg=bgcol, fg="#4B4B4B", font="none 10",
                                       wraplength=300, justify='left')
-        self.GRPcharacteristicsdisplay.grid(row=8, column=2, sticky='N')
+        self.GRPcharacteristicsdisplay.grid(row=9, column=2, sticky='N')
 
         # put in choices for statistical threshold
-        self.GRPlabel5 = tk.Label(self.parent, text = 'p-value threhold:').grid(row=9, column=1, sticky='NSEW')
+        self.GRPlabel5 = tk.Label(self.parent, text = 'p-value threhold:').grid(row=10, column=1, sticky='NSEW')
         self.GRPpvaluebox = tk.Entry(self.parent, width = 8, bg="white")
-        self.GRPpvaluebox.grid(row=9, column=2, sticky = "W")
+        self.GRPpvaluebox.grid(row=10, column=2, sticky = "W")
         self.GRPpvaluebox.insert(0,self.GRPpvalue)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
         self.GRPpvaluesubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.GRPpvaluesubmit, relief='raised', bd = 5)
-        self.GRPpvaluesubmitbut.grid(row=9, column=3)
+        self.GRPpvaluesubmitbut.grid(row=10, column=3)
 
         # label, button, for running the definition of clusters, and loading data
         self.GRPrunbutton = tk.Button(self.parent, text="Run Group Analysis", width=bigbigbuttonsize, bg=fgcol1, fg='white',
                                         command=self.GRPrunanalysis, relief='raised', bd=5)
-        self.GRPrunbutton.grid(row=10, column=1, columnspan = 2)
+        self.GRPrunbutton.grid(row=11, column=1, columnspan = 2)
 
 
 # --------------------DISPLAY FRAME---------------------------------------------------------------
@@ -5095,23 +5313,31 @@ class DisplayFrame:
         self.DISPrunbutton = tk.Button(self.parent, text = 'Generate Figures', width = bigbigbuttonsize, bg = fgcol1, fg = 'white', command = self.DISPgeneratefigs, font = "none 9 bold", relief='raised', bd = 5)
         self.DISPrunbutton.grid(row = 17, column = 1, columnspan = 2)
 
-        #-----------------------------------------------------------------------------------------------
-        # create the plot figures and axes--------------------------------------------------------------
-        # rowstart = 5
-        # self.PlotFigure1 = plt.figure(91, figsize=(3, 2), dpi=100)
-        # self.PlotAx1 = self.PlotFigure1.add_subplot(111)
-        # self.Canvas1 = FigureCanvasTkAgg(self.PlotFigure1 , self.parent)
-        # self.Canvas1.get_tk_widget().grid(row=rowstart, column=4, rowspan = 7, columnspan = 2, sticky='W')
-        # self.PlotAx1.set_title('Plot to be created here')
-        #
-        # self.PlotFigure2 = plt.figure(92, figsize=(3, 2), dpi=100)
-        # self.PlotAx2 = self.PlotFigure2.add_subplot(111)
-        # self.Canvas2 = FigureCanvasTkAgg(self.PlotFigure2 , self.parent)
-        # self.Canvas2.get_tk_widget().grid(row=rowstart+7, column=4, rowspan = 7, columnspan = 2, sticky='W')
-        # self.PlotAx2.set_title('Anat fig to be shown here')
-
 
 class DisplayFrame2:
+    def DISP2saveclick1(self):
+        # save the figure in PlotFigure3, Canvas3
+        filechoice = tkf.asksaveasfilename(title="Select file", filetypes=(("eps files", "*.eps"), ("all files", "*.*")))
+        [f,e] = os.path.splitext(filechoice)
+        if e != '.eps':
+            filechoice = f+'.eps'
+        plt.figure(93)
+        plt.savefig(filechoice, format = 'eps')
+        print('saved plot as {}'.format(filechoice))
+
+
+    def DISP2saveclick2(self):
+        # save the figure in PlotFigure4, Canvas4
+        filechoice = tkf.asksaveasfilename(title="Select file",
+                                           filetypes=(("eps files", "*.eps"), ("all files", "*.*")))
+        [f, e] = os.path.splitext(filechoice)
+        if e != '.eps':
+            filechoice = f+'.eps'
+        plt.figure(94)
+        # plt.savefig(filechoice, format='eps')
+        self.Canvas4.savefig(filechoice, format = 'eps')
+        print('saved anat image as {}'.format(filechoice))
+
 
     def __init__(self, parent, controller):
         parent.configure(relief='raised', bd=5, highlightcolor=fgcol3)
@@ -5135,6 +5361,17 @@ class DisplayFrame2:
         self.Canvas4 = FigureCanvasTkAgg(self.PlotFigure4, self.parent)
         self.Canvas4.get_tk_widget().grid(row=0, column=1, sticky='W')
         self.PlotAx4.set_title('anatomical images to be displayed here')
+
+        # the entry box needs a "submit" button so that the program knows when to take the entered values
+        self.DISP2figsavebutton1 = tk.Button(self.parent, text="Save plot", width=bigbigbuttonsize, bg=fgcol2,
+                                       fg='black', command=self.DISP2saveclick1, relief='raised', bd=5)
+        self.DISP2figsavebutton1.grid(row=1, column=0, sticky='S')
+
+        # the entry box needs a "submit" button so that the program knows when to take the entered values
+        self.DISP2figsavebutton2 = tk.Button(self.parent, text="Save image", width=bigbigbuttonsize, bg=fgcol2,
+                                       fg='black', command=self.DISP2saveclick2, relief='raised', bd=5)
+        self.DISP2figsavebutton2.grid(row=1, column=1, sticky='S')
+
 
 
 #----------MAIN calling function----------------------------------------------------

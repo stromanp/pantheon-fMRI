@@ -942,25 +942,6 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                             beta_sig = np.abs(Tbeta) > Tthresh
                             stat_of_interest = Tbeta
 
-                    # # stats based on regression with covariates - --------
-                    # if statstype == 'regression':
-                    #     stattitle = 'Zregression'
-                    #     Zthresh = stats.norm.ppf(1 - pthreshold)
-                    #     terms, NPt = np.shape(covariates)  # need one term per person, for each covariate
-                    #     b, bsem, R2, Z, Rcorrelation, Zcorrelation = GLMregression(beta, covariates, 2)
-                    #     beta_sig = np.abs(Z) > Zthresh
-                    #     stat_of_interest = Z
-                    #
-                    # # stats based on regression with covariates - --------
-                    # if statstype == 'correlation':
-                    #     stattitle = 'Zcorr'
-                    #     Zthresh = stats.norm.ppf(1 - pthreshold)
-                    #     terms, NPt = np.shape(covariates)  # need one term per person, for each covariate
-                    #     b, bsem, R2, Z, Rcorrelation, Zcorrelation = GLMregression(beta, covariates, 2)
-                    #     beta_sig = np.abs(Zcorrelation) > Zthresh
-                    #     stat_of_interest = Zcorrelation
-                    # #---------------------------------------------------
-
                     keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
                             'tlimy1',
                             'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2',
@@ -1632,14 +1613,14 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
 
     # setup output name
     tag = ''
-    if covnames != 'none':
+    if covariate_names != 'none':
         tag = ''
-        for tname in covnames:  tag += tname+'_'
+        for tname in covariate_names:  tag += tname+'_'
         tag = tag[:-1]  # take off the trailing character
 
     excelfilename = generate_output_name(mode+'_',filename1, '', tag, '.xlsx')
 
-    if np.ndim(covariates1) > 2:
+    if np.ndim(covariates1) > 1:
         ncov1, NP1 = np.shape(covariates1)
         cov1 = covariates1[0,:]
         cov2 = covariates1[1,:]
@@ -1647,10 +1628,16 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
         covname2 = covariate_names[1]
     else:
         print('error:  not enough covariates provided for single_group_ANOVA')
+        print('covariate_names = {}'.format(covariate_names))
 
     # check data types
     if mode == 'ANCOVA':
         cov2 = cov2.astype(float)   # make sure data are not strings, and interpreted as categorical values
+
+    print('cov1  has size {}'.format(np.shape(cov1)))
+    print('cov2  has size {}'.format(np.shape(cov2)))
+    print('cov1 = {}'.format(cov1))
+    print('cov2 = {}'.format(cov2))
 
     datafiletype = 0
     try:
@@ -1721,11 +1708,13 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
                     'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2', 'slimz1', 'slimz2',
                     't','s1','s2','tt','nb','nc']
 
+            tagnamelist = ['MeoC1', 'MeoC2', 'interaction']
             # write out significant results, based on beta1------------------------------
             # if np.ndim(beta1_sig) < 6:  # allow for different forms of results (some have multiple stats terms)
             #     beta1_sig = np.expand_dims(beta1_sig, axis=-1)
             #     stat_of_interest1 = np.expand_dims(stat_of_interest1, axis=-1)
 
+            # separate by time and effect type
             for tt in range(ntimepoints):
                 results = []
                 sig_temp = beta1_sig[:,:,:,tt,:,:]
@@ -1755,16 +1744,28 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
                     results.append(entry)
 
                 # eliminate redundant values, for repeats keep the one with the largest Tvalue
-                if len(results) > 0:
-                    print('removing redundant values ...')
-                    results2, Svalue_list2 = remove_reps_and_sort(connid_list, Svalue_list, results)
 
-                    excelsheetname = '2S beta2 ' + statstype + ' ' + str(tt)
-                    print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
-                    pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
-                    print('finished writing results to ',excelfilename)
-                else:
-                    print('no significant results found at p < {}'.format(pthreshold))
+                taglist = ['MeoC1','MeoC2','Interaction']
+                for ncval in range(3):
+                    aa = np.where(nc == ncval)[0]
+                    tagname = taglist[ncval]
+
+                    results1c = []
+                    for aval in aa: results1c.append(results[aval])
+                    Svalue_list1c = Svalue_list[aa]
+                    connid_list1c = connid_list[aa]
+
+                    if len(results1c) > 0:
+                        print('removing redundant values ...')
+                        results2, Svalue_list2 = remove_reps_and_sort(connid_list1c, Svalue_list1c, results1c)
+
+                        excelsheetname = '2Sb2 ' + statstype + ' ' + tagname + ' ' + str(tt)
+                        print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+                        pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
+                        print('finished writing results to ',excelfilename)
+                    else:
+                        results2 = []
+                        print('no significant results found at p < {}'.format(pthreshold))
 
             results_beta1 = results2
 
@@ -1802,16 +1803,28 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
                     results.append(entry)
 
                 # eliminate redundant values, for repeats keep the one with the largest Tvalue
-                if len(results) > 0:
-                    print('removing redundant values ...')
-                    results2, Svalue_list2 = remove_reps_and_sort(connid_list, Svalue_list, results)
 
-                    excelsheetname = '2S beta2 ' + statstype + ' ' + str(tt)
-                    print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
-                    pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
-                    print('finished writing results to ',excelfilename)
-                else:
-                    print('no significant results found at p < {}'.format(pthreshold))
+                taglist = ['MeoC1','MeoC2','Interaction']
+                for ncval in range(3):
+                    aa = np.where(nc == ncval)[0]
+                    tagname = taglist[ncval]
+
+                    results1c = []
+                    for aval in aa: results1c.append(results[aval])
+                    Svalue_list1c = Svalue_list[aa]
+                    connid_list1c = connid_list[aa]
+
+                    if len(results1c) > 0:
+                        print('removing redundant values ...')
+                        results2, Svalue_list2 = remove_reps_and_sort(connid_list1c, Svalue_list1c, results1c)
+
+                        excelsheetname = '2Sb2 ' + statstype + ' ' + tagname + ' ' + str(tt)
+                        print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+                        pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
+                        print('finished writing results to ',excelfilename)
+                    else:
+                        results2 = []
+                        print('no significant results found at p < {}'.format(pthreshold))
 
             results_beta2 = results2
 
