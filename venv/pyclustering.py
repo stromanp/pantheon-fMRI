@@ -142,7 +142,7 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, networkmodel, regionmap
         rdtemp = regiondata.reshape(nvox, tsize, nruns_total, order = 'F').copy()
         varcheck2 = np.var(rdtemp, axis = 1)
         typicalvar2 = np.mean(varcheck2)
-        varlimit = 20.0 * typicalvar2
+        varlimit = 5.0 * typicalvar2
         cv,cp = np.where(varcheck2 > varlimit)  # voxels with crazy variance
         if len(cv) > 0:
             for vv in range(len(cv)):
@@ -266,7 +266,7 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, networkmodel):
             rdtemp = regiondata.reshape(nvox, tsize, nruns_total, order='F').copy()
             varcheck2 = np.var(rdtemp, axis=1)
             typicalvar2 = np.mean(varcheck2)
-            varlimit = 20.0 * typicalvar2
+            varlimit = 5.0 * typicalvar2
             cv, cp = np.where(varcheck2 > varlimit)  # voxels with crazy variance
             if len(cv) > 0:
                 for vv in range(len(cv)):

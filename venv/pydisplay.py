@@ -520,7 +520,7 @@ def display_whisker_plots(filename1, filename2, connectiondata, field_to_plot, T
     labelfont=6
 
     data1 = np.load(filename1, allow_pickle=True).flat[0]
-    if len(filename2) > 0:
+    if len(filename2) > 0 and os.path.exists(filename2):
         data2 = np.load(filename2, allow_pickle=True).flat[0]
         twogroup = True
     else:
@@ -700,7 +700,7 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
     labelfont=6
 
     data1 = np.load(filename1, allow_pickle=True).flat[0]
-    if len(filename2) > 0:
+    if len(filename2) > 0 and os.path.exists(filename2):
         data2 = np.load(filename2, allow_pickle=True).flat[0]
         twogroup = True
     else:
@@ -766,7 +766,7 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
         else:
             y -= 0.1  # shift text downward
         R2text = 'R2 = {:.3f}'.format(R2)
-        plt.text(x,y, R2text, color = 'b', fontsize=labelfont)
+        TargetAxes.text(x,y, R2text, color = 'b', fontsize=labelfont)
 
         if twogroup:
             # add annotations

@@ -639,7 +639,7 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
             # stats based on regression with covariates ----------
             if statstype == 'correlation':
                 Zthresh = stats.norm.ppf(1 - pthreshold)
-                R = np.corrcoef()
+                R = np.corrcoef(tc_per_person, covariates)
                 b, bsem, R2, Z, Rcorrelation, Zcorrelation = GLMregression(tc_per_person, covariates, 2)
                 sig = np.abs(Zcorrelation) > Zthresh
 
@@ -811,7 +811,7 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                     print('removing redundant values ...')
                     results2, Svalue_list2 = remove_reps_and_sort(connid_list, Svalue_list, results)
 
-                    excelsheetname = '2S beta2 ' + statstype + ' ' + str(tt)
+                    excelsheetname = '2S beta1 ' + statstype + ' ' + str(tt)
                     print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
                     pydisplay.pywriteexcel(results2, excelfilename, excelsheetname, 'append')
                     print('finished writing results to ',excelfilename)

@@ -184,7 +184,7 @@ class mainspinalfmri_window:
         # All of these frames are defined at the same time, but only the top one is visible
         DBbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
         DBbase.grid(row=1, column=1, sticky="nsew")
-        DBFrame(DBbase, self)
+        self.DBhandle = DBFrame(DBbase, self)
         page_name = DBFrame.__name__
         self.frames[page_name] = DBbase
 
@@ -584,9 +584,13 @@ class DBFrame:
         self.DBnumload = tk.Button(self.parent, text = "Load", width = smallbuttonsize, bg = fgcol1, fg = 'white', command = self.DBnumlistload, relief='raised', bd = 5)
         self.DBnumload.grid(row = 1, column = 3)
 
+        # the entry box needs a "submit" button so that the program knows when to take the entered values
+        self.DBnumsavebutton = tk.Button(self.parent, text = "Save", width = smallbuttonsize, bg = fgcol1, fg = 'white', command = self.DBnumlistsave, relief='raised', bd = 5)
+        self.DBnumsavebutton.grid(row = 1, column = 4)
+
         # add a button to clear the entered values
-        self.DBnumsubmit = tk.Button(self.parent, text = "Clear", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.DBnumclear, relief='raised', bd = 5)
-        self.DBnumsubmit.grid(row = 1, column = 4)
+        self.DBnumclearbutton = tk.Button(self.parent, text = "Clear", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.DBnumclear, relief='raised', bd = 5)
+        self.DBnumclearbutton.grid(row = 1, column = 5)
 
         # put a separator for readability
         ttk.Separator(self.parent).grid(row=2, column=1, columnspan=6, sticky="nswe", padx=2, pady=5)
@@ -755,6 +759,54 @@ class DBFrame:
 
         # save the updated settings file again
         save_folder = os.path.dirname(file_path)
+        settings['last_folder'] = save_folder
+        np.save(settingsfile,settings)
+
+
+    def DBnumlistsave(self):
+        # prompt for a name for loading the list
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        last_folder = settings['last_folder']
+        self.DBname = settings['DBname']
+
+        # check database file and see how many entries exist
+        if os.path.isfile(self.DBname):
+            xls = pd.ExcelFile(self.DBname, engine='openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
+            del df1['Unnamed: 0']  # get rid of the unwanted header column
+            nentries, nfields = np.shape(df1)
+            dbnum_max = nentries - 1
+        else:
+            dbnum_max = 0
+
+        entered_text = self.DBnumenter.get()  # collect the text from the text entry box
+        # allow for "all" to be entered
+        if entered_text == 'all': entered_text = str(0) + ':' + str(dbnum_max)
+
+        # parse the entered text into values
+        entered_values = self.DBparsenumlist(entered_text, dbnum_max)
+        print(entered_values)
+
+        # convert back to shorter string for display
+        value_list_for_display = self.DBdisplaynumlist(entered_values)
+        self.DBnumsave_text = value_list_for_display
+
+        settings['DBnum'] = entered_values
+        settings['DBnumstring'] = self.DBnumsave_text
+        self.DBnumenter.delete(0, 'end')
+        self.DBnumenter.insert(0, settings['DBnumstring'])
+
+        # now save the list
+        # prompt for a name for saving the list
+        filechoice = tkf.asksaveasfilename(title = "Select file", initialdir = last_folder, filetypes = (("npy","*.npy"),("all files","*.*")))
+        list = {'dbnumlist':entered_values}
+        print('list = ',list)
+        print('saving database list saved to ',filechoice)
+        np.save(filechoice,list)
+        print('database number list saved to ',filechoice)
+
+        # save a record for convenience, for next time
+        save_folder = os.path.dirname(filechoice)
         settings['last_folder'] = save_folder
         np.save(settingsfile,settings)
 
@@ -3956,6 +4008,12 @@ class GRPFrame:
         self.DBname = newDBname1
         self.DBnum = newDBnum1
 
+        # need to update dbnumlist in the DBframe
+        value_list_for_display = self.parent.DBhandle.DBdisplaynumlist(entered_values)
+        settings['DBnumstring'] = value_list_for_display
+        self.parent.DBhandle.DBnumenter.delete(0, 'end')
+        self.parent.DBhandle.DBnumenter.insert(0, settings['DBnumstring'])
+
         self.GRPresultsname2 = newfname2
         settings['GRPresultsname2'] = newfname2
         settings['GRPdatafiletype2'] = newtype2
@@ -5007,7 +5065,15 @@ class DisplayFrame:
         if self.DISPmethod == 'lineplot':
             # generate line plot
             # pydisplay.display_correlation_plots(filename1, filename2, connectiondata, field_to_plot, covariates1[0,:], covariates2[0,:], 'none', self.Canvas1, self.PlotAx1)
-            pydisplay.display_correlation_plots(filename1, filename2, connectiondata, field_to_plot, covariates1[0,:], covariates2[0,:], 'none', self.controller.Canvas3, self.controller.PlotAx3)
+            if np.ndim(covariates1) > 1:
+                cov1 = covariates1[0,:]
+            else:
+                cov1 = []
+            if np.ndim(covariates2) > 1:
+                cov2 = covariates2[0,:]
+            else:
+                cov2 = []
+            pydisplay.display_correlation_plots(filename1, filename2, connectiondata, field_to_plot, cov1, cov2, 'none', self.controller.Canvas3, self.controller.PlotAx3)
             xls = pd.ExcelFile(self.DBname, engine='openpyxl')
             df1 = pd.read_excel(xls, 'datarecord')
             normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
@@ -5334,8 +5400,7 @@ class DisplayFrame2:
         if e != '.eps':
             filechoice = f+'.eps'
         plt.figure(94)
-        # plt.savefig(filechoice, format='eps')
-        self.Canvas4.savefig(filechoice, format = 'eps')
+        plt.savefig(filechoice, format = 'eps')
         print('saved anat image as {}'.format(filechoice))
 
 

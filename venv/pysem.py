@@ -399,11 +399,10 @@ def pysem(cluster_properties, region_properties, timepoints = 0, epoch = 0):
     # covmatrix2 = np.matmul(tcdata,tcdata.T)/(tsize_full-1)
 
     # get beta values for all combinations of targets and two sources, for each person
-
-    Lweight = 1e-2
-    alpha = 1e-2
-    deltab = 0.05 * np.ones(2)
-    tol = 1e-1
+    Lweight = 1e-3
+    alpha = 1e-3
+    deltab = 0.01 * np.ones(2)
+    tol = 1e-2
     maxiter = 250
 
     # initialize arrays for storing the results
