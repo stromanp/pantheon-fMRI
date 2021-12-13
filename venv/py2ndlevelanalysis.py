@@ -324,6 +324,33 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                 beta2_sig = np.abs(Zcorrelation2) > Zthresh
                 stat_of_interest1 = Zcorrelation1
                 stat_of_interest2 = Zcorrelation2
+
+            #---------------------------------------------------
+            if statstype == 'time':
+                stattitle = 'Tdiff'
+                # stats based on paired difference between time points for one group
+                # ntclusters, ns1sclusters, ns2clusters, ntimepoints, NP, nbeta = np.shape(beta1)
+
+                Tbeta1 = np.zeros((ntclusters, ns1sclusters, ns2clusters, ntimepoints-1, nbeta))
+                Tbeta2 = np.zeros((ntclusters, ns1sclusters, ns2clusters, ntimepoints-1, nbeta))
+                for tt in range(ntimepoints-1):
+                    betadiff = beta1[:,:,:,tt+1,:,:] - beta1[:,:,:,tt,:,:]
+                    mean_diff = np.mean(betadiff,axis = 3)
+                    se_diff = np.std(betadiff,axis = 3)/np.sqrt(NP)
+                    Tbeta1[:,:,:,tt,:] = mean_diff/(se_diff + 1.0e-10)
+
+                    betadiff = beta2[:,:,:,tt+1,:,:] - beta2[:,:,:,tt,:,:]
+                    mean_diff = np.mean(betadiff,axis = 3)
+                    se_diff = np.std(betadiff,axis = 3)/np.sqrt(NP)
+                    Tbeta2[:,:,:,tt,:] = mean_diff/(se_diff + 1.0e-10)
+
+                Tthresh = stats.t.ppf(1-pthreshold,NP-1)
+
+                beta1_sig = np.abs(Tbeta1) > Tthresh
+                beta2_sig = np.abs(Tbeta2) > Tthresh
+                stat_of_interest1 = Tbeta1
+                stat_of_interest2 = Tbeta2
+                ntimepoints -= 1
             #---------------------------------------------------
 
             keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2', 'tlimy1',
@@ -494,6 +521,25 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                         b, bsem, R2, Z, Rcorrelation, Zcorrelation = GLMregression(beta, covariates, 2)
                         beta_sig = np.abs(Zcorrelation) > Zthresh
                         stat_of_interest = Zcorrelation
+
+                    # stats based on time difference - ------------------------
+                    if statstype == 'time':
+                        stattitle = 'Tdiff'
+                        # stats based on paired difference between time points for one group
+                        # ncombinations, ntimepoints, NP, nsources = np.shape(beta)
+
+                        Tbeta = np.zeros((ncombinations, ntimepoints-1, nsources))
+                        for tt in range(ntimepoints - 1):
+                            betadiff = beta[:, tt+1, :, :] - beta[:, tt, :, :]
+                            mean_diff = np.mean(betadiff, axis=2)
+                            se_diff = np.std(betadiff, axis=2) / np.sqrt(NP)
+                            Tbeta[:, tt, :] = mean_diff / (se_diff + 1.0e-10)
+
+                        Tthresh = stats.t.ppf(1 - pthreshold, NP - 1)
+
+                        beta_sig = np.abs(Tbeta) > Tthresh
+                        stat_of_interest = Tbeta
+                        ntimepoints -= 1
                     #---------------------------------------------------
 
                     keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',

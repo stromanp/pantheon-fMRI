@@ -3667,7 +3667,7 @@ class GRPFrame:
             self.field_var.set('empty')
 
         self.GRPfield_menu = tk.OptionMenu(self.parent, self.field_var, *self.fields, command=self.DBfieldchoice)
-        self.GRPfield_menu.grid(row=7, column=2, sticky='EW')
+        self.GRPfield_menu.grid(row=8, column=2, sticky='EW')
         self.fieldsearch_opt = self.GRPfield_menu  # save this way so that values are not cleared
 
         settings['GRPcharacteristicscount'] = self.GRPcharacteristicscount
@@ -4009,10 +4009,10 @@ class GRPFrame:
         self.DBnum = newDBnum1
 
         # need to update dbnumlist in the DBframe
-        value_list_for_display = self.parent.DBhandle.DBdisplaynumlist(entered_values)
+        value_list_for_display = self.controller.DBhandle.DBdisplaynumlist(newDBnum1)
         settings['DBnumstring'] = value_list_for_display
-        self.parent.DBhandle.DBnumenter.delete(0, 'end')
-        self.parent.DBhandle.DBnumenter.insert(0, settings['DBnumstring'])
+        self.controller.DBhandle.DBnumenter.delete(0, 'end')
+        self.controller.DBhandle.DBnumenter.insert(0, settings['DBnumstring'])
 
         self.GRPresultsname2 = newfname2
         settings['GRPresultsname2'] = newfname2
@@ -4085,11 +4085,14 @@ class GRPFrame:
         if value == 5: self.GRPanalysistype = 'Regression'
         if value == 6: self.GRPanalysistype = 'ANOVA'
         if value == 7: self.GRPanalysistype = 'ANCOVA'
+        if value == 8: self.GRPanalysistype = 'Time'
 
         print('Group analysis type set to: ',self.GRPanalysistype)
 
         if value == 2:
             print('Sig2:  be sure to indicate two sets of results to compare')
+        if value == 8:
+            print('Time:  only indicate one set of results (first set will be used)')
         if value == 3:
             print('Sig2paired:  be sure to indicate two sets of results to compare')
         if value == 4:
@@ -4213,6 +4216,11 @@ class GRPFrame:
             #     covariates = GRPcharacteristicsvalues
             #     outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='regression', covariates=covariates)
             #
+
+        if GRPanalysistype == 'Time':
+            pthreshold = GRPpvalue
+            outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, 'time', covariates='none')
+
 
         if GRPanalysistype == 'ANOVA':
             if datafiletype1 == 1:  # SEM data
@@ -4549,18 +4557,18 @@ class GRPFrame:
         self.GRPlabel1.grid(row=0, column=1, sticky='N')
         self.GRPresultsnamelabel = tk.Label(self.parent, textvariable=self.GRPresultsnametext, bg=bgcol, fg="#4B4B4B", font="none 10",
                                       wraplength=300, justify='left')
-        self.GRPresultsnamelabel.grid(row=0, column=2, sticky='S')
+        self.GRPresultsnamelabel.grid(row=0, column=2, columnspan=2, sticky='S')
         self.GRPresultsdirlabel = tk.Label(self.parent, textvariable=self.GRPresultsdirtext, bg=bgcol, fg="#4B4B4B", font="none 8",
                                       wraplength=300, justify='left')
-        self.GRPresultsdirlabel.grid(row=1, column=2, sticky='N')
+        self.GRPresultsdirlabel.grid(row=1, column=2, columnspan=2, sticky='N')
         # define a button to browse and select an existing network definition file, and write out the selected name
         # also, define the function for what to do when this button is pressed
         self.GRPresultsnamebrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg=fgcol2, fg='black',
                                           command=self.GRPresultsbrowseaction, relief='raised', bd=5)
-        self.GRPresultsnamebrowse.grid(row=0, column=3)
+        self.GRPresultsnamebrowse.grid(row=0, column=4)
         self.GRPresultsnameclear = tk.Button(self.parent, text='Clear', width=smallbuttonsize, bg=fgcol2, fg='black',
                                           command=self.GRPresultsclearaction, relief='raised', bd=5)
-        self.GRPresultsnameclear.grid(row=0, column=4)
+        self.GRPresultsnameclear.grid(row=0, column=5)
 
 
         # file2 (in case there are two sets of results to be compared)-------------------------------
@@ -4579,21 +4587,21 @@ class GRPFrame:
         self.GRPlabel2.grid(row=2, column=1, sticky='N')
         self.GRPresultsnamelabel2 = tk.Label(self.parent, textvariable=self.GRPresultsnametext2, bg=bgcol, fg="#4B4B4B", font="none 10",
                                       wraplength=300, justify='left')
-        self.GRPresultsnamelabel2.grid(row=2, column=2, sticky='S')
+        self.GRPresultsnamelabel2.grid(row=2, column=2, columnspan=2, sticky='S')
         self.GRPresultsdirlabel2 = tk.Label(self.parent, textvariable=self.GRPresultsdirtext2, bg=bgcol, fg="#4B4B4B", font="none 8",
                                       wraplength=300, justify='left')
-        self.GRPresultsdirlabel2.grid(row=3, column=2, sticky='N')
+        self.GRPresultsdirlabel2.grid(row=3, column=2, columnspan=2, sticky='N')
 
         self.GRPresultsnamebrowse2 = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg=fgcol2, fg='black',
                                           command=self.GRPresultsbrowseaction2, relief='raised', bd=5, state = initial_state)
-        self.GRPresultsnamebrowse2.grid(row=2, column=3)
+        self.GRPresultsnamebrowse2.grid(row=2, column=4)
         self.GRPresultsnameclear2 = tk.Button(self.parent, text='Clear', width=smallbuttonsize, bg=fgcol2, fg='black',
                                           command=self.GRPresultsclearaction2, relief='raised', bd=5, state = initial_state)
-        self.GRPresultsnameclear2.grid(row=2, column=4)
+        self.GRPresultsnameclear2.grid(row=2, column=5)
 
         self.GRPresultsnameswap = tk.Button(self.parent, text='Swap 1-2', width=smallbuttonsize, bg=fgcol2, fg='black',
                                           command=self.GRPresultsswapaction, relief='raised', bd=5, state = initial_state)
-        self.GRPresultsnameswap.grid(row=2, column=5)
+        self.GRPresultsnameswap.grid(row=4, column=4)
 
 
         # label, button, for splitting data sets based on a selected characteristic
@@ -4629,6 +4637,11 @@ class GRPFrame:
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 5)
         self.GRPcorr.grid(row = 6, column = 2, sticky="W")
 
+        self.var8 = tk.IntVar()
+        self.GRPtime = tk.Radiobutton(self.parent, text = 'Time Paired Diff.', width = bigbuttonsize, fg = 'black',
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 8)
+        self.GRPtime.grid(row = 7, column = 2, sticky="W")
+
 
         self.var6 = tk.IntVar()
         self.GRPcorr = tk.Radiobutton(self.parent, text = 'ANOVA', width = bigbuttonsize, fg = 'black',
@@ -4639,6 +4652,7 @@ class GRPFrame:
         self.GRPcorr = tk.Radiobutton(self.parent, text = 'ANCOVA', width = bigbuttonsize, fg = 'black',
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 7)
         self.GRPcorr.grid(row = 6, column = 3, sticky="W")
+
 
         # indicate which "personal characteristics" to use - selected from database
         self.GRPlabel2 = tk.Label(self.parent, text = "Select characteristic:")
@@ -4652,13 +4666,13 @@ class GRPFrame:
             self.field_var.set('empty')
 
         self.GRPfield_menu = tk.OptionMenu(self.parent, self.field_var, *self.fields, command=self.DBfieldchoice)
-        self.GRPfield_menu.grid(row=8, column=2, sticky='EW')
+        self.GRPfield_menu.grid(row=8, column=2, columnspan = 2, sticky='EW')
         self.fieldsearch_opt = self.GRPfield_menu  # save this way so that values are not cleared
 
         # label, button, for running the definition of clusters, and loading data
         self.GRPcharclearbutton = tk.Button(self.parent, text="Clear/Update", width=smallbuttonsize, bg=fgcol1, fg='white',
                                         command=self.GRPcharacteristicslistclear, relief='raised', bd=5)
-        self.GRPcharclearbutton.grid(row=8, column=3)
+        self.GRPcharclearbutton.grid(row=8, column=4)
 
         self.GRPlabel3 = tk.Label(self.parent, text = 'Characteristics list:')
         self.GRPlabel3.grid(row=9, column=1, sticky='N')
@@ -4669,7 +4683,7 @@ class GRPFrame:
         self.GRPcharacteristicstext.set('not defined yet')
         self.GRPcharacteristicsdisplay = tk.Label(self.parent, textvariable=self.GRPcharacteristicstext, bg=bgcol, fg="#4B4B4B", font="none 10",
                                       wraplength=300, justify='left')
-        self.GRPcharacteristicsdisplay.grid(row=9, column=2, sticky='N')
+        self.GRPcharacteristicsdisplay.grid(row=9, column=2, columnspan=2, sticky='N')
 
         # put in choices for statistical threshold
         self.GRPlabel5 = tk.Label(self.parent, text = 'p-value threhold:').grid(row=10, column=1, sticky='NSEW')
