@@ -66,7 +66,10 @@ def all_flat_indices_nfixed(vsize, fixedindices, fixedvals):
 def load_network_model_w_intrinsics(networkmodel):
     xls = pd.ExcelFile(networkmodel, engine = 'openpyxl')
     dnet = pd.read_excel(xls, 'connections')
-    dnet.pop('Unnamed: 0')   # remove this blank field from the beginning
+    keylist = dnet.keys()
+    for nn in range(len(keylist)):
+        if 'Unnamed' in keylist[nn]:
+            dnet.pop(keylist[nn])   # remove any blank fields
     dnclusters = pd.read_excel(xls, 'nclusters')
 
     vintrinsic_count = 0
@@ -205,8 +208,8 @@ def gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dv
     nbetavals = len(betavals)
     Mconn[ctarget, csource] = betavals
     fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-    cost = np.sum(np.abs(betavals))
-    ssqd = err + Lweight * cost  # L1 regularization
+    cost = np.sum(np.abs(betavals**2))
+    ssqd = err + Lweight * cost  # L2 regularization
 
     # gradients for betavals
     dssq_db = np.zeros(nbetavals)
@@ -215,8 +218,8 @@ def gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dv
         b[nn] += dval
         Mconn[ctarget, csource] = b
         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-        cost = np.sum(np.abs(b))
-        ssqdp = err + Lweight * cost  # L1 regularization
+        cost = np.sum(np.abs(b**2))
+        ssqdp = err + Lweight * cost  # L2 regularization
         dssq_db[nn] = (ssqdp - ssqd) / dval
     return dssq_db, ssqd
 
@@ -325,9 +328,9 @@ def ind2sub_ndims(vsize,index):
 
 #---------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
-def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparameterssname):
+def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname):
 
-    outputdir, f = os.path.split(SEMparameterssname)
+    outputdir, f = os.path.split(SEMparametersname)
     network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count = load_network_model_w_intrinsics(networkfile)
 
     fintrinsic_region = []
@@ -447,6 +450,13 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEM
                     beta_pair.append([conn1, conn2])
                     count += 1
                     Mconn[conn1, conn2] = count
+                    # alternative:
+                    # if ss1 >= nregions: # intrinsic input to source, which will be scaled
+                    #     Mconn[conn1, conn2] = 1    # keep this beta value fixed at 1
+                    # else:
+                    #     beta_pair.append([conn1, conn2])
+                    #     count += 1
+                    #     Mconn[conn1, conn2] = count
 
     # prep to index Mconn for updating beta values
     beta_pair = np.array(beta_pair)
@@ -476,13 +486,19 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEM
                  'nclusterlist': nclusterlist, 'tsize': tsize, 'tplist_full': tplist_full,
                  'tcdata_centered': tcdata_centered, 'ctarget':ctarget ,'csource':csource,
                  'Mconn':Mconn, 'Minput':Minput}
-    np.save(SEMparameterssname, SEMparams)
+    np.save(SEMparametersname, SEMparams)
 
 
 #----------------------------------------------------------------------------------
 # primary function--------------------------------------------------------------------
 def sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname):
     starttime = time.ctime()
+
+    # initialize gradient-descent parameters--------------------------------------------------------------
+    initial_alpha = 1e-3
+    initial_Lweight = 1e-6
+    initial_dval = 0.01
+    betascale = 0.0
 
     SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
     # load the data values
@@ -510,10 +526,6 @@ def sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparamete
 
     ntime, NP = np.shape(tplist_full)
 
-    # initialize gradient-descent parameters--------------------------------------------------------------
-    initial_alpha = 1e-3
-    initial_Lweight = 1e-3
-    initial_dval = 0.05
 
     #---------------------------------------------------------------------------------------------------------
     #---------------------------------------------------------------------------------------------------------
@@ -549,6 +561,8 @@ def sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparamete
             Sint = Sint - np.mean(Sint)
             b, fit, R2, total_var, res_var = pysem.general_glm(Sint[np.newaxis,:], fintrinsic1[np.newaxis,:])
             beta_int1 = b[0]
+
+            beta_int1 = 1.0   # fix it and see what happens
         else:
             beta_int1 = 0.0
 
@@ -573,6 +587,8 @@ def sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparamete
 
         # initialize beta values-----------------------------------
         beta_initial = np.zeros(len(csource))
+        # beta_initial = np.random.randn(len(csource))
+        beta_initial = betascale*np.ones(len(csource))
         beta_init_record.append({'beta_initial':beta_initial})
 
         # initalize Sconn
@@ -592,12 +608,12 @@ def sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparamete
         # fit, Sconn_full = network_eigenvalue_method(Sconn_full, Minput, Mconn, ncon)
 
         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-        cost = np.sum(np.abs(betavals))
-        ssqd = err + Lweight * cost  # L1 regularization
+        cost = np.sum(np.abs(betavals**2))
+        ssqd = err + Lweight * cost  # L2 regularization
         ssqd_starting = ssqd
         ssqd_record += [ssqd]
 
-        nitermax = 50
+        nitermax = 500
         alpha_limit = 1.0e-5
 
         iter = 0
@@ -605,6 +621,7 @@ def sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparamete
         converging = True
         dssq_record = np.ones(3)
         dssq_count = 0
+        sequence_count = 0
         while alpha > alpha_limit  and iter < nitermax  and converging:
             iter += 1
             # gradients in betavals
@@ -621,8 +638,8 @@ def sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparamete
 
             Mconn[ctarget, csource] = betavals
             fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-            cost = np.sum(np.abs(betavals))
-            ssqd_new = err + Lweight * cost  # L1 regularization
+            cost = np.sum(np.abs(betavals**2))
+            ssqd_new = err + Lweight * cost  # L2 regularization
 
             err_total = Sinput - fit
             Smean = np.mean(Sinput)
@@ -639,6 +656,7 @@ def sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparamete
                 dssqd = ssqd - ssqd_new
                 dssq_record = np.ones(3)  # reset the count
                 dssq_count = 0
+                sequence_count = 0
                 print('beta vals:  iter {} alpha {:.3e}  delta ssq > 0  - no update'.format(iter, alpha))
             else:
                 # save the good values
@@ -647,10 +665,16 @@ def sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparamete
                 dssqd = ssqd - ssqd_new
                 ssqd = ssqd_new
 
+                sequence_count += 1
+                if sequence_count > 5:
+                    alpha *= 1.5
+                    sequence_count = 0
+
                 dssq_count += 1
                 dssq_count = np.mod(dssq_count, 3)
-                dssq_record[dssq_count] = 100.0 * dssqd / ssqd_starting
-                if np.max(dssq_record) < 0.01:  converging = False
+                # dssq_record[dssq_count] = 100.0 * dssqd / ssqd_starting
+                dssq_record[dssq_count] = dssqd
+                if np.max(dssq_record) < 0.1:  converging = False
 
             print('beta vals:  iter {} alpha {:.3e}  delta ssq {:.4f}  relative: {:.1f} percent  '
                   'R2 {:.3f}'.format(iter,alpha, -dssqd,100.0 * ssqd / ssqd_starting, R2total))
@@ -1047,28 +1071,78 @@ def show_Mconn_properties(settingsfile, SEMparametersname, SEMresultsname):
         for bb in range(ncon):
             m = Mrecord[aa, bb, :]
             if np.var(m) > 0:
-                R = np.corrcoef(covariates2, m)
+                R = np.corrcoef(covariates2[g1], m[g1])
                 Rrecord[aa, bb] = R[0, 1]
-                b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis, :], covariates2[np.newaxis, :])
+                G = np.concatenate((covariates2[np.newaxis, g1], np.ones((1,len(g1)))), axis = 0)
+                b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis, g1], G)
                 R2record[aa, bb] = R2
 
-    x = np.argmax(np.abs(R2record))
-    aa, bb = np.unravel_index(x, np.shape(R2record))
+    x = np.argsort(-np.abs(Rrecord.flatten()))
+    number = 0
+    aa, bb = np.unravel_index(x[number], np.shape(Rrecord))
     # aa,bb = (6,7)
     m = Mrecord[aa, bb, :]
     plt.close(35)
     fig = plt.figure(35), plt.plot(covariates2, m, 'ob')
-    b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis, :], covariates2[np.newaxis, :])
+    G = np.concatenate((covariates2[np.newaxis, :], np.ones((1,NP))), axis = 0)
+    b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis, :], G)
     plt.plot(covariates2, fit[0, :], '-b')
 
     plt.close(36)
     fig = plt.figure(36), plt.plot(covariates2[g1], m[g1], 'or')
-    bf, fitf, R2f, total_var, res_var = pysem.general_glm(m[np.newaxis, g1], covariates2[np.newaxis, g1])
+    G = np.concatenate((covariates2[np.newaxis, g1], np.ones((1,len(g1)))), axis = 0)
+    bf, fitf, R2f, total_var, res_var = pysem.general_glm(m[np.newaxis, g1], G)
     plt.plot(covariates2[g1], fitf[0, :], '-r')
 
     plt.plot(covariates2[g2], m[g2], 'ob')
-    bm, fitm, R2m, total_var, res_var = pysem.general_glm(m[np.newaxis, g2], covariates2[np.newaxis, g2])
+    G = np.concatenate((covariates2[np.newaxis, g2], np.ones((1,len(g2)))), axis = 0)
+    bm, fitm, R2m, total_var, res_var = pysem.general_glm(m[np.newaxis, g2], G)
     plt.plot(covariates2[g2], fitm[0, :], '-b')
+
+
+    columns = [name + ' in' for name in betanamelist]
+    rows = [name for name in betanamelist]
+    df = pd.DataFrame(Mconn, columns=columns, index=rows)
+    pd.set_option('display.max_rows', None)
+    pd.set_option('display.max_columns', None)
+    pd.set_option('display.width', None)
+    pd.set_option('display.max_colwidth', None)
+
+    pd.options.display.float_format = '{:.2f}'.format
+    print(df)
+
+    p, f = os.path.split(SEMresultsname)
+    xlname = os.path.join(p, 'Mconn.xlsx')
+    df.to_excel(xlname)
+
+
+def write_Mconn_values(Mconn, betanamelist, rnamelist, beta_list):
+    nregions = len(rnamelist)
+    nr1, nr2 = np.shape(Mconn)
+    text_record = []
+    for n1 in range(nr1):
+        tname = betanamelist[n1]
+        tpair = beta_list[n1]['pair']
+        if tpair[0] >= nregions:
+            ts = 'int{}'.format(tpair[0]-nregions)
+        else:
+            ts = rnamelist[tpair[0]]
+        tt = rnamelist[tpair[1]]
+        text1 = '{}-{} input from '.format(ts[:3],tt[:3])
+        for n2 in range(nr2):
+            if np.abs(Mconn[n1,n2]) > 0:
+                sname = betanamelist[n2]
+                spair = beta_list[n2]['pair']
+                if spair[0] >= nregions:
+                    ss = 'int{}'.format(spair[0]-nregions)
+                else:
+                    ss = rnamelist[spair[0]]
+                st = rnamelist[spair[1]]
+                texts = '{}-{} {:.2f}  '.format(ss[:3],st[:3], Mconn[n1,n2])
+                text1 += texts
+        print(text1)
+        text_record += [text1]
+    return text_record
 
 
 def estimate_best_connections(Nintrinsics, nclusterlist, tplist_full, tcdata_centered, nruns_per_person):
@@ -1173,6 +1247,8 @@ def estimate_best_connections(Nintrinsics, nclusterlist, tplist_full, tcdata_cen
 
     EVRname = os.path.join(p,'explained_variance_check.npy')
     np.save(EVRname, EVRcheck)
+
+
 
 
 def display_Mconn_properties(SEMresultsname, rnamelist, betanamelist):
@@ -1326,10 +1402,12 @@ def display_matrix(M,columntitles,rowtitles):
 
 def run_SEM():
     # main function
+    settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+
     outputdir = r'D:/threat_safety_python/SEMresults'
     SEMresultsname = os.path.join(outputdir, 'SEMresults_newmethod_5.npy')
     SEMparametersname = os.path.join(outputdir, 'SEMparameters_newmethod_5.npy')
-    networkfile = r'D:/threat_safety_python/network_model_with_3intrinsics.xlsx'
+    networkfile = r'D:/threat_safety_python/network_model3_with_3intrinsics.xlsx'
 
     # load paradigm data--------------------------------------------------------------------
     DBname = r'D:/threat_safety_python/threat_safety_database.xlsx'
@@ -1349,6 +1427,18 @@ def run_SEM():
     clusterlist = [4, 9, 14, 15, 20, 28, 32, 35, 41, 47]   # picked by PCA method below
     clusterlist = [4, 5, 14, 15, 20, 28, 32, 35, 41, 47]   # picked by PCA method with 2 intrinsics
     clusterlist = [1, 5, 14, 15, 20, 28, 32, 35, 41, 47]  # picked 2nd by PCA method with 2 intrinsics
+
+    # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
+    #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
+    # from other SEM results:
+    # cnums = [4, 3, 2, 0, 3, 3, 0, 3, 3, 1]
+    # C6RD 4,  DRt  3, Hypothalamus 2 or 1,  PBN 3, NGC 3
+    # NRM 3,  NTS 0, LC 0, PAG  3 or 4 or 2, Thalamus 1 or 3
+    # full_rnum_base = get_overall_num(nclusterlist, list(range(nregions)), np.zeros(nregions))
+    # full_rnum_base = np.array(full_rnum_base).astype(int)
+    # clusterlist = np.array(cnums) + full_rnum_base
+
+    clusterlist = [4,8,12,15,23,28,30,38,43,46]   # from prior SEM analysis
 
     prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
     output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
