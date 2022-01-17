@@ -4344,7 +4344,6 @@ class GRPFrame:
         for x in g2: DBnumlist2 += dbnum_person_list[x][:]
 
         if datafiletype1 == 0:  print('selected data file does not have the required format')
-        if datafiletype1 == 2:  print('time-course data selected .... not ready for this yet')
 
         if datafiletype1 == 1:
             print('SEM results selected')
@@ -4417,7 +4416,7 @@ class GRPFrame:
                     tp_list2 += tp_person
 
                 region_properties1 = copy.deepcopy(rdata1['region_properties'])
-                region_properties2 = copy.deepcopy(rdata2['region_properties'])
+                region_properties2 = copy.deepcopy(rdata1['region_properties'])
                 for nn in range(nregions):
                     region_properties1[nn]['tc'] = region_properties1[nn]['tc'][:,tp_list1]
                     region_properties1[nn]['tc_sem'] = region_properties1[nn]['tc_sem'][:,tp_list1]
@@ -4504,6 +4503,62 @@ class GRPFrame:
                 print('GRPmake2groups: writing results to {}'.format(newdatafile1))
                 np.save(newdatafile2, new_rdata2)
                 print('GRPmake2groups: writing results to {}'.format(newdatafile2))
+
+        if datafiletype1 == 2:
+            print('time-course data selected .... ')
+            print('working here')
+
+            # dict_keys(['region_properties', 'DBname', 'DBnum'])
+            region_properties = data['region_properties']
+            DBname = data['DBname']
+            nregions = len(region_properties)
+            nruns_per_person = region_properties[0]['nruns_per_person']
+            tsize = region_properties[0]['tsize']
+
+            nruns_per_person1 = nruns_per_person[g1]
+            nruns_per_person2 = nruns_per_person[g2]
+
+            # create list of timepoints for data in group1---------------------
+            tp_list1 = []
+            for gg in g1:
+                r1 = np.sum(nruns_per_person[:gg]) * tsize
+                r2 = np.sum(nruns_per_person[:(gg + 1)]) * tsize
+                tp_person = list(range(r1, r2))
+                tp_list1 += tp_person
+            # create list of timepoints for data in group2---------------------
+            tp_list2 = []
+            for gg in g2:
+                r1 = np.sum(nruns_per_person[:gg]) * tsize
+                r2 = np.sum(nruns_per_person[:(gg + 1)]) * tsize
+                tp_person = list(range(r1, r2))
+                tp_list2 += tp_person
+
+            region_properties1 = copy.deepcopy(region_properties)
+            region_properties2 = copy.deepcopy(region_properties)
+            for nn in range(nregions):
+                region_properties1[nn]['tc'] = region_properties1[nn]['tc'][:, tp_list1]
+                region_properties1[nn]['tc_sem'] = region_properties1[nn]['tc_sem'][:, tp_list1]
+                region_properties1[nn]['nruns_per_person'] = nruns_per_person1
+
+                region_properties2[nn]['tc'] = region_properties2[nn]['tc'][:, tp_list2]
+                region_properties2[nn]['tc_sem'] = region_properties2[nn]['tc_sem'][:, tp_list2]
+                region_properties2[nn]['nruns_per_person'] = nruns_per_person2
+
+            # dict_keys(['region_properties', 'DBname', 'DBnum'])
+            new_regiondata1 = {'region_properties': region_properties1, 'DBname':DBname, 'DBnum': DBnumlist1}
+            new_regiondata2 = {'region_properties': region_properties2, 'DBname':DBname, 'DBnum': DBnumlist2}
+
+            # new region name
+            [p, f] = os.path.split(datafile1)
+            [f1, e] = os.path.splitext(f)
+            new_regionname1 = os.path.join(p, '{}_{}{}'.format(f1, groups[0], e))
+            new_regionname2 = os.path.join(p, '{}_{}{}'.format(f1, groups[1], e))
+
+            # write the new region data files
+            np.save(new_regionname1, new_regiondata1)
+            print('GRPmake2groups: writing results to {}'.format(new_regionname1))
+            np.save(new_regionname2, new_regiondata2)
+            print('GRPmake2groups: writing results to {}'.format(new_regionname2))
 
         print('Finished splitting results files into two groups.')
         return self
@@ -4707,11 +4762,16 @@ class DisplayFrame:
     def get_data_fields(self):
         if os.path.isfile(self.DISPresultsname):
             data = np.load(self.DISPresultsname, allow_pickle=True).flat[0]
-            self.DISPdatatype = data['type']
-            if data['type'] == '2source':
-                fields = ['beta1','beta2','CCrecord','Zgrid1_1','Zgrid1_2','Zgrid2']
-            if data['type'] == 'network':
-                fields = ['b','R2']
+            keylist = data.keys()
+            if 'type' in keylist:
+                self.DISPdatatype = data['type']
+                if data['type'] == '2source':
+                    fields = ['beta1','beta2','CCrecord','Zgrid1_1','Zgrid1_2','Zgrid2']
+                if data['type'] == 'network':
+                    fields = ['b','R2']
+            else:
+                self.DISPdatatype = 'unknown'
+                fields = 'empty'
         else:
             self.DISPdatatype = 'unknown'
             fields = 'empty'

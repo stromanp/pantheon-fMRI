@@ -670,14 +670,16 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                 keys = []
                 for cc in range(nclusters):
                     for tn in range(ncov+1):
-                        keys = keys + ['b_'+covnames[tn] + ' ' + str(cc), 'bsem_'+covnames[tn] + ' ' + str(cc), 'R2_'+covnames[tn] + ' ' + str(cc), 'sig_'+covnames[tn] + ' ' + str(cc)]
+                        keys = keys + ['b_'+covnames[tn] + ' ' + str(cc), 'bsem_'+covnames[tn] + ' ' + str(cc)]
+                    keys = keys + ['R2' + ' ' + str(cc), 'sig' + ' ' + str(cc)]
 
                 outputdata = []
                 for tt in range(tsize):
                     values = []
                     for cc in range(nclusters):
                         for tn in range(ncov+1):
-                            values = values + [b[cc, tt, tn], bsem[cc, tt, tn], R2[cc, tt, tn], sig[cc, tt, tn]]
+                            values = values + [b[cc, tt, tn], bsem[cc, tt, tn]]
+                        values = values + [R2[cc, tt], sig[cc, tt]]
                     entry = dict(zip(keys, values))
                     outputdata.append(entry)
 
@@ -685,7 +687,7 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
             # stats based on regression with covariates ----------
             if statstype == 'correlation':
                 Zthresh = stats.norm.ppf(1 - pthreshold)
-                R = np.corrcoef(tc_per_person, covariates)
+                # R = np.corrcoef(tc_per_person, covariates)
                 b, bsem, R2, Z, Rcorrelation, Zcorrelation = GLMregression(tc_per_person, covariates, 2)
                 sig = np.abs(Zcorrelation) > Zthresh
 
@@ -716,7 +718,7 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                 print('finished writing results to ',excelfilename)
             else:
                 print('no significant results found at p < {}'.format(pthreshold))
-            return excelfilename
+        return excelfilename
 
 #------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------

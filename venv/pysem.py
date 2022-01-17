@@ -78,8 +78,8 @@ def general_glm(y, X):
 
     fit = b @ X
     err = y - fit
-    res_var = np.sum(err**2)
-    total_var = np.sum(y**2)
+    res_var = np.sum((err-np.mean(err))**2)
+    total_var = np.sum((y - np.mean(y))**2)
 
     R2 = 1.0 - res_var / (total_var + 1.0e-20)
     if R2 > 1.0: R2 = 0.99999
