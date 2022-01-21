@@ -750,12 +750,12 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
 
         # create the line plot
         TargetAxes.clear()
-        TargetAxes.plot(covariates1,d,'bo', markersize=3)
-        TargetAxes.plot(covariates1,fit,'b-')
+        TargetAxes.plot(covariates1,d, color=(0,1,0), linestyle='None', marker='o', markerfacecolor=(0,1,0), markersize=3)
+        TargetAxes.plot(covariates1,fit, color=(0,1,0), linestyle='solid', marker='None')
         TargetAxes.set_title(textlabel + ' ' + field_to_plot, fontsize=titlefont)
         if twogroup:
-            TargetAxes.plot(covariates2,d2,'ro', markersize=3)
-            TargetAxes.plot(covariates2,fit2,'r-')
+            TargetAxes.plot(covariates2,d2, color=(1.0,0.5,0.), linestyle='None', marker='o', markerfacecolor=(1.0,0.5,0.), markersize=3)
+            TargetAxes.plot(covariates2,fit2, color=(1.0,0.5,0.), linestyle='solid', marker='None')
 
         # add annotations
         ii = np.argmin(covariates1)
@@ -766,7 +766,7 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
         else:
             y -= 0.1  # shift text downward
         R2text = 'R2 = {:.3f}'.format(R2)
-        TargetAxes.text(x,y, R2text, color = 'b', fontsize=labelfont)
+        TargetAxes.text(x,y, R2text, color = (0,1,0), fontsize=labelfont)
 
         if twogroup:
             # add annotations
@@ -778,7 +778,7 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
             else:
                 y -= 0.1  # shift text downward
             R22text = 'R2 = {:.3f}'.format(R22)
-            TargetAxes.text(x,y,R22text, color = 'r', fontsize=labelfont)
+            TargetAxes.text(x,y,R22text, color=(1.0,0.5,0.), fontsize=labelfont)
 
         plt.xticks(fontsize=labelfont)
         plt.yticks(fontsize=labelfont)
@@ -843,12 +843,12 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
 
         # create the line plot
         TargetAxes.clear()
-        TargetAxes.plot(covariates1,d,'bo', markersize=4)
-        TargetAxes.plot(covariates1,fit,'b-')
+        TargetAxes.plot(covariates1,d, color=(0,1,0), linestyle='None', marker='o', markerfacecolor=(0,1,0), markersize=3)
+        TargetAxes.plot(covariates1,fit, color=(0,1,0), linestyle='solid', marker='None')
         TargetAxes.set_title(textlabel + ' ' + field_to_plot, fontsize=titlefont)
         if twogroup:
-            TargetAxes.plot(covariates2,d2,'ro', markersize=4)
-            TargetAxes.plot(covariates2,fit2,'r-')
+            TargetAxes.plot(covariates2,d2, color=(1.0,0.5,0), linestyle='None', marker='o', markerfacecolor=(1.0,0.5,0), markersize=3)
+            TargetAxes.plot(covariates2,fit2, color=(1.0,0.5,0), linestyle='solid', marker='None')
 
         # add annotations
         ii = np.argmin(covariates1)
@@ -859,7 +859,7 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
         else:
             y -= 0.1  # shift text downward
         R2text = 'R2 = {:.3f}'.format(R2)
-        TargetAxes.text(x,y, R2text, color = 'b', fontsize=labelfont)
+        TargetAxes.text(x,y, R2text, color = (0,1,0), fontsize=labelfont)
 
         if twogroup:
             # add annotations
@@ -871,7 +871,7 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
             else:
                 y -= 0.1  # shift text downward
             R22text = 'R2 = {:.3f}'.format(R22)
-            TargetAxes.text(x,y,R22text, color = 'r', fontsize=labelfont)
+            TargetAxes.text(x,y,R22text, color = (1.0,0.5,0), fontsize=labelfont)
 
         plt.xticks(fontsize=labelfont)
         plt.yticks(fontsize=labelfont)

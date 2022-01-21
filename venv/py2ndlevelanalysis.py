@@ -1658,6 +1658,7 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
     #
     print('running py2ndlevelanalysis:  single_group_ANOVA:  started at ',time.ctime())
     data1 = np.load(filename1, allow_pickle=True).flat[0]
+    datadir, f = os.path.split(filename1)
 
     # setup output name
     tag = ''
@@ -1883,6 +1884,9 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
             # results = {'type': 'network', 'resultsnames': outputnamelist, 'network': self.networkmodel,
             #            'regionname': self.SEMregionname, 'clustername': self.SEMclustername, 'DBname': self.DBname,
             #            'DBnum': self.DBnum}
+            resume_previous = True
+            interim_name = os.path.join(datadir, 'intermediate_anova_results.npy')
+            if not os.path.isfile(interim_name): resume_previous = False
 
             resultsnames1 = data1['resultsnames']
             clustername = data1['clustername']
@@ -1898,6 +1902,7 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
             results = []
             Svalue_list = []
             connid_list = []   # identify connections - to be able to remove redundant ones later
+            interim_results = []
             for networkcomponent, fname1 in enumerate(resultsnames1):
                 semresults1 = np.load(fname1, allow_pickle=True).flat[0]
                 sem_one_target1 = semresults1['sem_one_target_results']
@@ -1914,8 +1919,18 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
                 # initialize for saving results for each network component
                 anova_p = np.ones((ntclusters, ncombinations, ntimepoints,nsources,3))
 
-                for tt in range(ntclusters):
-                    print('{} percent complete {}'.format(100.*t/ntclusters,time.ctime()))
+                if resume_previous:
+                    # interim_results.append({'networkcomponent': networkcomponent, 'tcluster': tt, 'anova_p': anova_p})
+                    interim_results = np.load(interim_name, allow_pickle =True).flat[0]
+                    for aa in range(len(interim_results)):
+                        if interim_results[aa]['networkcomponent'] == networkcomponent:
+                            tcluster_start = interim_results[aa]['tcluster']
+                            anova_p = interim_results[aa]['anova_p']
+                else:
+                    tcluster_start = 0
+
+                for tt in range(tcluster_start, ntclusters):
+                    print('network component  {} percent complete {}  {}'.format(networkcomponent, 100.*tt/ntclusters, time.ctime()))
                     targetcoords = cluster_info[targetnum]['cluster_coords'][tt, :]
                     beta1 = sem_one_target1[tt]['b']
 
@@ -1935,12 +1950,16 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
                         for nt in range(ntimepoints):
                             for ns in range(nsources):
                                 b1 = beta1[nc,nt,:,ns]
-                                if np.var(b1) > 0 and np.var(b2) > 0:
+                                if np.var(b1) > 0:
                                     anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA1(b1, cov1, cov2, covname1, covname2, formula_key1, formula_key2, formula_key3, atype)
                                     anova_p[tt,nc,nt,ns,:] = np.array([p_MeoG, p_MeoC, p_intGC])
 
-                print('100 percent complete {}'.format(time.ctime()))
+                    interim_results.append({'networkcomponent': networkcomponent, 'tcluster':tt, 'anova_p':anova_p})
+                    np.save(interim_name, interim_results)
+
+                print('network component {}  100 percent complete {}'.format(networkcomponent, time.ctime()))
                 beta_sig = anova_p  < pthreshold
+                stat_of_interest = anova_p
 
                 #--------sort and write out the results---------------------------
                 statstype = 'anova_p'
@@ -1968,7 +1987,7 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
 
                     connid = nt[ii]*1e7 + targetnum*1e5 + tt[ii]*1e3 + sourcenums[ss[ii]]*10 + sourcecluster
 
-                    connection_info = [networkcompoent, tt[ii],combo[ii], nt[ii], ss[ii],nc[ii]]
+                    connection_info = [networkcomponent, tt[ii],combo[ii], nt[ii], ss[ii],nc[ii]]
                     values = np.concatenate(([targetname, tt[ii], sourcename, sourcecluster, Svalue],
                          list(targetcoords), list(targetlimits), list(sourcecoords), list(sourcelimits), connection_info))
                     entry = dict(zip(keys, values))

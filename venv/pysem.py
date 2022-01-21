@@ -672,3 +672,23 @@ def pysem_network(cluster_properties, region_properties, networkmodel, timepoint
     return outputnamelist
 
     # now a function is needed to look at group characteristics etc of the results...
+
+
+def get_network_component_info(networkmodel, networkcomponent, targetcluster, combination):
+    network, ncluster_list, sem_region_list = pyclustering.load_network_model(networkmodel)
+    nclusterlist = np.array([ncluster_list[i]['nclusters'] for i in range(len(ncluster_list))])
+
+    target = network[networkcomponent]['target']
+    sources = network[networkcomponent]['sources']
+    targetnum = network[networkcomponent]['targetnum']
+    sourcenums = network[networkcomponent]['sourcenums']
+
+    sourceclusters = ind2sub_ndims(nclusterlist[sourcenums], combination)
+
+    print('target:  {} {}'.format(target,targetcluster))
+
+    sourcetext = 'sources:'
+    for aa in range(len(sources)): sourcetext += '  {} {}'.format(sources[aa],sourceclusters[aa])
+    print(sourcetext)
+
+    return target, targetcluster, sources, sourceclusters

@@ -4444,7 +4444,7 @@ class GRPFrame:
 
                 # data in clustername is the same for every group
 
-                networkname = data1['network']
+                networkname = data['network']
                 network, ncluster_list, sem_region_list = pyclustering.load_network_model(networkname)
 
                 # data in resultsnames
@@ -4484,13 +4484,13 @@ class GRPFrame:
                     print('GRPmake2groups: writing results to {}'.format(rn2))
 
                 # write out new
-                new_rdata = {'type': rdata1['type'], 'resultsnames':new_resultsnames1, 'network':rdata1['network'],
-                         'regionname':new_regionname1, 'clustername':rdata1['clustername'],
-                         'DBname':rdata1['DBname'], 'DBnum':DBnumlist1}
+                new_data1 = {'type': data['type'], 'resultsnames':new_resultsnames1, 'network':data['network'],
+                         'regionname':new_regionname1, 'clustername':data['clustername'],
+                         'DBname':data['DBname'], 'DBnum':DBnumlist1}
 
-                new_rdata2 = {'type': rdata1['type'], 'resultsnames':new_resultsnames2, 'network':rdata1['network'],
-                         'regionname':new_regionname2, 'clustername':rdata1['clustername'],
-                         'DBname':rdata1['DBname'], 'DBnum':DBnumlist2}
+                new_data2 = {'type': data['type'], 'resultsnames':new_resultsnames2, 'network':data['network'],
+                         'regionname':new_regionname2, 'clustername':data['clustername'],
+                         'DBname':data['DBname'], 'DBnum':DBnumlist2}
 
                 # setup new names
                 [p,f] = os.path.split(datafile1)
@@ -4499,14 +4499,13 @@ class GRPFrame:
                 newdatafile2 = os.path.join(p, '{}_{}{}'.format(f1,groups[1],e))
 
                 # write the new data files
-                np.save(newdatafile1, new_rdata1)
+                np.save(newdatafile1, new_data1)
                 print('GRPmake2groups: writing results to {}'.format(newdatafile1))
-                np.save(newdatafile2, new_rdata2)
+                np.save(newdatafile2, new_data2)
                 print('GRPmake2groups: writing results to {}'.format(newdatafile2))
 
         if datafiletype1 == 2:
             print('time-course data selected .... ')
-            print('working here')
 
             # dict_keys(['region_properties', 'DBname', 'DBnum'])
             region_properties = data['region_properties']
@@ -5457,25 +5456,38 @@ class DisplayFrame:
 class DisplayFrame2:
     def DISP2saveclick1(self):
         # save the figure in PlotFigure3, Canvas3
-        filechoice = tkf.asksaveasfilename(title="Select file", filetypes=(("eps files", "*.eps"), ("all files", "*.*")))
+        filechoice = tkf.asksaveasfilename(title="Select file", filetypes=(("eps files", "*.eps"), ("svg files", "*.svg"), ("all files", "*.*")))
         [f,e] = os.path.splitext(filechoice)
-        if e != '.eps':
+        if e == '.eps':
             filechoice = f+'.eps'
-        plt.figure(93)
-        plt.savefig(filechoice, format = 'eps')
-        print('saved plot as {}'.format(filechoice))
+            plt.figure(93)
+            plt.savefig(filechoice, format = 'eps')
+            print('saved plot as {}'.format(filechoice))
+        if e == '.svg':
+            filechoice = f+'.svg'
+            plt.figure(93)
+            plt.savefig(filechoice, format = 'svg')
+            print('saved plot as {}'.format(filechoice))
+        if not e in ['.eps', '.svg']:
+            print('image not saved - bad type chosen')
 
 
     def DISP2saveclick2(self):
         # save the figure in PlotFigure4, Canvas4
         filechoice = tkf.asksaveasfilename(title="Select file",
-                                           filetypes=(("eps files", "*.eps"), ("all files", "*.*")))
+                                           filetypes=(("eps files", "*.eps"), ("svg files", "*.svg"), ("all files", "*.*")))
         [f, e] = os.path.splitext(filechoice)
-        if e != '.eps':
+        if e == '.eps':
             filechoice = f+'.eps'
-        plt.figure(94)
-        plt.savefig(filechoice, format = 'eps')
-        print('saved anat image as {}'.format(filechoice))
+            plt.figure(94)
+            plt.savefig(filechoice, format = 'eps')
+        if e == '.svg':
+            filechoice = f+'.svg'
+            plt.figure(94)
+            plt.savefig(filechoice, format = 'svg')
+            print('saved anat image as {}'.format(filechoice))
+        if not e in ['.eps', '.svg']:
+            print('image not saved - bad type chosen')
 
 
     def __init__(self, parent, controller):
