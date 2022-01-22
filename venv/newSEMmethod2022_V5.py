@@ -205,6 +205,7 @@ def gradients_in_beta1(Sinput, Sconn, fintrinsic1, vintrinsics, beta_int1, Minpu
 
 def gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight):
     # calculate change in error term with small changes in betavalues
+    # include beta_int1
     nbetavals = len(betavals)
     Mconn[ctarget, csource] = betavals
     fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
@@ -221,7 +222,17 @@ def gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dv
         cost = np.sum(np.abs(b**2))
         ssqdp = err + Lweight * cost  # L2 regularization
         dssq_db[nn] = (ssqdp - ssqd) / dval
-    return dssq_db, ssqd
+
+    # gradients for beta_int1
+    b = copy.deepcopy(beta_int1)
+    b += dval
+    Mconn[ctarget, csource] = betavals
+    fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, b, fintrinsic1)
+    cost = np.sum(np.abs(b**2))
+    ssqdp = err + Lweight * cost  # L2 regularization
+    dssq_dbeta1 = (ssqdp - ssqd) / dval
+
+    return dssq_db, ssqd, dssq_dbeta1
 
 
 def network_eigenvalue_method(Sconn_full, Minput, Mconn, ncon):
@@ -559,10 +570,10 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
             fintrinsic1 = np.array(list(fintrinsic_base) * nruns_per_person[nperson])
             Sint = Sinput[fintrinsic_region,:]
             Sint = Sint - np.mean(Sint)
-            b, fit, R2, total_var, res_var = pysem.general_glm(Sint[np.newaxis,:], fintrinsic1[np.newaxis,:])
+            # need to add constant to fit values
+            G = np.concatenate((fintrinsic1[np.newaxis, :],np.ones((1,tsize_total))),axis=0)
+            b, fit, R2, total_var, res_var = pysem.general_glm(Sint, G)
             beta_int1 = b[0]
-
-            beta_int1 = 1.0   # fix it and see what happens
         else:
             beta_int1 = 0.0
 
@@ -624,14 +635,17 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
         sequence_count = 0
         while alpha > alpha_limit  and iter < nitermax  and converging:
             iter += 1
-            # gradients in betavals
+            # gradients in betavals and beta_int1
             Mconn[ctarget, csource] = betavals
             fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-            dssq_db, ssqd = gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight)
+            dssq_db, ssqd, dssq_dbeta1 = gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight)
             ssqd_record += [ssqd]
+
+            # gradient in beta_int1
 
             # apply the changes
             betavals -= alpha * dssq_db
+            beta_int1 -= alpha * dssq_dbeta1
 
             # betavals[betavals >= betalimit] = betalimit
             # betavals[betavals <= -betalimit] = -betalimit
@@ -653,6 +667,7 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
                 alpha *= 0.5
                 # revert back to last good values
                 betavals = copy.deepcopy(lastgood_betavals)
+                beta_int1 = copy.deepcopy(lastgood_beta_int1)
                 dssqd = ssqd - ssqd_new
                 dssq_record = np.ones(3)  # reset the count
                 dssq_count = 0
@@ -661,6 +676,7 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
             else:
                 # save the good values
                 lastgood_betavals = copy.deepcopy(betavals)
+                lastgood_beta_int1 = copy.deepcopy(beta_int1)
 
                 dssqd = ssqd - ssqd_new
                 ssqd = ssqd_new
@@ -1235,116 +1251,196 @@ def show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname,
         nbeta,tsize2 = np.shape(Sconn)
 
         if nperson == 0:
-            Sinput_total = np.zeros((nr,tsize))
-            Sconn_total = np.zeros((nbeta,tsize))
-            fit_total = np.zeros((nr,tsize))
+            Sinput_total = np.zeros((nr,tsize, NP))
+            Sconn_total = np.zeros((nbeta,tsize, NP))
+            fit_total = np.zeros((nr,tsize, NP))
 
         tc = Sinput
         tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
-        Sinput_total += tc1
+        Sinput_total[:,:,nperson] = tc1
 
         tc = Sconn
         tc1 = np.mean(np.reshape(tc, (nbeta, nruns, tsize)), axis=1)
-        Sconn_total += tc1
+        Sconn_total[:,:,nperson] = tc1
 
         tc = fit
         tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
-        fit_total += tc1
+        fit_total[:,:,nperson] = tc1
 
         Mrecord[:, :, nperson] = Mconn
         R2totalrecord[nperson] = R2total
 
 
-    Sinput_avg = Sinput_total/NP
-    Sconn_avg = Sconn_total/NP
-    fit_avg = fit_total/NP
+    Sinput_avg = np.mean(Sinput_total, axis = 2)
+    Sconn_avg = np.mean(Sconn_total, axis = 2)
+    fit_avg = np.mean(fit_total, axis = 2)
+
+    # regression based on pain ratings (separate by sex?)
+    p = covariates2[np.newaxis, :]
+    p -= np.mean(p)
+    pmax = np.max(np.abs(p))
+    p /= pmax
+    G = np.concatenate((np.ones((1, NP)),p), axis=0) # put the intercept term first
+    Sinput_reg = np.zeros((nr,tsize,2))
+    fit_reg = np.zeros((nr,tsize,2))
+    Sconn_reg = np.zeros((nbeta,tsize,2))
+    for tt in range(tsize):
+        for nn in range(nr):
+            m = Sinput_total[nn,tt,:]
+            b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
+            Sinput_reg[nn,tt,:] = b
+
+            m = fit_total[nn,tt,:]
+            b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
+            fit_reg[nn,tt,:] = b
+
+        for nn in range(nbeta):
+            m = Sconn_total[nn,tt,:]
+            b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
+            Sconn_reg[nn,tt,:] = b
+
 
     # separate by sex
     g1 = np.where(covariates1 == 'Female')[0]
     g2 = np.where(covariates1 == 'Male')[0]
 
-    region1 = 0
-    region2 = 5
-    region3 = 7
-    nametag2 = r'_cord_NRM_PAG'
+    # regression of Mrecord with pain ratings
+    # glm_fit
+    Mregression = np.zeros((nbeta,nbeta,3))
+    Mregression1 = np.zeros((nbeta,nbeta,3))
+    Mregression2 = np.zeros((nbeta,nbeta,3))
+    p = covariates2[np.newaxis, :]
+    p -= np.mean(p)
+    pmax = np.max(np.abs(p))
+    p /= pmax
+    G = np.concatenate((np.ones((1, NP)), p), axis=0)  # put the intercept term first
+    for aa in range(nbeta):
+        for bb in range(nbeta):
+            m = Mrecord[aa,bb,:]
+            if np.var(m) > 0:
+                b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis,:], G)
+                Mregression[aa,bb,:] = [b[0,0],b[0,1],R2]
 
+                b1, fit1, R21, total_var, res_var = pysem.general_glm(m[np.newaxis,g1], G[:,g1])
+                Mregression1[aa,bb,:] = [b1[0,0],b1[0,1],R21]
+
+                b2, fit2, R22, total_var, res_var = pysem.general_glm(m[np.newaxis,g2], G[:,g2])
+                Mregression2[aa,bb,:] = [b2[0,0],b2[0,1],R22]
+
+    rtext = write_Mconn_values(Mregression2[:,:,1], Mregression2[:,:,2], betanamelist, rnamelist, beta_list, format='f', minthresh=0.0001, maxthresh=0.0)
+
+    # show results
+    # figure 1   -  inputs to NRM, with NGc for comparison
+    window1 = 24
     target = 'NRM'
     nametag1 = r'NRMinput'
+    plot_region_inputs(window1, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist)
+
+    window2 = 25
+    regionlist = [0,5,7]
+    nametag = r'cord_NRM_PAG'
+    plot_region_fits(window2, regionlist, nametag, Sinput_avg, fit_avg, rnamelist)
+
+    # figure 3--------------------------------------------
+    # inputs to C6RD
+    window3 = 26
+    target = 'C6RD'
+    nametag1 = r'C6RDinput'
+    plot_region_inputs(window3, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist)
+
+
+    # figure 4--------------------------------------------
+    # inputs to NTS
+    window4 = 27
+    target = 'NTS'
+    nametag1 = r'NTSinput'
+    plot_region_inputs(window4, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist)
+
+    # figure 5--------------------------------------------
+    # inputs to NTS
+    window5 = 28
+    target = 'PAG'
+    nametag1 = r'PAGinput'
+    plot_region_inputs(window5, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist)
+
+
+
+
+def plot_region_inputs(windownum, target, nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist):
     rtarget = rnamelist.index(target)
     m = Minput[rtarget, :]
     sources = np.where(m == 1)[0]
     rsources = [beta_list[ss]['pair'][0] for ss in sources]
+    nsources = len(sources)
+    nregions = len(rnamelist)
+    checkdims = np.shape(Sinput_reg)
+    if np.ndim(Sinput_reg) > 2:  nv = checkdims[2]
+    tsize = checkdims[1]
 
-    target2 = 'NGC'
-    rtarget2 = rnamelist.index(target2)
+    plt.close(windownum)
+    fig1, axs = plt.subplots(nsources, 2, sharey=True, figsize=(12, 9), dpi=100, num=windownum)
 
-    window1 = 24
-    window2 = 25
+    x = list(range(tsize))
+    xx = x + x[::-1]
+    tc1 = Sinput_reg[rtarget,:,0]
+    tc1p = Sinput_reg[rtarget,:,1]
+    tc1f = fit_reg[rtarget,:,0]
+    tc1fp = fit_reg[rtarget,:,1]
 
-    # inputs to NRM as example
-    plt.close(window1)
-    # fig1 = plt.figure(window1, figsize=(12, 9), dpi=100)
-    fig1, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(3, 2, sharey=True, figsize=(12, 9), dpi=100, num=window1)
-    # ax1 = fig.add_subplot(3,2,4, sharey = True)
+    y1 = list(tc1f+tc1fp)
+    y2 = list(tc1f-tc1fp)
+    yy = y1 + y2[::-1]
+    axs[1,1].plot(x, tc1, '-ob')
+    # axs[1,1].plot(tc1+tc1p, '-b')
+    # axs[1,1].plot(tc1-tc1p, '--b')
+    axs[1,1].plot(x, tc1f, '-xr')
+    axs[1,1].fill(xx,yy, facecolor=(1,0,0), edgecolor='None', alpha = 0.2)
+    axs[1,1].plot(x, tc1f+tc1fp, color = (1,0,0), linestyle = '-', linewidth = 0.5)
+    # axs[1,1].plot(x, tc1f-tc1fp, '--r')
+    axs[1,1].set_title('target input {}'.format(rnamelist[rtarget]))
 
-    tc1 = Sinput_avg[rtarget, :]
-    tcf = fit_avg[rtarget, :]
-
-    ax4.plot(tc1, '-ob')
-    ax4.plot(tcf, '-xr')
-    ax4.set_title('target input {}'.format(rnamelist[rtarget]))
-
-    tc2 = Sinput_avg[rtarget2, :]
-    tcf = fit_avg[rtarget2, :]
-
-    ax2.plot(tc2, '-ob')
-    ax2.plot(tc2f, '-xr')
-    ax2.set_title('target input {}'.format(rnamelist[rtarget2]))
-
-    tc1 = Sconn_avg[sources[0], :]
-    tc2 = Sconn_avg[sources[1], :]
-    tc3 = Sconn_avg[sources[2], :]
-
-    ax1.plot(tc1, '-xr')
-    ax1.set_title('source output {} {}'.format(betanamelist[sources[0]], rnamelist[rsources[0]]))
-    ax3.plot(tc2, '-xr')
-    ax3.set_title('source output {} {}'.format(betanamelist[sources[1]], rnamelist[rsources[1]]))
-    ax5.plot(tc3, '-xr')
-    ax5.set_title('source output {} {}'.format(betanamelist[sources[2]], rnamelist[rsources[2]]))
-
-    p, f = os.path.split(SEMresultsname)
-    svgname = os.path.join(p, 'Person{}_'.format(nperson) + nametag1 + '.svg')
-    plt.savefig(svgname)
-
-    # show C6RD, NRM, and PAG as examples (inputs real and fit)
-    plt.close(window2)
-    # fig2 = plt.figure(window2, figsize=(12, 6), dpi=100)
-    fig2, (ax1b, ax2b, ax3b) = plt.subplots(3, sharey=False, figsize=(12, 6), dpi=100, num=window2)
-    # ax1 = fig.add_subplot(3,2,4, sharey = True)
-
-    tc1 = Sinput_avg[region1, :]
-    tcf1 = fit_avg[region1, :]
-    tc2 = Sinput_avg[region2, :]
-    tc2f = fit_avg[region2, :]
-    tc3 = Sinput_avg[region3, :]
-    tc3f = fit_avg[region3, :]
-
-    ax1b.plot(tc1, '-ob')
-    ax1b.plot(tcf1, '-xr')
-    ax1b.set_title('target {}'.format(rnamelist[region1]))
-    ax2b.plot(tc2, '-ob')
-    ax2b.plot(tcf2, '-xr')
-    ax2b.set_title('target {}'.format(rnamelist[region2]))
-    ax3b.plot(tc3, '-ob')
-    ax3b.plot(tcf3, '-xr')
-    ax3b.set_title('target {}'.format(rnamelist[region3]))
+    for ss in range(nsources):
+        tc1 = Sconn_reg[sources[ss], :, 0]
+        tc1p = Sconn_reg[sources[ss], :, 1]
+        y1 = list(tc1 + tc1p)
+        y2 = list(tc1 - tc1p)
+        yy = y1 + y2[::-1]
+        axs[ss,0].plot(x, tc1, '-xr')
+        axs[ss,0].fill(xx,yy, facecolor=(1,0,0), edgecolor='None', alpha = 0.2)
+        # axs[ss,0].plot(x, tc1+tc1p, '-r')
+        # axs[ss,0].plot(x, tc1-tc1p, '--r')
+        axs[ss,0].plot(x, tc1+tc1p, color = (1,0,0), linestyle = '-', linewidth = 0.5)
+        if rsources[ss] >= nregions:
+            axs[ss, 0].set_title('source output {} {}'.format(betanamelist[sources[ss]], 'int'))
+        else:
+            axs[ss,0].set_title('source output {} {}'.format(betanamelist[sources[ss]], rnamelist[rsources[ss]]))
 
     p, f = os.path.split(SEMresultsname)
-    svgname = os.path.join(p, 'Person{}_'.format(nperson) + nametag2 + '.svg')
+    svgname = os.path.join(p, 'Avg_' + nametag1 + '.svg')
     plt.savefig(svgname)
 
+    return svgname
 
 
+def plot_region_fits(window, regionlist, nametag, Sinput_avg, fit_avg, rnamelist):
+    ndisplay = len(regionlist)
+
+    # show regions (inputs real and fit)
+    plt.close(window)
+    fig2, axs = plt.subplots(ndisplay, sharey=False, figsize=(12, 6), dpi=100, num=window)
+
+    for nn in range(ndisplay):
+        tc1 = Sinput_avg[regionlist[nn], :]
+        tcf1 = fit_avg[regionlist[nn], :]
+        axs[nn].plot(tc1, '-ob')
+        axs[nn].plot(tcf1, '-xr')
+        axs[nn].set_title('target {}'.format(rnamelist[regionlist[nn]]))
+
+    p, f = os.path.split(SEMresultsname)
+    svgname = os.path.join(p, 'Avg_' + nametag + '.svg')
+    plt.savefig(svgname)
+
+    return svgname
 
 
 
@@ -1390,14 +1486,14 @@ def write_Mconn_values(Mconn, Mconn_sem, betanamelist, rnamelist, beta_list, for
                 if len(st) > 4:  st = st[:4]
                 if format == 'f':
                     if write_sem:
-                        texts = '{}-{} {:.2f} {} {:.2f} '.format(ss,st, Mconn[n1,n2],chr(177), Mconn_sem[n1,n2])
+                        texts = '{}-{} {:.3f} {} {:.3f} '.format(ss,st, Mconn[n1,n2],chr(177), Mconn_sem[n1,n2])
                     else:
-                        texts = '{}-{} {:.2f}  '.format(ss,st, Mconn[n1,n2])
+                        texts = '{}-{} {:.3f}  '.format(ss,st, Mconn[n1,n2])
                 else:
                     if write_sem:
-                        texts = '{}-{} {:.2e} {} {:.2e} '.format(ss,st, Mconn[n1,n2],chr(177), Mconn_sem[n1,n2])
+                        texts = '{}-{} {:.3e} {} {:.3e} '.format(ss,st, Mconn[n1,n2],chr(177), Mconn_sem[n1,n2])
                     else:
-                        texts = '{}-{} {:.2e}  '.format(ss,st, Mconn[n1,n2])
+                        texts = '{}-{} {:.3e}  '.format(ss,st, Mconn[n1,n2])
                 text1 += texts
         if showval:
             print(text1)
