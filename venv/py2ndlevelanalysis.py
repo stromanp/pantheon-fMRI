@@ -297,6 +297,11 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                 stat_of_interest1 = Tbeta1
                 stat_of_interest2 = Tbeta2
 
+                value1 = mean_beta1
+                value1_se = se_beta1
+                value2 = mean_beta2
+                value2_se = se_beta2
+
             # stats based on regression with covariates - --------
             if statstype == 'regression':
                 stattitle = 'Zregression'
@@ -310,6 +315,11 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                 beta2_sig = np.abs(Z2) > Zthresh
                 stat_of_interest1 = Z1
                 stat_of_interest2 = Z2
+
+                value1 = b1
+                value1_se = b1sem
+                value2 = b2
+                value2_se = b2sem
 
             #---------------------------------------------------
             if statstype == 'correlation':
@@ -325,6 +335,11 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                 stat_of_interest1 = Zcorrelation1
                 stat_of_interest2 = Zcorrelation2
 
+                value1 = b1
+                value1_se = b1sem
+                value2 = b2
+                value2_se = b2sem
+
             #---------------------------------------------------
             if statstype == 'time':
                 stattitle = 'Tdiff'
@@ -333,16 +348,27 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
 
                 Tbeta1 = np.zeros((ntclusters, ns1sclusters, ns2clusters, ntimepoints-1, nbeta))
                 Tbeta2 = np.zeros((ntclusters, ns1sclusters, ns2clusters, ntimepoints-1, nbeta))
+
+                v1 = np.zeros((ntclusters, ns1sclusters, ns2clusters, ntimepoints-1, nbeta))
+                v1s = np.zeros((ntclusters, ns1sclusters, ns2clusters, ntimepoints-1, nbeta))
+                v2 = np.zeros((ntclusters, ns1sclusters, ns2clusters, ntimepoints-1, nbeta))
+                v2s = np.zeros((ntclusters, ns1sclusters, ns2clusters, ntimepoints-1, nbeta))
                 for tt in range(ntimepoints-1):
                     betadiff = beta1[:,:,:,tt+1,:,:] - beta1[:,:,:,tt,:,:]
                     mean_diff = np.mean(betadiff,axis = 3)
                     se_diff = np.std(betadiff,axis = 3)/np.sqrt(NP)
                     Tbeta1[:,:,:,tt,:] = mean_diff/(se_diff + 1.0e-10)
 
+                    v1[:, :, :, tt, :] = mean_diff
+                    v1s[:, :, :, tt, :] = se_diff
+
                     betadiff = beta2[:,:,:,tt+1,:,:] - beta2[:,:,:,tt,:,:]
                     mean_diff = np.mean(betadiff,axis = 3)
                     se_diff = np.std(betadiff,axis = 3)/np.sqrt(NP)
                     Tbeta2[:,:,:,tt,:] = mean_diff/(se_diff + 1.0e-10)
+
+                    v2[:, :, :, tt, :] = mean_diff
+                    v2s[:, :, :, tt, :] = se_diff
 
                 Tthresh = stats.t.ppf(1-pthreshold,NP-1)
 
@@ -350,10 +376,16 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                 beta2_sig = np.abs(Tbeta2) > Tthresh
                 stat_of_interest1 = Tbeta1
                 stat_of_interest2 = Tbeta2
+
+                value1 = v1
+                value1_se = v1s
+                value2 = v2
+                value2_se = v2s
+
                 ntimepoints -= 1
             #---------------------------------------------------
 
-            keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2', 'tlimy1',
+            keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'v1', 'v1sem', 'v2', 'v2sem', 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2', 'tlimy1',
                     'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2', 'slimz1', 'slimz2',
                     't','s1','s2','tt','nb']
 
@@ -371,6 +403,11 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                 connid_list = np.zeros(len(t))   # identify connections - to be able to remove redundant ones later
                 for ii in range(len(t)):
                     Svalue_list[ii] = stat_of_interest1[t[ii],s1[ii],s2[ii],tt,nb[ii]]
+                    v1 = value1[t[ii],s1[ii],s2[ii],tt,nb[ii]]
+                    v1s = value1_se[t[ii],s1[ii],s2[ii],tt,nb[ii]]
+                    v2 = value2[t[ii],s1[ii],s2[ii],tt,nb[ii]]
+                    v2s = value2_se[t[ii],s1[ii],s2[ii],tt,nb[ii]]
+
                     if nb[ii] == 0:
                         s = s1[ii]
                     else:
@@ -385,7 +422,7 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                     sourcelimits = cluster_info[sourcenumber]['regionlimits']
                     connection_info = [t[ii],s1[ii],s2[ii],tt,nb[ii]]
 
-                    values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]],
+                    values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]], v1,v1s,v2,v2s,
                                              list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),connection_info))
                     entry = dict(zip(keys, values))
                     results.append(entry)
@@ -419,6 +456,12 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                 connid_list = np.zeros(len(t))   # identify connections - to be able to remove redundant ones later
                 for ii in range(len(t)):
                     Svalue_list[ii] = stat_of_interest2[t[ii],s1[ii],s2[ii],tt,nb[ii]]
+
+                    v1 = value1[t[ii],s1[ii],s2[ii],tt,nb[ii]]
+                    v1s = value1_se[t[ii],s1[ii],s2[ii],tt,nb[ii]]
+                    v2 = value2[t[ii],s1[ii],s2[ii],tt,nb[ii]]
+                    v2s = value2_se[t[ii],s1[ii],s2[ii],tt,nb[ii]]
+
                     if nb[ii] == 0:
                         s = s1[ii]
                     else:
@@ -433,7 +476,7 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                     sourcelimits = cluster_info[sourcenumber]['regionlimits']
 
                     connection_info = [t[ii],s1[ii],s2[ii],tt,nb[ii]]
-                    values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]],
+                    values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]], v1,v1s,v2,v2s,
                                              list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),connection_info))
                     entry = dict(zip(keys, values))
 
@@ -504,6 +547,9 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                         beta_sig = np.abs(Tbeta) > Tthresh    # size is ncombinations x ntimepoints x nsources
                         stat_of_interest = Tbeta
 
+                        value1 = mean_beta
+                        value1_se = se_beta
+
                     # stats based on regression with covariates - --------
                     if statstype == 'regression':
                         stattitle = 'Zregression'
@@ -512,6 +558,9 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                         b, bsem, R2, Z, Rcorrelation, Zcorrelation = GLMregression(beta, covariates, 2)
                         beta_sig = np.abs(Z) > Zthresh
                         stat_of_interest = Z
+
+                        value1 = R2
+                        value1_se = np.zeros(np.shape(R2))
 
                     # stats based on regression with covariates - --------
                     if statstype == 'correlation':
@@ -522,6 +571,9 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                         beta_sig = np.abs(Zcorrelation) > Zthresh
                         stat_of_interest = Zcorrelation
 
+                        value1 = R2
+                        value1_se = np.zeros(np.shape(R2))
+
                     # stats based on time difference - ------------------------
                     if statstype == 'time':
                         stattitle = 'Tdiff'
@@ -529,20 +581,29 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                         # ncombinations, ntimepoints, NP, nsources = np.shape(beta)
 
                         Tbeta = np.zeros((ncombinations, ntimepoints-1, nsources))
+                        v1 = np.zeros((ncombinations, ntimepoints-1, nsources))
+                        v1s = np.zeros((ncombinations, ntimepoints-1, nsources))
                         for tt in range(ntimepoints - 1):
                             betadiff = beta[:, tt+1, :, :] - beta[:, tt, :, :]
                             mean_diff = np.mean(betadiff, axis=2)
                             se_diff = np.std(betadiff, axis=2) / np.sqrt(NP)
                             Tbeta[:, tt, :] = mean_diff / (se_diff + 1.0e-10)
 
+                            v1[:, tt, :] = mean_diff
+                            v1s[:, tt, :] = se_diff
+
                         Tthresh = stats.t.ppf(1 - pthreshold, NP - 1)
 
                         beta_sig = np.abs(Tbeta) > Tthresh
                         stat_of_interest = Tbeta
+
+                        value1 = v1
+                        value1_se = v1s
+
                         ntimepoints -= 1
                     #---------------------------------------------------
 
-                    keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
+                    keys = ['tname', 'tcluster', 'sname', 'scluster', stattitle, 'v1', 'v1sem', 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
                             'tlimy1',
                             'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2',
                             'slimz1', 'slimz2', 'networkcomponent', 'tt', 'combo','timepoint','ss']
@@ -558,6 +619,9 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                     for ii in range(len(combo)):
                         # get region names, cluster numbers, etc.
                         Svalue = stat_of_interest[combo[ii], nt[ii], ss[ii]]
+                        v1 = value1[combo[ii], nt[ii], ss[ii]]
+                        v1s = value1_se[combo[ii], nt[ii], ss[ii]]
+
                         timepoint = nt[ii]
                         sourcename = cluster_info[sourcenums[ss[ii]]]['rname']
                         mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums],combo[ii]).astype(int)   # cluster number for each source
@@ -568,7 +632,7 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                         connid = nt[ii]*1e7 + targetnum*1e5 + tt*1e3 + sourcenums[ss[ii]]*10 + sourcecluster
 
                         connection_info = [networkcomponent, tt, combo[ii], nt[ii], ss[ii]]
-                        values = np.concatenate(([targetname, tt, sourcename, sourcecluster, Svalue],
+                        values = np.concatenate(([targetname, tt, sourcename, sourcecluster, Svalue, v1, v1s],
                              list(targetcoords), list(targetlimits), list(sourcecoords), list(sourcelimits), connection_info))
 
                         entry = dict(zip(keys, values))
