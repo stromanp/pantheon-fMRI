@@ -1,4 +1,4 @@
-# sys.path.append(r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv')
+sys.path.append(r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv')
 
 # calculate eigenvectors and intrinsic inputs
 # then calculate matrix of beta values from those
@@ -763,7 +763,7 @@ def sem_physio_nulldist(clusterlist, fintrinsic_base, SEMresultsname, SEMparamet
 
     # initialize gradient-descent parameters--------------------------------------------------------------
     initial_alpha = 1e-3
-    initial_Lweight = 1e-6
+    initial_Lweight = 1e-2
     initial_dval = 0.01
     betascale = 0.0
 
@@ -970,7 +970,7 @@ def sem_physio_nulldist(clusterlist, fintrinsic_base, SEMresultsname, SEMparamet
 
 #----------------------------------------------------------------------------------
 # primary function--------------------------------------------------------------------
-def sem_physio_nulldist2(clusterlist, fintrinsic_base, SEMresultsname, SEMparametersname):
+def sem_physio_nulldist2(clusterlist, fintrinsic_base, SEMresultsname, SEMparametersname, nreps=10000):
     starttime = time.ctime()
 
     # initialize gradient-descent parameters--------------------------------------------------------------
@@ -1012,7 +1012,7 @@ def sem_physio_nulldist2(clusterlist, fintrinsic_base, SEMresultsname, SEMparame
     #---------------------------------------------------------------------------------------------------------
     # repeat the process for each participant-----------------------------------------------------------------
     # repeat the process for each participant-----------------------------------------------------------------
-    NP = 10000   # repeat the process lots of times
+    NP = nreps   # repeat the process lots of times
     epochnum = 0
     tp = tplist_full[epochnum][0]['tp']
     tsize_total = len(tp)
@@ -1916,6 +1916,9 @@ def show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname,
     print('\n\nAverage Mconn values')
     labeltext, valuetext, Ttext = write_Mconn_values2(Mconn_avg, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format='f', pthresh=0.05)
 
+    Rtextlist = [' ']*10
+    Rvallist = [0]*10
+
     windownum_offset = windowoffset
     outputdir, f = os.path.split(SEMresultsname)
     # only show 3 regions in each plot for consistency in sizing
@@ -1924,30 +1927,35 @@ def show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname,
     regionlist = [3,6,8]
     nametag = r'LC_NTS_PBN' + gtag
     svgname, Rtext, Rvals = plot_region_fits(window2, regionlist, nametag, Sinput_avg, fit_avg, rnamelist, outputdir, yrange)
-    Rtextlist = Rtext
-    Rvallist = Rvals
+    for n,x in enumerate(regionlist):
+        print('Rtext = {}  Rvals = {}'.format(Rtext[n],Rvals[n]))
+        Rtextlist[x] = Rtext[n]
+        Rvallist[x] = Rvals[n]
 
     # show some regions
     window2 = 33 + windownum_offset
     regionlist = [0,5,1]
     nametag = r'cord_NRM_DRt' + gtag
     svgname, Rtext, Rvals = plot_region_fits(window2, regionlist, nametag, Sinput_avg, fit_avg, rnamelist, outputdir, yrange)
-    Rtextlist = Rtext
-    Rvallist = Rvals
+    for n,x in enumerate(regionlist):
+        Rtextlist[x] = Rtext[n]
+        Rvallist[x] = Rvals[n]
 
     window2b = 35 + windownum_offset
     regionlist = [0,5,4]
     nametag = r'cord_NRM_NGC' + gtag
     svgname, Rtext, Rvals = plot_region_fits(window2b, regionlist, nametag, Sinput_avg, fit_avg, rnamelist, outputdir, yrange)
-    Rtextlist += Rtext
-    Rvallist += Rvals
+    for n,x in enumerate(regionlist):
+        Rtextlist[x] = Rtext[n]
+        Rvallist[x] = Rvals[n]
 
     window2c = 36 + windownum_offset
     regionlist = [7,2,9]
     nametag = r'PAG_Hyp_Thal' + gtag
     svgname, Rtext, Rvals = plot_region_fits(window2c, regionlist, nametag, Sinput_avg, fit_avg, rnamelist, outputdir, yrange)
-    Rtextlist += Rtext
-    Rvallist += Rvals
+    for n,x in enumerate(regionlist):
+        Rtextlist[x] = Rtext[n]
+        Rvallist[x] = Rvals[n]
 
 
     # figure 0--------------------------------------------
@@ -3050,6 +3058,51 @@ def display_anatomical_cluster(clusterdataname, targetnum, targetcluster, orient
     return outputimg
 
 
+# make labels for each betavalue
+def betavalue_labels(csource, ctarget, rnamelist, betanamelist, beta_list):
+
+    labeltext_record = []
+    nregions = len(rnamelist)
+    nbeta = len(csource)
+    sources_per_target = np.zeros(nbeta)
+    intrinsic_flag = np.zeros(nbeta)
+    for nn in range(nbeta):
+        n1 = ctarget[nn]
+        n2 = csource[nn]
+
+        target_row = Mconn[n1,:]
+        check = np.where(target_row > 0,1,0)
+        nsources_for_target = np.sum(check)  # for this connection, how many sources contribute, in total?
+        sources_per_target[nn] = nsources_for_target
+
+        tname = betanamelist[n1]
+        tpair = beta_list[n1]['pair']
+        if tpair[0] >= nregions:
+            ts = 'int{}'.format(tpair[0]-nregions)
+            intrinsic_flag[nn] = 1
+        else:
+            ts = rnamelist[tpair[0]]
+            if len(ts) > 4:  ts = ts[:4]
+        tt = rnamelist[tpair[1]]
+        if len(tt) > 4:  tt = tt[:4]
+
+        sname = betanamelist[n2]
+        spair = beta_list[n2]['pair']
+        if spair[0] >= nregions:
+            ss = 'int{}'.format(spair[0] - nregions)
+            intrinsic_flag[nn] = 1
+        else:
+            ss = rnamelist[spair[0]]
+            if len(ss) > 4:  ss = ss[:4]
+        st = rnamelist[spair[1]]
+        if len(st) > 4:  st = st[:4]
+        labeltext = '{}-{}-{}'.format(ss, st, tt)
+
+        labeltext_record += [labeltext]
+
+    return labeltext_record, sources_per_target, intrinsic_flag
+
+
 # testing noise------------------------
 
 
@@ -3058,9 +3111,9 @@ def noise_test():
     # noise_test function
     settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
 
-    outputdir = r'D:/threat_safety_python/SEMresults_Feb2022c'
+    outputdir = r'D:\threat_safety_python\individual_differences'
     if not os.path.exists(outputdir): os.mkdir(outputdir)
-    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model5.npy')
+    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model_noise.npy')
     SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
     networkfile = r'D:/threat_safety_python/network_model_5cluster_v5_w_3intrinsics.xlsx'
 
@@ -3100,6 +3153,8 @@ def noise_test():
 
     nsearch = 2000
     R2params = np.zeros((nsearch,6))
+    nbeta = 98
+    betavals = np.zeros((nsearch,nbeta))
     column_names = ['average','std','min','max','argmin','argmax']
     for nn in range(nsearch):
         cnums = [np.random.choice(cluster_choice_list) for aa in range(10)]
@@ -3110,7 +3165,9 @@ def noise_test():
         SEMresults = np.load(output, allow_pickle=True)
         NP = len(SEMresults)
         R2list =np.zeros(len(SEMresults))
-        for nperson in range(NP): R2list[nperson] = SEMresults[nperson]['R2total']
+        for nperson in range(NP):
+            R2list[nperson] = SEMresults[nperson]['R2total']
+            betavals[nperson,:] = SEMresults[nperson]['betavals']
         R2params[nn,:] = [np.mean(R2list), np.std(R2list), np.min(R2list), np.max(R2list), np.argmin(R2list), np.argmax(R2list)]
         print('\n\niteration {}  R2 dist = {:.2f} {} {:.2f}\n'.format(nn,np.mean(R2list),chr(177), np.std(R2list)))
 
@@ -3211,8 +3268,6 @@ def main():
 
             SEMresults = np.load(output, allow_pickle=True).flat[0]
 
-
-
             group = 'all'
             windowoffset = 0
             yrange = []
@@ -3307,5 +3362,268 @@ def main():
     # null distribution has p < 0.05 at arctanh(R) = 0.593
     # to scale distribution to match normal distribution, multiply by 2.774 (no idea why this number)
 
-if __name__ == '__main__':
-    main()
+
+# main program
+def IDstudy_search(cord_cluster):
+
+    # main function
+    settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+
+    outputdir = r'D:\threat_safety_python\individual_differences'
+    if not os.path.exists(outputdir): os.mkdir(outputdir)
+    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model.npy')
+    SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
+    networkfile = r'D:/threat_safety_python/network_model_5cluster_v5_w_3intrinsics.xlsx'
+
+    # load paradigm data--------------------------------------------------------------------
+    DBname = r'D:/threat_safety_python/threat_safety_database.xlsx'
+    xls = pd.ExcelFile(DBname, engine='openpyxl')
+    df1 = pd.read_excel(xls, 'paradigm1_BOLD')
+    del df1['Unnamed: 0']  # get rid of the unwanted header column
+    fields = list(df1.keys())
+    paradigm = df1['paradigms_BOLD']
+    timevals = df1['time']
+    paradigm_centered = paradigm - np.mean(paradigm)
+    dparadigm = np.zeros(len(paradigm))
+    dparadigm[1:] = np.diff(paradigm_centered)
+
+    regiondataname = r'D:/threat_safety_python/threat_safety_regiondata_allthreat55.npy'
+    clusterdataname = r'D:/threat_safety_python/threat_safety_clusterdata.npy'
+
+    # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
+    #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
+    full_rnum_base =  np.array([0,5,10,15,20,25,30,35,40,45])
+    # cluster set 1
+    cnums = [0, 3, 3, 0, 4, 1, 3, 3, 4, 3]  # good fishing trip
+    cnums = [0, 3, 3, 0, 2, 1, 3, 3, 4, 3]  # tweaked the good fishing trip  Feb2022C
+
+    # set clusters to random
+    # for cc in range(10):
+    #     cluster_val = np.random.choice(list(range(5)))
+    #     cnums[cc] = cluster_val
+    # cnums[0] = cord_cluster
+
+    namelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC', 'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus',
+            'Rtotal', 'R C6RD',  'R DRt', 'R Hyp','R LC', 'R NGC', 'R NRM', 'R NTS', 'R PAG',
+            'R PBN', 'R Thal']
+
+    # starting values
+    cnums_original = copy.deepcopy(cnums)
+    adjust_region = 4   # pick one to start
+    last_Rtotal = 0.0  # initialize
+    iter = 0
+    still_searching = True
+    excelsheetname = 'clusters'
+    fname = 'fishing_clusters_random_C6RD{}.xlsx'.format(cord_cluster)
+    excelfilename = os.path.join(outputdir, fname)
+    outputdata = []
+    strikenumber = 0
+
+    while still_searching:
+        resultsrecord = []
+        Rvalrecord = []
+        Rtotal_list = np.zeros(5)
+        for clusternum in range(5):
+            cnums[adjust_region] = clusternum # SEMmodel5 go fish
+            clusterlist = np.array(cnums) + full_rnum_base
+            prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
+            output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
+
+            SEMresults = np.load(output, allow_pickle=True).flat[0]
+
+            group = 'all'
+            windowoffset = 0
+            yrange = []
+            yrange2 = []
+            Rtextlist, Rvallist = show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+                                            windowoffset, yrange, yrange2)
+
+            resultsrecord.append({'Rtextlist':Rtextlist})
+            Rvalrecord.append({'Rvallist':Rvallist})
+            Rtotal_list[clusternum] = np.sum(Rvallist)
+
+        # check the results
+        clusternum = np.argmax(Rtotal_list)   # find the cluster number that gives the best Rtotal
+        Rtotal = Rtotal_list[clusternum]
+
+        if Rtotal > last_Rtotal:
+            cnums[adjust_region] = clusternum
+            Rvallist = Rvalrecord[clusternum]['Rvallist']
+            Rvallist2 = [Rvallist[a][0] for a in range(len(Rvallist))]  # flatten this list
+            Rvallist_temp = np.array(copy.deepcopy(Rvallist))
+            Rvallist_temp[adjust_region] = 1.0
+            last_adjust_region = adjust_region
+            adjust_region = np.argmin(Rvallist_temp)   # adjust the region with the worst fit, but not the same one that was just done
+            sample_list = [1,2,3,4,5,6,7,9]
+            if adjust_region == 0:
+                adjust_region = np.random.choice(sample_list)   # don't change the C6RD cluster
+            if np.mod(iter,3) == 2:
+                adjust_region = np.random.choice(list(range(1, 10)))   # throw a random one once in a while
+            last_Rtotal = Rtotal
+            # save the results and keep going
+            # write out cnums, Rtotal, and Rvallist
+            values = cnums + [Rtotal] + Rvallist2
+            entry = dict(zip(namelist, values))
+            outputdata.append(entry)
+            print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+            pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'replace')
+            iter += 1
+            strikenumber = 0
+        else:
+            strikenumber += 1
+            if strikenumber > 2:
+                still_searching = False
+            else:
+                cnums[adjust_region] = clusternum
+                Rvallist = Rvalrecord[clusternum]['Rvallist']
+                Rvallist2 = [Rvallist[a][0] for a in range(len(Rvallist))]  # flatten this list
+                Rvallist_temp = np.array(copy.deepcopy(Rvallist))
+
+                values = cnums + [Rtotal] + Rvallist2
+                entry = dict(zip(namelist, values))
+                outputdata.append(entry)
+                print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+                pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'replace')
+                iter += 1
+
+                sample_list = [1,2,3,4,5,6,7,9]
+                adjust_region = np.random.choice(sample_list)   # don't change the C6RD cluster
+
+    yrange = [-0.6, 0.6]
+    yrange2 = [1.6, 0.7, 0.8, 0.6, 0.9, 0.8, 0.5]   # for Feb2022C
+    windowoffset = 0
+
+    group = 'all'
+    show_SEM_average_beta_for_groups(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+                                     windowoffset=0)
+
+    run_nulldist = False
+    # now look at distributions of beta values and check for bias
+    if run_nulldist:
+        SEMresultsname = os.path.join(outputdir, 'SEMphysio_nullset.npy')
+        sem_physio_nulldist2(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
+
+        nullresults = np.load(SEMresultsname, allow_pickle=True)
+        nr = len(nullresults)
+        nbeta = len(nullresults[0]['betavals'])
+        betalist = np.zeros((nr,nbeta))
+        for nn in range(nr):
+            betalist[nn,:] = nullresults[nn]['betavals']
+
+        betaprops = np.zeros((nbeta,4))
+        for bb in range(nbeta):
+            b = betalist[:,bb]
+            betaprops[bb,0] = np.mean(b)
+            betaprops[bb,1] = np.std(b)
+            betaprops[bb,2] = stats.skew(b)
+            betaprops[bb,3] = stats.kurtosis(b)
+
+        # get info about network
+        SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+
+        # csource, ctarget, rnamelist, betanamelist, beta_list
+        labeltext_record, sources_per_target, intrinsic_flag = betavalue_labels(SEMparams['csource'],  SEMparams['ctarget'], SEMparams['rnamelist'], SEMparams['betanamelist'], SEMparams['beta_list'])
+
+        # identify the distribution which best matches the data
+        from fitter import Fitter, get_common_distributions, get_distributions
+        b = betalist[:,1]
+        # f = Fitter(b, distributions= get_distributions())
+        # f = Fitter(b, distributions= get_common_distributions())
+        f = Fitter(b, distributions= ['cauchy','norm'])
+        f.fit()
+        f.summary()
+
+        mlist = []
+        for bb in range(nbeta):
+            print('connection {} of {} ...'.format(bb,nbeta))
+            b = betalist[:,bb]
+            f = Fitter(b, distributions= ['cauchy','norm'])
+            f.fit()
+            m = f.get_best(method='sumsquare_error')
+            mlist.append(m)
+
+        cc = np.where(intrinsic_flag == 0)[0]
+        scale_cauchy = []
+        scale_norm = []
+        loc_cauchy = []
+        loc_norm = []
+        for x in cc:
+            if 'cauchy' in mlist[x].keys():
+                loc_cauchy += [mlist[x]['cauchy']['loc']]
+                scale_cauchy += [mlist[x]['cauchy']['scale']]
+            if 'norm' in mlist[x].keys():
+                loc_norm += [mlist[x]['norm']['loc']]
+                scale_norm += [mlist[x]['norm']['scale']]
+
+
+
+
+# main program
+def IDstudy_main():
+
+    cord_cluster = 0
+    cnums = [0, 3, 3, 1, 4, 1, 3, 3, 4, 1]
+    outputdir = r'D:\threat_safety_python\individual_differences\fixed_C6RD0'
+    if not os.path.exists(outputdir): os.mkdir(outputdir)
+
+    # main function
+    settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+
+    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model.npy')
+    SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
+    networkfile = r'D:/threat_safety_python/network_model_5cluster_v5_w_3intrinsics.xlsx'
+
+    # load paradigm data--------------------------------------------------------------------
+    DBname = r'D:/threat_safety_python/threat_safety_database.xlsx'
+    xls = pd.ExcelFile(DBname, engine='openpyxl')
+    df1 = pd.read_excel(xls, 'paradigm1_BOLD')
+    del df1['Unnamed: 0']  # get rid of the unwanted header column
+    fields = list(df1.keys())
+    paradigm = df1['paradigms_BOLD']
+    timevals = df1['time']
+    paradigm_centered = paradigm - np.mean(paradigm)
+    dparadigm = np.zeros(len(paradigm))
+    dparadigm[1:] = np.diff(paradigm_centered)
+
+    regiondataname = r'D:/threat_safety_python/threat_safety_regiondata_allthreat55.npy'
+    clusterdataname = r'D:/threat_safety_python/threat_safety_clusterdata.npy'
+
+    # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
+    #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
+    full_rnum_base =  np.array([0,5,10,15,20,25,30,35,40,45])
+
+    namelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC', 'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus',
+            'Rtotal', 'R C6RD',  'R DRt', 'R Hyp','R LC', 'R NGC', 'R NRM', 'R NTS', 'R PAG',
+            'R PBN', 'R Thal']
+
+    # starting values
+    cnums_original = copy.deepcopy(cnums)
+    excelsheetname = 'clusters'
+    fname = 'fixed_C6RD{}.xlsx'.format(cord_cluster)
+    excelfilename = os.path.join(outputdir, fname)
+
+    # run the analysis with SAPM
+    clusterlist = np.array(cnums) + full_rnum_base
+    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
+    output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
+
+    SEMresults = np.load(output, allow_pickle=True).flat[0]
+
+    group = 'all'
+    windowoffset = 0
+    yrange = []
+    yrange2 = []
+    Rtextlist, Rvallist = show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+                                    windowoffset, yrange, yrange2)
+
+    yrange = [-0.6, 0.6]
+    yrange2 = [1.6, 0.7, 0.8, 0.6, 0.9, 0.8, 0.5]   # for Feb2022C
+    windowoffset = 0
+
+    group = 'all'
+    show_SEM_average_beta_for_groups(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+                                     windowoffset=0)
+
+
+# if __name__ == '__main__':
+#     main()
