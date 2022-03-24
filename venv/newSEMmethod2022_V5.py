@@ -525,7 +525,7 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
 
     # initialize gradient-descent parameters--------------------------------------------------------------
     initial_alpha = 1e-3
-    initial_Lweight = 1e-2
+    initial_Lweight = 1e-4
     initial_dval = 0.01
     betascale = 0.0
 
@@ -763,7 +763,7 @@ def sem_physio_nulldist(clusterlist, fintrinsic_base, SEMresultsname, SEMparamet
 
     # initialize gradient-descent parameters--------------------------------------------------------------
     initial_alpha = 1e-3
-    initial_Lweight = 1e-2
+    initial_Lweight = 1e-4
     initial_dval = 0.01
     betascale = 0.0
 
@@ -975,7 +975,7 @@ def sem_physio_nulldist2(clusterlist, fintrinsic_base, SEMresultsname, SEMparame
 
     # initialize gradient-descent parameters--------------------------------------------------------------
     initial_alpha = 1e-3
-    initial_Lweight = 1e-2
+    initial_Lweight = 1e-4
     initial_dval = 0.01
     betascale = 0.0
 
@@ -1864,23 +1864,31 @@ def show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname,
     pmax = np.max(np.abs(p))
     p /= pmax
     G = np.concatenate((np.ones((1, len(g))),p), axis=0) # put the intercept term first
-    Sinput_reg = np.zeros((nr,tsize,2))
-    fit_reg = np.zeros((nr,tsize,2))
-    Sconn_reg = np.zeros((nbeta,tsize,2))
+    Sinput_reg = np.zeros((nr,tsize,4))
+    fit_reg = np.zeros((nr,tsize,4))
+    Sconn_reg = np.zeros((nbeta,tsize,4))
+    # Sinput_R2 = np.zeros((nr,tsize,2))
+    # fit_R2 = np.zeros((nr,tsize,2))
+    # Sconn_R2 = np.zeros((nbeta,tsize,2))
     for tt in range(tsize):
         for nn in range(nr):
             m = Sinput_total[nn,tt,g]
             b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-            Sinput_reg[nn,tt,:] = b
+            Sinput_reg[nn,tt,:2] = b
+            Sinput_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
 
             m = fit_total[nn,tt,g]
             b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-            fit_reg[nn,tt,:] = b
+            fit_reg[nn,tt,:2] = b
+            fit_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
 
         for nn in range(nbeta):
             m = Sconn_total[nn,tt,g]
             b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-            Sconn_reg[nn,tt,:] = b
+            Sconn_reg[nn,tt,:2] = b
+            Sconn_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
+
+    # need to save Sinput_reg, Sinput_R2, etc., somewhere for later use....
 
     # regression of Mrecord with pain ratings
     # glm_fit
@@ -2343,6 +2351,8 @@ def show_SEM_average_beta_for_groups(settingsfile, SEMparametersname, SEMresults
     covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
     covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
 
+    painrating = covariates2
+
     SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
     network = SEMparams['network']
     beta_list = SEMparams['beta_list']
@@ -2425,65 +2435,94 @@ def show_SEM_average_beta_for_groups(settingsfile, SEMparametersname, SEMresults
         Mrecord[:, :, nperson] = Mconn
         R2totalrecord[nperson] = R2total
 
-
     # separate by sex
-    g1 = np.where(covariates1 == 'Female')[0]
-    g2 = np.where(covariates1 == 'Male')[0]
+    g = list(range(NP))
+    if group == 'Female':
+        g = np.where(covariates1 == 'Female')[0]
+    if group == 'Male':
+        g = np.where(covariates1 == 'Male')[0]
 
-    cov1 = covariates2[g1]
-    cov2 = covariates2[g2]
+    cov = covariates2[g]
 
     columns = [name[:3] + ' in' for name in betanamelist]
     rows = [name[:3] for name in betanamelist]
 
 
     # set the group
-    g = list(range(NP))
-    gtag = '_all'
-    g2tag = '_Male'
-    g1tag = '_Female'
+    # g = list(range(NP))
+    # gtag = '_all'
+    # g2tag = '_Male'
+    # g1tag = '_Female'
     Mdata = []
 
-    for gnum in range(3):
-        if gnum == 0:  gg = g
-        if gnum == 1:  gg = g1
-        if gnum == 2:  gg = g2
+    # for gnum in range(3):
+    #     if gnum == 0:  gg = g
+    #     if gnum == 1:  gg = g1
+    #     if gnum == 2:  gg = g2
+
         # do this for each group---------------------------
         # average Mconn values
-        Mconn_avg = np.mean(Mrecord[:, :, gg], axis=2)
-        Mconn_sem = np.std(Mrecord[:, :, gg], axis=2) / np.sqrt(len(gg))
-        # rtext = write_Mconn_values(Mconn_avg, Mconn_sem, betanamelist, rnamelist, beta_list,
-        #                            format='f', minthresh=0.0001, maxthresh=0.0)
-        Tvals = Mconn_avg/(Mconn_sem + 1.0e-10)
-        entry = {'Mconn_avg':Mconn_avg, 'Mconn_sem':Mconn_sem}
+    Mconn_avg = np.mean(Mrecord[:, :, g], axis=2)
+    Mconn_sem = np.std(Mrecord[:, :, g], axis=2) / np.sqrt(len(g))
+    # rtext = write_Mconn_values(Mconn_avg, Mconn_sem, betanamelist, rnamelist, beta_list,
+    #                            format='f', minthresh=0.0001, maxthresh=0.0)
+    Tvals = Mconn_avg/(Mconn_sem + 1.0e-10)
 
-        Mdata.append(entry)
+        # entry = {'Mconn_avg':Mconn_avg, 'Mconn_sem':Mconn_sem}
+        #
+        # Mdata.append(entry)
 
-    for gnum in range(3):
-        if gnum == 0:  tag = gtag
-        if gnum == 1:  tag = g1tag
-        if gnum == 2:  tag = g2tag
+    # correlation between beta and pain ratings
+    p = painrating[g] - np.mean(painrating[g])
+    Rvals = np.zeros(np.shape(Tvals))
+    Zvals = np.zeros(np.shape(Tvals))
+    for nn in range(len(csource)):
+        b = Mrecord[ctarget[nn],csource[nn],g]
+        R = np.corrcoef(b,p)
+        Rvals[ctarget[nn],csource[nn]] = R[0,1]
+        Zvals[ctarget[nn],csource[nn]] = np.arctanh(R[0,1])*np.sqrt(len(g)-3)
 
-        Mconn_avg = Mdata[gnum]['Mconn_avg']
-        Mconn_sem = Mdata[gnum]['Mconn_sem']
 
-        descriptor = '{} All Average Mconn values'.format(tag)
-        print('\n\n{}'.format(descriptor))
-        format = 'f'
-        pthresh = 0.05
-        sigflag = np.ones(np.shape(Mconn_avg))
-        labeltext, valuetext, Ttext = write_Mconn_values2(Mconn_avg, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format, pthresh, sigflag)
-        textoutputs = {'regions':labeltext, 'beta':valuetext, 'T':Ttext}
+    # for gnum in range(3):
+    #     if gnum == 0:  tag = gtag
+    #     if gnum == 1:  tag = g1tag
+    #     if gnum == 2:  tag = g2tag
 
-        p, f = os.path.split(SEMresultsname)
-        df = pd.DataFrame(textoutputs)
-        xlname = os.path.join(p, descriptor + '.xlsx')
-        print(xlname)
-        df.to_excel(xlname)
+        # Mconn_avg = Mdata[gnum]['Mconn_avg']
+        # Mconn_sem = Mdata[gnum]['Mconn_sem']
+
+    descriptor = '{} All Average Mconn values'.format(group)
+    print('\n\n{}'.format(descriptor))
+    format = 'f'
+    pthresh = 0.05
+    sigflag = []
+    labeltext, valuetext, Ttext = write_Mconn_values2(Mconn_avg, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format, pthresh, sigflag)
+    textoutputs = {'regions':labeltext, 'beta':valuetext, 'T':Ttext}
+
+    sigflag = []
+    labeltext, valuetext, Ztext, Rtext = write_Mcorr_values(Mconn_avg, Mconn_sem, Rvals, Zvals, NP, betanamelist, rnamelist, beta_list, format, pthresh, sigflag)
+    textoutputsR = {'regions':labeltext, 'beta':valuetext, 'Z':Ztext, 'R':Rtext}
+
+    p, f = os.path.split(SEMresultsname)
+    df = pd.DataFrame(textoutputs)
+    dfR = pd.DataFrame(textoutputsR)
+    xlname = os.path.join(p, descriptor + '.xlsx')
+    xlnameR = os.path.join(p, descriptor + '_corr.xlsx')
+    print(xlname)
+
+    df.to_excel(xlname, sheet_name = 'average')
+    dfR.to_excel(xlnameR, sheet_name = 'correlation')
+
+    # write out info about R2 distribution
+    print('R2 average = {:.3f} {} {:.3f}'.format(np.mean(R2totalrecord),chr(177),np.std(R2totalrecord)))
+    print('R2 max/min = {:.3f} {:.3f}'.format(np.max(R2totalrecord),np.min(R2totalrecord)))
 #--------------------------------------------------------------
 #--------------------------------------------------------------
 
 def plot_region_inputs(windownum, target, nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrange = []):
+    Zthresh = stats.norm.ppf(1-np.array([1.0, 0.05,0.01,0.001]))
+    symbollist = [' ','*', chr(8868),chr(8903)]
+
     if len(yrange) > 0:
         setylim = True
         ymin = yrange[0]
@@ -2530,6 +2569,14 @@ def plot_region_inputs(windownum, target, nametag1, Minput, Sinput_reg, fit_reg,
     tc1f = fit_reg[rtarget,:,0]
     tc1fp = fit_reg[rtarget,:,1]
 
+    Z1 = Sinput_reg[rtarget,:,3]
+    Z1f = fit_reg[rtarget,:,3]
+
+    S = np.zeros(len(Z1)).astype(int)
+    for n in range(len(Z1)): c = np.where(Zthresh < Z1[n])[0];  S[n] = np.max(c)
+    Sf = np.zeros(len(Z1f)).astype(int)
+    for n in range(len(Z1f)): c = np.where(Zthresh < Z1f[n])[0];  Sf[n] = np.max(c)
+
     y1 = list(tc1f+tc1fp)
     y2 = list(tc1f-tc1fp)
     yy = y1 + y2[::-1]
@@ -2542,9 +2589,19 @@ def plot_region_inputs(windownum, target, nametag1, Minput, Sinput_reg, fit_reg,
     # axs[1,1].plot(x, tc1f-tc1fp, '--r')
     axs[1,1].set_title('target input {}'.format(rnamelist[rtarget]))
 
+    # add marks for significant slope wrt pain
+    ymax = np.max(np.abs(yy))
+    for n,s in enumerate(S):
+        if s > 0: axs[1,1].annotate(symbollist[s], xy = (x[n]-0.25, ymax), fontsize=8)
+
     for ss in range(nsources):
         tc1 = Sconn_reg[sources[ss], :, 0]
         tc1p = Sconn_reg[sources[ss], :, 1]
+
+        Z1 = Sconn_reg[sources[ss], :, 3]
+        S = np.zeros(len(Z1)).astype(int)
+        for n in range(len(Z1)): c = np.where(Zthresh < Z1[n])[0];  S[n] = np.max(c)
+
         y1 = list(tc1 + tc1p)
         y2 = list(tc1 - tc1p)
         yy = y1 + y2[::-1]
@@ -2559,6 +2616,11 @@ def plot_region_inputs(windownum, target, nametag1, Minput, Sinput_reg, fit_reg,
             axs[ss,0].set_title('source output {} {}'.format(betanamelist[sources[ss]], rnamelist[rsources[ss]]))
         axs[ss,0].annotate(textlist[ss], xy=(.025, .025), xycoords='axes  fraction',
                 horizontalalignment='left', verticalalignment='bottom', fontsize=10)
+
+        # add marks for significant slope wrt pain
+        ymax = np.max(np.abs(yy))
+        for n, s in enumerate(S):
+            if s > 0: axs[ss,0].annotate(symbollist[s], xy = (x[n]-0.25, ymax), fontsize=8)
 
         if setylim:
             axs[ss,0].set_ylim((ymin,ymax))
@@ -2588,6 +2650,7 @@ def plot_region_fits(window, regionlist, nametag, Sinput_avg, fit_avg, rnamelist
     for nn in range(ndisplay):
         tc1 = Sinput_avg[regionlist[nn], :]
         tcf1 = fit_avg[regionlist[nn], :]
+
         axs[nn].plot(tc1, '-ob', linewidth=1, markersize=4)
         axs[nn].plot(tcf1, '-xr', linewidth=1, markersize=4)
         axs[nn].set_title('target {}'.format(rnamelist[regionlist[nn]]))
@@ -2727,6 +2790,69 @@ def write_Mconn_values2(Mconn, Mconn_sem, NP, betanamelist, rnamelist, beta_list
                     print(valuetext)
                     print(Ttext)
     return labeltext_record, valuetext_record, Ttext_record
+
+
+
+def write_Mcorr_values(Mconn, Mconn_sem, Rvals, Zvals, NP, betanamelist, rnamelist, beta_list, format = 'f', pthresh = 0.05, sigflag = []):
+
+    nregions = len(rnamelist)
+    nr1, nr2 = np.shape(Mconn)
+
+    if np.size(sigflag) == 0:
+        sigflag = np.zeros(np.shape(Mconn))
+
+    Zthresh = stats.norm.ppf(1 - pthresh)
+
+    labeltext_record = []
+    valuetext_record = []
+    Ztext_record = []
+    Rtext_record = []
+    for n1 in range(nr1):
+        tname = betanamelist[n1]
+        tpair = beta_list[n1]['pair']
+        if tpair[0] >= nregions:
+            ts = 'int{}'.format(tpair[0]-nregions)
+        else:
+            ts = rnamelist[tpair[0]]
+            if len(ts) > 4:  ts = ts[:4]
+        tt = rnamelist[tpair[1]]
+        if len(tt) > 4:  tt = tt[:4]
+        # text1 = '{}-{} input from '.format(ts,tt)
+        showval = False
+        for n2 in range(nr2):
+            if (np.abs(Zvals[n1,n2]) > Zthresh)  or (sigflag[n1,n2]):
+                showval = True
+                sname = betanamelist[n2]
+                spair = beta_list[n2]['pair']
+                if spair[0] >= nregions:
+                    ss = 'int{}'.format(spair[0]-nregions)
+                else:
+                    ss = rnamelist[spair[0]]
+                    if len(ss) > 4:  ss = ss[:4]
+                st = rnamelist[spair[1]]
+                if len(st) > 4:  st = st[:4]
+
+                labeltext = '{}-{}-{}'.format(ss, st, tt)
+                if format == 'f':
+                    valuetext = '{:.3f} {} {:.3f} '.format(Mconn[n1, n2], chr(177), Mconn_sem[n1, n2])
+                    Ztext = 'Z = {:.2f} '.format(Zvals[n1,n2])
+                    Rtext = 'R = {:.3f} '.format(Rvals[n1,n2])
+                else:
+                    valuetext = '{:.3e} {} {:.3e} '.format(Mconn[n1, n2], chr(177), Mconn_sem[n1, n2])
+                    Ztext = 'Z = {:.2e} '.format(Zvals[n1,n2])
+                    Rtext = 'R = {:.3e} '.format(Rvals[n1,n2])
+
+                labeltext_record += [labeltext]
+                valuetext_record += [valuetext]
+                Ztext_record += [Ztext]
+                Rtext_record += [Rtext]
+                if showval:
+                    print(labeltext)
+                    print(valuetext)
+                    print(Ztext)
+                    print(Rtext)
+    return labeltext_record, valuetext_record, Ztext_record, Rtext_record
+
 
 
 
@@ -3559,11 +3685,35 @@ def IDstudy_search(cord_cluster):
 
 
 # main program
-def IDstudy_main():
+def IDstudy_main(cord_cluster, type, reload_existing = False):
+    # cord_cluster = 1
+    # type = 'fixed'
 
-    cord_cluster = 0
-    cnums = [0, 3, 3, 1, 4, 1, 3, 3, 4, 1]
-    outputdir = r'D:\threat_safety_python\individual_differences\fixed_C6RD0'
+    if type == 'fixed':
+        if cord_cluster == 0:
+            cnums = [0, 3, 3, 1, 4, 1, 3, 3, 4, 1]  # fixed 0
+        if cord_cluster == 1:
+            cnums = [1, 3, 3, 1, 3, 1, 3, 3, 2, 1]  # fixed 1
+        if cord_cluster == 2:
+            cnums = [2, 3, 3, 1, 1, 1, 3, 3, 2, 0]  # fixed 2
+        if cord_cluster == 3:
+            cnums = [3, 3, 2, 1, 0, 1, 2, 3, 4, 1]  # fixed 3
+        if cord_cluster == 4:
+            cnums = [4, 3, 3, 1, 0, 1, 2, 3, 4, 3]  # fixed 4
+    else:
+        if cord_cluster == 0:
+            cnums = [0, 4, 4, 2, 2, 3, 3, 2, 3, 1]  # random 0
+        if cord_cluster == 1:
+            cnums = [1, 4, 2, 3, 2, 1, 1, 2, 3, 0]  # random 1
+        if cord_cluster == 2:
+            cnums = [2, 2, 2, 0, 0, 2, 0, 3, 1, 3]  # random 2
+        if cord_cluster == 3:
+            cnums = [3, 3, 1, 4, 4, 1, 3, 3, 1, 0]  # random 3
+        if cord_cluster == 4:
+            cnums = [4, 4, 2, 1, 0, 3, 3, 3, 2, 0]  # random 4
+
+
+    outputdir = r'D:\threat_safety_python\individual_differences\{}_C6RD{}'.format(type,cord_cluster)
     if not os.path.exists(outputdir): os.mkdir(outputdir)
 
     # main function
@@ -3605,7 +3755,11 @@ def IDstudy_main():
     # run the analysis with SAPM
     clusterlist = np.array(cnums) + full_rnum_base
     prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
-    output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
+
+    if reload_existing:
+        output = SEMresultsname
+    else:
+        output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
 
     SEMresults = np.load(output, allow_pickle=True).flat[0]
 
