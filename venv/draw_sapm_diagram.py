@@ -5,6 +5,7 @@ import matplotlib.patches as mpatches
 from matplotlib.collections import PatchCollection
 import os
 import pandas as pd
+import scipy.stats as stats
 
 #-----------------------------------------------------------------------
 # get info about the network to work with-------------------------------
@@ -45,6 +46,32 @@ def run_draw_sapm_plot(type, clusternumber):
     else:
         offset = 0
 
+
+    # temporary -----------------------------------------------------------
+    if type == 'fixed':
+        if clusternumber == 0:
+            cnums = [0, 3, 3, 1, 4, 1, 3, 3, 4, 1]  # fixed 0
+        if clusternumber == 1:
+            cnums = [1, 3, 3, 1, 3, 1, 3, 3, 2, 1]  # fixed 1
+        if clusternumber == 2:
+            cnums = [2, 3, 3, 1, 1, 1, 3, 3, 2, 0]  # fixed 2
+        if clusternumber == 3:
+            cnums = [3, 3, 2, 1, 0, 1, 2, 3, 4, 1]  # fixed 3
+        if clusternumber == 4:
+            cnums = [4, 3, 3, 1, 0, 1, 2, 3, 4, 3]  # fixed 4
+    else:
+        if clusternumber == 0:
+            cnums = [0, 4, 4, 2, 2, 3, 3, 2, 3, 1]  # random 0
+        if clusternumber == 1:
+            cnums = [1, 4, 2, 3, 2, 1, 1, 2, 3, 0]  # random 1
+        if clusternumber == 2:
+            cnums = [2, 2, 2, 0, 0, 2, 0, 3, 1, 3]  # random 2
+        if clusternumber == 3:
+            cnums = [3, 3, 1, 4, 4, 1, 3, 3, 1, 0]  # random 3
+        if clusternumber == 4:
+            cnums = [4, 4, 2, 1, 0, 3, 3, 3, 2, 0]  # random 4
+    #----------------------------------------------------------------------
+
     results_file = r'D:\threat_safety_python\individual_differences\{}_C6RD{}\all All Average Mconn values.xlsx'.format(type,clusternumber)
     sheetname = 'average'  # sheet of excel file to read
     regionnames = 'regions'   # column of excel file to read
@@ -57,13 +84,15 @@ def run_draw_sapm_plot(type, clusternumber):
     regionnames = 'regions'   # column of excel file to read
     statnames = 'Z'   # column of excel file to read
     scalefactor = 1.0
-    threshold = 2.5
+
+    Zthresh = stats.norm.ppf(1 - np.array([1.0, 0.05, 0.01, 0.001]))
+    threshold = Zthresh[2]
 
     figurenumber = clusternumber+1+offset
-    draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, scalefactor, threshold, True)
+    draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, scalefactor, cnums, threshold, True)
 
 
-def draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, scalefactor, threshold = 0.0, writefigure = False):
+def draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, scalefactor, cnums, threshold = 0.0, writefigure = False):
     xls = pd.ExcelFile(results_file, engine='openpyxl')
     df1 = pd.read_excel(xls, sheetname)
     connections = df1[regionnames]
@@ -72,28 +101,29 @@ def draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, 
     plt.close(figurenumber)
 
     # setup region labels and positions
+    # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
+    #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
     regions = []
     entry = {'name': 'C6RD', 'pos':[0.6,0.15], 'labeloffset':np.array([0,-0.05])}
     regions.append(entry)
     entry = {'name': 'DRt', 'pos':[0.2,0.30], 'labeloffset':np.array([0,-0.05])}
     regions.append(entry)
-    entry = {'name': 'NRM', 'pos':[0.4,0.45], 'labeloffset':np.array([0,-0.05])}
-    regions.append(entry)
-    entry = {'name': 'NGC', 'pos':[0.65,0.45], 'labeloffset':np.array([0,-0.05])}
-    regions.append(entry)
-    entry = {'name': 'PBN', 'pos':[0.8,0.6], 'labeloffset':np.array([0,-0.05])}
-    regions.append(entry)
-    entry = {'name': 'NTS', 'pos':[0.1,0.7], 'labeloffset':np.array([0,-0.05])}
+    entry = {'name': 'Hypo', 'pos':[0.3,0.8], 'labeloffset':np.array([0,0.05])}
     regions.append(entry)
     entry = {'name': 'LC', 'pos':[0.1,0.5], 'labeloffset':np.array([0,-0.05])}
     regions.append(entry)
-    entry = {'name': 'Hypo', 'pos':[0.3,0.8], 'labeloffset':np.array([0,0.05])}
+    entry = {'name': 'NGC', 'pos':[0.65,0.45], 'labeloffset':np.array([0,-0.05])}
+    regions.append(entry)
+    entry = {'name': 'NRM', 'pos':[0.4,0.45], 'labeloffset':np.array([0.05,0.0])}
+    regions.append(entry)
+    entry = {'name': 'NTS', 'pos':[0.1,0.7], 'labeloffset':np.array([0,-0.05])}
     regions.append(entry)
     entry = {'name': 'PAG', 'pos':[0.5,0.8], 'labeloffset':np.array([0,-0.05])}
     regions.append(entry)
+    entry = {'name': 'PBN', 'pos':[0.8,0.6], 'labeloffset':np.array([0,-0.05])}
+    regions.append(entry)
     entry = {'name': 'Thal', 'pos':[0.5,0.9], 'labeloffset':np.array([0,-0.05])}
     regions.append(entry)
-
     entry = {'name': 'int0', 'pos':[0.75,0.15], 'labeloffset':np.array([0,-0.05])}
     regions.append(entry)
     entry = {'name': 'int1', 'pos':[0.65,0.9], 'labeloffset':np.array([0,-0.05])}
@@ -116,8 +146,14 @@ def draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, 
     for nn in range(len(regions)):
         ellipse = mpatches.Ellipse(regions[nn]['pos'],ovalsize[0],ovalsize[1], alpha = 0.3)
         ax.add_patch(ellipse)
-        ax.annotate(regions[nn]['name'],regions[nn]['pos']+regions[nn]['labeloffset'])
+        if nn < len(cnums):
+            ax.annotate('{}{}'.format(regions[nn]['name'],cnums[nn]),regions[nn]['pos']+regions[nn]['labeloffset'])
+        else:
+            ax.annotate(regions[nn]['name'],regions[nn]['pos']+regions[nn]['labeloffset'])
 
+    an_list = []
+    connection_list = []
+    acount = 0
     for nn in range(len(connections)):
         # plot lines for connections
         c1 = connections[nn]
@@ -125,6 +161,10 @@ def draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, 
         m,s = parse_statval(val1)
         if np.abs(m) > threshold:
             linethick = np.min([5.0, np.abs(m)*scalefactor])
+            if m > 0:
+                linecolor = 'k'
+            else:
+                linecolor = 'r'
             rlist,ilist = parse_connection_name(c1,regionlist)
 
             # get positions of ends of lines,arrows, etc... for one connection
@@ -136,16 +176,55 @@ def draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, 
                 pe0, pe1a, pe1b, pe2, pe1ab_connectionstyle, specialcase = points_on_ellipses2(p0,p1,p2,ovalsize)
                 print('{}  {}'.format(c1,pe1ab_connectionstyle))
 
+                connection_type1 = {'con':'{}-{}'.format(rlist[0],rlist[1]), 'type':'input'}
+                connection_type2 = {'con':'{}-{}'.format(rlist[1],rlist[2]), 'type':'output'}
+                connection_joiner = {'con':'{}-{}'.format(rlist[1],rlist[1]), 'type':'joiner'}
+
                 if specialcase:
                     print('special case...')
-                    ax.annotate('',xy=pe1a,xytext = pe0, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, shrinkA = 0.01, shrinkB = 0.01))
-                    ax.annotate('',xy=pe2,xytext = pe1b, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, shrinkA = 0.01, shrinkB = 0.01))
+                    an1 = ax.annotate('',xy=pe1a,xytext = pe0, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
+                    acount+= 1
+                    an_list.append(an1)
+                    connection_list.append(connection_type1)
+                    an1 = ax.annotate('',xy=pe2,xytext = pe1b, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
+                    acount+= 1
+                    an_list.append(an1)
+                    connection_list.append(connection_type2)
                 else:
-                    ax.annotate('',xy=pe1a,xytext = pe0, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, shrinkA = 0.01, shrinkB = 0.01))
-                    ax.annotate('',xy=pe2,xytext = pe1b, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, shrinkA = 0.01, shrinkB = 0.01))
-                    ax.annotate('',xy=pe1b,xytext = pe1a, arrowprops=dict(arrowstyle="->", connectionstyle=pe1ab_connectionstyle, linewidth = linethick/2.0, shrinkA = 0.0, shrinkB = 0.0))
+                    an1 = ax.annotate('',xy=pe1a,xytext = pe0, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
+                    acount+= 1
+                    an_list.append(an1)
+                    connection_list.append(connection_type1)
+                    an1 = ax.annotate('',xy=pe2,xytext = pe1b, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
+                    acount+= 1
+                    an_list.append(an1)
+                    connection_list.append(connection_type2)
+                    an1 = ax.annotate('',xy=pe1b,xytext = pe1a, arrowprops=dict(arrowstyle="->", connectionstyle=pe1ab_connectionstyle, linewidth = linethick/2.0, color = linecolor, shrinkA = 0.0, shrinkB = 0.0))
+                    acount+= 1
+                    an_list.append(an1)
+                    connection_list.append(connection_joiner)
             else:
                 print('ambiguous connection not drawn:  {}'.format(c1))
+
+    # look for inputs and outputs drawn for the same connection.  Only show the input if both exist
+    conlist = [connection_list[x]['con'] for x in range(len(connection_list))]
+    typelist = [connection_list[x]['type'] for x in range(len(connection_list))]
+    for nn in range(len(connection_list)):
+        con = conlist[nn]
+        c = np.where([conlist[x] == con for x in range(len(conlist))])[0]
+        if len(c) > 1:
+            t = [typelist[x] for x in c]
+            if 'input' in t:   # if some of the connections are inputs, do not draw outputs at the same place
+                c2 = np.where([typelist[x] == 'output' for x in c])[0]
+                if len(c2) > 0:
+                    redundant_c = c[c2]
+                    # remove the redundant connections
+                    for c3 in redundant_c:
+                        a = an_list[c3]
+                        a.remove()
+                        typelist[c3] = 'removed'
+                        connection_list[c3]['type'] = 'removed'
+
 
     if writefigure:
         p,f1 = os.path.split(results_file)

@@ -739,7 +739,7 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
 
         entry = {'Sinput':Sinput, 'Sconn':Sconn, 'beta_int1':beta_int1, 'Mconn':Mconn, 'Minput':Minput,
                  'rtext1':results_text[0], 'rtext2':results_text[1], 'R2total':R2total, 'Mintrinsic':Mintrinsic,
-                 'Meigv':Meigv, 'betavals':betavals, 'fintrinsic1':fintrinsic1}
+                 'Meigv':Meigv, 'betavals':betavals, 'fintrinsic1':fintrinsic1, 'clusterlist':clusterlist}
         SEMresults.append(copy.deepcopy(entry))
 
         stoptime = time.ctime()
