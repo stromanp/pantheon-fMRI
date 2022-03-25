@@ -72,6 +72,12 @@ def run_draw_sapm_plot(type, clusternumber):
             cnums = [4, 4, 2, 1, 0, 3, 3, 3, 2, 0]  # random 4
     #----------------------------------------------------------------------
 
+    results_file = r'D:\threat_safety_python\individual_differences\{}_C6RD{}\all All Average Mconn values.xlsx'.format(type,clusternumber)
+    sheetname = 'average'  # sheet of excel file to read
+    regionnames = 'regions'   # column of excel file to read
+    statnames = 'beta'   # column of excel file to read
+    scalefactor = 10.0
+    threshold = 0.0
 
     results_file = r'D:\threat_safety_python\individual_differences\{}_C6RD{}\all All Average Mconn values_corr.xlsx'.format(type,clusternumber)
     sheetname = 'correlation'  # sheet of excel file to read
@@ -81,17 +87,6 @@ def run_draw_sapm_plot(type, clusternumber):
 
     Zthresh = stats.norm.ppf(1 - np.array([1.0, 0.05, 0.01, 0.001]))
     threshold = Zthresh[2]
-
-    results_file = r'D:\threat_safety_python\individual_differences\{}_C6RD{}\all All Average Mconn values.xlsx'.format(type,clusternumber)
-    sheetname = 'average'  # sheet of excel file to read
-    regionnames = 'regions'   # column of excel file to read
-    statnames = 'beta'   # column of excel file to read
-    scalefactor = 10.0
-    threshold = 0.0
-
-    Tthresh = stats.t.ppf(1 - np.array([1.0, 0.05, 0.01, 0.001]), 54)
-    threshold = Zthresh[2]
-    threshold = 0.0
 
     figurenumber = clusternumber+1+offset
     draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, scalefactor, cnums, threshold, True)
