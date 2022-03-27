@@ -63,7 +63,7 @@ def load_template(region_name, resolution, verbose = False):
     if 'to' in region_name:  # a range of cord segments is specified
         a = region_name.find('to')
         region_name2 = region_name[a + 2:]
-        region_name = region_name[:2]
+        region_name = region_name[:a]
     else:
         region_name2 = ''
 
@@ -258,7 +258,7 @@ def load_template_and_masks(region_name, resolution, verbose=False):
     a = region_name.find('to')
     if a > 0:  # a range of cord segments is specified
         region_name2 = region_name[a + 2:]
-        region_name = region_name[:2]
+        region_name = region_name[:a]
     else:
         region_name2 = ''
 
@@ -500,7 +500,7 @@ def load_wm_maps(region_name, resolution, verbose=False):
     if 'to' in region_name:  # a range of cord segments is specified
         a = region_name.find('to')
         region_name2 = region_name[a + 2:]
-        region_name = region_name[:2]
+        region_name = region_name[:a]
     else:
         region_name2 = ''
 

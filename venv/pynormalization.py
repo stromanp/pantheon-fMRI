@@ -1548,7 +1548,7 @@ def define_sections(template_name, dataname):
     a = template_name.find('to')
     if a > 0:  # a range of cord segments is specified
         region_name2 = template_name[a + 2:]
-        region_name = template_name[:2]
+        region_name = template_name[:a]
         range_specified = True
     else:
         region_name2 = ''
@@ -1654,13 +1654,13 @@ def define_sections(template_name, dataname):
                        'start_ref_pos': [],
                        'pos_estimate': pos_estimate,
                        'fixdistance': 0,
-                       'first_region_connection_point': [12, 30, z_bottom_of_T12]}  # first_region_connection_point is the bottom edge of T12
+                       'first_region_connection_point': [12, 15, z_bottom_of_T12]}  # first_region_connection_point is the bottom edge of T12
         else:
             upperlumbardefined = False
 
         # make consistent with other sections ...............[update this]-------------
         # first_region_connection_point is where bottom of thoracic region connects to lumbar region
-        first_region_connection_point = np.array([12, 30, z_connection_point])  # [13 31 7] + [0 0 259] in matlab
+        first_region_connection_point = np.array([12, 15, z_connection_point])  # [13 31 7] + [0 0 259] in matlab
         dz = 13
         if reverse_order:
             ncsections = np.floor(zmax-z_connection_point / dz - 0.5).astype('int')
@@ -1721,7 +1721,7 @@ def define_sections(template_name, dataname):
         # top of cord in cervical is at 121 + 259 = 380
         # sections are length 13 (dz), top segment in thoracic is at  380 - 8 * 13 = 276
         # need to check the positions in the new template - July 2020 -----------------------------------------
-        first_region_connection_point = np.array([12, 30, 265])  # [13 31 7] + [0 0 259] in matlab
+        first_region_connection_point = np.array([12, 15, 265])  # [13 31 7] + [0 0 259] in matlab
         ninitial_fixed_segments = 1
         dz = 13
         ncsections = np.floor(286/dz - 0.5).astype('int')
