@@ -40,6 +40,8 @@ def rotation_matrix(input_angle, axis = 0):
 def py_calculate_section_positions(template, img, section_defs, angle_list, pos_estimate, angle_estimate, position_stiffness,
                                    angle_stiffness, fixZ_flag=0, fix_position_flag=0, error_correction_pass=0, verbose = False):
 
+    print('running py_calculate_section_positions ... ')
+
     # input is the entire template, and sections are extracted
     xt, yt, zt = np.shape(template)
     xs, ys, zs = np.shape(img)
@@ -56,21 +58,34 @@ def py_calculate_section_positions(template, img, section_defs, angle_list, pos_
     dx = section_defs['dims'][0]
     xr = [xpos - dx, xpos + dx]
 
+    dzm = dz
+    dym = dy
+    zpos2 = zpos
+    x1 = 0
+    x2 = 2 * dx + 1
+    y1 = 0
+    y2 = 2*dy+1
+    z1 = 0
+    z2 = 2*dz+1
+    print('coords x ', x1, ' ', x2, '  y ', y1, ' ', y2, '  z ', z1, ' ', z2)
+    print('template coords x ', xpos - dx, ' ', xpos + dx, '  y ', ypos - dym, ' ', ypos + dym, '  z ', zpos2 - dzm,
+          ' ', zpos2 + dzm)
+
     if fix_position_flag > 0:
         coords = pos_estimate  # estimates of position and angle are relative to the image, not the template
         angle = angle_estimate
         if np.size(angle) < 1:
             angle = 0
         angley = 0
-        dzm = dz
-        dym = dy
-        zpos2 = zpos
-        x1 = 0
-        x2 = 2*dx + 1
-        y1 = dym - dy
-        y2 = dym + dy
-        z1 = dzm - dz
-        z2 = dzm + dz
+        # dzm = dz
+        # dym = dy
+        # zpos2 = zpos
+        # x1 = 0
+        # x2 = 2*dx + 1
+        # y1 = dym - dy
+        # y2 = dym + dy
+        # z1 = dzm - dz
+        # z2 = dzm + dz
     else:
         if np.size(angle_estimate) == 0:
             angle_weight = np.ones((np.size(angle_list)))
@@ -79,17 +94,17 @@ def py_calculate_section_positions(template, img, section_defs, angle_list, pos_
             angle_diff = np.abs(angle_list - angle_estimate)
             angle_weight = 1/(aw*angle_diff + 1)
 
-        dzm = dz
-        dym = dy
-        zpos2 = zpos
-        x1 = 0
-        x2 = 2 * dx + 1
-        y1 = dym - dy
-        y2 = dym + dy
-        z1 = dzm - dz
-        z2 = dzm + dz
-        print('coords x ',x1,' ',x2,'  y ',y1,' ',y2,'  z ',z1,' ',z2)
-        print('template coords x ',xpos-dx,' ',xpos+dx,'  y ',ypos-dym,' ',ypos+dym,'  z ',zpos2-dzm,' ',zpos2+dzm)
+        # dzm = dz
+        # dym = dy
+        # zpos2 = zpos
+        # x1 = 0
+        # x2 = 2 * dx + 1
+        # y1 = dym - dy
+        # y2 = dym + dy
+        # z1 = dzm - dz
+        # z2 = dzm + dz
+        # print('coords x ',x1,' ',x2,'  y ',y1,' ',y2,'  z ',z1,' ',z2)
+        # print('template coords x ',xpos-dx,' ',xpos+dx,'  y ',ypos-dym,' ',ypos+dym,'  z ',zpos2-dzm,' ',zpos2+dzm)
 
         # rotate the template if desired around xpos, ypos, zpos, then select
         # the rectangular region, and subtract / add the rotation angle from the result
@@ -108,7 +123,8 @@ def py_calculate_section_positions(template, img, section_defs, angle_list, pos_
             rotated_image = i3d.rotate3D(rotated_image, -section_defs['xrot'], section_defs['center'], 0)
 
         # crop the rotated image back to the correct size, and take out any undefined values
-        temp = rotated_image[xpos-dx:xpos+dx, ypos-dym:ypos+dym, zpos2-dzm:zpos2+dzm]   # take the section from the rotated template
+        # temp = rotated_image[xpos-dx:xpos+dx, ypos-dym:ypos+dym, zpos2-dzm:zpos2+dzm]   # take the section from the rotated template
+        temp = rotated_image[(xpos - dx):(xpos + dx + 1), (ypos - dym):(ypos + dym + 1), (zpos2 - dzm):(zpos2 + dzm + 1)]
         temp = np.where(np.isfinite(temp), temp, 0.0)  # take out any undefined values
         template_section = temp
         # check = np.where(np.isnan(temp))
@@ -287,6 +303,9 @@ def py_calculate_section_positions(template, img, section_defs, angle_list, pos_
 def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fixedpoint, angle_estimate, angle_stiffness, reverse_order = False):
     # fixedpoint is in terms of the image coordinates
     # template is the entire template, not just the section of interest
+
+    print('running py_calculate_chainlink_positions ...  ')
+
     map_success = True
 
     xt, yt, zt = np.shape(template)
@@ -304,10 +323,13 @@ def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fi
     xr = [xpos - dx, xpos + dx]
 
     # point in the template that links to the previous fixed point
-    if reverse_order:
-        vcenter_fixedpoint = section_defs['center'] + section_defs['fixedpoint1']
-    else:
-        vcenter_fixedpoint = section_defs['center'] - section_defs['fixedpoint1'] # vector from fixed_point to section center, in the template
+    # if reverse_order:
+    #     vcenter_fixedpoint = section_defs['center'] + section_defs['fixedpoint1']
+    # else:
+    #     vcenter_fixedpoint = section_defs['center'] - section_defs['fixedpoint1'] # vector from fixed_point to section center, in the template
+    # correction --------------
+    vcenter_fixedpoint = section_defs['center'] - section_defs[
+        'fixedpoint1']  # vector from fixed_point to section center, in the template
 
     aw = angle_stiffness
     angle_diff = np.abs(angle_list - angle_estimate) # angle_estimate must be provided
@@ -347,14 +369,12 @@ def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fi
     xr, yr, zr = np.shape(temp)
     x1 = 0
     x2 = 2*dx+1
-    y1 = dy-dy
-    y2 = dy+dy+1
-    z1 = dz-dz
-    z2 = dz+dz+1
+    y1 = 0
+    y2 = 2*dy+1
+    z1 = 0
+    z2 = 2*dz+1
     print('coords x ', x1,' ',x2,' y ', y1,' ',y2,' z ',z1,' ',z2)
 
-    # angle_list = np.linspace(-15,20,36) # input parameter
-    # angley_list = np.linspace(-5,5,3)   # if angles are any smaller they are indistinguishable
     angley_list = np.linspace(-2,2,3)   # if angles are any smaller they are indistinguishable
     angley_weight = np.array([0.5, 1.0, 0.5]) # slight weighting toward angley = 0
 
@@ -364,10 +384,11 @@ def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fi
     dtor = np.pi/180 # convert from degrees to radians
 
     # in the rotated image, the section position is the same every time
-    if reverse_order:
-        section_position = np.round(fixedpoint - vcenter_fixedpoint)
-    else:
-        section_position = np.round(fixedpoint + vcenter_fixedpoint)
+    # if reverse_order:
+    #     section_position = np.round(fixedpoint - vcenter_fixedpoint)
+    # else:
+    #     section_position = np.round(fixedpoint + vcenter_fixedpoint)
+    section_position = np.round(fixedpoint + vcenter_fixedpoint)
 
     print('section_position = ',section_position)
 
@@ -1028,7 +1049,7 @@ def py_apply_normalization(input_image, T, Tfine = 'none', map_to_normalized_spa
 
 #------------apply normalization to the template (reverse mapping) for a complete 4D nifti file----------
 #--------------------------------------------------------------------------------------------------------
-def apply_normalization_to_nifti(niiname, T, Tfine = 'None', input_affine = 'None', normprefix = 'p'):
+def apply_normalization_to_nifti(niiname, T, Tfine = 'None', input_affine = [], normprefix = 'p'):
     input_image, affine = i3d.load_and_scale_nifti(niiname)  # this takes care of resizing the data to 1 mm voxels
 
     ts = np.shape(input_image)[3]   # get the size of the time dimension
@@ -1042,7 +1063,7 @@ def apply_normalization_to_nifti(niiname, T, Tfine = 'None', input_affine = 'Non
     # write result as new NIfTI format image set
     pname, fname = os.path.split(niiname)
     output_niiname = os.path.join(pname, normprefix + fname)
-    if input_affine == 'None':
+    if len(input_affine) == 0:
         affine = np.array([[-1.,0.,0.,0.],[0.,1.,0.,0.],[0.,0.,1.,0.],[0.,0.,0.,1.]])
     else:
         affine = input_affine
@@ -1137,7 +1158,7 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         result.append(result_entry.copy())
         warpdata.append(warpdata_entry.copy())
 
-    # step through the initial segments - the upper portions of the brainstem for cervical cord/BS data
+    # step through the initial segments - the upper portions of the brainstem for cervical cord/BS data, or lumbar/sacral regions
     for ss in range(ninitial_fixed_segments):
         print('starting rough mapping for section ',ss, ' ...')
         position_stiffness = fit_parameters[0]
@@ -1261,32 +1282,6 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
     # 3) map the remaining sections based on the initial sections
     # the later sections are guided by the first section
 
-    #---------is this part redundant?----------------------------------
-    # angle = result[0]['angle']
-    # coords = result[0]['coords']   # this might be in the rotated template space
-    # pos = section_defs[0]['center']
-    # first_region_connection_point = section_defs[0]['first_region_connection_point']
-    # if reverse_order:
-    #     vpos_connectionpoint = first_region_connection_point + pos
-    # else:
-    #     vpos_connectionpoint = first_region_connection_point - pos  # vector from the center of the section to the connection point, in the template
-    #
-    # #  important revision - make these angles negative, for calculating fixation point
-    # Mx = rotation_matrix(-angle, 0)
-    # My = rotation_matrix(-angley, 1)
-    # Mtotal = np.dot(Mx,My)
-    # rvpos = np.dot(vpos_connectionpoint,Mtotal)  # rotated vector
-    # if reverse_order:
-    #     fixedpoint = coords - rvpos  # mapped location of the fixedpoint in the image data
-    # else:
-    #     fixedpoint = coords + rvpos  # mapped location of the fixedpoint in the image data
-    # ---------end of:  is this part redundant?----------------------------------
-
-    # draw this line over the figure that was previously displayed ...
-    # if display_window == 'None':
-    #     plt.plot([fixedpoint[2], fixedpoint[2]], [fixedpoint[1], fixedpoint[1]], 'xr-')
-    #     plt.show(block=False)
-
     # -----now, map the cord segments ---------------------------
     resultsplot = []
     dtor = np.pi/180   # convert degrees to radians
@@ -1294,23 +1289,25 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
     for ss in range(ncordsegments):
         position_stiffness = fit_parameters[1]
         angle_stiffness = fit_parameters[3]
-        angle_list = np.linspace(fit_parameters[6],fit_parameters[7],np.round((fit_parameters[7]-fit_parameters[6])/2 + 1).astype('int'))
+        angle_list = np.linspace(fit_parameters[6], fit_parameters[7], np.round((fit_parameters[7]-fit_parameters[6])/2 + 1).astype('int'))
 
         if ss == 0:   # the first defined section has to be the one just above the cord sections that are chained together
             #  --- important revision to test -- does the previous section_def angle need to be added for the prediction?
-            angle = result[0]['angle']  + section_defs[0]['xrot']
+            angle = result[0]['angle'] + section_defs[0]['xrot']
             angley = result[0]['angley']
             coords = result[0]['coords']
             pos = section_defs[0]['center']
             first_region_connection_point = section_defs[0]['first_region_connection_point']
-            if reverse_order:
-                vpos_connectionpoint = first_region_connection_point + pos
-            else:
-                vpos_connectionpoint = first_region_connection_point - pos  # vector from the center of the section to the connection point
+            # if reverse_order:
+            #     vpos_connectionpoint = first_region_connection_point + pos
+            # else:
+            #     vpos_connectionpoint = first_region_connection_point - pos  # vector from the center of the section to the connection point
+            # correction-----------
+            vpos_connectionpoint = first_region_connection_point - pos
 
             # -- important revision --------  make angles negative to get correct rotation
-            Mx = rotation_matrix(-angle,0)
-            My = rotation_matrix(-angley,1)
+            Mx = rotation_matrix(-angle, 0)
+            My = rotation_matrix(-angley, 1)
             Mtotal = np.dot(Mx,My)
             # original-----------------
             # Mx = rotation_matrix(angle,0)
@@ -1318,26 +1315,32 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
             # Mtotal = np.dot(Mx,My)
             # end of original---------------
             rvpos = np.dot(vpos_connectionpoint, Mtotal)   # rotated vector
-            if reverse_order:
-                fixedpoint = coords - rvpos  # mapped location of fixedpoint in the image data
-            else:
-                fixedpoint = coords + rvpos  # mapped location of fixedpoint in the image data
+            # if reverse_order:
+            #     fixedpoint = coords - rvpos  # mapped location of fixedpoint in the image data
+            # else:
+            #     fixedpoint = coords + rvpos  # mapped location of fixedpoint in the image data
+            fixedpoint = coords + rvpos  # mapped location of fixedpoint in the image data
         else:
             angle = result[ss+ninitial_fixed_segments-1]['angle']
             coords = result[ss+ninitial_fixed_segments-1]['coords']
             pos = section_defs[ss+ninitial_fixed_segments-1]['center']
-            if reverse_order:
-                vpos_connectionpoint = section_defs[ss + ninitial_fixed_segments - 1]['fixedpoint2'] + pos
-            else:
-                vpos_connectionpoint = section_defs[ss+ninitial_fixed_segments-1]['fixedpoint2'] - pos   # vector from the center of the section to the connection point
+            # if reverse_order:
+            #     vpos_connectionpoint = section_defs[ss + ninitial_fixed_segments - 1]['fixedpoint2'] + pos
+            # else:
+            #     vpos_connectionpoint = section_defs[ss+ninitial_fixed_segments-1]['fixedpoint2'] - pos   # vector from the center of the section to the connection point
+            # correction--------------------------
+            vpos_connectionpoint = section_defs[ss + ninitial_fixed_segments - 1][
+                                       'fixedpoint2'] - pos  # vector from the center of the section to the connection point
+
             Mx = rotation_matrix(-angle,0)
             My = rotation_matrix(-angley,1)
             Mtotal = np.dot(Mx,My)
             rvpos = np.dot(vpos_connectionpoint, Mtotal)   # rotated vector
-            if reverse_order:
-                fixedpoint = coords - rvpos  # mapped location of fixedpoint in the image data
-            else:
-                fixedpoint = coords + rvpos  # mapped location of fixedpoint in the image data
+            # if reverse_order:
+            #     fixedpoint = coords - rvpos  # mapped location of fixedpoint in the image data
+            # else:
+            #     fixedpoint = coords + rvpos  # mapped location of fixedpoint in the image data
+            fixedpoint = coords + rvpos  # mapped location of fixedpoint in the image data
 
         angle_estimate = angle
         # angle_stiffness = 1e-3
@@ -1382,18 +1385,22 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
             angle = result[ss + ninitial_fixed_segments]['angle']
             coords = result[ss + ninitial_fixed_segments]['coords']
             pos = section_defs[ss + ninitial_fixed_segments]['center']
-            if reverse_order:
-                vpos_connectionpoint = section_defs[ss + ninitial_fixed_segments]['fixedpoint2'] + pos
-            else:
-                vpos_connectionpoint = section_defs[ss + ninitial_fixed_segments]['fixedpoint2'] - pos # vector from the center of the section to the connection point
+            # if reverse_order:
+            #     vpos_connectionpoint = section_defs[ss + ninitial_fixed_segments]['fixedpoint2'] + pos
+            # else:
+            #     vpos_connectionpoint = section_defs[ss + ninitial_fixed_segments]['fixedpoint2'] - pos # vector from the center of the section to the connection point
+            # correction-----------------------------
+            vpos_connectionpoint = section_defs[ss + ninitial_fixed_segments]['fixedpoint2'] - pos # vector from the center of the section to the connection point
+
             Mx = rotation_matrix(-angle,0)
             My = rotation_matrix(-angley,1)
             Mtotal = np.dot(Mx,My)
             rvpos = np.dot(vpos_connectionpoint, Mtotal) # rotated vector
-            if reverse_order:
-                fixedpoint = coords - rvpos  # mapped location of the fixed point in the image data
-            else:
-                fixedpoint = coords + rvpos  # mapped location of the fixed point in the image data
+            # if reverse_order:
+            #     fixedpoint = coords - rvpos  # mapped location of the fixed point in the image data
+            # else:
+            #     fixedpoint = coords + rvpos  # mapped location of the fixed point in the image data
+            fixedpoint = coords + rvpos  # mapped location of the fixed point in the image data
 
             entry = {'coords':coords, 'fixedpoint':fixedpoint, 'fixedpoint_previous':fixedpoint_previous}
             resultsplot.append(entry)
@@ -1457,8 +1464,6 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         np.save(savename, results_record)
 
     return T, warpdata, reverse_map_image, forward_map_image, displayrecord, imagerecord, resultsplot, result
-
-
 
 
 #-------------py_norm_fine_tuning----------------------------------------
@@ -1558,6 +1563,11 @@ def define_sections(template_name, dataname):
         region_name2 = 'T12'
 
     if range_specified:
+        input_img = nib.load(dataname)
+        hdr = input_img.header
+        FOV = hdr['pixdim'][1:4]*hdr['dim'][1:4]
+        pos_estimate = np.array([np.round(FOV[0]/2), np.round(FOV[1]/2), np.round(FOV[2]/2)]).astype(int)   # start at the middle of the image
+
         resolution = 1
         template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = load_templates.load_template_and_masks(
             template_name, resolution)
@@ -1567,6 +1577,7 @@ def define_sections(template_name, dataname):
         test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
         cx,cy,cz = np.where(test)   # region at superior end of range
         zmax = np.max(cz)
+        nd = len(region_name2)
         rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:nd] == region_name2]
         test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
         cx,cy,cz = np.where(test)   # region at inferior end of range
@@ -1587,12 +1598,12 @@ def define_sections(template_name, dataname):
         rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:3] == 'T12']
         test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
         cx, cy, cz = np.where(test)
-        z_bottom_of_T12 = np.min(cz)  # the bottom of the T12 segment
+        z_bottom_of_T12 = np.round(np.min(cz)).astype(int)  # the bottom of the T12 segment
 
         z_connection_point = zmax  # ... top of range
 
         # check for lumbar regions - specify first sections to match
-        if value1 < 60 & value2 > 63:
+        if value1 < 60 and value2 > 63:
             z_connection_point = z_bottom_of_T12
             reverse_order = True
             ninitial_fixed_segments += 1
@@ -1600,11 +1611,11 @@ def define_sections(template_name, dataname):
             rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:2] == 'S2']
             test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
             cx, cy, cz = np.where(test)
-            zref = np.mean(cz)   # the middle of the L4 segment
+            zref = np.round(np.mean(cz)).astype(int)   # the middle of the L4 segment
             sacraldefined = True
             sacral = {'name': 'sacral',
                        'center': np.array([12, 15, zref]),
-                       'dims': np.array([6, 15, 15]),
+                       'dims': np.array([6, 10, 12]),
                        'xrot': 0,
                        'yrot': 0,
                        'start_ref_pos': [],
@@ -1614,7 +1625,7 @@ def define_sections(template_name, dataname):
             sacraldefined = False
 
         # check for lumbar regions - specify first sections to match
-        if value1 < 44 & value2 > 45:
+        if value1 < 44 and value2 > 45:
             z_connection_point = z_bottom_of_T12
             reverse_order = True
             ninitial_fixed_segments += 1
@@ -1622,11 +1633,11 @@ def define_sections(template_name, dataname):
             rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:2] == 'L4']
             test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
             cx, cy, cz = np.where(test)
-            zref = np.mean(cz)   # the middle of the L4 segment
+            zref = np.round(np.mean(cz)).astype(int)   # the middle of the L4 segment
             lowerlumbardefined = True
             lowerlumbar = {'name': 'lower_lumbar',
                        'center': np.array([12, 15, zref]),
-                       'dims': np.array([6, 15, 15]),
+                       'dims': np.array([6, 10, 12]),
                        'xrot': 0,
                        'yrot': 0,
                        'start_ref_pos': [],
@@ -1636,7 +1647,7 @@ def define_sections(template_name, dataname):
             lowerlumbardefined = False
 
         # check for lumbar regions - specify first sections to match
-        if value1 < 40 & value2 > 43:
+        if value1 < 40 and value2 > 43:
             z_connection_point = z_bottom_of_T12
             reverse_order = True
             ninitial_fixed_segments += 1
@@ -1644,11 +1655,11 @@ def define_sections(template_name, dataname):
             rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:2] == 'L2']
             test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
             cx, cy, cz = np.where(test)
-            zref = np.mean(cz)   # the middle of the L2 segment
+            zref = np.round(np.mean(cz)).astype(int)   # the middle of the L2 segment
             upperlumbardefined = True
             upperlumbar = {'name': 'upper_lumbar',
                        'center': np.array([12, 15, zref]),
-                       'dims': np.array([6, 15, 15]),
+                       'dims': np.array([6, 10, 12]),
                        'xrot': 0,
                        'yrot': 0,
                        'start_ref_pos': [],
@@ -1662,10 +1673,11 @@ def define_sections(template_name, dataname):
         # first_region_connection_point is where bottom of thoracic region connects to lumbar region
         first_region_connection_point = np.array([12, 15, z_connection_point])  # [13 31 7] + [0 0 259] in matlab
         dz = 13
-        if reverse_order:
-            ncsections = np.floor(zmax-z_connection_point / dz - 0.5).astype('int')
-        else:
-            ncsections = np.floor(z_connection_point / dz - 0.5).astype('int')
+        # if reverse_order:
+        #     ncsections = np.floor((zmax-z_connection_point)/ dz - 0.5).astype('int')
+        # else:
+        #     ncsections = np.floor(z_connection_point / dz - 0.5).astype('int')
+        ncsections = np.floor(z_connection_point / dz - 0.5).astype('int')
         # working from top-down, or reverse order?
 
         # initialize_section_defs
@@ -1699,11 +1711,11 @@ def define_sections(template_name, dataname):
                 fixedpoint1 = first_region_connection_point - np.array([0, 0, dz * ss])
                 fixedpoint2 = first_region_connection_point - np.array([0, 0, dz * (ss + 1)])
 
-            section_defs[ss+ninitial_fixed_segments]['center'] = [12, 30, zcenter]
-            section_defs[ss+ninitial_fixed_segments]['dims'] = [6, 10, np.floor(dz / 2).astype('int')]  # span +/- from center
-            section_defs[ss+ninitial_fixed_segments]['name'] = sprintf('cord%d', ss);
-            section_defs[ss+ninitial_fixed_segments]['fixdistance'] = 1;
-            section_defs[ss+ninitial_fixed_segments]['refpoint'] = [12, 30, zrefpoint];
+            section_defs[ss+ninitial_fixed_segments]['center'] = [12, 15, zcenter]
+            section_defs[ss+ninitial_fixed_segments]['dims'] = [6, 10, np.floor(dz/2).astype('int')]  # span +/- from center
+            section_defs[ss+ninitial_fixed_segments]['name'] = 'cord{}'.format(ss)
+            section_defs[ss+ninitial_fixed_segments]['fixdistance'] = 1
+            section_defs[ss+ninitial_fixed_segments]['refpoint'] = [12, 30, zrefpoint]
             section_defs[ss+ninitial_fixed_segments]['pos_estimate'] = []
             section_defs[ss+ninitial_fixed_segments]['xrot'] = 0
             section_defs[ss+ninitial_fixed_segments]['yrot'] = 0
@@ -1733,12 +1745,12 @@ def define_sections(template_name, dataname):
             section_defs.append(single_def.copy())
 
         for ss in range(ncsections):
-            section_defs[ss]['center'] = [12, 30, (275 - np.floor(dz*(ss+0.5))).astype('int')]
+            section_defs[ss]['center'] = [12, 15, (275 - np.floor(dz*(ss+0.5))).astype('int')]
             section_defs[ss]['dims'] = [6, 10, np.floor(dz/2).astype('int')]  #span +/- from center
 
             section_defs[ss]['name'] = sprintf('tcord%d', ss);
             section_defs[ss]['fixdistance'] = 1;
-            section_defs[ss]['refpoint'] = [12, 30, (120 + 259 - np.floor(dz*0.5)).astype('int')];
+            section_defs[ss]['refpoint'] = [12, 15, (120 + 259 - np.floor(dz*0.5)).astype('int')];
             section_defs[ss]['pos_estimate'] = []
             section_defs[ss]['xrot'] = 0
             section_defs[ss]['yrot'] = 0

@@ -1430,6 +1430,8 @@ class NCFrame:
                                 fillcolor = 'blue' # indicates to change position
                         else:
                             fillcolor = 'yellow'
+                            colorval = np.floor(255.*(nf+1)/nfordisplay).astype(int)
+                            fillcolor = "#%02x%02x%02x" % (colorval, 255, 0)
                         # draw the rectangular regions for each section
                         p0, p1, p2, p3, coords, angle, sectionsize, smallestside = self.outline_section(nf)
                         self.window1.create_line(p0[0], p0[1], p1[0], p1[1], p2[0], p2[1], p3[0], p3[1], p0[0], p0[1],
@@ -1589,7 +1591,7 @@ class NCFrame:
         fname = df1.loc[dbnum, 'niftiname']
         seriesnumber = df1.loc[dbnum, 'seriesnumber']
         niiname = os.path.join(dbhome, fname)
-        input_data = i3d.load_and_scale_nifti(niiname)
+        input_data, new_affine = i3d.load_and_scale_nifti(niiname)
         print('shape of input_data is ',np.shape(input_data))
         print('niiname = ', niiname)
         if np.ndim(input_data) == 4:
@@ -1871,7 +1873,7 @@ class NCFrame:
         tag = '_s' + str(seriesnumber)
         normdataname_full = os.path.join(fullpath, normdatasavename + tag + '.npy')
 
-        input_data = i3d.load_and_scale_nifti(niiname)
+        input_data, new_affine = i3d.load_and_scale_nifti(niiname)
         print('shape of input_data is ',np.shape(input_data))
         print('niiname = ', niiname)
         if np.ndim(input_data) == 4:
@@ -2544,7 +2546,7 @@ class GLMFrame:
         self.prefix = settings['GLMprefix']
         self.ndrop = settings['GLMndrop']
 
-        basisset, paradigm_names = GLMfit.compile_basis_sets(self.DBname, self.dbnumlist, self.prefix, mode=self.GLM1_option, nvolmask=ndrop)
+        basisset, paradigm_names = GLMfit.compile_basis_sets(self.DBname, self.dbnumlist, self.prefix, mode=self.GLM1_option, nvolmask=self.ndrop)
         self.basisset = basisset
         self.paradigm_names = paradigm_names
 
@@ -2645,7 +2647,7 @@ class GLMFrame:
         self.prefix = settings['GLMprefix']
         self.ndrop = settings['GLMndrop']
 
-        dataset = GLMfit.compile_data_sets(self.DBname, self.DBnum, self.prefix, mode=self.GLM1_option, nvolmask=ndrop)
+        dataset = GLMfit.compile_data_sets(self.DBname, self.DBnum, self.prefix, mode=self.GLM1_option, nvolmask=self.ndrop)
         self.dataset = dataset
 
         bshape = np.shape(dataset)
@@ -2751,6 +2753,7 @@ class GLMFrame:
 
         # some run modes need to be run person-by-person
         if runmode in per_person_modes:
+            if np.ndim(dataset) == 4:  dataset = dataset[:,:,:,:,np.newaxis]
             xs, ys, zs, ts, NP = np.shape(dataset)
             for nn in range(NP):
                 persondata = dataset[:,:,:,:,nn]
@@ -2794,11 +2797,14 @@ class GLMFrame:
 
         #-----------create outputs------------------------------------
         # choose a statistical threshold and create a results figure
-        # xls = pd.ExcelFile(DBname, engine = 'openpyxl')
-        # df1 = pd.read_excel(xls, 'datarecord')
-        # normtemplatename = df1.loc[DBnum[0], 'normtemplatename']
-        # resolution = 1
-        # template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = load_templates.load_template_and_masks(normtemplatename, resolution)
+        xls = pd.ExcelFile(DBname, engine = 'openpyxl')
+        df1 = pd.read_excel(xls, 'datarecord')
+        normtemplatename = df1.loc[DBnum[0], 'normtemplatename']
+        resolution = 1
+        template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = load_templates.load_template_and_masks(normtemplatename, resolution)
+        print('normtemplatename = {}'.format(normtemplatename))
+        print('size of template_img is {}'.format(np.shape(template_img)))
+        
         #
         # p_corr = 0.05   # corrected p-value threshold
         # # correct using gaussian random field theory

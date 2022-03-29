@@ -173,10 +173,10 @@ def coreg_to_motionparams(niiname, normdataname, normtemplatename, nametag):
         foundtemplate = True
 
     if 'to' in normtemplatename.lower():
-        refpoints = [[15, 15, (np.round(zs*0.25)).astype(int)],
-                     [15, 15, (np.round(zs*0.50)).astype(int)],
-                     [15, 15, (np.round(zs*0.75)).astype(int)]]
-        motiontestpoint = [9, 18, (np.round(zs*0.50)).astype(int)]
+        refpoints = [[15, 15, (np.round(zt*0.25)).astype(int)],
+                     [15, 15, (np.round(zt*0.50)).astype(int)],
+                     [15, 15, (np.round(zt*0.75)).astype(int)]]
+        motiontestpoint = [9, 18, (np.round(zt*0.50)).astype(int)]
         foundtemplate = True
 
     if not foundtemplate:   # only setup for ccbs, thoracic cord, and "to" ranges, for now
