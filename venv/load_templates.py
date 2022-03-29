@@ -562,7 +562,7 @@ def load_wm_maps(region_name, resolution, verbose=False):
         else:
             template_file = 'stitched_PAM50_icbm152_May2020_T2_1mm.nii.gz'
             regionmap_file = 'wholeCNS_region_map_cordsegments_1mm.nii.gz'
-            wmmap_file = 'wholeCNS_wm_map_1mm.nii'
+            wmmap_file = 'wholeCNS_wm_map_1mm.nii.gz'
             gm_wm_mask_file = 'CNS_cord_wm_gm_mask_1mm.nii.gz'
             match_affine = False
             crop = True

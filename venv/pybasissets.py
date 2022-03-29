@@ -127,22 +127,11 @@ def coreg_to_motionparams(niiname, normdataname, normtemplatename, nametag):
     normdata = np.load(normdataname, allow_pickle=True).flat[0]
     T = normdata['T']
     Tfine = normdata['Tfine']
-
-    # use this data to estimate motion parameters
-    if normtemplatename.lower() == 'thoracic':
-        refpoints = [[13, 72, 60],
-                     [13, 72, 107],
-                     [13, 57, 143]]
-        motiontestpoint = [5, 79, 100]
-    else:   # only setup for ccbs and thoracic cord for now
-        refpoints = [[13, 72, 60],
-                     [13, 72, 107],
-                     [13, 72, 145]]
-        motiontestpoint = [5, 79, 100]
+    xt,yt,zt = np.shape(normdata['reverse_map_image'])
 
     # load the image data
     input_img = nib.load(niiname)
-    input_data = input_img.get_data()
+    input_data = input_img.get_fdata()
     affine = input_img.affine
     input_hdr = input_img.header
     FOV = input_hdr['pixdim'][1:4]*input_hdr['dim'][1:4]
@@ -174,6 +163,28 @@ def coreg_to_motionparams(niiname, normdataname, normtemplatename, nametag):
     dy2 = np.zeros((3,ts))
     dz2 = np.zeros((3,ts))
 
+    # use this data to estimate motion parameters
+    foundtemplate = False
+    if normtemplatename.lower() == 'thoracic':
+        refpoints = [[13, 72, 60],
+                     [13, 72, 107],
+                     [13, 57, 143]]
+        motiontestpoint = [5, 79, 100]
+        foundtemplate = True
+
+    if 'to' in normtemplatename.lower():
+        refpoints = [[15, 15, (np.round(zs*0.25)).astype(int)],
+                     [15, 15, (np.round(zs*0.50)).astype(int)],
+                     [15, 15, (np.round(zs*0.75)).astype(int)]]
+        motiontestpoint = [9, 18, (np.round(zs*0.50)).astype(int)]
+        foundtemplate = True
+
+    if not foundtemplate:   # only setup for ccbs, thoracic cord, and "to" ranges, for now
+        refpoints = [[13, 72, 60],
+                     [13, 72, 107],
+                     [13, 72, 145]]
+        motiontestpoint = [5, 79, 100]
+
     motion_parameters = {}
 
     print('coreg_to_motionparams: compiling motion data ...')
@@ -186,11 +197,6 @@ def coreg_to_motionparams(niiname, normdataname, normtemplatename, nametag):
         X = X[:xs,:ys,:zs]
         Y = Y[:xs,:ys,:zs]
         Z = Z[:xs,:ys,:zs]
-        mtp = motiontestpoint
-
-        dx[tt] = X[mtp[0], mtp[1], mtp[2]]- mtp[0]
-        dy[tt] = Y[mtp[0], mtp[1], mtp[2]] - mtp[1]
-        dz[tt] = Z[mtp[0], mtp[1], mtp[2]] - mtp[2]
 
         temp = i3d.resize_3D(X,FOV.astype('int'))   # interpolate to 1 mm voxels
         XX = i3d.warp_image(temp, Xs, Ys, Zs) # apply normalization to coregistration data (to get regions of interest)
@@ -202,6 +208,12 @@ def coreg_to_motionparams(niiname, normdataname, normtemplatename, nametag):
         XX = np.where(np.isfinite(XX), XX, 0)
         YY = np.where(np.isfinite(YY), YY, 0)
         ZZ = np.where(np.isfinite(ZZ), ZZ, 0)
+
+        # check for motion in normalized data space
+        mtp = motiontestpoint
+        dx[tt] = XX[mtp[0], mtp[1], mtp[2]]- mtp[0]
+        dy[tt] = YY[mtp[0], mtp[1], mtp[2]] - mtp[1]
+        dz[tt] = ZZ[mtp[0], mtp[1], mtp[2]] - mtp[2]
 
         for ss in range(3):
             dx2[ss, tt] = XX[refpoints[ss][0], refpoints[ss][1], refpoints[ss][2]]
@@ -308,7 +320,7 @@ def get_whitematter_noise(niiname, normtemplatename, nametag):
 
     # load the data to get the white matter time-courses
     input_img = nib.load(niiname)
-    input_data = input_img.get_data()
+    input_data = input_img.get_fdata()
     affine = input_img.affine
     input_hdr = input_img.header
     FOV = input_hdr['pixdim'][1:4]*input_hdr['dim'][1:4]
