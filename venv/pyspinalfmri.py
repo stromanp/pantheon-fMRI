@@ -23,6 +23,7 @@ Jobs to do:  (not entirely complete yet)
 10) Visualization of results
 
 """
+# sys.path.append(r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv')
 
 # import necessary modules 
 import tkinter as tk

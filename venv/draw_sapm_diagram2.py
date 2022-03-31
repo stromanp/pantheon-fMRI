@@ -6,6 +6,7 @@ from matplotlib.collections import PatchCollection
 import os
 import pandas as pd
 import scipy.stats as stats
+import pydisplay
 
 #-----------------------------------------------------------------------
 # get info about the network to work with-------------------------------
@@ -71,6 +72,7 @@ def run_draw_sapm_plot(type, clusternumber):
         if clusternumber == 4:
             cnums = [4, 4, 2, 1, 0, 3, 3, 3, 2, 0]  # random 4
     #----------------------------------------------------------------------
+    clusterdataname = r'D:/threat_safety_python/threat_safety_clusterdata.npy'
 
     results_file = r'D:\threat_safety_python\individual_differences\{}_C6RD{}\all All Average Mconn values.xlsx'.format(type,clusternumber)
     sheetname = 'average'  # sheet of excel file to read
@@ -89,10 +91,10 @@ def run_draw_sapm_plot(type, clusternumber):
     threshold = Zthresh[2]
 
     figurenumber = clusternumber+1+offset
-    draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, scalefactor, cnums, threshold, True)
+    draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, scalefactor, cnums, threshold, True, clusterdataname)
 
 
-def draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, scalefactor, cnums, threshold = 0.0, writefigure = False):
+def draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, scalefactor, cnums, threshold = 0.0, writefigure = False, clusterdataname = []):
     xls = pd.ExcelFile(results_file, engine='openpyxl')
     df1 = pd.read_excel(xls, sheetname)
     connections = df1[regionnames]
@@ -141,6 +143,15 @@ def draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, 
     # start drawing
     fig = plt.figure(figurenumber)
     ax = fig.add_axes([0,0,1,1])
+
+    # show axial slices?
+    if len(clusterdataname) > 0:
+        templatename = 'ccbs'
+        for rr, regionname in enumerate(regionlist):
+            clusternum = cnums[rr]
+            outputimg = display_anatomical_slices(clusterdataname, regionname, clusternum, templatename)
+            # display it somewhere...
+
 
     # add ellipses and labels
     for nn in range(len(regions)):
@@ -359,3 +370,27 @@ def points_on_ellipses2(pos0, pos1, pos2, ovalsize):
     pe2 += dpos2
 
     return pe0, pe1a, pe1b, pe2, pe1ab_connectionstyle, specialcase
+
+
+
+def display_anatomical_slices(clusterdataname, regionname, clusternum, templatename):
+    orientation = 'axial'
+    regioncolor = [1,1,0]
+
+    # get the connection and region information
+    clusterdata = np.load(clusterdataname, allow_pickle=True).flat[0]
+    cluster_properties = clusterdata['cluster_properties']
+    rnamelist = [cluster_properties[x]['rname'] for x in range(len(cluster_properties))]
+    targetnum = rnamelist.index(regionname)
+
+    # get the voxel coordinates for the target region
+    IDX = clusterdata['cluster_properties'][targetnum]['IDX']
+    idxx = np.where(IDX == clusternum)
+    cx = clusterdata['cluster_properties'][targetnum]['cx'][idxx]
+    cy = clusterdata['cluster_properties'][targetnum]['cy'][idxx]
+    cz = clusterdata['cluster_properties'][targetnum]['cz'][idxx]
+
+    #-------------------------------------------------------------------------------------
+    # display one slice of an anatomical region in the selected target figure
+    outputimg = pydisplay.pydisplayvoxelregionslice(templatename, cx, cy, cz, orientation, displayslice = [], colorlist = regioncolor)
+    return outputimg

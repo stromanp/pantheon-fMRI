@@ -353,7 +353,7 @@ def pydisplayvoxelregionslice(templatename, cx, cy, cz, orientation, displayslic
 
     #--------------------------------------------------------------
     # this might work for brain regions as well
-    if templatename == 'brain':
+    if templatename.lower()  == 'brain':
         # display brain data
         if orientation == 'axial':
             if len(displayslice) == 0: displayslice = np.round(np.mean(cz)).astype(int)
@@ -376,7 +376,7 @@ def pydisplayvoxelregionslice(templatename, cx, cy, cz, orientation, displayslic
             bluerot = blue[:,displayslice,:];  # bluerot = bluerot[:,::-1].T
             outputimg = np.dstack((redrot,greenrot,bluerot))
     else:
-        if templatename == 'ccbs':
+        if templatename.lower() == 'ccbs':
             # display brainstem/cord
             yc1 = 20;  yc2 = 76;  ys2 = yc2-yc1
         else:

@@ -3018,8 +3018,6 @@ def estimate_best_connections(Nintrinsics, nclusterlist, tplist_full, tcdata_cen
     np.save(EVRname, EVRcheck)
 
 
-
-
 def display_Mconn_properties(SEMresultsname, rnamelist, betanamelist):
     SEMresults_load = np.load(SEMresultsname, allow_pickle=True)
     NP = len(SEMresults_load)
@@ -3152,6 +3150,28 @@ def display_SEM_results_1person(nperson, Sinput, fit, regionlist, nruns, tsize, 
         results_text_output += [results_text]
 
     return results_text_output
+
+
+def plot_correlated_results(SEMresultsname, SEMparametersname):
+    outputdir = r'D:\threat_safety_python\individual_differences'
+    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model.npy')
+    SEMresults_load = np.load(SEMresultsname, allow_pickle=True)
+
+    SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
+    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+
+    # for nperson in range(NP)
+    NP = len(SEMresults_load)
+    nconn, tsize_full = np.shape(SEMresults_load[0]['Sconn'])
+    nbeta = np.shape(SEMresults_load[0]['betavals'])
+    beta_record = np.zeros((NP,nbeta))
+
+    for nn in range(NP):
+        beta_record[nn,:] = SEMresults_load[nn]['betavals']
+
+
+    labeltext_record, sources_per_target, intrinsic_flag = betavalue_labels(csource, ctarget, rnamelist, betanamelist, beta_list)
+
 
 
 def display_matrix(M,columntitles,rowtitles):
@@ -3299,7 +3319,6 @@ def noise_test():
 
         df = pd.DataFrame(R2params[:(nn+1),:],columns = column_names)
         df.to_excel(excelfilename)
-
 
 
 
