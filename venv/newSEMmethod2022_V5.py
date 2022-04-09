@@ -37,6 +37,7 @@ import statsmodels.api as sm
 from statsmodels.formula.api import ols
 import os
 from mpl_toolkits import mplot3d
+import random
 
 
 def sub2ind(vsize, indices):
@@ -3152,25 +3153,43 @@ def display_SEM_results_1person(nperson, Sinput, fit, regionlist, nruns, tsize, 
     return results_text_output
 
 
-def plot_correlated_results(SEMresultsname, SEMparametersname):
-    outputdir = r'D:\threat_safety_python\individual_differences'
+def plot_correlated_results(SEMresultsname, SEMparametersname, connection_name, covariates, figurenumber = 1):
+    outputdir = r'D:\threat_safety_python\individual_differences\fixed_C6RD0'
     SEMresultsname = os.path.join(outputdir, 'SEMphysio_model.npy')
     SEMresults_load = np.load(SEMresultsname, allow_pickle=True)
 
     SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
     SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+    ctarget = SEMparams['ctarget']
+    csource = SEMparams['csource']
+    rnamelist = SEMparams['rnamelist']
+    betanamelist = SEMparams['betanamelist']
+    beta_list = SEMparams['beta_list']
+    Mconn = SEMparams['Mconn']
 
     # for nperson in range(NP)
     NP = len(SEMresults_load)
     nconn, tsize_full = np.shape(SEMresults_load[0]['Sconn'])
-    nbeta = np.shape(SEMresults_load[0]['betavals'])
+    nbeta = np.shape(SEMresults_load[0]['betavals'])[0]
     beta_record = np.zeros((NP,nbeta))
-
     for nn in range(NP):
         beta_record[nn,:] = SEMresults_load[nn]['betavals']
 
+    labeltext_record, sources_per_target, intrinsic_flag = betavalue_labels(csource, ctarget, rnamelist, betanamelist, beta_list, Mconn)
 
-    labeltext_record, sources_per_target, intrinsic_flag = betavalue_labels(csource, ctarget, rnamelist, betanamelist, beta_list)
+    x = labeltext_record.index(connection_name)
+    beta = beta_record[:,x]
+
+    # prep regression lines
+    b, fit, R2 = pydisplay.simple_GLMfit(covariates, beta)
+
+    plt.close(figurenumber)
+    fig = plt.figure(figurenumber)
+    plt.plot(covariates, beta, color=(0, 0, 0), linestyle='None', marker='o', markerfacecolor=(0, 0, 0),
+                    markersize=4)
+    plt.plot(covariates, fit, color=(0, 0, 0), linestyle='solid', marker='None')
+    textlabel = '{}'.format(connection_name)
+    plt.title(textlabel)
 
 
 
@@ -3205,7 +3224,7 @@ def display_anatomical_cluster(clusterdataname, targetnum, targetcluster, orient
 
 
 # make labels for each betavalue
-def betavalue_labels(csource, ctarget, rnamelist, betanamelist, beta_list):
+def betavalue_labels(csource, ctarget, rnamelist, betanamelist, beta_list, Mconn):
 
     labeltext_record = []
     nregions = len(rnamelist)
@@ -3796,6 +3815,402 @@ def IDstudy_main(cord_cluster, type, reload_existing = False):
     group = 'all'
     show_SEM_average_beta_for_groups(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
                                      windowoffset=0)
+
+    # show a specific connection
+    connection_name = 'PBN-LC-DRt'
+
+    settings = np.load(settingsfile, allow_pickle=True).flat[0]
+    covariates = settings['GRPcharacteristicsvalues'][0].astype(float)  # painrating
+
+    plot_correlated_results(SEMresultsname, SEMparametersname, connection_name, covariates, figurenumber = 1)
+
+
+def test_bootstrap_idea():
+    cnums = [0, 3, 3, 1, 4, 1, 3, 3, 4, 1]  # fixed 0
+
+    outputdir = r'D:\threat_safety_python\bootstrap_test\test1'
+    if not os.path.exists(outputdir): os.mkdir(outputdir)
+
+    # main function
+    settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+
+    SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
+    networkfile = r'D:/threat_safety_python/network_model_5cluster_v5_w_3intrinsics.xlsx'
+
+    # load paradigm data--------------------------------------------------------------------
+    DBname = r'D:/threat_safety_python/threat_safety_database.xlsx'
+    xls = pd.ExcelFile(DBname, engine='openpyxl')
+    df1 = pd.read_excel(xls, 'paradigm1_BOLD')
+    del df1['Unnamed: 0']  # get rid of the unwanted header column
+    fields = list(df1.keys())
+    paradigm = df1['paradigms_BOLD']
+    timevals = df1['time']
+    paradigm_centered = paradigm - np.mean(paradigm)
+    dparadigm = np.zeros(len(paradigm))
+    dparadigm[1:] = np.diff(paradigm_centered)
+
+    regiondataname = r'D:/threat_safety_python/threat_safety_regiondata_allthreat55.npy'
+    clusterdataname = r'D:/threat_safety_python/threat_safety_clusterdata.npy'
+
+    # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
+    #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
+    full_rnum_base =  np.array([0,5,10,15,20,25,30,35,40,45])
+
+    namelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC', 'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus',
+            'Rtotal', 'R C6RD',  'R DRt', 'R Hyp','R LC', 'R NGC', 'R NRM', 'R NTS', 'R PAG',
+            'R PBN', 'R Thal']
+
+    # starting values
+    cnums_original = copy.deepcopy(cnums)
+    excelsheetname = 'clusters'
+    fname = 'test.xlsx'
+    excelfilename = os.path.join(outputdir, fname)
+
+    # run the analysis with SAPM
+    clusterlist = np.array(cnums) + full_rnum_base
+    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
+    # modify tplist_full in SEMparametersname for bootstrap sampling
+    # save a new copy of SEMparameters
+    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+    tplist_full = SEMparams['tplist_full']
+    epoch = 0
+    NP = len(tplist_full[epoch])
+
+    # first pass - change nothing
+    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model0.npy')
+    boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters0.npy')
+    SEMparams['tplist_full'] = tplist_full
+    tplist_full0 = copy.deepcopy(tplist_full)
+    np.save(boot_SEMparametersname, SEMparams)
+    output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
+    SEMresults0 = np.load(output, allow_pickle=True)
+
+    # second pass - change something
+    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model1.npy')
+    boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters1.npy')
+    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+    tplist_full = SEMparams['tplist_full']
+    tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'allodds')
+    SEMparams['tplist_full'] = tplist
+    np.save(boot_SEMparametersname, SEMparams)
+    tplist_full1 = copy.deepcopy(tplist)
+    output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
+    SEMresults1 = np.load(output, allow_pickle=True)
+
+    # third pass - change something else
+    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model2.npy')
+    boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters2.npy')
+    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+    tplist_full = SEMparams['tplist_full']
+    tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'allevens')
+    SEMparams['tplist_full'] = tplist
+    np.save(boot_SEMparametersname, SEMparams)
+    tplist_full2 = copy.deepcopy(tplist)
+    output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
+    SEMresults2 = np.load(output, allow_pickle=True)
+
+
+    # fourth pass - change something else
+    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model3.npy')
+    boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters3.npy')
+    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+    tplist_full = SEMparams['tplist_full']
+    tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'evenruns', 0, 40)
+    SEMparams['tplist_full'] = tplist
+    np.save(boot_SEMparametersname, SEMparams)
+    tplist_full3 = copy.deepcopy(tplist)
+    output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
+    SEMresults3 = np.load(output, allow_pickle=True)
+
+    # fifth pass - change something else
+    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model4.npy')
+    boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters4.npy')
+    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+    tplist_full = copy.deepcopy(SEMparams['tplist_full'])
+    tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'oddruns', 0, 40)
+    SEMparams['tplist_full'] = tplist
+    np.save(boot_SEMparametersname, SEMparams)
+    tplist_full4 = copy.deepcopy(tplist)
+    output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
+    SEMresults4 = np.load(output, allow_pickle=True)
+
+
+    # iterate through a number of passes - replacing random time points - 20% of the data
+    SEMresultsname = os.path.join(outputdir, 'SEMphysio_modelI.npy')
+    boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparametersI.npy')
+    beta_record = []
+    for nruns in range(100):
+        print('running iteration {} of {}'.format(nruns,100))
+        SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+        tplist_full = SEMparams['tplist_full']
+        tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'random', 20)
+        SEMparams['tplist_full'] = tplist
+        np.save(boot_SEMparametersname, SEMparams)
+        tplist_fullI = copy.deepcopy(tplist)
+        output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
+        SEMresultsI = np.load(output, allow_pickle=True)
+
+        NP = len(SEMresultsI)
+        nb = len(SEMresultsI[0]['betavals'])
+        allbeta = np.zeros((NP,nb))
+        for nn in range(NP): allbeta[nn,:] = SEMresultsI[nn]['betavals']
+        beta_record.append({'betavals':allbeta})
+
+    bootstrapresultsname = os.path.join(outputdir, 'bootstrap_results_20percent.npy')
+    np.save(bootstrapresultsname, beta_record)
+
+    # use the bootstrap results...
+    beta_record = np.load(bootstrapresultsname, allow_pickle=True)
+    ns = len(beta_record)
+    NP,nb = np.shape(beta_record[0]['betavals'])
+    allbeta = np.zeros((ns,NP,nb))
+    for nn in range(ns):
+        b = beta_record[nn]['betavals']
+        allbeta[nn,:,:] = b
+
+    avg_beta = np.zeros((NP,nb))
+    sd_beta = np.zeros((NP,nb))
+    sem_beta = np.zeros((NP,nb))
+    for nn in range(NP):
+        for bb in range(nb):
+            avg_beta[nn,bb] = np.mean(allbeta[:,nn,bb])
+            sd_beta[nn,bb] = np.std(allbeta[:,nn,bb])
+            sem_beta[nn,bb] = np.std(allbeta[:,nn,bb])/np.sqrt(ns)
+
+    np = 0
+    for n in range(nb):
+        print('{}  {:.3f} {} {:.3f}  T = {:.2f}'.format(n, avg_beta[np,n], chr(177), sem_beta[np,n], avg_beta[np,n]/sem_beta[np,n]))
+
+    # pick a person to display
+    p = 50
+    mbeta = avg_beta[p,:]
+    sbeta = sd_beta[p,:]
+
+    fignumber = 106+p
+    plt.close(fignumber)
+    fig = plt.figure(fignumber)
+    x = np.array(list(range(ncon)))
+    plt.errorbar(x, mbeta, yerr = sbeta,fmt='o',ecolor = 'red',color='red')
+    plt.errorbar(x[latentlist], mbeta[latentlist], yerr = sbeta[latentlist],fmt='o',ecolor = 'red',color='black')
+
+
+    #--------------show some results--------------------------
+    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+    beta_list = SEMparams['beta_list']
+    csource = SEMparams['csource']
+    ctarget = SEMparams['ctarget']
+    rnamelist = SEMparams['rnamelist']
+    ncon = len(csource)
+    nregions = 10
+
+    connection_name_list = []
+    for nn in range(ncon):
+        spair = beta_list[csource[nn]]['pair']
+        tpair = beta_list[ctarget[nn]]['pair']
+        if spair[0] < nregions:
+            sname0 = rnamelist[spair[0]]
+        else:
+            sname0 = 'latent{}'.format(spair[0]-nregions)
+        # latent regions are never target
+        sname1 = rnamelist[spair[1]]
+        tname1 = rnamelist[tpair[1]]
+
+        name = '{}-{}-{}'.format(sname0,sname1,tname1)
+        connection_name_list.append(name)
+
+    latentlist = []
+    for nn in range(ncon):
+        regions1 = beta_list[csource[nn]]['pair']
+        regions2 = beta_list[ctarget[nn]]['pair']
+        if (np.array([regions1, regions2]) >= nregions).any():
+            latentlist += [nn]
+    nonlatentlist = [x for x in range(ncon) if x not in latentlist]
+    NL = len(nonlatentlist)
+
+    # organize data
+    NP = len(SEMresults0)
+    beta = np.zeros((5,NP,ncon))
+    for p in range(NP):
+        beta[0,p,:] = SEMresults0[p]['betavals']
+        beta[1,p,:] = SEMresults1[p]['betavals']
+        beta[2,p,:] = SEMresults2[p]['betavals']
+        beta[3,p,:] = SEMresults3[p]['betavals']
+        beta[4,p,:] = SEMresults4[p]['betavals']
+
+    # display variations across people
+    mbeta = np.mean(beta, axis = 0)
+    sbeta = np.std(beta, axis = 0)
+
+    mbeta_group = np.mean(mbeta, axis = 0)
+    sbeta_group = np.std(mbeta, axis = 0)
+
+    fignumber = 2
+    plt.close(fignumber)
+    fig = plt.figure(fignumber)
+    x = np.array(list(range(ncon)))
+    plt.errorbar(x, mbeta_group, yerr = sbeta_group,fmt='o',ecolor = 'red',color='red')
+    plt.errorbar(x[latentlist], mbeta_group[latentlist], yerr = sbeta_group[latentlist],fmt='o',ecolor = 'red',color='black')
+    plt.plot([0,ncon],[0,0],'-k', linewidth = 0.2)
+
+    # find the connections with the smallest stdev and mbeta nearest zero
+    # if stdev is large it does not matter if mbeta = 0, it is still of interest
+    # if mbeta is sufficient different that zero it does not matter if stdev is small
+    # sort by T = mbeta/(stdev/sqrt(ns))
+    # OR  sort by stdev
+
+    T = mbeta_group/(sbeta_group/np.sqrt(ns))
+    xt = np.argsort(np.abs(T))
+    xs = np.argsort(sbeta_group)
+    # take the higest sort position of these two
+    sortlist = list(np.zeros(ncon))
+    xtl = list(xt)
+    xsl = list(xs)
+    for nn in range(ncon):
+        x = np.max([xtl.index(nn), xsl.index(nn)])
+        sortlist[nn] = x   # place in the ranking where each entry belongs
+    sortlist = np.argsort(sortlist)
+
+    # getting further away from the original function here ....
+    # use bootstrap results to find connections that do not matter to the network...
+    # most inconsequential connections:
+    for nn in range(30):
+        x = sortlist[nn]
+        print('{}  average beta = {:.3f} {} {:.3f}'.format(connection_name_list[x],mbeta_group[x],chr(177),sbeta_group[x]))
+
+
+
+        # G = np.concatenate((x[np.newaxis, nonlatentlist], np.ones((1, NL))))
+        # b, fit, R2, total_var, res_var = pysem.general_glm(np.array(y[np.newaxis,nonlatentlist]),G)
+        # print('person {}  {}  R2 = {:.2f}'.format(p,tag,R2))
+        #
+        # fignumber = 6+d
+        # plt.close(fignumber)
+        # fig = plt.figure(fignumber)
+        # plt.plot(x, y, 'ok')
+        # plt.plot(x[nonlatentlist], y[nonlatentlist], 'or')
+        # plt.plot(x[nonlatentlist], fit[0, :], '-k')
+
+
+    group = 'all'
+    windowoffset = 0
+    yrange = []
+    yrange2 = []
+    Rtextlist, Rvallist = show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+                                    windowoffset, yrange, yrange2)
+
+    yrange = [-0.6, 0.6]
+    yrange2 = [1.6, 0.7, 0.8, 0.6, 0.9, 0.8, 0.5]   # for Feb2022C
+    windowoffset = 0
+
+    group = 'all'
+    show_SEM_average_beta_for_groups(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+                                     windowoffset=0)
+
+    # show a specific connection
+    connection_name = 'PBN-LC-DRt'
+
+    settings = np.load(settingsfile, allow_pickle=True).flat[0]
+    covariates = settings['GRPcharacteristicsvalues'][0].astype(float)  # painrating
+
+    plot_correlated_results(SEMresultsname, SEMparametersname, connection_name, covariates, figurenumber = 1)
+
+
+def mod_tplist_for_bootstrap(tplist_full, epoch, modtype, percent_replace = 0, tsize =40):
+    # modtype can be 'random', 'allodds', 'allevens', 'firsthalf', 'lasthalf'
+    tplist = copy.deepcopy(tplist_full[epoch])
+    NP = len(tplist)
+    stilllooking = True
+    if modtype == 'allodds':
+        for nn in range(NP):
+            tp = copy.deepcopy(tplist[nn]['tp'])
+            nt = len(tp)
+            tpb = copy.deepcopy(tp)
+            for tt in range(0,nt,2): tpb[tt] = tpb[tt+1]
+            tplist[nn]['tp'] = tpb
+        stilllooking = False
+
+    if modtype == 'allevens':
+        for nn in range(NP):
+            tp = copy.deepcopy(tplist[nn]['tp'])
+            nt = len(tp)
+            tpb = copy.deepcopy(tp)
+            for tt in range(1,nt,2): tpb[tt] = tpb[tt-1]
+            tplist[nn]['tp'] = tpb
+        stilllooking = False
+
+    if modtype == 'firsthalf':
+        for nn in range(NP):
+            tp = copy.deepcopy(tplist[nn]['tp'])
+            nt = len(tp)
+            tpb = copy.deepcopy(tp)
+            tt = np.floor(nt/2).astype(int)
+            tpb[-tt:] = tpb[:tt]
+            tplist[nn]['tp'] = tpb
+        stilllooking = False
+
+    if modtype == 'lasthalf':
+        for nn in range(NP):
+            tp = copy.deepcopy(tplist[nn]['tp'])
+            nt = len(tp)
+            tpb = copy.deepcopy(tp)
+            tt = np.floor(nt/2).astype(int)
+            tpb[:tt] = tpb[-tt:]
+            tplist[nn]['tp'] = tpb
+        stilllooking = False
+
+    if modtype == 'oddruns':
+        for nn in range(NP):
+            tp = copy.deepcopy(tplist[nn]['tp'])
+            nt = len(tp)
+            nruns = np.floor(nt/tsize).astype(int)
+            tpb = copy.deepcopy(tp)
+            replaceruns = list(range(0,nruns,2))
+            for rr in replaceruns:
+                if nruns > (rr+1):
+                    tr1 = rr*tsize
+                    tr2 = (rr+1)*tsize
+                    tt1 = (rr+1)*tsize
+                    tt2 = (rr+2)*tsize
+                    tpb[tr1:tr2] = tpb[tt1:tt2]
+            tplist[nn]['tp'] = tpb
+        stilllooking = False
+
+    if modtype == 'evenruns':
+        for nn in range(NP):
+            tp = copy.deepcopy(tplist[nn]['tp'])
+            nt = len(tp)
+            nruns = np.floor(nt/tsize).astype(int)
+            tpb = copy.deepcopy(tp)
+            replaceruns = list(range(1,nruns,2))
+            for rr in replaceruns:
+                tr1 = rr*tsize
+                tr2 = (rr+1)*tsize
+                tt1 = (rr-1)*tsize
+                tt2 = rr*tsize
+                tpb[tr1:tr2] = tpb[tt1:tt2]
+            tplist[nn]['tp'] = tpb
+        stilllooking = False
+
+    if modtype == 'random' or stilllooking:
+        for nn in range(NP):
+            tp = copy.deepcopy(tplist[nn]['tp'])
+            nt = len(tp)
+            if percent_replace <= 0:
+                nreplace = 1
+            else:
+                nreplace = np.floor(percent_replace*nt/100.0).astype(int)
+            tpb = copy.deepcopy(tp)
+            ntlist = list(range(nt))
+            treplace = random.sample(ntlist,nreplace)
+            ntlist2 = [x for x in ntlist if x not in treplace]
+            twith = random.sample(ntlist2,nreplace)
+            for tt in range(nreplace): tpb[treplace[tt]] = tpb[twith[tt]]
+            tplist[nn]['tp'] = tpb
+        stilllooking = False
+
+    tplist_full2 = copy.deepcopy(tplist_full)
+    tplist_full2[epoch] = tplist
+    return tplist_full2
 
 
 #--------------compare with semopy------------------------------------
