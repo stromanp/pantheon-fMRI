@@ -3779,5 +3779,190 @@ def IDstudy_main(cord_cluster, type, reload_existing = False):
                                      windowoffset=0)
 
 
+#--------------compare with semopy------------------------------------
+def sem_with_semopy(clusterlist, fintrinsic_base, SEMresultsname, SEMparametersname):
+    print('running comparison of methods with semopy....')
+    starttime = time.ctime()
+
+    # load and organize data------------------------------------------
+    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+    # load the data values
+    betanamelist = SEMparams['betanamelist']
+    beta_list = SEMparams['beta_list']
+    nruns_per_person = SEMparams['nruns_per_person']
+    nclusterstotal = SEMparams['nclusterstotal']
+    rnamelist = SEMparams['rnamelist']
+    nregions = SEMparams['nregions']
+    cluster_properties = SEMparams['cluster_properties']
+    cluster_data = SEMparams['cluster_data']
+    network = SEMparams['network']
+    fintrinsic_count = SEMparams['fintrinsic_count']
+    vintrinsic_count = SEMparams['vintrinsic_count']
+    sem_region_list = SEMparams['sem_region_list']
+    nclusterlist = SEMparams['nclusterlist']
+    tsize = SEMparams['tsize']
+    tplist_full = SEMparams['tplist_full']
+    tcdata_centered = SEMparams['tcdata_centered']
+    ctarget = SEMparams['ctarget']
+    csource = SEMparams['csource']
+    fintrinsic_region = SEMparams['fintrinsic_region']
+    Mconn = SEMparams['Mconn']
+    Minput = SEMparams['Minput']
+    timepoint = SEMparams['timepoint']
+    epoch = SEMparams['epoch']
+
+    ntime, NP = np.shape(tplist_full)
+
+    # define the network in the format for semopy
+
+    # ---------------------------------------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------------------------------------
+    # repeat the process for each participant-----------------------------------------------------------------
+    betalimit = 3.0
+    epochnum = 0
+    SEMresults = []
+    beta_init_record = []
+    for nperson in range(NP):
+        print('starting person {} at {}'.format(nperson, time.ctime()))
+        tp = tplist_full[epochnum][nperson]['tp']
+        tsize_total = len(tp)
+        nruns = nruns_per_person[nperson]
+
+        # get tc data for each region/cluster
+        rnumlist = []
+        clustercount = np.cumsum(nclusterlist)
+        for aa in range(len(clusterlist)):
+            x = np.where(clusterlist[aa] < clustercount)[0]
+            rnumlist += [x[0]]
+
+        Sinput = []
+        for cval in clusterlist:
+            tc1 = tcdata_centered[cval, tp]
+            Sinput.append(tc1)
+        Sinput = np.array(Sinput)
+        # Sinput is size:  nregions x tsize_total
+
+        # setup fixed intrinsic based on the model paradigm
+        # need to account for timepoint and epoch....
+        if fintrinsic_count > 0:
+            if epoch >= tsize:
+                et1 = 0
+                et2 = tsize
+            else:
+                et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
+                et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+
+
+        results_record = []
+        ssqd_record = []
+
+        alpha = initial_alpha
+        Lweight = initial_Lweight
+        dval = initial_dval
+
+        Mconn[ctarget, csource] = betavals
+
+        # # starting point for optimizing intrinsics with given betavals----------------------------------------------------
+
+        fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
+        cost = np.sum(np.abs(betavals ** 2))
+        ssqd = err + Lweight * cost  # L2 regularization
+        ssqd_starting = ssqd
+        ssqd_record += [ssqd]
+
+        nitermax = 500
+        alpha_limit = 1.0e-5
+
+        iter = 0
+        # vintrinsics_record = []
+        converging = True
+        dssq_record = np.ones(3)
+        dssq_count = 0
+        sequence_count = 0
+        while alpha > alpha_limit and iter < nitermax and converging:
+            iter += 1
+            # gradients in betavals and beta_int1
+            Mconn[ctarget, csource] = betavals
+            fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
+            dssq_db, ssqd, dssq_dbeta1 = gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight)
+            ssqd_record += [ssqd]
+
+            # gradient in beta_int1
+
+            # apply the changes
+            betavals -= alpha * dssq_db
+            beta_int1 -= alpha * dssq_dbeta1
+
+            # betavals[betavals >= betalimit] = betalimit
+            # betavals[betavals <= -betalimit] = -betalimit
+
+            Mconn[ctarget, csource] = betavals
+            fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
+            cost = np.sum(np.abs(betavals ** 2))
+            ssqd_new = err + Lweight * cost  # L2 regularization
+
+            err_total = Sinput - fit
+            Smean = np.mean(Sinput)
+            errmean = np.mean(err_total)
+            R2total = 1 - np.sum((err_total - errmean) ** 2) / np.sum((Sinput - Smean) ** 2)
+
+            # Sinput_sim, Soutput_sim = network_sim(Sinput_full, Soutput_full, Minput, Moutput)
+            results_record.append({'Sinput': fit, 'Mintrinsic': Mintrinsic, 'Meigv': Meigv})
+
+            if ssqd_new >= ssqd:
+                alpha *= 0.5
+                # revert back to last good values
+                betavals = copy.deepcopy(lastgood_betavals)
+                beta_int1 = copy.deepcopy(lastgood_beta_int1)
+                dssqd = ssqd - ssqd_new
+                dssq_record = np.ones(3)  # reset the count
+                dssq_count = 0
+                sequence_count = 0
+                print('beta vals:  iter {} alpha {:.3e}  delta ssq > 0  - no update'.format(iter, alpha))
+            else:
+                # save the good values
+                lastgood_betavals = copy.deepcopy(betavals)
+                lastgood_beta_int1 = copy.deepcopy(beta_int1)
+
+                dssqd = ssqd - ssqd_new
+                ssqd = ssqd_new
+
+                sequence_count += 1
+                if sequence_count > 5:
+                    alpha *= 1.5
+                    sequence_count = 0
+
+                dssq_count += 1
+                dssq_count = np.mod(dssq_count, 3)
+                # dssq_record[dssq_count] = 100.0 * dssqd / ssqd_starting
+                dssq_record[dssq_count] = dssqd
+                if np.max(dssq_record) < 0.1:  converging = False
+
+            print('beta vals:  iter {} alpha {:.3e}  delta ssq {:.4f}  relative: {:.1f} percent  '
+                  'R2 {:.3f}'.format(iter, alpha, -dssqd, 100.0 * ssqd / ssqd_starting, R2total))
+            # now repeat it ...
+
+        # fit the results now to determine output signaling from each region
+        Mconn[ctarget, csource] = betavals
+        fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
+        Sconn = Meigv @ Mintrinsic  # signalling over each connection
+
+        regionlist = [0, 7]
+        results_text = display_SEM_results_1person(nperson, Sinput, fit, regionlist, nruns, epoch, windowlist=[24, 25])
+
+        entry = {'Sinput': Sinput, 'Sconn': Sconn, 'beta_int1': beta_int1, 'Mconn': Mconn, 'Minput': Minput,
+                 'rtext1': results_text[0], 'rtext2': results_text[1], 'R2total': R2total, 'Mintrinsic': Mintrinsic,
+                 'Meigv': Meigv, 'betavals': betavals, 'fintrinsic1': fintrinsic1, 'clusterlist': clusterlist}
+        SEMresults.append(copy.deepcopy(entry))
+
+        stoptime = time.ctime()
+
+    np.save(SEMresultsname, SEMresults)
+    print('finished SEM at {}'.format(time.ctime()))
+    print('     started at {}'.format(starttime))
+
+    return SEMresultsname
+
+
 # if __name__ == '__main__':
 #     main()
