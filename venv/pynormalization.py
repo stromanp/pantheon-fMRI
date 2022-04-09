@@ -1608,14 +1608,28 @@ def define_sections(template_name, dataname):
             reverse_order = True
             ninitial_fixed_segments += 1
             print('range includes sacral regions ...')
-            rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:2] == 'S2']
+            # rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:2] == 'S2']
+            # test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
+            # cx, cy, cz = np.where(test)
+            # zref = np.round(np.mean(cz)).astype(int)   # the middle of the L4 segment
+
+            rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:2] == 'S5']
             test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
             cx, cy, cz = np.where(test)
-            zref = np.round(np.mean(cz)).astype(int)   # the middle of the L4 segment
+            z_bottom_of_S5 = np.round(np.min(cz)).astype(int)  # the bottom of the S5 segment
+
+            rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:2] == 'S1']
+            test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
+            cx, cy, cz = np.where(test)
+            z_top_of_S1 = np.round(np.max(cz)).astype(int)  # the top of the S1 segment
+
+            zref = np.floor((z_bottom_of_S5 + z_top_of_S1) / 2.0).astype(int)
+            zdim = z_top_of_S1 - zref  # +/- range
+
             sacraldefined = True
             sacral = {'name': 'sacral',
                        'center': np.array([12, 15, zref]),
-                       'dims': np.array([6, 10, 12]),
+                       'dims': np.array([6, 10, zdim]),
                        'xrot': 0,
                        'yrot': 0,
                        'start_ref_pos': [],
@@ -1630,14 +1644,28 @@ def define_sections(template_name, dataname):
             reverse_order = True
             ninitial_fixed_segments += 1
             print('range includes lower lumbar region ...')
-            rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:2] == 'L4']
+            # rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:2] == 'L4']
+            # test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
+            # cx, cy, cz = np.where(test)
+            # zref = np.round(np.mean(cz)).astype(int)   # the middle of the L4 segment
+
+            rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:2] == 'L5']
             test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
             cx, cy, cz = np.where(test)
-            zref = np.round(np.mean(cz)).astype(int)   # the middle of the L4 segment
+            z_bottom_of_L5 = np.round(np.min(cz)).astype(int)  # the bottom of the L5 segment
+
+            rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:2] == 'L3']
+            test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
+            cx, cy, cz = np.where(test)
+            z_middle_of_L3 = np.round(np.mean(cz)).astype(int)  # the middle of the L3 segment
+
+            zref = np.floor((z_bottom_of_L5 + z_middle_of_L3) / 2.0).astype(int)
+            zdim = z_middle_of_L3 - zref  # +/- range
+
             lowerlumbardefined = True
             lowerlumbar = {'name': 'lower_lumbar',
                        'center': np.array([12, 15, zref]),
-                       'dims': np.array([6, 10, 12]),
+                       'dims': np.array([6, 10, zdim]),
                        'xrot': 0,
                        'yrot': 0,
                        'start_ref_pos': [],
@@ -1652,14 +1680,28 @@ def define_sections(template_name, dataname):
             reverse_order = True
             ninitial_fixed_segments += 1
             print('range includes upper lumbar region ...')
-            rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:2] == 'L2']
+            # rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:2] == 'L2']
+            # test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
+            # cx, cy, cz = np.where(test)
+            # zref = np.round(np.mean(cz)).astype(int)   # the middle of the L2 segment
+
+            rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:2] == 'L3']
             test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
             cx, cy, cz = np.where(test)
-            zref = np.round(np.mean(cz)).astype(int)   # the middle of the L2 segment
+            z_middle_of_L3 = np.round(np.mean(cz)).astype(int)  # the middle of the L3 segment
+
+            rnums = [anatlabels['numbers'][x] for x, name in enumerate(anatlabels['names']) if name[:2] == 'L1']
+            test = np.array([regionmap_img == val for val in rnums]).any(axis=0)
+            cx, cy, cz = np.where(test)
+            z_top_of_L1 = np.round(np.max(cz)).astype(int)  # the top of the L1 segment
+
+            zref = np.floor((z_top_of_L1 + z_middle_of_L3) / 2.0).astype(int)  # middle of range
+            zdim = z_top_of_L1 - zref  # +/- range
+
             upperlumbardefined = True
             upperlumbar = {'name': 'upper_lumbar',
                        'center': np.array([12, 15, zref]),
-                       'dims': np.array([6, 10, 12]),
+                       'dims': np.array([6, 10, zdim]),
                        'xrot': 0,
                        'yrot': 0,
                        'start_ref_pos': [],

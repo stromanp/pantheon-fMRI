@@ -18,7 +18,11 @@ def GLMfit(image_data, basis_set, contrast='None', add_constant = False, ndrop =
     # S = BG (matrix multiplication)
     # so B = S*G'*inv(G*G')
     # S is nvox X ts,  so the basis set needs to be nbasis x ts
-    G = basis_set[:,ndrop:]
+    G = basis_set[:,ndrop:ts]
+
+    print('size of image_data is {}'.format(np.shape(S)))
+    print('size of basis_set is {}'.format(np.shape(G)))
+
     if add_constant:
         # first check if there is already a constant value
         varcheck = np.var(G,axis=1)
@@ -387,11 +391,15 @@ def compile_basis_sets(DBname, dbnumlist, prefix, mode = 'concatenate_group', nv
                     else:
                         dpvals.append(dp)
 
+                print('size of dpvals is {}'.format(np.shape(dpvals)))
+
                 if np.ndim(paradigmdef) == 1:
                     paradigmdef = paradigmdef[np.newaxis,:]
 
-                basis_set = np.concatenate( (paradigmdef,wm1[np.newaxis, :], wm2[np.newaxis, :], wm3[np.newaxis, :],
-                                             np.array(dpvals)), axis=0)
+                nc,ts = np.shape(paradigmdef)
+
+                basis_set = np.concatenate( (paradigmdef,wm1[np.newaxis, :ts], wm2[np.newaxis, :ts], wm3[np.newaxis, :ts],
+                                             np.array(dpvals)[:,:ts]), axis=0)
 
                 # mask out the initial volumes, if wanted
                 if nvolmask > 0:

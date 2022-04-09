@@ -114,7 +114,7 @@ def pydisplaystatmap(Tmap, Tthreshold, template, mask,templatename):
 
     if templatename != 'brain' and templatename != 'ccbs':
         # do the other thing
-        yc1 = 20;  yc2 = 41;  ys2 = yc2-yc1
+        yc1 = 5;  yc2 = 25;  ys2 = yc2-yc1
         outputimg = np.zeros([nrows*ys2,ncols*xs,3])
 
         for zz in range(zs):

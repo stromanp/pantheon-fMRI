@@ -1,6 +1,6 @@
 """
 pyspinalfmri.py
-version 0.0.0
+version 1.0.0
 
 Created on Tue Apr 21 16:16:09 2020
 Last edited  10:33 am Saturday, April 25, 2020
@@ -10,7 +10,7 @@ Last edited  10:33 am Saturday, April 25, 2020
 This module organizes inputs to functions to load, pre-process, and analyze 
 functional MRI data from the brainstem and spinal cord
 
-Jobs to do:  (not entirely complete yet)
+Jobs to do:
 1) Specify database file (done, excepting for creating new database file, and functions to read the database)
 2) Specify database entry numbers to work on (done)
 3) Conversion from DICOM to NIfTI format (done)
@@ -18,8 +18,8 @@ Jobs to do:  (not entirely complete yet)
 5) Pre-processing of data (done)
 6) Model-driven fit of predicted BOLD responses to voxel data (GLM)) (done, except for creating results figure)
 7) Definition of region clusters, and extraction of cluster data
-8) Data-driven connectivity analysis, using structural equation modeling (SEM))
-9) Bayesian regression analysis of cluster data
+8) Data-driven connectivity analysis, using structural equation modeling (SEM), and advances soon to come ...)
+9) Regression analysis of cluster data
 10) Visualization of results
 
 """
@@ -53,7 +53,6 @@ from scipy import stats
 from scipy import ndimage
 import pydisplay
 import pysem
-# import scipy
 import py2ndlevelanalysis
 import copy
 import math
@@ -74,15 +73,6 @@ smallbuttonsize = 9
 # define a single place for saving setup parameters for ease of retrieving, updating, etc.
 basedir = os.getcwd()
 settingsfile = os.path.join(basedir,'base_settings_file.npy')
-
-#-----load the preferences file and information in it --------------------
-# preferencesfile = os.path.join(basedir,'preferences.ini')
-# preferences = cp.ConfigParser()
-# preferences.read(preferencesfile)
-# fields = preferences.options('OPTIONAL_FIELDS')
-# optional_db_fields = [preferences['OPTIONAL_FIELDS'][fields[aa]] for aa in range(len(fields))]
-# optional_db_fields
-#-------------------------------------------------------------------------
 
 if os.path.isfile(settingsfile):
     print('name of the settings file is : ', settingsfile)
@@ -262,100 +252,6 @@ class mainspinalfmri_window:
         if page_name in keylist:
             frame = self.frames[page_name]
             frame.tkraise()
-
-    # def get_display_window(self, windownumber):
-    #     # access the display windows
-    #     window, image_in_window = self.imgwindow.get_window(windownumber)
-    #     return window, image_in_window
-
-
-
-# ------Create the Window for displaying images, results, etc.---------------------
-# class IMGDispFrame:
-#     # defines the image display window, separate from the main window so the main window is not too bulky
-#     def __init__(self, parent, controller):
-#         # tk.Frame.__init__(self, master)
-#         self.parent = parent
-#         self.displaycontroller = controller
-#
-#         # need to initialize these here and use them later to save some display items
-#         self.photo1 = []
-#         self.photo2 = []
-#
-#         # first create the frames that do not move
-#         self.frames = {}  # this is to keep a record of the frame names, so that one can be moved to the top when wanted
-#         # create an initial fixed frame with labels etc
-#         # The frame with pictures, labels, etc, is Fbase and is on the top row
-#         Fbasew = tk.Frame(self.parent, relief='raised', bd=5, highlightcolor=fgcol2)
-#         Fbasew.grid(row=0, column=0, columnspan=2)
-#         BaseFrame2(Fbasew, self)
-#         page_name = BaseFrame2.__name__
-#
-#         # create the display windows - 4 of them, for displaying images, results, etc...
-#         # make objects in the display frame - for testing as place holders
-#         # load in a picture, for no good reason, and display it in the window to look nice :)
-#         photo1 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
-#         controller.photod1 = photo1  # need to keep a copy so it is not cleared from memory
-#         # put this figure, in the 1st row, 1st column, of a grid layout for the window
-#         # and make the background black
-#         self.W1 = tk.Canvas(master = self.parent, width=photo1.width(), height=photo1.height(), bg='black')
-#         self.W1.grid(row=1, column=0, sticky='W')
-#         self.image_in_W1 = self.W1.create_image(0, 0, image=photo1, anchor = tk.NW)
-#         # self.W1 = W1
-#         self.frames['window1'] = self.W1
-#         self.frames['image_in_window1'] = self.image_in_W1
-#
-#         # load in another picture, because if one picture is good, two is better
-#         photo2 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
-#         controller.photod2 = photo2  # need to keep a copy so it is not cleared from memory
-#         # put in another figure, for pure artistic value, in the 1st row, 2nd column, of a grid layout for the window
-#         # and make the background black
-#         self.W2 = tk.Canvas(master=self.parent, width=photo2.width(), height=photo2.height(), bg='black')
-#         self.W2.grid(row=1, column=1, sticky='W')
-#         self.image_in_W2 = self.W2.create_image(0, 0, image=photo2, anchor=tk.NW)
-#         self.frames['window2'] = self.W2
-#         self.frames['image_in_window2'] = self.image_in_W2
-#
-#         photo3 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
-#         controller.photod3 = photo3  # need to keep a copy so it is not cleared from memory
-#         self.W3 = tk.Canvas(master=self.parent, width=photo3.width(), height=photo3.height(), bg='black')
-#         self.W3.grid(row=2, column=0, sticky='W')
-#         self.image_in_W3 = self.W3.create_image(0, 0, image=photo3, anchor=tk.NW)
-#         self.frames['window3'] = self.W3
-#         self.frames['image_in_window3'] = self.image_in_W3
-#
-#         photo4 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
-#         controller.photod4 = photo4  # need to keep a copy so it is not cleared from memory
-#         self.W4 = tk.Canvas(master=self.parent, width=photo4.width(), height=photo4.height(), bg='black')
-#         self.W4.grid(row=2, column=1, sticky='W')
-#         self.image_in_W4 = self.W4.create_image(0, 0, image=photo4, anchor = tk.NW)
-#         self.frames['window4'] = self.W4
-#         self.frames['image_in_window4'] = self.image_in_W4
-#
-#         controller.W1 = self.W1  # pass upward for access
-#         controller.W2 = self.W2  # pass upward for access
-#         controller.W3 = self.W3  # pass upward for access
-#         controller.W4 = self.W4  # pass upward for access
-#
-#
-#     def get_window(self, window_number):
-#         if window_number == 1:
-#             window = self.frames['window1']
-#             image_in_window = self.frames['image_in_window1']
-#             print('returning window number 1')
-#         if window_number == 2:
-#             window = self.frames['window2']
-#             image_in_window = self.frames['image_in_window2']
-#             print('returning window number 2')
-#         if window_number == 3:
-#             window = self.frames['window3']
-#             image_in_window = self.frames['image_in_window3']
-#             print('returning window number 3')
-#         if window_number == 4:
-#             window = self.frames['window4']
-#             image_in_window = self.frames['image_in_window4']
-#             print('returning window number 4')
-#         return window, image_in_window
 
 #--------------------BASE FRAME---------------------------------------------------------------
 # Definition of the frame that holds pictures, labels, etc.
@@ -1383,7 +1279,10 @@ class NCFrame:
                                 self.overrideangle = False
                                 self.overridepos = True
                         else:
-                            fillcolor = 'yellow'
+                            # fillcolor = 'yellow'
+                            colorval1 = np.floor(255.*(nf+1)/nfordisplay).astype(int)
+                            colorval2 = 255-np.floor(127.*(nf+1)/nfordisplay).astype(int)
+                            fillcolor = "#%02x%02x%02x" % (colorval1, colorval2, 0)
                         # draw the rectangular regions for each section
                         p0, p1, p2, p3, coords, angle, sectionsize, smallestside = self.outline_section(nf)
                         self.window1.create_line(p0[0], p0[1], p1[0], p1[1], p2[0], p2[1], p3[0], p3[1], p0[0], p0[1],
@@ -1430,9 +1329,10 @@ class NCFrame:
                             else:
                                 fillcolor = 'blue' # indicates to change position
                         else:
-                            fillcolor = 'yellow'
-                            colorval = np.floor(255.*(nf+1)/nfordisplay).astype(int)
-                            fillcolor = "#%02x%02x%02x" % (colorval, 255, 0)
+                            # fillcolor = 'yellow'
+                            colorval1 = np.floor(255.*(nf+1)/nfordisplay).astype(int)
+                            colorval2 = 255-np.floor(127.*(nf+1)/nfordisplay).astype(int)
+                            fillcolor = "#%02x%02x%02x" % (colorval1, colorval2, 0)
                         # draw the rectangular regions for each section
                         p0, p1, p2, p3, coords, angle, sectionsize, smallestside = self.outline_section(nf)
                         self.window1.create_line(p0[0], p0[1], p1[0], p1[1], p2[0], p2[1], p3[0], p3[1], p0[0], p0[1],
@@ -1838,6 +1738,12 @@ class NCFrame:
 
                 for nf in range(nfordisplay):
                     fillcolor = 'blue'
+
+                    # fillcolor = 'yellow'
+                    colorval1 = np.floor(255. * (nf + 1) / nfordisplay).astype(int)
+                    colorval2 = 255 - np.floor(127. * (nf + 1) / nfordisplay).astype(int)
+                    fillcolor = "#%02x%02x%02x" % (colorval1, colorval2, 0)
+
                     # draw the rectangular regions for each section
                     p0, p1, p2, p3, coords, angle, sectionsize, smallestside = self.outline_section(nf)
                     self.window1.create_line(p0[0], p0[1], p1[0], p1[1], p2[0], p2[1], p3[0], p3[1], p0[0], p0[1],

@@ -448,7 +448,7 @@ def read_maineffects(DBname, dbnum):
             count += 1
             paradigm_names.append(basisname)
             if count == 1:
-                paradigmdef = df2.loc[:, basisname]
+                paradigmdef = np.array(df2.loc[:, basisname])
                 paradigmdef = paradigmdef[np.newaxis,:]
             else:
                 nextparadigm = df2.loc[:, basisname]
