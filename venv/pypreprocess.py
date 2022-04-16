@@ -803,7 +803,7 @@ def run_preprocessing(settingsfile):
             prefix_niiname = os.path.join(fullpath, prefix + filename)
 
             input_img = nib.load(prefix_niiname)
-            input_data = input_img.get_data()
+            input_data = input_img.get_fdata()
             nvols = np.shape(input_data)[3]
 
             TR = df1.loc[dbnum, 'TR']

@@ -23,7 +23,7 @@ Jobs to do:
 10) Visualization of results
 
 """
-# sys.path.append(r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv')
+# sys.path.append(r'C:\Users\16135\PycharmProjects\pyspinalfmri3\venv')
 
 # import necessary modules 
 import tkinter as tk

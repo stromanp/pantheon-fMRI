@@ -390,16 +390,26 @@ def integralImage(A, szT):
 # function to read in nifti image data and resize to 1 mm voxels because this comes up a lot
 def load_and_scale_nifti(niiname):
     input_img = nib.load(niiname)
-    input_data = input_img.get_data()
+    input_data = input_img.get_fdata()
     affine = input_img.affine
     input_hdr = input_img.header
-    FOV = input_hdr['pixdim'][1:4] * input_hdr['dim'][1:4]
-    # images must first be interpolated to 1 mm cubic voxels
-    [xd, yd, zd, td] = np.shape(input_data)
-    newsize = np.floor(FOV).astype('int')
-    input_datar = np.zeros((newsize[0],newsize[1], newsize[2],td))
-    for tt in range(td):
-        input_datar[:,:,:,tt] = resize_3D(input_data[:, :, :, tt], newsize)
+
+    if np.ndim(input_data) > 3:
+        FOV = input_hdr['pixdim'][1:4] * input_hdr['dim'][1:4]
+        # images must first be interpolated to 1 mm cubic voxels
+        [xd, yd, zd, td] = np.shape(input_data)
+        newsize = np.floor(FOV).astype('int')
+        input_datar = np.zeros((newsize[0],newsize[1], newsize[2],td))
+        for tt in range(td):
+            input_datar[:,:,:,tt] = resize_3D(input_data[:, :, :, tt], newsize)
+    else:
+        FOV = input_hdr['pixdim'][1:4] * input_hdr['dim'][1:4]
+        # images must first be interpolated to 1 mm cubic voxels
+        [xd, yd, zd] = np.shape(input_data)
+        newsize = np.floor(FOV).astype('int')
+        input_datar = np.zeros((newsize[0],newsize[1], newsize[2]))
+        input_datar[:,:,:] = resize_3D(input_data, newsize)
+        td = 1
 
     # update the affine matrix
     voxel_sizes = np.linalg.norm(affine,axis=0)[:3]

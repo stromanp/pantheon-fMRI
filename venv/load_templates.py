@@ -85,7 +85,7 @@ def load_template(region_name, resolution, verbose = False):
             if resolution == 0.5:
                 template_file = 'brain_template_aligned_with_stitched_PAM50_icbm152_T2.nii.gz'
                 regionmap_file = 'wholeCNS_region_map_cordsegments.nii.gz'
-                match_affine = True
+                match_affine = False
                 crop = False
             else:
                 template_file = 'brain_template_aligned_with_stitched_PAM50_icbm152_T2_1mm.nii.gz'
@@ -323,6 +323,7 @@ def load_template_and_masks(region_name, resolution, verbose=False):
             wmmap_file = 'wholeCNS_wm_map_1mm.nii.gz'
             gm_wm_mask_file = 'CNS_cord_wm_gm_mask_1mm.nii.gz'
             match_affine = False
+            match_affine = True
             crop = True
 
     # load the images and region maps
@@ -331,16 +332,16 @@ def load_template_and_masks(region_name, resolution, verbose=False):
     wmmap_file = os.path.join(template_folder, wmmap_file)
 
     template_data = nib.load(template_file)
-    template_img = template_data.get_data()
+    template_img = template_data.get_fdata()
     template_size = np.shape(template_img)
     template_affine = template_data.affine
 
     regionmap_data = nib.load(regionmap_file)
-    regionmap_img = regionmap_data.get_data()
+    regionmap_img = regionmap_data.get_fdata()
     regionmap_affine = regionmap_data.affine
 
     wmmap_data = nib.load(wmmap_file)
-    wmmap_img = wmmap_data.get_data()
+    wmmap_img = wmmap_data.get_fdata()
     wmmap_affine = wmmap_data.affine
 
     if region_name.lower() != 'brain':
@@ -424,7 +425,7 @@ def load_template_and_masks(region_name, resolution, verbose=False):
 
     # mask gray matter regions in the cord
     # if gm and wm regions are defined for cord regions, then apply the gm mask to the regions
-    if np.ndim(gmwm_img) > 0:
+    if np.ndim(gmwm_img) == 3:
         xt,yt,zt = np.shape(gmwm_img)
         for z in range(zt):
             tslice = regionmap_img[:,:,z]
