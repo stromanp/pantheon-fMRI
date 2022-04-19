@@ -15,7 +15,7 @@ import load_templates
 import py_mirt3D as mirt
 import image_operations_3D as i3d
 import openpyxl
-
+from sklearn.decomposition import PCA
 
 #---------createparadigmfile----------------------------------------
 #-------------------------------------------------------------------
@@ -346,6 +346,60 @@ def get_whitematter_noise(niiname, normtemplatename, nametag):
         singletc = 100.0*(singletc-avgtc)/avgtc
         # wmtc is the list of timecourses in the 3 selected regions of white matter
         wmtc[num,:] = singletc
+
+    # write the results to an excel file
+    # set the output name
+    pname, fname = os.path.split(niiname)
+    fnameroot, ext = os.path.splitext(fname)
+    xlname = os.path.join(pname, 'wmnoise'+nametag+'.xlsx')
+
+    # put the data in a format for writing to excel
+    # this file goes with the nifti format data, because there is one for each fMRI run
+    output_noise = {'region1':wmtc[0,:], 'region2':wmtc[1,:], 'region3':wmtc[2,:]}
+    noisedata = pd.DataFrame(data = output_noise)
+    output_motiondata_xlname = os.path.join(pname, 'wmdata'+nametag+'.xlsx')
+    noisedata.to_excel(xlname, sheet_name='wmnoise')   # write it out to excel
+
+    return wmtc, xlname
+
+
+#---------get_brain_whitematter_noise-------------------------------------
+#-------------------------------------------------------------------
+def get_brain_whitematter_noise(niiname, WMmapname, nametag):
+    # the niiname needs to refer to spatially normalized data
+    # load templates to find the white matter regions
+
+    # load the specified white matter map
+    input_img = nib.load(WMmapname)
+    wm_data = input_img.get_fdata()
+    wm_affine = input_img.affine
+    wm_hdr = input_img.header
+
+    # load the data to get the white matter time-courses
+    input_img = nib.load(niiname)
+    input_data = input_img.get_fdata()
+    affine = input_img.affine
+    input_hdr = input_img.header
+    FOV = input_hdr['pixdim'][1:4]*input_hdr['dim'][1:4]
+    xs,ys,zs,ts = np.shape(input_data)
+
+    # selected wm regions and extract time-courses
+    x,y,z = np.where(wm_data == 1)   # white matter mask for brain regions
+    nvox = len(x)
+    tcdata = np.zeros((nvox,ts))
+    # step through the time points
+    for tt in range(ts):
+        temp = input_data[:,:,:,tt]
+        tcdata[:,tt] = temp[x,y,z].flatten()
+
+    # make sure the first 2 volumes are blanked out
+    tcdata[:,0] = tcdata[:,2]
+    tcdata[:,1] = tcdata[:,2]
+    # take the top 3 principal components
+
+    pca = PCA(n_components=3)
+    pca.fit(tcdata)
+    wmtc = pca.components_
 
     # write the results to an excel file
     # set the output name

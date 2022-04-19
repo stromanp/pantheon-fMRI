@@ -391,6 +391,9 @@ def brain_coregistration(niiname, nametag, coregistered_prefix = 'c'):
     coregdata_name = os.path.join(pname, 'coregdata'+nametag+'.npy')
     np.save(coregdata_name, affine_record)
 
+    # get the motion parameters from the affine record while we are here
+    # ...
+
     return output_niiname, Qcheck
 
 

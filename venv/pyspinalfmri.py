@@ -599,7 +599,7 @@ class DBFrame:
 
         # change the current working directory to the folder where the database file is, for future convenience
         pathsections = os.path.split(filename)
-        os.chdir(pathsections[0])
+        # os.chdir(pathsections[0])   # on second thought, don't do it
         # save the updated settings file again
         np.save(settingsfile,settings)
 
@@ -617,7 +617,7 @@ class DBFrame:
         self.DBnametext.set(settings['DBname'])
         # change the current working directory to the folder where the database file is, for future convenience
         pathsections = os.path.split(filechoice)
-        os.chdir(pathsections[0])
+        # os.chdir(pathsections[0])   # don't do it
         # save the updated settings file again
         np.save(settingsfile,settings)
 
@@ -2141,11 +2141,13 @@ class NCbrainFrame:
     def NCBtemplatenamebrowse(self):
         workingdir = os.path.dirname(os.path.realpath(__file__))
         brain_templates_folder = os.path.join(workingdir, 'braintemplates')
+        basedir = os.getcwd()
         os.chdir(brain_templates_folder)
 
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         templatename_full =  tkf.askopenfilename(title = "Select template file",
                         filetypes=(("nii files", "*.nii","*.gz"), ("all files", "*.*")))
+        os.chdir(basedir)  # put it back
         p, templatename = os.path.split(templatename_full)
         print('templatename = ',templatename)
         # save the selected file name in the settings

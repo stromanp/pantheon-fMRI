@@ -645,7 +645,7 @@ def run_preprocessing(settingsfile):
     prefix_list = setprefixlist(settingsfile)
 
     print('Pre-processing: started organizing at ', time.ctime(time.time()))
-    # print('prefix_list = ',prefix_list)
+    print('prefix_list = ',prefix_list)
 
     # if running co-registration ....
     print('coreg_choice = ',coreg_choice)
@@ -669,7 +669,7 @@ def run_preprocessing(settingsfile):
             # normdataname_full = os.path.join(dbhome, normdataname)
             # niiname = guided_coregistration(prefix_niiname, nametag, normdataname_full, normtemplatename)
             if normtemplatename == 'brain':
-                niiname, Qcheck = pybrainregistration.brain_coregistration(niiname, nametag)
+                niiname, Qcheck = pybrainregistration.brain_coregistration(prefix_niiname, nametag)
             else:
                 # original coregistration method
                 niiname, Qcheck = coregister(prefix_niiname, nametag)
@@ -681,7 +681,7 @@ def run_preprocessing(settingsfile):
             # add coregistration quality to database
             if 'coreg_quality' not in keylist:
                 df1['coreg_quality'] = 0
-            df1.loc[dbnum, 'coreg_quality'] = np.min(Qcheck[:,0])
+            df1.loc[dbnum, 'coreg_quality'] = np.min(Qcheck)
 
             # need to delete the existing sheet before writing the new version
             # delete sheet - need to use openpyxl
@@ -747,7 +747,7 @@ def run_preprocessing(settingsfile):
                 norm_brain_affine = normdata['norm_affine_transformation']
                 # img_data, img_affine = i3d.load_and_scale_nifti(niiname)   # this function also scales the images to 1mm cubic voxels
 
-                input_img = nib.load(niiname)
+                input_img = nib.load(prefix_niiname)
                 img_affine = input_img.affine
                 img_hdr = input_img.header
                 img_data = input_img.get_fdata()
@@ -759,7 +759,7 @@ def run_preprocessing(settingsfile):
                 # save the normalized nifti images ...
 
                 resulting_img = nib.Nifti1Image(norm_brain_data, norm_brain_affine.affine)
-                p, f_full = os.path.split(niiname)
+                p, f_full = os.path.split(prefix_niiname)
                 f, e = os.path.splitext(f_full)
                 ext = '.nii'
                 if e == '.gz':
@@ -767,7 +767,7 @@ def run_preprocessing(settingsfile):
                     ext = '.nii.gz'
                 output_niiname = os.path.join(p, norm_prefix + f + ext)
                 # need to write the image data out in a smaller format to save disk space ...
-                nib.save(resulting_img, output_niiname)
+                nib.save(resulting_img.astype(float), output_niiname)
 
             else:
                 T = normdata['T']
@@ -832,14 +832,22 @@ def run_preprocessing(settingsfile):
             sheetname = pybasissets.calculate_maineffects(PPdatabasename, dbnum, TR, nvols)
             # generate white matter confounds - saved as excel file with nifti data, named ..._motiondata.xlsx
             nametag = '_s{}'.format(seriesnumber)
-            wmtc, xlname = pybasissets.get_whitematter_noise(prefix_niiname, normtemplatename, nametag)
-            # generate motion confounds - saved as excel file with nifti data
 
+            if normtemplatename == 'brain':
+                # need special case for brain data....
+                basedir = os.path.join(os.getcwd(),'braintemplates')
+                wmmapname =  os.path.join(basedir,'avg152wm.nii')
+                wmtc, xlname = pybasissets.get_brain_whitematter_noise(prefix_niiname, wmmapname, nametag)
+            else:
+                wmtc, xlname = pybasissets.get_whitematter_noise(prefix_niiname, normtemplatename, nametag)
+
+            # generate motion confounds - saved as excel file with nifti data
             # original motion paramters method
             motion_xlname = pybasissets.coreg_to_motionparams(niiname, normdataname_full, normtemplatename, nametag)
 
             # new method based on guided coregistration
             # motion_xlname = pybasissets.guided_coreg_to_motionparams(normdataname_full, normtemplatename, nametag)
+
 
             # compile these into one basis set file? - see what is easiest for GLM when it is ready
             print('Finished defining basis sets ...', time.ctime(time.time()))
