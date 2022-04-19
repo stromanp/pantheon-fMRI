@@ -56,6 +56,7 @@ import pysem
 import py2ndlevelanalysis
 import copy
 import math
+import pybrainregistration
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 matplotlib.use('TkAgg')   # explicitly set this - it might help with displaying figures in different environments
@@ -131,7 +132,9 @@ else:
             'GRPanalysistype':'undefined',
             'GRPdatafiletype1':0,
             'GRPdatafiletype2':0,
-            'GRPpvalue':0.05}
+            'GRPpvalue':0.05,
+            'NCBparameters':[(10000, 1000, 100),(3.0, 1.0, 0.0),(4, 2, 1)],
+            'braintemplate':'avg152T2.nii'}
 np.save(settingsfile,settings)
 
 # ------Create the Base Window that will hold everything, widgets, etc.---------------------
@@ -196,6 +199,12 @@ class mainspinalfmri_window:
         NCFrame(NCbase, self)
         page_name = NCFrame.__name__
         self.frames[page_name] = NCbase
+
+        NCbrainbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
+        NCbrainbase.grid(row=1, column=1, sticky="nsew")
+        NCbrainFrame(NCbrainbase, self)
+        page_name = NCbrainFrame.__name__
+        self.frames[page_name] = NCbrainbase
 
         GLMbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
         GLMbase.grid(row=1, column=1, sticky="nsew")
@@ -270,7 +279,7 @@ class BaseFrame:
         # put this figure, in the 1st row, 1st column, of a grid layout for the window
         # and make the background black
         self.P1=tk.Label(self.parent, image = photo1, bg='grey94').grid(row=0, column=0, sticky = 'W')
-        
+
         # load in another picture, because if one picture is good, two is better
         photo2 = tk.PhotoImage(file = os.path.join(basedir,'lablogo.gif'))
         controller.photo2 = photo2   # need to keep a copy so it is not cleared from memory
@@ -314,13 +323,13 @@ class BaseFrame2:
         self.L1 = tk.Label(self.parent, text="SC/BS fMRI Analysis", bg=bgcol, fg=fgcol1, font="none 16 bold")
         self.L1.grid(row=1, column=0, columnspan=2, sticky='W')
 
-        
-        
-        
+
+
+
 #--------------------OPTIONS FRAME---------------------------------------------------------------
 # Definition of the frame that holds the buttons for choosing which frame to have visible
 class OptionsFrame:
-    # initialize the values, keeping track of the frame this definition works on (parent), and 
+    # initialize the values, keeping track of the frame this definition works on (parent), and
     # also the main window containing that frame (controller)
 
     # select frame function
@@ -344,14 +353,14 @@ class OptionsFrame:
         self.setdb = tk.Button(self.parent, text = 'Database', width = smallbuttonsize, bg = fgcol2, fg = 'white', font = "none 9 bold", command = lambda: self.options_show_frame('DBFrame', 'setdb'), relief='raised', bd = 5)
         self.setdb.grid(row = 0, column = 0)
         self.buttons['setdb'] = self.setdb
-        
+
         # button for running the conversion to NIfTI format step
         self.writenifti = tk.Button(self.parent, text = 'Write NIfTI', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: self.options_show_frame('NIFrame', 'writenifti'), relief='raised', bd = 5)
         self.writenifti.grid(row = 1, column = 0)
         self.buttons['writenifti'] = self.writenifti
 
         # button for calculating the normalization parameters for each data set
-        self.normalizationcalc = tk.Button(self.parent, text = 'Norm. Calc.', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = lambda: self.options_show_frame('NCFrame', 'normalizationcalc'), relief='raised', bd = 5)
+        self.normalizationcalc = tk.Button(self.parent, text = 'Norm. Calc.', width = smallbuttonsize, bg = fgcol2, fg = 'black', font = "none 9 bold", command = self.choosenormframe, relief='raised', bd = 5)
         self.normalizationcalc.grid(row = 2, column = 0)
         self.buttons['normalizationcalc'] = self.normalizationcalc
 
@@ -396,12 +405,27 @@ class OptionsFrame:
         self.exit_button.grid(row = 10, column = 0)
 
 
+    def choosenormframe(self):
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        DBname = settings['DBname']
+        DBnum = settings['DBnum']
+        if os.path.isfile(DBname):
+            xls = pd.ExcelFile(DBname, engine = 'openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
+            normtemplatename = df1.loc[DBnum[0], 'normtemplatename']
+        else:
+            normtemplatename = 'notdefined'
+
+        if normtemplatename == 'brain':
+            self.options_show_frame('NCbrainFrame', 'normalizationcalc')
+        else:
+            self.options_show_frame('NCFrame', 'normalizationcalc')
 
         # exit function
     def close_window(self):
         self.controller.master.destroy()
-        
-        
+
+
 #--------------------DATABASE FRAME---------------------------------------------------------------
 # Definition of the frame that has inputs for the database name, and entry numbers to use
 class DBFrame:
@@ -433,7 +457,7 @@ class DBFrame:
         return ufieldvalues
 
 
-    # initialize the values, keeping track of the frame this definition works on (parent), and 
+    # initialize the values, keeping track of the frame this definition works on (parent), and
     # also the main window containing that frame (controller)
     def __init__(self, parent, controller):
         parent.configure(relief='raised', bd = 5, highlightcolor = fgcol3)
@@ -441,38 +465,38 @@ class DBFrame:
         self.controller = controller
         self.searchkeys = {}
         self.DBname = settings['DBname']
-        
+
         # create an entry box so that the user can specify the database file to use
         # first make a title for the box, in row 3, column 1 of the grid for the main window
         self.DBL1 = tk.Label(self.parent, text = "Database name:")
         self.DBL1.grid(row=0,column=0, sticky='W')
-        
+
         # make a label to show the current setting of the database name
         self.DBnametext = tk.StringVar()
         self.DBnametext.set(self.DBname)
         self.DBnamelabel2 = tk.Label(self.parent, textvariable = self.DBnametext, bg = bgcol, fg = "black", font = "none 10", wraplength = 200, justify = 'left')
         self.DBnamelabel2.grid(row=0, column = 1, sticky = 'W')
-        
+
         # define a button to browse and select an existing database file, and write out the selected name
         # also, define the function for what to do when this button is pressed
         self.DBsubmit = tk.Button(self.parent, text = 'Browse', width = smallbuttonsize, bg = fgcol1, fg = 'white', command = self.DBbrowseclick, relief='raised', bd = 5)
         self.DBsubmit.grid(row = 0, column = 2)
-        
+
         # define a button to select a new database file
         # also, define the function for what to do when this button is pressed
         self.DBnew = tk.Button(self.parent, text = 'New', width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.DBnewclick, relief='raised', bd = 5)
         self.DBnew.grid(row = 0, column = 3)
-        
+
         # now define an Entry box so that the user can enter database numbers
         # give it a label first
         self.DBL2 = tk.Label(self.parent, text = "Database numbers:")
         self.DBL2.grid(row=1,column=0, sticky='W')
-        
+
         # create the Entry box
         self.DBnumenter = tk.Entry(self.parent, width = 20, bg="white")
         self.DBnumenter.grid(row=1, column = 1, sticky = "W")
         self.DBnumenter.insert(0,settings['DBnumstring'])
-        
+
         # the entry box needs a "submit" button so that the program knows when to take the entered values
         self.DBnumsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol1, fg = 'white', command = self.DBnumsubmitclick, relief='raised', bd = 5)
         self.DBnumsubmit.grid(row = 1, column = 2)
@@ -707,7 +731,6 @@ class DBFrame:
         settings['last_folder'] = save_folder
         np.save(settingsfile,settings)
 
-
     def DBdisplaynumlist(self, entered_values):
         delta = np.concatenate(([0],np.diff(entered_values)))
         dv = np.where(delta != 1)[0]
@@ -798,15 +821,15 @@ class DBFrame:
         # convert back to shorter string for display
         value_list_for_display = self.DBdisplaynumlist(entered_values)
         self.DBnumsave_text = value_list_for_display
-        
+
         settings['DBnum'] = entered_values
         settings['DBnumstring'] = self.DBnumsave_text
         self.DBnumenter.delete(0,'end')
         self.DBnumenter.insert(0,settings['DBnumstring'])
         # save the updated settings file again
         np.save(settingsfile,settings)
-        
-        
+
+
     # action when the button is pressed to clear the DB entry number list
     def DBnumclear(self):
         # first load the settings file so that values can be used later
@@ -901,41 +924,41 @@ class DBFrame:
 #--------------------NIFTI conversion FRAME---------------------------------------------------------------
 # Definition of the frame that will have inputs and options for converting DICOM images to NIfTI format
 class NIFrame:
-    # initialize the values, keeping track of the frame this definition works on (parent), and 
+    # initialize the values, keeping track of the frame this definition works on (parent), and
     # also the main window containing that frame (controller)
     def __init__(self, parent, controller):
         parent.configure(relief='raised', bd = 5, highlightcolor = fgcol3)
         self.parent = parent
         self.controller = controller
-        
+
         # initialize some values
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         self.NIdatabasename = settings['DBname']
         self.NIdatabasenum = settings['DBnum']
         self.NIpname = 'not yet defined'
         self.NIbasename = settings['NIbasename']  # 'Series'   # default base name
-        
+
         # put some text as a place-holder
         self.NIlabel1 = tk.Label(self.parent, text = "1) Organize data into\none series per folder", fg = 'gray')
         self.NIlabel1.grid(row=0,column=0, sticky='W')
-        
+
         self.NIlabel1 = tk.Label(self.parent, text = "2) Convert each series\ninto one NIfTI file", fg = 'gray')
         self.NIlabel1.grid(row=1,column=0, sticky='W')
-        
+
                 # now define an Entry box so that the user can enter database numbers
         # give it a label first
         self.NIinfo1 = tk.Label(self.parent, text = "Base name:")
         self.NIinfo1.grid(row=0,column=1, sticky='E')
-        
+
         # create the Entry box, and put it next to the label, 4th row, 2nd column
         self.NInameenter = tk.Entry(self.parent, width = 20, bg="white")
         self.NInameenter.grid(row=0, column = 2, sticky = "W")
         self.NInameenter.insert(0,settings['NIbasename'])
-        
+
         # the entry box needs a "submit" button so that the program knows when to take the entered values
         self.NInamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.NInamesubmitclick, relief='raised', bd = 5)
         self.NInamesubmit.grid(row = 0, column = 3)
-        
+
         # for now, just put a button that will eventually call the NIfTI conversion program
         self.NIorganizedata = tk.Button(self.parent, text = 'Organize Data', width = bigbuttonsize, bg = fgcol1, fg = 'white', command = self.NIorganizeclick, font = "none 9 bold", relief='raised', bd = 5)
         self.NIorganizedata.grid(row = 1, column = 1, columnspan = 2)
@@ -949,20 +972,20 @@ class NIFrame:
     def NInamesubmitclick(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
-        
+
         entered_text = self.NInameenter.get()  # collect the text from the text entry box
         # remove any spaces
         entered_text = re.sub('\ +','',entered_text)
         print(entered_text)
-        
+
         # update the text in the box, in case it has changed
         settings['NIbasename'] = entered_text
         self.NInameenter.delete(0,'end')
         self.NInameenter.insert(0,settings['NIbasename'])
         # save the updated settings file again
         np.save(settingsfile,settings)
-        
-        
+
+
     # action when the button is pressed to organize dicom data into folders based on series numbers
     def NIorganizeclick(self):
         # first get necessary the input data
@@ -972,20 +995,20 @@ class NIFrame:
         # BASEdir = os.path.dirname(self.NIdatabasename)
         xls = pd.ExcelFile(self.NIdatabasename, engine = 'openpyxl')
         df1 = pd.read_excel(xls, 'datarecord')
-        
+
         print('File organization: databasename ',self.NIdatabasename)
         print('File organization: started organizing at ', time.ctime(time.time()))
-        
+
         for nn, dbnum in enumerate(self.NIdatabasenum):
             print('NIorganizeclick: databasenum ',dbnum)
             pname = df1.loc[dbnum, 'pname']
             dbhome = df1.loc[dbnum, 'datadir']
             self.NIpname = os.path.join(dbhome, pname)
             dicom_conversion.move_files_and_update_database(self.NIdatabasename, dbhome, self.NIpname)
-            
+
         print('File organization: finished organizing data ...', time.ctime(time.time()))
-                
-        
+
+
     # action when the button is pressed to convert dicom data into NIfTI format
     def NIconversionclick(self):
         # first get necessary the input data
@@ -995,13 +1018,13 @@ class NIFrame:
         self.NIbasename = settings['NIbasename']
         print('NIfTI conversion: databasename ',self.NIdatabasename)
         print('NIfTI conversion: started organizing at ', time.ctime(time.time()))
-        
+
         for nn, dbnum in enumerate(self.NIdatabasenum):
             niiname = dicom_conversion.convert_dicom_folder(self.NIdatabasename, dbnum, self.NIbasename)
             print('NIfTI conversion: converted ',dbnum,' : ',niiname)
-            
+
         print('NIfTI conversion: finished converting data to NIfTI ...', time.ctime(time.time()))
-              
+
 
 
 # --------------------Calculate Normalization Parameters FRAME---------------------------------------------------------------
@@ -1159,7 +1182,6 @@ class NCFrame:
         self.NCcopysubmit = tk.Button(self.parent, text = "Copy", width = smallbuttonsize, bg = fgcol2, fg = 'black', command = self.NCcopyroughnorm, relief='raised', bd = 5)
         self.NCcopysubmit.grid(row = 9, column = 6)
 
-
         img1 = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
         controller.img1d = img1  # need to keep a copy so it is not cleared from memory
         self.window1 = tk.Canvas(master = self.parent, width=img1.width(), height=img1.height(), bg='black')
@@ -1167,10 +1189,18 @@ class NCFrame:
         self.windowdisplay1 = self.window1.create_image(0, 0, image=img1, anchor=tk.NW)
 
         img2 = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
+        img2 = img2.subsample(2)
         controller.img2d = img2  # need to keep a copy so it is not cleared from memory
         self.window2 = tk.Canvas(master = self.parent, width=img2.width(), height=img2.height(), bg='black')
-        self.window2.grid(row=7, column=2,rowspan = 3, columnspan = 2, sticky='NW')
+        self.window2.grid(row=7, column=2,rowspan = 2, columnspan = 2, sticky='NW')
         self.windowdisplay2 = self.window2.create_image(0, 0, image=img2, anchor=tk.NW)
+
+        img3 = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
+        img3 = img3.subsample(2)
+        controller.img3d = img3  # need to keep a copy so it is not cleared from memory
+        self.window3 = tk.Canvas(master = self.parent, width=img3.width(), height=img3.height(), bg='black')
+        self.window3.grid(row=9, column=2,rowspan = 2, columnspan = 2, sticky='NW')
+        self.windowdisplay3 = self.window3.create_image(0, 0, image=img3, anchor=tk.NW)
 
 
     def outline_section(self, sectionnumber):
@@ -1512,10 +1542,18 @@ class NCFrame:
         self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
 
         inprogressfile = os.path.join(basedir, 'underconstruction.gif')
-        image_tk = tk.Image('photo', file=inprogressfile)
+        image_tk = tk.PhotoImage('photo', file=inprogressfile)
+        image_tk = image_tk.subsample(2)
         self.controller.img2d = image_tk  # keep a copy so it persists
         self.window2.configure(width=image_tk.width(), height=image_tk.height())
         self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+        inprogressfile = os.path.join(basedir, 'underconstruction.gif')
+        image_tk = tk.PhotoImage('photo', file=inprogressfile)
+        image_tk = image_tk.subsample(2)
+        self.controller.img3d = image_tk  # keep a copy so it persists
+        self.window3.configure(width=image_tk.width(), height=image_tk.height())
+        self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
 
         time.sleep(0.5)
         #-----------end of display--------------------------------
@@ -1585,13 +1623,27 @@ class NCFrame:
                 xmid = np.round(xs/2).astype(int)
                 display_image = reverse_map_image[xmid,:,:]
                 display_image = (255. * display_image / np.max(display_image)).astype(int)
-                image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+                display_imager = i3d.resize_2D(display_image, 0.5)
+                image_tk = ImageTk.PhotoImage(Image.fromarray(display_imager))
 
                 self.controller.img2d = image_tk   # keep a copy so it persists
                 self.window2.configure(width=image_tk.width(), height=image_tk.height())
                 self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
 
                 self.window2.create_text(np.round(image_tk.width()/2),image_tk.height()-5,text = 'normalization result', fill = 'white')
+
+                # show template
+                xs,ys,zs = np.shape(template_img)
+                xmid = np.round(xs/2).astype(int)
+                display_image = template_img[xmid,:,:]
+                display_image = (255. * display_image / np.max(display_image)).astype(int)
+                display_imager = i3d.resize_2D(display_image, 0.5)
+                image_tk = ImageTk.PhotoImage(Image.fromarray(display_imager))
+                self.controller.img3d = image_tk   # keep a copy so it persists
+                self.window3.configure(width=image_tk.width(), height=image_tk.height())
+                self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
+                self.window3.create_text(np.round(image_tk.width()/2),image_tk.height()-5,text = 'reference template', fill = 'white')
+
             else:
                 # if rough norm is not being run, then assume that it has already been done and the results need to be loaded
                 normdata = np.load(normdataname_full, allow_pickle=True).flat[0]
@@ -1609,10 +1661,21 @@ class NCFrame:
                 xmid = np.round(xs/2).astype(int)
                 img2 = reverse_map_image[xmid,:,:]
                 img2 = (255. * img2 / np.max(img2)).astype(int)
-                image_tk = ImageTk.PhotoImage(Image.fromarray(img2))
+                img2r = i3d.resize_2D(img2, 0.5)
+                image_tk = ImageTk.PhotoImage(Image.fromarray(img2r))
                 self.controller.img2d = image_tk   # keep a copy so it persists
                 self.window2.configure(width=image_tk.width(), height=image_tk.height())
                 self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+                xs,ys,zs = np.shape(template_img)
+                xmid = np.round(xs/2).astype(int)
+                img3 = template_img[xmid,:,:]
+                img3 = (255. * img3 / np.max(img3)).astype(int)
+                img3r = i3d.resize_2D(img3, 0.5)
+                image_tk = ImageTk.PhotoImage(Image.fromarray(img3r))
+                self.controller.img3d = image_tk   # keep a copy so it persists
+                self.window3.configure(width=image_tk.width(), height=image_tk.height())
+                self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
 
                 image_tk = self.controller.img1d
                 self.window1.configure(width=image_tk.width(), height=image_tk.height())
@@ -1633,7 +1696,8 @@ class NCFrame:
             print('self.finetune = ', self.finetune)
             if self.finetune == 1:
                 inprogressfile = os.path.join(basedir, 'underconstruction.gif')
-                image_tk = tk.Image('photo', file=inprogressfile)
+                image_tk = tk.PhotoImage('photo', file=inprogressfile)
+                image_tk = image_tk.subsample(2)
                 self.controller.img2d = image_tk  # keep a copy so it persists
                 self.window2.configure(width=image_tk.width(), height=image_tk.height())
                 self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
@@ -1694,10 +1758,21 @@ class NCFrame:
             xmid = np.round(xs / 2).astype(int)
             img2 = norm_result_image[xmid, :, :]
             img2 = (255. * img2 / np.max(img2)).astype(int)
-            image_tk = ImageTk.PhotoImage(Image.fromarray(img2))
+            img2r = i3d.resize_2D(img2, 0.5)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(img2r))
             self.controller.img2d = image_tk  # keep a copy so it persists
             self.window2.configure(width=image_tk.width(), height=image_tk.height())
             self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+            # display the template
+            xs, ys, zs = np.shape(template_img)
+            xmid = np.round(xs / 2).astype(int)
+            img3 = template_img[xmid, :, :]
+            img3 = (255. * img3 / np.max(img3)).astype(int)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(img3))
+            self.controller.img3d = image_tk  # keep a copy so it persists
+            self.window3.configure(width=image_tk.width(), height=image_tk.height())
+            self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
 
         print('Normalization: finished processing data ...', time.ctime(time.time()))
 
@@ -1873,29 +1948,544 @@ class NCFrame:
         xmid = np.round(xs / 2).astype(int)
         display_image = reverse_map_image[xmid, :, :]
         display_image = (255. * display_image / np.max(display_image)).astype(int)
-        image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+        display_imager = i3d.resize_2D(display_image, 0.5)
+        image_tk = ImageTk.PhotoImage(Image.fromarray(display_imager))
 
         self.controller.img2d = image_tk  # keep a copy so it persists
         self.window2.configure(width=image_tk.width(), height=image_tk.height())
         self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
-
         self.window2.create_text(np.round(image_tk.width() / 2), image_tk.height() - 5, text='normalization result',
                                  fill='white')
 
-        
+        # show template image
+        xs, ys, zs = np.shape(template_img)
+        xmid = np.round(xs / 2).astype(int)
+        display_image = template_img[xmid, :, :]
+        display_image = (255. * display_image / np.max(display_image)).astype(int)
+        display_imager = i3d.resize_2D(display_image, 0.5)
+        image_tk = ImageTk.PhotoImage(Image.fromarray(display_imager))
+
+        self.controller.img3d = image_tk  # keep a copy so it persists
+        self.window3.configure(width=image_tk.width(), height=image_tk.height())
+        self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
+        self.window3.create_text(np.round(image_tk.width() / 2), image_tk.height() - 5, text='template',
+                                 fill='white')
+
+
+# --------------------Calculate Normalization Parameters for Brain Data FRAME---------------------------------------------------------------
+# Definition of the frame that will have inputs and options for normalizing NIfTI format data
+class NCbrainFrame:
+    # initialize the values, keeping track of the frame this definition works on (parent), and
+    # also the main window containing that frame (controller)
+    def __init__(self, parent, controller):
+        parent.configure(relief='raised', bd=5, highlightcolor=fgcol3)
+        self.parent = parent
+        self.controller = controller
+        self.NCresult = []
+
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        self.normdatasavename = settings['NCsavename']  # default prefix value
+        self.fitparameters = settings['NCBparameters']  # [(10000, 1000, 100),(3.0, 1.0, 0.0),(4, 2, 1)]  # default prefix value
+        self.iters = self.fitparameters[0]
+        self.sigmas = self.fitparameters[1]
+        self.factors = self.fitparameters[2]
+
+        self.braintemplatename = settings['braintemplate']
+
+        # initialize some values
+        self.NCdatabasename = settings['DBname']
+        self.NCdbnum = settings['DBnum']
+
+        if os.path.isfile(self.NCdatabasename):
+            xls = pd.ExcelFile(self.NCdatabasename, engine='openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
+            self.normtemplatename = df1.loc[self.NCdbnum[0], 'normtemplatename']
+        else:
+            self.normtemplatename = 'notdefined'
+
+        # check we are in the correct mode
+        if self.normtemplatename != 'brain':
+            print('ERROR:  expecting brain data for normalization method ...')
+            print('database number {} in database {}'.format(self.NCdbnum[0],self.NCdatabasename))
+            print('normalization template is indicated as: {}'.format(self.normtemplatename))
+
+        self.NCtemplatelabel = tk.Label(self.parent, text='Normalizing region: ' + self.normtemplatename, fg='gray')
+        self.NCtemplatelabel.grid(row=0, column=2, sticky='W')
+
+        # put some text as a place-holder
+        self.NClabel1 = tk.Label(self.parent, text="1) Calculate normalization\nparameters", fg='gray')
+        self.NClabel1.grid(row=0, column=0, sticky='W')
+        self.NClabel2 = tk.Label(self.parent, text="2) Save for next steps", fg='gray')
+        self.NClabel2.grid(row=1, column=0, sticky='W')
+
+        # now define an Entry box so that the user can indicate the prefix name of the data to normalize
+        # give it a label first
+        self.NCinfo1 = tk.Label(self.parent, text="Save name base:")
+        self.NCinfo1.grid(row=1, column=1, sticky='E')
+
+        # create the Entry box, and put it next to the label
+        self.NCsavename = tk.Entry(self.parent, width=20, bg="white")
+        self.NCsavename.grid(row=1, column=2, sticky="W")
+        self.NCsavename.insert(1, self.normdatasavename)
+
+        # the entry box needs a "submit" button so that the program knows when to take the entered values
+        self.NCsavenamesubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg='black', command=self.NCsavenamesubmit, relief='raised', bd=5)
+        self.NCsavenamesubmit.grid(row=1, column=3)
+
+        # for brain normalization, need parameters ...
+        #  template name
+        self.NCinfo2 = tk.Label(self.parent, text="Brain template:")
+        self.NCinfo2.grid(row=2, column=1, sticky='E')
+
+        # create the Entry box, and put it next to the label
+        self.NCBtemplate = tk.Entry(self.parent, width=20, bg="white")
+        self.NCBtemplate.grid(row=2, column=2, sticky="W")
+        self.NCBtemplate.insert(1, self.braintemplatename)
+
+        # the entry box needs a "submit" button so that the program knows when to take the entered values
+        self.NCBtemplatename = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg='black', command=self.NCBtemplatenamesubmit, relief='raised', bd=5)
+        self.NCBtemplatename.grid(row=2, column=3)
+
+        # the entry box needs a "browse" button
+        self.NCBtemplatebrowse = tk.Button(self.parent, text="Browse", width=smallbuttonsize, bg=fgcol2, fg='black', command=self.NCBtemplatenamebrowse, relief='raised', bd=5)
+        self.NCBtemplatebrowse.grid(row=2, column=4)
+
+        # for brain normalization, need parameters ...
+        #  level_iters = [10000, 1000, 100]
+        #  sigmas = [3.0, 1.0, 0.0]
+        #  factors = [4, 2, 1]
+
+        self.NCinfo3 = tk.Label(self.parent, text="iterations per level:")
+        self.NCinfo3.grid(row=3, column=1, sticky='E')
+        # create the Entry box, and put it next to the label
+        self.NCBiters = tk.Entry(self.parent, width=20, bg="white")
+        self.NCBiters.grid(row=3, column=2, sticky="W")
+        self.NCBiters.insert(1, self.iters)
+        # the entry box needs a "submit" button so that the program knows when to take the entered values
+        self.NCBitersubmitbutton = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg='black', command=self.NCBitersubmit, relief='raised', bd=5)
+        self.NCBitersubmitbutton.grid(row=3, column=3)
+        # need an option to restore default values
+        self.NCBiterdefaults = tk.Button(self.parent, text="Restore", width=smallbuttonsize, bg=fgcol2, fg='black', command=self.NCBiterrestoredefault, relief='raised', bd=5)
+        self.NCBiterdefaults.grid(row=3, column=4)
+
+
+        self.NCinfo4 = tk.Label(self.parent, text="smoothing per level:")
+        self.NCinfo4.grid(row=4, column=1, sticky='E')
+        # create the Entry box, and put it next to the label
+        self.NCBsigmas = tk.Entry(self.parent, width=20, bg="white")
+        self.NCBsigmas.grid(row=4, column=2, sticky="W")
+        self.NCBsigmas.insert(1, self.sigmas)
+        # the entry box needs a "submit" button so that the program knows when to take the entered values
+        self.NCBsigmasubmitbutton = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg='black', command=self.NCBsigmassubmit, relief='raised', bd=5)
+        self.NCBsigmasubmitbutton.grid(row=4, column=3)
+        # need an option to restore default values
+        self.NCBsigmadefaults = tk.Button(self.parent, text="Restore", width=smallbuttonsize, bg=fgcol2, fg='black', command=self.NCBsigmarestoredefault, relief='raised', bd=5)
+        self.NCBsigmadefaults.grid(row=4, column=4)
+
+        self.NCinfo5 = tk.Label(self.parent, text="divide per level:")
+        self.NCinfo5.grid(row=5, column=1, sticky='E')
+        # create the Entry box, and put it next to the label
+        self.NCBfactors = tk.Entry(self.parent, width=20, bg="white")
+        self.NCBfactors.grid(row=5, column=2, sticky="W")
+        self.NCBfactors.insert(1, self.factors)
+        # the entry box needs a "submit" button so that the program knows when to take the entered values
+        self.NCBfactorssubmitbutton = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg='black', command=self.NCBfactorssubmit, relief='raised', bd=5)
+        self.NCBfactorssubmitbutton.grid(row=5, column=3)
+        # need an option to restore default values
+        self.NCBfactordefaults = tk.Button(self.parent, text="Restore", width=smallbuttonsize, bg=fgcol2, fg='black', command=self.NCBfactorrestoredefault, relief='raised', bd=5)
+        self.NCBfactordefaults.grid(row=5, column=4)
+
+        # button to call the normalization program
+        self.NCBrun = tk.Button(self.parent, text='Calculate Normalization', width=bigbigbuttonsize, bg=fgcol1, fg='white', command=self.NCBrunclick, font="none 9 bold", relief='raised', bd=5)
+        self.NCBrun.grid(row=6, column=1)
+
+        img1 = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
+        controller.img1d = img1  # need to keep a copy so it is not cleared from memory
+        self.window1 = tk.Canvas(master=self.parent, width=img1.width(), height=img1.height(), bg='black')
+        self.window1.grid(row=7, column=0, rowspan=3, columnspan=2, sticky='NW')
+        self.windowdisplay1 = self.window1.create_image(0, 0, image=img1, anchor=tk.NW)
+
+        img2 = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
+        img2 = img2.subsample(2)
+        controller.img2d = img2  # need to keep a copy so it is not cleared from memory
+        self.window2 = tk.Canvas(master=self.parent, width=img2.width(), height=img2.height(), bg='black')
+        self.window2.grid(row=7, column=2, rowspan=2, columnspan=2, sticky='NW')
+        self.windowdisplay2 = self.window2.create_image(0, 0, image=img2, anchor=tk.NW)
+
+        img3 = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
+        img3 = img3.subsample(2)
+        controller.img3d = img3  # need to keep a copy so it is not cleared from memory
+        self.window3 = tk.Canvas(master=self.parent, width=img3.width(), height=img3.height(), bg='black')
+        self.window3.grid(row=9, column=2, rowspan=2, columnspan=2, sticky='NW')
+        self.windowdisplay3 = self.window3.create_image(0, 0, image=img3, anchor=tk.NW)
+
+
+    # action when the button is pressed to submit the DB entry number list
+    def NCsavenamesubmit(self):
+        entered_text = self.NCsavename.get()  # collect the text from the text entry box
+        # remove any spaces
+        entered_text = re.sub('\ +', '', entered_text)
+        print(entered_text)
+
+        # update the text in the box, in case it has changed
+        self.normdatasavename = entered_text
+
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        settings['NCsavename'] = entered_text
+        np.save(settingsfile, settings)
+
+        return self
+
+    # define functions for defining the brain template name for normalization
+    # the template files are all stored in the "braintemplates" folder
+    def NCBtemplatenamebrowse(self):
+        workingdir = os.path.dirname(os.path.realpath(__file__))
+        brain_templates_folder = os.path.join(workingdir, 'braintemplates')
+        os.chdir(brain_templates_folder)
+
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        templatename_full =  tkf.askopenfilename(title = "Select template file",
+                        filetypes=(("nii files", "*.nii","*.gz"), ("all files", "*.*")))
+        p, templatename = os.path.split(templatename_full)
+        print('templatename = ',templatename)
+        # save the selected file name in the settings
+        settings['braintemplate'] = templatename
+        self.braintemplatename = templatename
+        # write the result to the label box for display
+        self.NCBtemplate.delete(0,'end')
+        self.NCBtemplate.insert(1, self.braintemplatename)
+
+        # save the updated settings file again
+        np.save(settingsfile,settings)
+
+    # action when the button is pressed to submit the slice information
+    def NCBtemplatenamesubmit(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        templatename = self.NCBtemplate.get()
+        settings['braintemplate'] = templatename
+        np.save(settingsfile, settings)
+        # update the text in the box, in case it has changed
+        self.braintemplatename = templatename
+        return self
+
+
+    def NCBparsenumlist(self, entered_text):
+        # need to make sure we are working with numbers, not text
+        # first, replace any double spaces with single spaces, and then replace spaces with commas
+        entered_text = re.sub('\ +', ',', entered_text)
+        entered_text = re.sub('\,\,+', ',', entered_text)
+        # remove any leading or trailing commas
+        if entered_text[0] == ',': entered_text = entered_text[1:]
+        if entered_text[-1] == ',': entered_text = entered_text[:-1]
+        entered_values = list(np.fromstring(entered_text, dtype=int, sep=','))
+        return entered_values
+
+
+    def NCBitersubmit(self):
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        entered_text = self.NCBiters.get()  # collect the text from the text entry box
+
+        # parse the entered text
+        entered_vals = self.NCBparsenumlist(entered_text)
+        print(entered_vals)
+        self.iters = entered_vals
+
+        # update the values in the box, in case they have changed
+        self.fitparameters[0] = self.iters
+        settings['NCBparameters'] = self.fitparameters
+        np.save(settingsfile, settings)
+        return self
+
+    def NCBsigmassubmit(self):
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        entered_text = self.NCBsigmas.get()  # collect the text from the text entry box
+
+        # parse the entered text
+        entered_vals = self.NCBparsenumlist(entered_text)
+        print(entered_vals)
+
+        # update the values in the box, in case they have changed
+        self.sigmas = entered_vals
+
+        self.fitparameters[1] = self.sigmas
+        settings['NCBparameters'] = self.fitparameters
+        np.save(settingsfile, settings)
+        return self
+
+    def NCBfactorssubmit(self):
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        entered_text = self.NCBfactors.get()  # collect the text from the text entry box
+        # parse the entered text
+        entered_vals = self.NCBparsenumlist(entered_text)
+        print(entered_vals)
+        # update the values in the box, in case they have changed
+        self.factors = entered_vals
+        self.fitparameters[2] = self.factors
+        settings['NCBparameters'] = self.fitparameters
+        np.save(settingsfile, settings)
+        return self
+
+
+    def NCBiterrestoredefault(self):
+        # for brain normalization, need parameters ...
+        #  level_iters = [10000, 1000, 100]
+        #  sigmas = [3.0, 1.0, 0.0]
+        #  factors = [4, 2, 1]
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        self.iters = (10000, 1000, 100)
+        self.fitparameters[0] = self.iters
+        self.NCBiters.delete(0, 'end')
+        self.NCBiters.insert(1, self.iters)
+        settings['NCBparameters'] = self.fitparameters
+        np.save(settingsfile, settings)
+        return self
+
+    def NCBsigmarestoredefault(self):
+        # for brain normalization, need parameters ...
+        #  level_iters = [10000, 1000, 100]
+        #  sigmas = [3.0, 1.0, 0.0]
+        #  factors = [4, 2, 1]
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        self.sigmas = (3.0, 1.0, 0.0)
+        self.fitparameters[1] = self.sigmas
+        self.NCBsigmas.delete(0, 'end')
+        self.NCBsigmas.insert(1, self.sigmas)
+        settings['NCBparameters'] = self.fitparameters
+        np.save(settingsfile, settings)
+        return self
+
+    def NCBfactorrestoredefault(self):
+        # for brain normalization, need parameters ...
+        #  level_iters = [10000, 1000, 100]
+        #  sigmas = [3.0, 1.0, 0.0]
+        #  factors = [4, 2, 1]
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        self.factors = (4, 2, 1)
+        self.fitparameters[2] = self.factors
+        self.NCBfactors.delete(0, 'end')
+        self.NCBfactors.insert(1, self.factors)
+        settings['NCBparameters'] = self.fitparameters
+        np.save(settingsfile, settings)
+        return self
+
+
+    def NCBrunclick(self):
+        # first get the necessary input data
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        self.NCdatabasename = settings['DBname']
+        self.NCdatabasenum = settings['DBnum']
+        # BASEdir = os.path.dirname(self.NCdatabasename)
+        xls = pd.ExcelFile(self.NCdatabasename, engine='openpyxl')
+        df1 = pd.read_excel(xls, 'datarecord')
+
+        normdatasavename = self.normdatasavename
+        iters = self.iters
+        sigmas = self.sigmas
+        factors = self.factors
+        braintemplatename = self.braintemplatename
+
+        # load the brain template
+        workingdir = os.path.dirname(os.path.realpath(__file__))
+        brain_template_folder = os.path.join(workingdir, 'braintemplates')
+        template_filename = os.path.join(brain_template_folder, braintemplatename)
+        # ref_data, ref_affine = i3d.load_and_scale_nifti(template_filename)   # also scales to 1 mm cubic
+        input_ref = nib.load(template_filename)
+        ref_affine = input_ref.affine
+        ref_hdr = input_ref.header
+        ref_data = input_ref.get_fdata()
+        ref_data = ref_data / np.max(ref_data)
+
+        # display original image for first dbnum entry-------------------
+        dbnum = self.NCdatabasenum[0]
+        dbhome = df1.loc[dbnum, 'datadir']
+        fname = df1.loc[dbnum, 'niftiname']
+        seriesnumber = df1.loc[dbnum, 'seriesnumber']
+        niiname = os.path.join(dbhome, fname)
+
+        # input_data, new_affine = i3d.load_and_scale_nifti(niiname)  # this also scales to 1 mm cubic voxels
+        input_img = nib.load(niiname)
+        new_affine = input_img.affine
+        input_hdr = input_img.header
+        input_data = input_img.get_fdata()
+        input_data = input_data / np.max(input_data)
+
+        print('shape of input_data is ', np.shape(input_data))
+        print('niiname = ', niiname)
+        if np.ndim(input_data) == 4:
+            xs, ys, zs, ts = np.shape(input_data)
+            zmid = np.round(zs / 2).astype(int)
+            img = input_data[:, :, zmid, 0]
+            img = (255. * img / np.max(img)).astype(int)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(img))
+        else:
+            xs, ys, zs = np.shape(input_data)
+            zmid = np.round(zs / 2).astype(int)
+            img = input_data[:, :, zmid]
+            img = (255. * img / np.max(img)).astype(int)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(img))
+        self.controller.img1d = image_tk  # keep a copy so it persists
+        self.window1.configure(width=image_tk.width(), height=image_tk.height())
+        self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+        inprogressfile = os.path.join(basedir, 'underconstruction.gif')
+        image_tk = tk.PhotoImage('photo', file=inprogressfile)
+        image_tk = image_tk.subsample(2)
+        self.controller.img2d = image_tk  # keep a copy so it persists
+        self.window2.configure(width=image_tk.width(), height=image_tk.height())
+        self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+        inprogressfile = os.path.join(basedir, 'underconstruction.gif')
+        image_tk = tk.PhotoImage('photo', file=inprogressfile)
+        image_tk = image_tk.subsample(2)
+        self.controller.img3d = image_tk  # keep a copy so it persists
+        self.window3.configure(width=image_tk.width(), height=image_tk.height())
+        self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+        time.sleep(0.5)
+        # -----------end of display--------------------------------
+
+        print('Normalization: databasename ', self.NCdatabasename)
+        print('Normalization: started organizing at ', time.ctime(time.time()))
+
+        # assume that all the data sets being normalized in a group are from the same region
+        # and have the same template and anatomical region - no need to load these for each dbnum
+
+        for nn, dbnum in enumerate(self.NCdatabasenum):
+            print('NCrunclick: databasenum ', dbnum)
+            dbhome = df1.loc[dbnum, 'datadir']
+            fname = df1.loc[dbnum, 'niftiname']
+            # seriesnumber = df1.loc[dbnum, 'seriesnumber']
+            normtemplatename = df1.loc[dbnum, 'normtemplatename']
+            niiname = os.path.join(dbhome, fname)
+            fullpath, filename = os.path.split(niiname)
+            # prefix_niiname = os.path.join(fullpath,self.prefix+filename)
+            # tag = '_s' + str(seriesnumber)
+            normdataname_full = os.path.join(fullpath, normdatasavename + '.npy')
+
+            # load the nifti data
+            # input_datar, affiner = i3d.load_and_scale_nifti(niiname)
+            input_img = nib.load(niiname)
+            affiner = input_img.affine
+            input_hdr = input_img.header
+            input_datar = input_img.get_fdata()
+            input_datar = input_datar / np.max(input_datar)
+
+            if np.ndim(input_datar) > 3:
+                x, y, z, t = np.shape(input_datar)
+                if t > 3:
+                    t0 = 3
+                else:
+                    t0 = 0
+                input_image = input_datar[:, :, :, t0]
+            else:
+                x, y, z = np.shape(input_datar)
+                input_image = input_datar
+            input_datar = []  # clear it from memory
+
+            # run the normalization
+            print('starting normalization calculation ....')
+            # set the cursor to reflect being busy ...
+            self.controller.master.config(cursor="wait")
+            self.controller.master.update()
+            norm_brain_img, norm_brain_affine = pybrainregistration.dipy_compute_brain_normalization(input_image, affiner, ref_data, ref_affine, iters, sigmas, factors, nbins=32)
+            self.controller.master.config(cursor="")
+            self.controller.master.update()
+            print('finished normalization calculation ....')
+            # save norm_brain_affine for later use...
+            np.save(normdataname_full, {'norm_affine_transformation': norm_brain_affine})
+            self.NCresult = norm_brain_img
+
+            # display results-----------------------------------------------------
+            xs,ys,zs = np.shape(input_image)
+            zmid = np.floor(zs/2).astype(int)
+            img1 = input_image[:,:,zmid]
+            img1 = (255. * img1 / np.max(img1)).astype(int)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(img1))
+            self.controller.img1d = image_tk
+            self.window1.configure(width=image_tk.width(), height=image_tk.height())
+            self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+            time.sleep(1)
+            self.window1.create_text(np.round(image_tk.width() / 2), image_tk.height() - 5, text='original image', fill='white')
+
+            xs,ys,zs = np.shape(norm_brain_img)
+            zmid = np.floor(zs/2).astype(int)
+            img2 = norm_brain_img[:,:,zmid]
+            img2= (255. * img2 / np.max(img2)).astype(int)
+            img2r = i3d.resize_2D(img2, 0.5)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(img2r))
+            self.controller.img2d = image_tk
+            self.window2.configure(width=image_tk.width(), height=image_tk.height())
+            self.windowdisplay2= self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+            time.sleep(1)
+            self.window2.create_text(np.round(image_tk.width() / 2), image_tk.height() - 5, text='normalization result', fill='white')
+
+            xs,ys,zs = np.shape(ref_data)
+            zmid = np.floor(zs/2).astype(int)
+            img3 = ref_data[:,:,zmid]
+            img3 = (255. * img3 / np.max(img3)).astype(int)
+            img3r = i3d.resize_2D(img3, 0.5)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(img3r))
+            self.controller.img3d = image_tk
+            self.window3.configure(width=image_tk.width(), height=image_tk.height())
+            self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
+            time.sleep(1)
+            self.window3.create_text(np.round(image_tk.width() / 2), image_tk.height() - 5, text='normalization template', fill='white')
+
+            # check the quality of the resulting normalization
+            norm_result_image = copy.deepcopy(norm_brain_img)
+            norm_result_image[np.isnan(norm_result_image)] = 0.0
+            norm_result_image[np.isinf(norm_result_image)] = 0.0
+
+            Q = np.corrcoef(np.ndarray.flatten(norm_result_image), np.ndarray.flatten(ref_data))
+            print('normalization quality (correlation with template) = {}'.format(Q[0, 1]))
+
+            # now write the new database values
+            xls = pd.ExcelFile(self.NCdatabasename, engine='openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
+            keylist = df1.keys()
+            for kname in keylist:
+                if 'Unnamed' in kname: df1.pop(kname)  # remove blank fields from the database
+            normdataname_small = normdataname_full.replace(dbhome, '')  # need to strip off dbhome before writing the name
+            df1.loc[dbnum.astype('int'), 'normdataname'] = normdataname_small[1:]
+
+            # add normalization quality to database
+            if 'norm_quality' not in keylist:
+                df1['norm_quality'] = 0
+            df1.loc[dbnum.astype('int'), 'norm_quality'] = Q[0, 1]
+
+            # need to delete the existing sheet before writing the new version
+            existing_sheet_names = xls.sheet_names
+            if 'datarecord' in existing_sheet_names:
+                # delete sheet - need to use openpyxl
+                workbook = openpyxl.load_workbook(self.NCdatabasename)
+                # std = workbook.get_sheet_by_name('datarecord')
+                # workbook.remove_sheet(std)
+                del workbook['datarecord']
+                workbook.save(self.NCdatabasename)
+
+            # write it to the database by appending a sheet to the excel file
+            # remove old version of datarecord first
+            with pd.ExcelWriter(self.NCdatabasename, engine="openpyxl", mode='a') as writer:
+                df1.to_excel(writer, sheet_name='datarecord')
+
+            print('normalization data saved in ', normdataname_full)
+
+        print('Normalization: finished processing data ...', time.ctime(time.time()))
+
+
 #--------------------Image Pre-Processing FRAME---------------------------------------------------------------
 # Definition of the frame that will have inputs and options for co-registering NIfTI format data
 # this should become the preprocessing frame, and include coregistration, applying normalization, slice-timing correction
 # smoothing, basis set definitions for GLM fit and noise modeling, data cleaning, and cluster definition
 #
 class PPFrame:
-    # initialize the values, keeping track of the frame this definition works on (parent), and 
+    # initialize the values, keeping track of the frame this definition works on (parent), and
     # also the main window containing that frame (controller)
     def __init__(self, parent, controller):
         parent.configure(relief='raised', bd = 5, highlightcolor = fgcol3)
         self.parent = parent
         self.controller = controller
-        
+
         # initialize some values
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         self.PPdatabasename = settings['DBname']
@@ -1911,13 +2501,13 @@ class PPFrame:
         self.refslice = settings['refslice']
         self.sliceaxis = settings['sliceaxis']
         self.smoothwidth = settings['smoothwidth']
-        
+
         # put some text as a place-holder
         self.PPlabel1 = tk.Label(self.parent, text = "1) Select pre-processing options", fg = 'gray')
         self.PPlabel1.grid(row=0,column=0, sticky='W')
         self.PPlabel2 = tk.Label(self.parent, text = "2) Data name prefixes indicate\nthe applied processing", fg = 'gray')
         self.PPlabel2.grid(row=1,column=0, sticky='W')
-        
+
         # now define entry boxes so that the user can indicate the slice timing parameters
         # give the group of boxes a label first
         srow = 0;  scol = 1;
@@ -2139,8 +2729,8 @@ class PPFrame:
         # update the text in the box, in case it has changed
         self.smoothwidth = smoothwidth
         return self
-        
-        
+
+
     # action when the button is pressed to organize dicom data into folders based on series numbers
     def PPrunclick(self):
         sucessflag = pypreprocess.run_preprocessing(settingsfile)
@@ -2711,7 +3301,7 @@ class GLMFrame:
         template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = load_templates.load_template_and_masks(normtemplatename, resolution)
         print('normtemplatename = {}'.format(normtemplatename))
         print('size of template_img is {}'.format(np.shape(template_img)))
-        
+
         #
         # p_corr = 0.05   # corrected p-value threshold
         # # correct using gaussian random field theory
@@ -4768,8 +5358,8 @@ class DisplayFrame:
 
         # update connection data fields----------------------------------------------
         self.DISP_get_connectiondata_fields()   # update self.connectiondata and self.connectiondata_names
-        print('DISPfields set to {}'.format(self.DISPfields))
-        print('connectiondata_names set to {}'.format(self.connectiondata_names))
+        # print('DISPfields set to {}'.format(self.DISPfields))
+        # print('connectiondata_names set to {}'.format(self.connectiondata_names))
 
         nvalues = len(self.connectiondata_names)
         self.DISPboxname1.set(self.connectiondata_names[0])
@@ -5195,8 +5785,8 @@ class DisplayFrame:
         else:
             self.field_var.set('empty')
         self.DISP_get_connectiondata_fields()   # update self.connectiondata and self.connectiondata_names
-        print('DISPfields set to {}'.format(self.DISPfields))
-        print('connectiondata_names set to {}'.format(self.connectiondata_names))
+        # print('DISPfields set to {}'.format(self.DISPfields))
+        # print('connectiondata_names set to {}'.format(self.connectiondata_names))
 
         field_menu = tk.OptionMenu(self.parent, self.field_var, *self.DISPfields, command = self.DISPfieldchoice)
         field_menu.grid(row=5, column=2, columnspan=2, sticky='EW')
@@ -5448,7 +6038,7 @@ def main():
     # tk.Tk.iconbitmap(root, default='lablogoicon.ico')
 
     logofile = os.path.join(basedir, 'lablogo.gif')
-    img = tk.Image('photo', file=logofile)
+    img = tk.PhotoImage('photo', file=logofile)
     # root.iconphoto(True, img) # you may also want to try this.
     root.tk.call('wm', 'iconphoto', root._w, img)
 

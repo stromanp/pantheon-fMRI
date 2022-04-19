@@ -17,6 +17,7 @@ import GLMfit
 import image_operations_3D as i3d
 import pynormalization
 import openpyxl
+import pybrainregistration
 
 # -----coregister------------------------------------------------------------------
 # this function assumes the input is given as a time-series, and the images are all coregistered
@@ -355,6 +356,8 @@ def guided_coregistration(filename, nametag, normdataname, normtemplatename, cor
     # write result as new NIfTI format image set
     pname, fname = os.path.split(filename)
     fnameroot, ext = os.path.splitext(fname)
+    if ext == '.gz':
+        fnameroot, e2 = os.path.splitext(fnameroot) # split again
     # define names for outputs
     coregdata_name = os.path.join(pname, 'coregdata' + nametag + '.npy')
     np.save(coregdata_name, coreg_data)
@@ -525,6 +528,8 @@ def cleandata(niiname, prefix,nametag, clean_prefix = 'x'):
 
     pname, fname = os.path.split(niiname)
     fnameroot, ext = os.path.splitext(fname)
+    if ext == '.gz':
+        fnameroot, e2 = os.path.splitext(fnameroot) # split again
     input_img = nib.load(niiname)
     input_data = input_img.get_fdata()
     affine = input_img.affine
@@ -639,26 +644,6 @@ def run_preprocessing(settingsfile):
     # identify pre-processing steps to be completed, and data prefixes for inputs for each step
     prefix_list = setprefixlist(settingsfile)
 
-    # prefix = ''
-    # prefix_list = [prefix]
-    # if (coreg_choice == 'Yes.') | (coreg_choice == 'Done'):
-    #     prefix = 'c' + prefix
-    # prefix_list.append(prefix)
-    # if (slicetime_choice == 'Yes.') | (slicetime_choice == 'Done'):
-    #     prefix = 't' + prefix
-    # prefix_list.append(prefix)
-    # if (norm_choice == 'Yes.') | (norm_choice == 'Done'):
-    #     prefix = 'p' + prefix
-    # prefix_list.append(prefix)
-    # if (smooth_choice == 'Yes.') | (smooth_choice == 'Done'):
-    #     prefix = 's' + prefix
-    # prefix_list.append(prefix)
-    # # defining the basis sets does not add a prefix
-    # prefix_list.append(prefix)
-    # if (clean_choice == 'Yes.') | (clean_choice == 'Done'):
-    #     prefix = 'x' + prefix
-    # prefix_list.append(prefix)
-
     print('Pre-processing: started organizing at ', time.ctime(time.time()))
     # print('prefix_list = ',prefix_list)
 
@@ -677,14 +662,17 @@ def run_preprocessing(settingsfile):
             prefix_niiname = os.path.join(fullpath, prefix + filename)
             # run the coregistration ...
             nametag = '_s{}'.format(seriesnumber)
-            # original coregistration method
-            niiname, Qcheck = coregister(prefix_niiname, nametag)
 
             # new guided coregistration method
-            # normtemplatename = df1.loc[dbnum, 'normtemplatename']
+            normtemplatename = df1.loc[dbnum, 'normtemplatename']
             # normdataname = df1.loc[dbnum, 'normdataname']
             # normdataname_full = os.path.join(dbhome, normdataname)
             # niiname = guided_coregistration(prefix_niiname, nametag, normdataname_full, normtemplatename)
+            if normtemplatename == 'brain':
+                niiname, Qcheck = pybrainregistration.brain_coregistration(niiname, nametag)
+            else:
+                # original coregistration method
+                niiname, Qcheck = coregister(prefix_niiname, nametag)
 
             # now write the new database values
             keylist = df1.keys()
@@ -709,7 +697,6 @@ def run_preprocessing(settingsfile):
             print('Coregistration: output name is ',niiname)
 
         print('Coregistration finished ...', time.ctime(time.time()))
-
 
     # if applying slice-timing correction ...
     print('slicetime_choice =',slicetime_choice,'...')
@@ -751,15 +738,44 @@ def run_preprocessing(settingsfile):
             fullpath, filename = os.path.split(niiname)
             prefix_niiname = os.path.join(fullpath, prefix + filename)
 
+            normtemplatename = df1.loc[dbnum, 'normtemplatename']
             normdataname = df1.loc[dbnum, 'normdataname']
             normdataname_full = os.path.join(dbhome, normdataname)
             normdata = np.load(normdataname_full, allow_pickle=True).flat[0]
-            T = normdata['T']
-            Tfine = normdata['Tfine']
-            template_affine = normdata['template_affine']
 
-            # applying normalization to each data set ...
-            niiname = pynormalization.apply_normalization_to_nifti(prefix_niiname, T, Tfine, template_affine)
+            if normtemplatename == 'brain':
+                norm_brain_affine = normdata['norm_affine_transformation']
+                # img_data, img_affine = i3d.load_and_scale_nifti(niiname)   # this function also scales the images to 1mm cubic voxels
+
+                input_img = nib.load(niiname)
+                img_affine = input_img.affine
+                img_hdr = input_img.header
+                img_data = input_img.get_fdata()
+
+                norm_prefix = 'p'
+                print('starting applying normalization ....')
+                norm_brain_data = pybrainregistration.dipy_apply_brain_normalization(img_data, norm_brain_affine, verbose=True)
+                print('finished applying normalization ....')
+                # save the normalized nifti images ...
+
+                resulting_img = nib.Nifti1Image(norm_brain_data, norm_brain_affine.affine)
+                p, f_full = os.path.split(niiname)
+                f, e = os.path.splitext(f_full)
+                ext = '.nii'
+                if e == '.gz':
+                    f, e2 = os.path.splitext(f) # split again
+                    ext = '.nii.gz'
+                output_niiname = os.path.join(p, norm_prefix + f + ext)
+                # need to write the image data out in a smaller format to save disk space ...
+                nib.save(resulting_img, output_niiname)
+
+            else:
+                T = normdata['T']
+                Tfine = normdata['Tfine']
+                template_affine = normdata['template_affine']
+                # applying normalization to each data set ...
+                niiname = pynormalization.apply_normalization_to_nifti(prefix_niiname, T, Tfine, template_affine)
+
             print('Applying normalization: output name is ',niiname)
 
         print('Finished applying normalization ...', time.ctime(time.time()))

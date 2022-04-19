@@ -26,9 +26,22 @@ def resize_3D(input_data, newsize, mode = 'nearest'):
               [0, original_size[1]/newsize[1], 0], 
               [0, 0, original_size[2]/newsize[2]] ]
     output_image = nd.affine_transform(input_data, matrix, offset=0.0,
-            output_shape=newsize, order=1, mode='nearest', cval=0.0, prefilter=True)
+            output_shape=newsize, order=1, mode=mode, cval=0.0, prefilter=True)
     return output_image
 
+
+def resize_2D(input_data, newsize_input, mode = 'nearest'):
+    original_size = np.shape(input_data)
+    if np.ndim(newsize_input) == 0:
+        newsize = np.floor(np.array(original_size)*newsize_input).astype(int)
+    else:
+        newsize = newsize_input
+
+    matrix = [ [original_size[0]/newsize[0], 0],
+              [0, original_size[1]/newsize[1]] ]
+    output_image = nd.affine_transform(input_data, matrix, offset=0.0,
+            output_shape=newsize, order=1, mode=mode, cval=0.0, prefilter=True)
+    return output_image
 
 
 def linear_translation(input_data, offsetvalue):
