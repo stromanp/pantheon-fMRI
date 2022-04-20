@@ -31,6 +31,7 @@ import matplotlib.pyplot as plt
 import nibabel as nib
 import os
 import copy
+import pandas as pd
 
 def test_dipy_brain_registration():
 
@@ -382,6 +383,19 @@ def brain_coregistration(niiname, nametag, coregistered_prefix = 'c'):
         R = np.corrcoef(ref_data.flatten(), test_img.flatten())
         Qcheck[tt] = R[0, 1]
 
+    # get the motion parameters from the affine record while we are here
+    motion_record = np.zeros((3,ts))
+    for tt in range(ts):
+        affine1 = affine_record[tt].affine
+        motion_record[:,tt] = affine1[:3, 3]
+
+    motion_parameters = {'dx':motion_record[0,:]-motion_record[0,0],
+                         'dy': motion_record[1, :] - motion_record[1, 0],
+                         'dz': motion_record[2, :] - motion_record[2, 0]}
+    motiondata = pd.DataFrame(data = motion_parameters)
+    output_motiondata_xlname = os.path.join(p, 'motiondata'+nametag+'.xlsx')
+    motiondata.to_excel(output_motiondata_xlname, sheet_name='motion_data')   # write it out to excel
+
     # write result as new NIfTI format image set
     pname, fname = os.path.split(niiname)
     fnameroot, ext = os.path.splitext(fname)
@@ -389,10 +403,7 @@ def brain_coregistration(niiname, nametag, coregistered_prefix = 'c'):
         fnameroot, e2 = os.path.splitext(fnameroot) # split again
     # define names for outputs
     coregdata_name = os.path.join(pname, 'coregdata'+nametag+'.npy')
-    np.save(coregdata_name, affine_record)
-
-    # get the motion parameters from the affine record while we are here
-    # ...
+    np.save(coregdata_name, {'affine_record':affine_record,'motion_record':motion_record})
 
     return output_niiname, Qcheck
 

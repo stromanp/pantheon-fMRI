@@ -2947,9 +2947,14 @@ class GLMFrame:
             xls = pd.ExcelFile(DBname, engine='openpyxl')
             df1 = pd.read_excel(xls, 'datarecord')
             normtemplatename = df1.loc[DBnum[0], 'normtemplatename']
-            resolution = 1
-            template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = load_templates.load_template_and_masks(
-                normtemplatename, resolution)
+
+            if normtemplatename == 'brain':
+                braintemplate = settings['braintemplate']
+                template_img, template_affine, roi_map = load_templates.load_brain_template(braintemplate)
+            else:
+                resolution = 1
+                template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = load_templates.load_template_and_masks(
+                    normtemplatename, resolution)
 
             # correct using gaussian random field theory
             search_mask = roi_map
@@ -2967,9 +2972,13 @@ class GLMFrame:
             xls = pd.ExcelFile(DBname, engine='openpyxl')
             df1 = pd.read_excel(xls, 'datarecord')
             normtemplatename = df1.loc[DBnum[0], 'normtemplatename']
-            resolution = 1
-            template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = load_templates.load_template_and_masks(
-                normtemplatename, resolution)
+            if normtemplatename == 'brain':
+                braintemplate = settings['braintemplate']
+                template_img, template_affine, roi_map = load_templates.load_brain_template(braintemplate)
+            else:
+                resolution = 1
+                template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = load_templates.load_template_and_masks(
+                    normtemplatename, resolution)
             p_unc, nvox = py_fmristats.py_Bonferonni_corrected_pthreshold(self.GLMpvalue, roi_map, GLMvoxvolume)
 
         settings['GLMpvalue_unc'] = p_unc
@@ -3045,9 +3054,20 @@ class GLMFrame:
         self.prefix = settings['GLMprefix']
         self.ndrop = settings['GLMndrop']
 
+        xls = pd.ExcelFile(self.DBname, engine='openpyxl')
+        df1 = pd.read_excel(xls, 'datarecord')
+        datadir = df1.loc[self.dbnumlist[0], 'datadir']
+        pname = df1.loc[self.dbnumlist[0], 'pname']
+        basedir = os.path.join(datadir,pname)
+        os.chdir(basedir)  # move to the most likely place to save the paradigm file
+
         basisset, paradigm_names = GLMfit.compile_basis_sets(self.DBname, self.dbnumlist, self.prefix, mode=self.GLM1_option, nvolmask=self.ndrop)
         self.basisset = basisset
         self.paradigm_names = paradigm_names
+
+        settings['GLMbasisset'] = basisset
+        settings['GLMparadigmnames'] = paradigm_names
+        np.save(settingsfile,settings)
 
         bshape = np.shape(basisset)
         basisinfo = 'basis set, size {}'.format(bshape[0])
@@ -3299,8 +3319,13 @@ class GLMFrame:
         xls = pd.ExcelFile(DBname, engine = 'openpyxl')
         df1 = pd.read_excel(xls, 'datarecord')
         normtemplatename = df1.loc[DBnum[0], 'normtemplatename']
-        resolution = 1
-        template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = load_templates.load_template_and_masks(normtemplatename, resolution)
+
+        if normtemplatename == 'brain':
+            braintemplate = settings['braintemplate']
+            template_img, template_affine, roi_map = load_templates.load_brain_template(braintemplate)
+        else:
+            resolution = 1
+            template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = load_templates.load_template_and_masks(normtemplatename, resolution)
         print('normtemplatename = {}'.format(normtemplatename))
         print('size of template_img is {}'.format(np.shape(template_img)))
 

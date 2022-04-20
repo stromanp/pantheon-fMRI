@@ -439,6 +439,10 @@ def calculate_maineffects(DBname, dbnum, TR, nvols):
     vol_times = (np.array(range(nvols)) + 0.5)*TR   # define the times at the middle of each volume
     output = {'time':vol_times}
 
+    print('defining basis sets...')
+    print('  computing paradigm for {} volumes'.format(nvols))
+    print('  paradigm definition sheet {}'.format(paradigmname))
+    print('  data in paradigm definition sheet are:  {}'.format(colnames))
     for basisname in colnames:
         if basisname != 'dt':
             paradigmdef = df2.loc[:, basisname]
@@ -450,6 +454,8 @@ def calculate_maineffects(DBname, dbnum, TR, nvols):
             paradigm_times = np.array(range(numpoints))*dt
             # interpolate
             f = interp1d(paradigm_times, paradigm_hrf, kind='cubic')
+            print('range of paradigm_times is {} to {}'.format(np.min(paradigm_times),np.max(paradigm_times)))
+            print('range of vol_times is {} to {}'.format(np.min(vol_times),np.max(vol_times)))
             BOLD = f(vol_times)
             BOLD = BOLD - np.mean(BOLD)
             BOLDname = basisname+'_BOLD'

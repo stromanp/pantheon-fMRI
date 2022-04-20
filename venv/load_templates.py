@@ -669,3 +669,17 @@ def load_wm_maps(region_name, resolution, verbose=False):
 
     roi_map = (regionmap_img > 0) | (wmmap_img > 0)
     return wmmap_img, template_img, template_affine, roi_map, gmwm_img
+
+
+def load_brain_template(templatefilename):
+    workingdir = os.path.dirname(os.path.realpath(__file__))
+    brain_templates_folder = os.path.join(workingdir, 'braintemplates')
+    templatename = os.path.join(brain_templates_folder, templatefilename)
+    input_img = nib.load(templatename)
+    template_affine = input_img.affine
+    template_img = input_img.get_fdata()
+    template_img = template_img / np.max(template_img)
+
+    roi_map = template_img > 0.1   # threshold the image at some base level
+
+    return template_img, template_affine, roi_map

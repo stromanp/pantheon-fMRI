@@ -549,7 +549,14 @@ def cleandata(niiname, prefix,nametag, clean_prefix = 'x'):
     xls = pd.ExcelFile(motiondata_xlname, engine = 'openpyxl')
     df1 = pd.read_excel(xls, 'motion_data')
 
-    namelist = ['dx1','dy1','dz1','dx2','dy2','dz2','dx3','dy3','dz3']
+    # check motion data format
+    if ('dx' in df1.keys()) and ('dy' in df1.keys()) and ('dz' in df1.keys()):
+        templatetype = 'brain'
+        namelist = ['dx','dy','dz']
+    else:
+        templatetype = 'notbrain'
+        namelist = ['dx1','dy1','dz1','dx2','dy2','dz2','dx3','dy3','dz3']
+
     for num, name in enumerate(namelist):
         dp = df1.loc[:, name]
         if num == 0:
@@ -758,7 +765,7 @@ def run_preprocessing(settingsfile):
                 print('finished applying normalization ....')
                 # save the normalized nifti images ...
 
-                resulting_img = nib.Nifti1Image(norm_brain_data, norm_brain_affine.affine)
+                resulting_img = nib.Nifti1Image(norm_brain_data.astype(float), norm_brain_affine.affine)
                 p, f_full = os.path.split(prefix_niiname)
                 f, e = os.path.splitext(f_full)
                 ext = '.nii'
@@ -767,7 +774,7 @@ def run_preprocessing(settingsfile):
                     ext = '.nii.gz'
                 output_niiname = os.path.join(p, norm_prefix + f + ext)
                 # need to write the image data out in a smaller format to save disk space ...
-                nib.save(resulting_img.astype(float), output_niiname)
+                nib.save(resulting_img, output_niiname)
 
             else:
                 T = normdata['T']
@@ -838,18 +845,14 @@ def run_preprocessing(settingsfile):
                 basedir = os.path.join(os.getcwd(),'braintemplates')
                 wmmapname =  os.path.join(basedir,'avg152wm.nii')
                 wmtc, xlname = pybasissets.get_brain_whitematter_noise(prefix_niiname, wmmapname, nametag)
+                # get motion parameters
+                motion_xlname = os.path.join(fullpath, 'motiondata' + nametag + '.xlsx')
             else:
                 wmtc, xlname = pybasissets.get_whitematter_noise(prefix_niiname, normtemplatename, nametag)
+                # generate motion confounds - saved as excel file with nifti data
+                # original motion paramters method
+                motion_xlname = pybasissets.coreg_to_motionparams(niiname, normdataname_full, normtemplatename, nametag)
 
-            # generate motion confounds - saved as excel file with nifti data
-            # original motion paramters method
-            motion_xlname = pybasissets.coreg_to_motionparams(niiname, normdataname_full, normtemplatename, nametag)
-
-            # new method based on guided coregistration
-            # motion_xlname = pybasissets.guided_coreg_to_motionparams(normdataname_full, normtemplatename, nametag)
-
-
-            # compile these into one basis set file? - see what is easiest for GLM when it is ready
             print('Finished defining basis sets ...', time.ctime(time.time()))
 
     # if cleaning the data ...

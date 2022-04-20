@@ -383,7 +383,14 @@ def compile_basis_sets(DBname, dbnumlist, prefix, mode = 'concatenate_group', nv
                 xls = pd.ExcelFile(motiondata_xlname)
                 df1 = pd.read_excel(xls, 'motion_data')
 
-                namelist = ['dx1', 'dy1', 'dz1', 'dx2', 'dy2', 'dz2', 'dx3', 'dy3', 'dz3']
+                # check motion data format
+                if ('dx' in df1.keys()) and ('dy' in df1.keys()) and ('dz' in df1.keys()):
+                    templatetype = 'brain'
+                    namelist = ['dx', 'dy', 'dz']
+                else:
+                    templatetype = 'notbrain'
+                    namelist = ['dx1', 'dy1', 'dz1', 'dx2', 'dy2', 'dz2', 'dx3', 'dy3', 'dz3']
+
                 for num, name in enumerate(namelist):
                     dp = df1.loc[:, name]
                     if num == 0:

@@ -84,14 +84,15 @@ def pydisplaystatmap(Tmap, Tthreshold, template, mask,templatename):
 
         for zz in range(zs):
             colnum = zz % ncols
-            rownum = np.floor(zz/ncols)
-            x1 = rownum*xs
-            x2 = (rownum+1)*xs-1
-            y1 = colnum*ys
-            y2 = (colnum+1)*ys-1
-            redrot = red[:,yc1:yc2,zz];  redrot = redrot[:,::-1].T
-            greenrot = green[:,yc1:yc2,zz];  greenrot = greenrot[:,::-1].T
-            bluerot = blue[:,yc1:yc2,zz];  bluerot = bluerot[:,::-1].T
+            rownum = np.floor(zz/ncols).astype(int)
+            x1 = colnum*xs
+            x2 = (colnum+1)*xs
+            y1 = rownum*ys
+            y2 = (rownum+1)*ys
+            # print('zz {}   rownum {} colnum {}  x1,x2 = {},{}  y1,y2 = {},{}'.format(zz,rownum,colnum,x1,x2,y1,y2))
+            redrot = red[:,:,zz];  redrot = redrot[:,::-1].T
+            greenrot = green[:,:,zz];  greenrot = greenrot[:,::-1].T
+            bluerot = blue[:,:,zz];  bluerot = bluerot[:,::-1].T
             outputimg[y1:y2,x1:x2,0:3] = np.dstack((redrot,greenrot,bluerot))
 
     if templatename == 'ccbs':
