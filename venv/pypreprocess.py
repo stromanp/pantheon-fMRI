@@ -490,7 +490,9 @@ def imagesmooth(filename, smoothing_width, smoothed_prefix = 's'):
     nspatialdims = np.min([3,ndims])
 
     if np.size(smoothing_width) < nspatialdims:
-        smoothval = smoothing_width*np.ones(nspatialdims)
+        smoothval = (smoothing_width/2)*np.ones(nspatialdims)
+        # the smoothing_width is the standard deviation of the guassian filter,
+        # but the entered value is the full smoothing width
 
     smoothed_image = np.zeros(np.shape(input_data))
     if ndims == 4:
