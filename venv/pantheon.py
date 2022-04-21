@@ -289,7 +289,7 @@ class BaseFrame:
 
         # create a label under the pictures (row 2), spanning two columns, to tell the user what they are running
         # specify a black background and white letters, with 12 point bold font
-        self.L0 = tk.Label(self.parent, text = "PANTHEON: whole CNS fMRI Analysis", bg = bgcol, fg = fgcol1, font = "none 14 bold")
+        self.L0 = tk.Label(self.parent, text = "PANTHEON:  whole CNS fMRI Analysis", bg = bgcol, fg = fgcol1, font = "none 14 bold")
         self.L0.grid(row=1, column = 0, columnspan = 2, sticky = 'W')
 
 
