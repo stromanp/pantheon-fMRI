@@ -210,8 +210,9 @@ def gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dv
     nbetavals = len(betavals)
     Mconn[ctarget, csource] = betavals
     fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-    cost = np.sum(np.abs(betavals**2))
-    ssqd = err + Lweight * cost  # L2 regularization
+    # cost = np.sum(np.abs(betavals**2))  # L2 regularization
+    cost = np.sum(np.abs(betavals))  # L1 regularization
+    ssqd = err + Lweight * cost
 
     # gradients for betavals
     dssq_db = np.zeros(nbetavals)
@@ -220,8 +221,9 @@ def gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dv
         b[nn] += dval
         Mconn[ctarget, csource] = b
         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-        cost = np.sum(np.abs(b**2))
-        ssqdp = err + Lweight * cost  # L2 regularization
+        # cost = np.sum(np.abs(b**2))  # L2 regularization
+        cost = np.sum(np.abs(b))  # L1 regularization
+        ssqdp = err + Lweight * cost
         dssq_db[nn] = (ssqdp - ssqd) / dval
 
     # gradients for beta_int1
@@ -229,8 +231,9 @@ def gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dv
     b += dval
     Mconn[ctarget, csource] = betavals
     fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, b, fintrinsic1)
-    cost = np.sum(np.abs(b**2))
-    ssqdp = err + Lweight * cost  # L2 regularization
+    # cost = np.sum(np.abs(b**2)) # L2 regularization
+    cost = np.sum(np.abs(b))  # L1 regularization
+    ssqdp = err + Lweight * cost
     dssq_dbeta1 = (ssqdp - ssqd) / dval
 
     return dssq_db, ssqd, dssq_dbeta1
@@ -330,14 +333,6 @@ def ind2sub_ndims(vsize,index):
             m[nn] = np.mod( np.floor(index/np.prod(vsize[:nn])), vsize[nn])
     return m
 
-
-# temporary-------------------------
-# get covariates
-# settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
-# settings = np.load(settingsfile, allow_pickle=True).flat[0]
-# covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
-# covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
-
 #---------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname):
@@ -378,18 +373,8 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEM
 
     # setup index lists---------------------------------------------------------------------------
     # timepoints for full runs----------------------------------------------
-    # previous way ....
-    # for ee in range(ntimepoints):
-    #     et1 = (timepoints[ee] - np.floor(epoch / 2)).astype(int) - 1
-    #     et2 = (timepoints[ee] + np.floor(epoch / 2)).astype(int)
-    #     tplist1 = []
-    #
     epoch = tsize
     timepoint = np.floor(tsize/2)
-
-    # # ignore the first 5 time points
-    # epoch = tsize-5
-    # timepoint = np.floor((tsize-5)/2) + 5
 
     tplist_full = []
     if epoch >= tsize:
@@ -521,7 +506,7 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEM
 
 #----------------------------------------------------------------------------------
 # primary function--------------------------------------------------------------------
-def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparametersname):
+def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparametersname, fixed_beta_vals = []):
     starttime = time.ctime()
 
     # initialize gradient-descent parameters--------------------------------------------------------------
@@ -557,8 +542,6 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
     epoch = SEMparams['epoch']
 
     ntime, NP = np.shape(tplist_full)
-
-
     #---------------------------------------------------------------------------------------------------------
     #---------------------------------------------------------------------------------------------------------
     # repeat the process for each participant-----------------------------------------------------------------
@@ -610,10 +593,6 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
         else:
             beta_int1 = 0.0
 
-        # # this is no longer needed
-        # if vintrinsic_count > 0:
-        #     vintrinsics = np.zeros((vintrinsic_count, tsize_total))    # initialize unknown intrinsic with small random values
-
         # new concept-------------------------------------------
         # 1) test a set of betavalues
         # 2) fit to get the intrinsics that would go along with them
@@ -652,8 +631,9 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
         # fit, Sconn_full = network_eigenvalue_method(Sconn_full, Minput, Mconn, ncon)
 
         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-        cost = np.sum(np.abs(betavals**2))
-        ssqd = err + Lweight * cost  # L2 regularization
+        # cost = np.sum(np.abs(betavals**2)) # L2 regularization
+        cost = np.sum(np.abs(betavals))  # L1 regularization
+        ssqd = err + Lweight * cost
         ssqd_starting = ssqd
         ssqd_record += [ssqd]
 
@@ -674,7 +654,9 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
             dssq_db, ssqd, dssq_dbeta1 = gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight)
             ssqd_record += [ssqd]
 
-            # gradient in beta_int1
+            # fix some beta values at zero, if specified
+            if len(fixed_beta_vals) > 0:
+                dssq_db[fixed_beta_vals] = 0
 
             # apply the changes
             betavals -= alpha * dssq_db
@@ -685,8 +667,9 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
 
             Mconn[ctarget, csource] = betavals
             fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-            cost = np.sum(np.abs(betavals**2))
-            ssqd_new = err + Lweight * cost  # L2 regularization
+            # cost = np.sum(np.abs(betavals**2))  # L2 regularization
+            cost = np.sum(np.abs(betavals))  # L1 regularization
+            ssqd_new = err + Lweight * cost
 
             err_total = Sinput - fit
             Smean = np.mean(Sinput)
@@ -868,8 +851,9 @@ def sem_physio_nulldist(clusterlist, fintrinsic_base, SEMresultsname, SEMparamet
         # fit, Sconn_full = network_eigenvalue_method(Sconn_full, Minput, Mconn, ncon)
 
         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-        cost = np.sum(np.abs(betavals**2))
-        ssqd = err + Lweight * cost  # L2 regularization
+        # cost = np.sum(np.abs(betavals**2)) # L2 regularization
+        cost = np.sum(np.abs(betavals))  # L1 regularization
+        ssqd = err + Lweight * cost
         ssqd_starting = ssqd
         ssqd_record += [ssqd]
 
@@ -901,8 +885,9 @@ def sem_physio_nulldist(clusterlist, fintrinsic_base, SEMresultsname, SEMparamet
 
             Mconn[ctarget, csource] = betavals
             fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-            cost = np.sum(np.abs(betavals**2))
-            ssqd_new = err + Lweight * cost  # L2 regularization
+            # cost = np.sum(np.abs(betavals**2))  # L2 regularization
+            cost = np.sum(np.abs(betavals))  # L1 regularization
+            ssqd_new = err + Lweight * cost
 
             err_total = Sinput - fit
             Smean = np.mean(Sinput)
@@ -1103,8 +1088,9 @@ def sem_physio_nulldist2(clusterlist, fintrinsic_base, SEMresultsname, SEMparame
         # fit, Sconn_full = network_eigenvalue_method(Sconn_full, Minput, Mconn, ncon)
 
         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-        cost = np.sum(np.abs(betavals**2))
-        ssqd = err + Lweight * cost  # L2 regularization
+        # cost = np.sum(np.abs(betavals**2))  # L2 regularization
+        cost = np.sum(np.abs(betavals))  # L1 regularization
+        ssqd = err + Lweight * cost
         ssqd_starting = ssqd
         ssqd_record += [ssqd]
 
@@ -1136,8 +1122,9 @@ def sem_physio_nulldist2(clusterlist, fintrinsic_base, SEMresultsname, SEMparame
 
             Mconn[ctarget, csource] = betavals
             fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-            cost = np.sum(np.abs(betavals**2))
-            ssqd_new = err + Lweight * cost  # L2 regularization
+            # cost = np.sum(np.abs(betavals**2))  # L2 regularization
+            cost = np.sum(np.abs(betavals))  # L1 regularization
+            ssqd_new = err + Lweight * cost
 
             err_total = Sinput - fit
             Smean = np.mean(Sinput)
@@ -1207,12 +1194,24 @@ def sem_physio_nulldist2(clusterlist, fintrinsic_base, SEMresultsname, SEMparame
 #----------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------
-def display_SEM_results(settingsfile, SEMparametersname, SEMresultsname, person_list = [41, 48, 32, 21, 10]):
+def display_SEM_results(covariatesfile, SEMparametersname, SEMresultsname, person_list = [41, 48, 32, 21, 10]):
     # reload parameters if needed--------------------------------------------------------
-    settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
-    settings = np.load(settingsfile, allow_pickle=True).flat[0]
-    covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
-    covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
+    # settings = np.load(settingsfile, allow_pickle=True).flat[0]
+    # covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
+    # covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
+
+    covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
+    if 'gender' in covariatesdata['GRPcharacteristicslist']:
+        x = covariatesdata['GRPcharacteristicslist'].index('gender')
+        covariates1 = covariatesdata['GRPcharacteristicsvalues'][x]
+    else:
+        covariates1 = []
+    if 'painrating' in covariatesdata['GRPcharacteristicslist']:
+        x = covariatesdata['GRPcharacteristicslist'].index('painrating')
+        covariates2 = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
+    else:
+        covariates2 = []
+
 
     SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
     # SEMparams = {'betanamelist': betanamelist, 'beta_list':beta_list, 'nruns_per_person': nruns_per_person,
@@ -1490,10 +1489,22 @@ def display_SEM_results(settingsfile, SEMparametersname, SEMresultsname, person_
 
 #--------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------
-def show_Mconn_properties(settingsfile, SEMparametersname, SEMresultsname):
-    settings = np.load(settingsfile, allow_pickle=True).flat[0]
-    covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
-    covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
+def show_Mconn_properties(covariatesfile, SEMparametersname, SEMresultsname):
+    # settings = np.load(settingsfile, allow_pickle=True).flat[0]
+    # covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
+    # covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
+
+    covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
+    if 'gender' in covariatesdata['GRPcharacteristicslist']:
+        x = covariatesdata['GRPcharacteristicslist'].index('gender')
+        covariates1 = covariatesdata['GRPcharacteristicsvalues'][x]
+    else:
+        covariates1 = []
+    if 'painrating' in covariatesdata['GRPcharacteristicslist']:
+        x = covariatesdata['GRPcharacteristicslist'].index('painrating')
+        covariates2 = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
+    else:
+        covariates2 = []
 
     SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
     network = SEMparams['network']
@@ -1683,7 +1694,7 @@ def show_Mconn_properties(settingsfile, SEMparametersname, SEMresultsname):
 
 
 
-def show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered, group='all', windowoffset = 0, yrange = [], yrange2 = []):
+def show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group='all', windowoffset = 0, yrange = [], yrange2 = []):
     # if len(yrange) > 0:
     #     setylim = True
     #     ymin = yrange[0]
@@ -1691,9 +1702,22 @@ def show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname,
     # else:
     #     setylim = False
 
-    settings = np.load(settingsfile, allow_pickle=True).flat[0]
-    covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
-    covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
+    # settings = np.load(settingsfile, allow_pickle=True).flat[0]
+    # covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
+    # covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
+
+    covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
+    if 'gender' in covariatesdata['GRPcharacteristicslist']:
+        x = covariatesdata['GRPcharacteristicslist'].index('gender')
+        covariates1 = covariatesdata['GRPcharacteristicsvalues'][x]
+    else:
+        covariates1 = []
+    if 'painrating' in covariatesdata['GRPcharacteristicslist']:
+        x = covariatesdata['GRPcharacteristicslist'].index('painrating')
+        covariates2 = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
+    else:
+        covariates2 = []
+
 
     SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
     network = SEMparams['network']
@@ -1842,7 +1866,6 @@ def show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname,
 
     # compare groups with T-tests
 
-
     # set the group
     g = list(range(NP))
     gtag = '_all'
@@ -1856,8 +1879,11 @@ def show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname,
         gtag = '_Female'
 
     Sinput_avg = np.mean(Sinput_total[:,:,g], axis = 2)
+    Sinput_sem = np.std(Sinput_total[:,:,g], axis = 2)/np.sqrt(len(g))
     Sconn_avg = np.mean(Sconn_total[:,:,g], axis = 2)
+    Sconn_sem = np.std(Sconn_total[:,:,g], axis = 2)/np.sqrt(len(g))
     fit_avg = np.mean(fit_total[:,:,g], axis = 2)
+    fit_sem = np.std(fit_total[:,:,g], axis = 2)/np.sqrt(len(g))
 
     # regression based on pain ratings (separate by sex?)
     p = covariates2[np.newaxis, g]
@@ -1935,7 +1961,7 @@ def show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname,
     window2 = 25 + windownum_offset
     regionlist = [3,6,8]
     nametag = r'LC_NTS_PBN' + gtag
-    svgname, Rtext, Rvals = plot_region_fits(window2, regionlist, nametag, Sinput_avg, fit_avg, rnamelist, outputdir, yrange)
+    svgname, Rtext, Rvals = plot_region_fits(window2, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange)
     for n,x in enumerate(regionlist):
         print('Rtext = {}  Rvals = {}'.format(Rtext[n],Rvals[n]))
         Rtextlist[x] = Rtext[n]
@@ -1945,7 +1971,7 @@ def show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname,
     window2 = 33 + windownum_offset
     regionlist = [0,5,1]
     nametag = r'cord_NRM_DRt' + gtag
-    svgname, Rtext, Rvals = plot_region_fits(window2, regionlist, nametag, Sinput_avg, fit_avg, rnamelist, outputdir, yrange)
+    svgname, Rtext, Rvals = plot_region_fits(window2, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange)
     for n,x in enumerate(regionlist):
         Rtextlist[x] = Rtext[n]
         Rvallist[x] = Rvals[n]
@@ -1953,7 +1979,7 @@ def show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname,
     window2b = 35 + windownum_offset
     regionlist = [0,5,4]
     nametag = r'cord_NRM_NGC' + gtag
-    svgname, Rtext, Rvals = plot_region_fits(window2b, regionlist, nametag, Sinput_avg, fit_avg, rnamelist, outputdir, yrange)
+    svgname, Rtext, Rvals = plot_region_fits(window2b, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange)
     for n,x in enumerate(regionlist):
         Rtextlist[x] = Rtext[n]
         Rvallist[x] = Rvals[n]
@@ -1961,7 +1987,7 @@ def show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname,
     window2c = 36 + windownum_offset
     regionlist = [7,2,9]
     nametag = r'PAG_Hyp_Thal' + gtag
-    svgname, Rtext, Rvals = plot_region_fits(window2c, regionlist, nametag, Sinput_avg, fit_avg, rnamelist, outputdir, yrange)
+    svgname, Rtext, Rvals = plot_region_fits(window2c, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange)
     for n,x in enumerate(regionlist):
         Rtextlist[x] = Rtext[n]
         Rvallist[x] = Rvals[n]
@@ -1977,8 +2003,10 @@ def show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname,
         yrangethis = [-ylim,ylim]
     else:
         yrangethis = []
-    plot_region_inputs(window3, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+    plot_region_inputs_regression(window3, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
 
+    plot_region_inputs_average(window3+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
+                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
 
     # yrange = [-1.5,1.5]
     # yrange = []
@@ -1995,8 +2023,10 @@ def show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname,
         yrangethis = [-ylim,ylim]
     else:
         yrangethis = []
-    plot_region_inputs(window1, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+    plot_region_inputs_regression(window1, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
 
+    plot_region_inputs_average(window1+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
+                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
 
     # figure 2--------------------------------------------
     # inputs to NTS
@@ -2008,8 +2038,10 @@ def show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname,
         yrangethis = [-ylim,ylim]
     else:
         yrangethis = []
-    plot_region_inputs(window4, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+    plot_region_inputs_regression(window4, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
 
+    plot_region_inputs_average(window4+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
+                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
 
     # figure 3--------------------------------------------
     # inputs to NGC
@@ -2021,8 +2053,10 @@ def show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname,
         yrangethis = [-ylim,ylim]
     else:
         yrangethis = []
-    plot_region_inputs(window7, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+    plot_region_inputs_regression(window7, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
 
+    plot_region_inputs_average(window7+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
+                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
 
     # figure 4--------------------------------------------
     # inputs to PAG
@@ -2034,8 +2068,10 @@ def show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname,
         yrangethis = [-ylim,ylim]
     else:
         yrangethis = []
-    plot_region_inputs(window5, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+    plot_region_inputs_regression(window5, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
 
+    plot_region_inputs_average(window5+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
+                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
 
     # figure 5   -  inputs to PBN
     window11 = 5 + windownum_offset
@@ -2046,8 +2082,10 @@ def show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname,
         yrangethis = [-ylim,ylim]
     else:
         yrangethis = []
-    plot_region_inputs(window11, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+    plot_region_inputs_regression(window11, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
 
+    plot_region_inputs_average(window11+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
+                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
 
     # figure 6   -  inputs to LC
     window12 = 6 + windownum_offset
@@ -2058,7 +2096,10 @@ def show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname,
         yrangethis = [-ylim,ylim]
     else:
         yrangethis = []
-    plot_region_inputs(window12, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+    plot_region_inputs_regression(window12, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+
+    plot_region_inputs_average(window12+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
+                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
 
 
     # plot a specific connection
@@ -2102,7 +2143,7 @@ def show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname,
 
 #-------------compare groups----------------------------------
 
-def show_SEM_timecourse_results_compare_groups(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered, group='all',
+def show_SEM_timecourse_results_compare_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group='all',
                                 windowoffset=0, yrange = []):
     if len(yrange) > 0:
         setylim = True
@@ -2111,9 +2152,22 @@ def show_SEM_timecourse_results_compare_groups(settingsfile, SEMparametersname, 
     else:
         setylim = False
 
-    settings = np.load(settingsfile, allow_pickle=True).flat[0]
-    covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
-    covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
+    # settings = np.load(settingsfile, allow_pickle=True).flat[0]
+    # covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
+    # covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
+
+    covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
+    if 'gender' in covariatesdata['GRPcharacteristicslist']:
+        x = covariatesdata['GRPcharacteristicslist'].index('gender')
+        covariates1 = covariatesdata['GRPcharacteristicsvalues'][x]
+    else:
+        covariates1 = []
+    if 'painrating' in covariatesdata['GRPcharacteristicslist']:
+        x = covariatesdata['GRPcharacteristicslist'].index('painrating')
+        covariates2 = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
+    else:
+        covariates2 = []
+
 
     SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
     network = SEMparams['network']
@@ -2346,11 +2400,23 @@ def show_SEM_timecourse_results_compare_groups(settingsfile, SEMparametersname, 
 
 #-------------------------------------------------------------
 #---------------show all average values for each group--------
-def show_SEM_average_beta_for_groups(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered, group='all',
+def show_SEM_average_beta_for_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group='all',
                                 windowoffset=0):
-    settings = np.load(settingsfile, allow_pickle=True).flat[0]
-    covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
-    covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
+    # settings = np.load(settingsfile, allow_pickle=True).flat[0]
+    # covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
+    # covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
+
+    covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
+    if 'gender' in covariatesdata['GRPcharacteristicslist']:
+        x = covariatesdata['GRPcharacteristicslist'].index('gender')
+        covariates1 = covariatesdata['GRPcharacteristicsvalues'][x]
+    else:
+        covariates1 = []
+    if 'painrating' in covariatesdata['GRPcharacteristicslist']:
+        x = covariatesdata['GRPcharacteristicslist'].index('painrating')
+        covariates2 = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
+    else:
+        covariates2 = []
 
     painrating = covariates2
 
@@ -2520,7 +2586,114 @@ def show_SEM_average_beta_for_groups(settingsfile, SEMparametersname, SEMresults
 #--------------------------------------------------------------
 #--------------------------------------------------------------
 
-def plot_region_inputs(windownum, target, nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrange = []):
+def plot_region_inputs_average(windownum, target, nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
+                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrange = []):
+    Zthresh = stats.norm.ppf(1-np.array([1.0, 0.05,0.01,0.001]))
+    symbollist = [' ','*', chr(8868),chr(8903)]
+
+    if len(yrange) > 0:
+        setylim = True
+        ymin = yrange[0]
+        ymax = yrange[1]
+    else:
+        setylim = False
+
+    rtarget = rnamelist.index(target)
+    m = Minput[rtarget, :]
+    sources = np.where(m == 1)[0]
+    rsources = [beta_list[ss]['pair'][0] for ss in sources]
+    nsources = len(sources)
+    nregions = len(rnamelist)
+    checkdims = np.shape(Sinput_reg)
+    if np.ndim(Sinput_reg) > 2:  nv = checkdims[2]
+    tsize = checkdims[1]
+
+    # get beta values from Mconn
+    m = Mconn_avg[:,sources[0]]
+    targets2ndlevel_list = np.where(m != 0.)[0]
+    textlist = []
+    for ss in sources:
+        text = betanamelist[ss] + ': '
+        beta = Mconn_avg[targets2ndlevel_list,ss]
+        for ss2 in range(len(beta)):
+            valtext = '{:.2f} '.format(beta[ss2])
+            text1 = '{}{}'.format(valtext,betanamelist[targets2ndlevel_list[ss2]])
+            text += text1 + ', '
+        textlist += [text[:-1]]
+
+    plt.close(windownum)
+    fig1, axs = plt.subplots(nsources, 2, sharey=True, figsize=(12, 9), dpi=100, num=windownum)
+
+    x = list(range(tsize))
+    xx = x + x[::-1]
+    tc1 = Sinput_avg[rtarget,:]
+    tc1p = Sinput_sem[rtarget,:]
+    tc1f = fit_avg[rtarget,:]
+    tc1fp = fit_sem[rtarget,:]
+
+    # Z1 = Sinput_reg[rtarget,:,3]
+    # Z1f = fit_reg[rtarget,:,3]
+    #
+    # S = np.zeros(len(Z1)).astype(int)
+    # for n in range(len(Z1)): c = np.where(Zthresh < Z1[n])[0];  S[n] = np.max(c)
+    # Sf = np.zeros(len(Z1f)).astype(int)
+    # for n in range(len(Z1f)): c = np.where(Zthresh < Z1f[n])[0];  Sf[n] = np.max(c)
+
+    y1 = list(tc1f+tc1fp)
+    y2 = list(tc1f-tc1fp)
+    yy = y1 + y2[::-1]
+    axs[1,1].plot(x, tc1, '-ob', linewidth=1, markersize=4)
+    # axs[1,1].plot(tc1+tc1p, '-b')
+    # axs[1,1].plot(tc1-tc1p, '--b')
+    axs[1,1].plot(x, tc1f, '-xr', linewidth=1, markersize=4)
+    axs[1,1].fill(xx,yy, facecolor=(1,0,0), edgecolor='None', alpha = 0.2)
+    axs[1,1].plot(x, tc1f+tc1fp, color = (1,0,0), linestyle = '-', linewidth = 0.5)
+    # axs[1,1].plot(x, tc1f-tc1fp, '--r')
+    axs[1,1].set_title('target input {}'.format(rnamelist[rtarget]))
+
+    # add marks for significant slope wrt pain
+    ymax = np.max(np.abs(yy))
+    # for n,s in enumerate(S):
+    #     if s > 0: axs[1,1].annotate(symbollist[s], xy = (x[n]-0.25, ymax), fontsize=8)
+
+    for ss in range(nsources):
+        tc1 = Sconn_avg[sources[ss], :]
+        tc1p = Sconn_sem[sources[ss], :]
+
+        # Z1 = Sconn_reg[sources[ss], :, 3]
+        # S = np.zeros(len(Z1)).astype(int)
+        # for n in range(len(Z1)): c = np.where(Zthresh < Z1[n])[0];  S[n] = np.max(c)
+
+        y1 = list(tc1 + tc1p)
+        y2 = list(tc1 - tc1p)
+        yy = y1 + y2[::-1]
+        axs[ss,0].plot(x, tc1, '-xr')
+        axs[ss,0].fill(xx,yy, facecolor=(1,0,0), edgecolor='None', alpha = 0.2)
+        # axs[ss,0].plot(x, tc1+tc1p, '-r')
+        # axs[ss,0].plot(x, tc1-tc1p, '--r')
+        axs[ss,0].plot(x, tc1+tc1p, color = (1,0,0), linestyle = '-', linewidth = 0.5)
+        if rsources[ss] >= nregions:
+            axs[ss, 0].set_title('source output {} {}'.format(betanamelist[sources[ss]], 'int'))
+        else:
+            axs[ss,0].set_title('source output {} {}'.format(betanamelist[sources[ss]], rnamelist[rsources[ss]]))
+        axs[ss,0].annotate(textlist[ss], xy=(.025, .025), xycoords='axes  fraction',
+                horizontalalignment='left', verticalalignment='bottom', fontsize=10)
+
+        # add marks for significant slope wrt pain
+        # ymax = np.max(np.abs(yy))
+        # for n, s in enumerate(S):
+        #     if s > 0: axs[ss,0].annotate(symbollist[s], xy = (x[n]-0.25, ymax), fontsize=8)
+
+        if setylim:
+            axs[ss,0].set_ylim((ymin,ymax))
+    # p, f = os.path.split(SEMresultsname)
+    svgname = os.path.join(outputdir, 'Avg_' + nametag1 + '.svg')
+    plt.savefig(svgname)
+
+    return svgname
+
+
+def plot_region_inputs_regression(windownum, target, nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrange = []):
     Zthresh = stats.norm.ppf(1-np.array([1.0, 0.05,0.01,0.001]))
     symbollist = [' ','*', chr(8868),chr(8903)]
 
@@ -2626,13 +2799,13 @@ def plot_region_inputs(windownum, target, nametag1, Minput, Sinput_reg, fit_reg,
         if setylim:
             axs[ss,0].set_ylim((ymin,ymax))
     # p, f = os.path.split(SEMresultsname)
-    svgname = os.path.join(outputdir, 'Avg_' + nametag1 + '.svg')
+    svgname = os.path.join(outputdir, 'Reg_' + nametag1 + '.svg')
     plt.savefig(svgname)
 
     return svgname
 
 
-def plot_region_fits(window, regionlist, nametag, Sinput_avg, fit_avg, rnamelist, outputdir, yrange = []):
+def plot_region_fits(window, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange = []):
     if len(yrange) > 0:
         setylim = True
         ymin = yrange[0]
@@ -2651,9 +2824,20 @@ def plot_region_fits(window, regionlist, nametag, Sinput_avg, fit_avg, rnamelist
     for nn in range(ndisplay):
         tc1 = Sinput_avg[regionlist[nn], :]
         tcf1 = fit_avg[regionlist[nn], :]
+        t = np.array(range(len(tc1)))
 
-        axs[nn].plot(tc1, '-ob', linewidth=1, markersize=4)
-        axs[nn].plot(tcf1, '-xr', linewidth=1, markersize=4)
+        if len(Sinput_sem) > 0:
+            tc1_sem = Sinput_sem[regionlist[nn], :]
+            axs[nn].errorbar(t, tc1, tc1_sem, marker = 'o', markerfacecolor = 'b', markeredgecolor = 'b', linestyle = '-', color = 'b', linewidth=1, markersize=4)
+        else:
+            axs[nn].plot(t, tc1, '-ob', linewidth=1, markersize=4)
+
+        if len(fit_sem) > 0:
+            tcf1_sem = fit_sem[regionlist[nn], :]
+            axs[nn].errorbar(t, tcf1, tcf1_sem, marker = 'o', markerfacecolor = 'r', markeredgecolor = 'r', linestyle = '-', color = 'r', linewidth=1, markersize=4)
+        else:
+            axs[nn].plot(t, tcf1, '-xr', linewidth=1, markersize=4)
+
         axs[nn].set_title('target {}'.format(rnamelist[regionlist[nn]]))
         if setylim:
             axs[nn].set_ylim((ymin,ymax))
@@ -3274,7 +3458,8 @@ def betavalue_labels(csource, ctarget, rnamelist, betanamelist, beta_list, Mconn
 # main program
 def noise_test():
     # noise_test function
-    settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+    # settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+    covariatesfile = r'D:\threat_safety_python\copy_of_covariates.npy'
 
     outputdir = r'D:\threat_safety_python\individual_differences'
     if not os.path.exists(outputdir): os.mkdir(outputdir)
@@ -3344,7 +3529,8 @@ def noise_test():
 # main program
 def main():
     # main function
-    settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+    # settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+    covariatesfile = r'D:\threat_safety_python\copy_of_covariates.npy'
 
     outputdir = r'D:/threat_safety_python/SEMresults_Feb2022c'
     if not os.path.exists(outputdir): os.mkdir(outputdir)
@@ -3436,7 +3622,7 @@ def main():
             windowoffset = 0
             yrange = []
             yrange2 = []
-            Rtextlist, Rvallist = show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+            Rtextlist, Rvallist = show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
                                             windowoffset, yrange, yrange2)
 
             resultsrecord.append({'Rtextlist':Rtextlist})
@@ -3495,17 +3681,17 @@ def main():
     yrange2 = [1.6, 0.7, 0.8, 0.6, 0.9, 0.8, 0.5]   # for Feb2022C
     windowoffset = 0
     group = 'Female'
-    show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+    show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
                                     windowoffset, yrange, yrange2)
 
     group = 'Male'
-    show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+    show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
                                     windowoffset, yrange, yrange2)
 
-    show_SEM_timecourse_results_compare_groups(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered)
+    show_SEM_timecourse_results_compare_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered)
 
     group = 'all'
-    show_SEM_average_beta_for_groups(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+    show_SEM_average_beta_for_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
                                      windowoffset=0)
 
     # display a cluster
@@ -3531,7 +3717,8 @@ def main():
 def IDstudy_search(cord_cluster):
 
     # main function
-    settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+    # settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+    covariatesfile = r'D:\threat_safety_python\copy_of_covariates.npy'
 
     outputdir = r'D:\threat_safety_python\individual_differences'
     if not os.path.exists(outputdir): os.mkdir(outputdir)
@@ -3599,7 +3786,7 @@ def IDstudy_search(cord_cluster):
             windowoffset = 0
             yrange = []
             yrange2 = []
-            Rtextlist, Rvallist = show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+            Rtextlist, Rvallist = show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
                                             windowoffset, yrange, yrange2)
 
             resultsrecord.append({'Rtextlist':Rtextlist})
@@ -3658,7 +3845,7 @@ def IDstudy_search(cord_cluster):
     windowoffset = 0
 
     group = 'all'
-    show_SEM_average_beta_for_groups(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+    show_SEM_average_beta_for_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
                                      windowoffset=0)
 
     run_nulldist = False
@@ -3755,7 +3942,8 @@ def IDstudy_main(cord_cluster, type, reload_existing = False):
     if not os.path.exists(outputdir): os.mkdir(outputdir)
 
     # main function
-    settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+    # settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+    covariatesfile = r'D:\threat_safety_python\copy_of_covariates.npy'
 
     SEMresultsname = os.path.join(outputdir, 'SEMphysio_model.npy')
     SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
@@ -3805,7 +3993,7 @@ def IDstudy_main(cord_cluster, type, reload_existing = False):
     windowoffset = 0
     yrange = []
     yrange2 = []
-    Rtextlist, Rvallist = show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+    Rtextlist, Rvallist = show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
                                     windowoffset, yrange, yrange2)
 
     yrange = [-0.6, 0.6]
@@ -3813,14 +4001,21 @@ def IDstudy_main(cord_cluster, type, reload_existing = False):
     windowoffset = 0
 
     group = 'all'
-    show_SEM_average_beta_for_groups(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+    show_SEM_average_beta_for_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
                                      windowoffset=0)
 
     # show a specific connection
     connection_name = 'PBN-LC-DRt'
 
-    settings = np.load(settingsfile, allow_pickle=True).flat[0]
-    covariates = settings['GRPcharacteristicsvalues'][0].astype(float)  # painrating
+    # settings = np.load(settingsfile, allow_pickle=True).flat[0]
+    # covariates = settings['GRPcharacteristicsvalues'][0].astype(float)  # painrating
+
+    covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
+    if 'painrating' in covariatesdata['GRPcharacteristicslist']:
+        x = covariatesdata['GRPcharacteristicslist'].index('painrating')
+        covariates = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
+    else:
+        covariates = []
 
     plot_correlated_results(SEMresultsname, SEMparametersname, connection_name, covariates, figurenumber = 1)
 
@@ -3832,7 +4027,8 @@ def test_bootstrap_idea():
     if not os.path.exists(outputdir): os.mkdir(outputdir)
 
     # main function
-    settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+    # settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+    covariatesfile = r'D:\threat_safety_python\copy_of_covariates.npy'
 
     SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
     networkfile = r'D:/threat_safety_python/network_model_5cluster_v5_w_3intrinsics.xlsx'
@@ -3846,8 +4042,8 @@ def test_bootstrap_idea():
     paradigm = df1['paradigms_BOLD']
     timevals = df1['time']
     paradigm_centered = paradigm - np.mean(paradigm)
-    dparadigm = np.zeros(len(paradigm))
-    dparadigm[1:] = np.diff(paradigm_centered)
+    # dparadigm = np.zeros(len(paradigm))
+    # dparadigm[1:] = np.diff(paradigm_centered)
 
     regiondataname = r'D:/threat_safety_python/threat_safety_regiondata_allthreat55.npy'
     clusterdataname = r'D:/threat_safety_python/threat_safety_clusterdata.npy'
@@ -3876,63 +4072,63 @@ def test_bootstrap_idea():
     epoch = 0
     NP = len(tplist_full[epoch])
 
-    # first pass - change nothing
-    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model0.npy')
-    boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters0.npy')
-    SEMparams['tplist_full'] = tplist_full
-    tplist_full0 = copy.deepcopy(tplist_full)
-    np.save(boot_SEMparametersname, SEMparams)
-    output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
-    SEMresults0 = np.load(output, allow_pickle=True)
+    # # first pass - change nothing
+    # SEMresultsname = os.path.join(outputdir, 'SEMphysio_model0.npy')
+    # boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters0.npy')
+    # SEMparams['tplist_full'] = tplist_full
+    # tplist_full0 = copy.deepcopy(tplist_full)
+    # np.save(boot_SEMparametersname, SEMparams)
+    # output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
+    # SEMresults0 = np.load(output, allow_pickle=True)
 
-    # second pass - change something
-    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model1.npy')
-    boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters1.npy')
-    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
-    tplist_full = SEMparams['tplist_full']
-    tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'allodds')
-    SEMparams['tplist_full'] = tplist
-    np.save(boot_SEMparametersname, SEMparams)
-    tplist_full1 = copy.deepcopy(tplist)
-    output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
-    SEMresults1 = np.load(output, allow_pickle=True)
+    # # second pass - change something
+    # SEMresultsname = os.path.join(outputdir, 'SEMphysio_model1.npy')
+    # boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters1.npy')
+    # SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+    # tplist_full = SEMparams['tplist_full']
+    # tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'allodds')
+    # SEMparams['tplist_full'] = tplist
+    # np.save(boot_SEMparametersname, SEMparams)
+    # tplist_full1 = copy.deepcopy(tplist)
+    # output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
+    # SEMresults1 = np.load(output, allow_pickle=True)
 
-    # third pass - change something else
-    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model2.npy')
-    boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters2.npy')
-    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
-    tplist_full = SEMparams['tplist_full']
-    tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'allevens')
-    SEMparams['tplist_full'] = tplist
-    np.save(boot_SEMparametersname, SEMparams)
-    tplist_full2 = copy.deepcopy(tplist)
-    output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
-    SEMresults2 = np.load(output, allow_pickle=True)
+    # # third pass - change something else
+    # SEMresultsname = os.path.join(outputdir, 'SEMphysio_model2.npy')
+    # boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters2.npy')
+    # SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+    # tplist_full = SEMparams['tplist_full']
+    # tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'allevens')
+    # SEMparams['tplist_full'] = tplist
+    # np.save(boot_SEMparametersname, SEMparams)
+    # tplist_full2 = copy.deepcopy(tplist)
+    # output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
+    # SEMresults2 = np.load(output, allow_pickle=True)
 
 
-    # fourth pass - change something else
-    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model3.npy')
-    boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters3.npy')
-    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
-    tplist_full = SEMparams['tplist_full']
-    tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'evenruns', 0, 40)
-    SEMparams['tplist_full'] = tplist
-    np.save(boot_SEMparametersname, SEMparams)
-    tplist_full3 = copy.deepcopy(tplist)
-    output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
-    SEMresults3 = np.load(output, allow_pickle=True)
+    # # fourth pass - change something else
+    # SEMresultsname = os.path.join(outputdir, 'SEMphysio_model3.npy')
+    # boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters3.npy')
+    # SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+    # tplist_full = SEMparams['tplist_full']
+    # tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'evenruns', 0, 40)
+    # SEMparams['tplist_full'] = tplist
+    # np.save(boot_SEMparametersname, SEMparams)
+    # tplist_full3 = copy.deepcopy(tplist)
+    # output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
+    # SEMresults3 = np.load(output, allow_pickle=True)
 
-    # fifth pass - change something else
-    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model4.npy')
-    boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters4.npy')
-    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
-    tplist_full = copy.deepcopy(SEMparams['tplist_full'])
-    tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'oddruns', 0, 40)
-    SEMparams['tplist_full'] = tplist
-    np.save(boot_SEMparametersname, SEMparams)
-    tplist_full4 = copy.deepcopy(tplist)
-    output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
-    SEMresults4 = np.load(output, allow_pickle=True)
+    # # fifth pass - change something else
+    # SEMresultsname = os.path.join(outputdir, 'SEMphysio_model4.npy')
+    # boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters4.npy')
+    # SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+    # tplist_full = copy.deepcopy(SEMparams['tplist_full'])
+    # tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'oddruns', 0, 40)
+    # SEMparams['tplist_full'] = tplist
+    # np.save(boot_SEMparametersname, SEMparams)
+    # tplist_full4 = copy.deepcopy(tplist)
+    # output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
+    # SEMresults4 = np.load(output, allow_pickle=True)
 
 
     # iterate through a number of passes - replacing random time points - 20% of the data
@@ -3977,21 +4173,21 @@ def test_bootstrap_idea():
             sd_beta[nn,bb] = np.std(allbeta[:,nn,bb])
             sem_beta[nn,bb] = np.std(allbeta[:,nn,bb])/np.sqrt(ns)
 
-    np = 0
-    for n in range(nb):
-        print('{}  {:.3f} {} {:.3f}  T = {:.2f}'.format(n, avg_beta[np,n], chr(177), sem_beta[np,n], avg_beta[np,n]/sem_beta[np,n]))
+    # np = 0
+    # for n in range(nb):
+    #     print('{}  {:.3f} {} {:.3f}  T = {:.2f}'.format(n, avg_beta[np,n], chr(177), sem_beta[np,n], avg_beta[np,n]/sem_beta[np,n]))
 
-    # pick a person to display
-    p = 50
-    mbeta = avg_beta[p,:]
-    sbeta = sd_beta[p,:]
-
-    fignumber = 106+p
-    plt.close(fignumber)
-    fig = plt.figure(fignumber)
-    x = np.array(list(range(ncon)))
-    plt.errorbar(x, mbeta, yerr = sbeta,fmt='o',ecolor = 'red',color='red')
-    plt.errorbar(x[latentlist], mbeta[latentlist], yerr = sbeta[latentlist],fmt='o',ecolor = 'red',color='black')
+    # # pick a person to display
+    # p = 50
+    # mbeta = avg_beta[p,:]
+    # sbeta = sd_beta[p,:]
+    #
+    # fignumber = 106+p
+    # plt.close(fignumber)
+    # fig = plt.figure(fignumber)
+    # x = np.array(list(range(ncon)))
+    # plt.errorbar(x, mbeta, yerr = sbeta,fmt='o',ecolor = 'red',color='red')
+    # plt.errorbar(x[latentlist], mbeta[latentlist], yerr = sbeta[latentlist],fmt='o',ecolor = 'red',color='black')
 
 
     #--------------show some results--------------------------
@@ -4018,6 +4214,12 @@ def test_bootstrap_idea():
         name = '{}-{}-{}'.format(sname0,sname1,tname1)
         connection_name_list.append(name)
 
+    reciprocal_con_list = []
+    for nn in range(ncon):
+        spair = beta_list[csource[nn]]['pair']
+        tpair = beta_list[ctarget[nn]]['pair']
+        if spair[0] == tpair[1]:  reciprocal_con_list += [nn]
+
     latentlist = []
     for nn in range(ncon):
         regions1 = beta_list[csource[nn]]['pair']
@@ -4027,15 +4229,15 @@ def test_bootstrap_idea():
     nonlatentlist = [x for x in range(ncon) if x not in latentlist]
     NL = len(nonlatentlist)
 
-    # organize data
-    NP = len(SEMresults0)
-    beta = np.zeros((5,NP,ncon))
-    for p in range(NP):
-        beta[0,p,:] = SEMresults0[p]['betavals']
-        beta[1,p,:] = SEMresults1[p]['betavals']
-        beta[2,p,:] = SEMresults2[p]['betavals']
-        beta[3,p,:] = SEMresults3[p]['betavals']
-        beta[4,p,:] = SEMresults4[p]['betavals']
+    # # organize data
+    # NP = len(SEMresults0)
+    # beta = np.zeros((5,NP,ncon))
+    # for p in range(NP):
+    #     beta[0,p,:] = SEMresults0[p]['betavals']
+    #     beta[1,p,:] = SEMresults1[p]['betavals']
+    #     beta[2,p,:] = SEMresults2[p]['betavals']
+    #     beta[3,p,:] = SEMresults3[p]['betavals']
+    #     beta[4,p,:] = SEMresults4[p]['betavals']
 
     # display variations across people
     mbeta = np.mean(beta, axis = 0)
@@ -4077,6 +4279,30 @@ def test_bootstrap_idea():
         x = sortlist[nn]
         print('{}  average beta = {:.3f} {} {:.3f}'.format(connection_name_list[x],mbeta_group[x],chr(177),sbeta_group[x]))
 
+    # rerun SAPM without these inconsequential connections
+    fixem = sortlist[:30]
+
+    # rerun without direct reciprocal connections, such as PBN-NTS-PBN
+    fixem = reciprocal_con_list
+
+    # rerun with nothing excluded
+    fixem = []
+
+    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model_L1reg.npy')
+    SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
+    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
+    output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname, fixed_beta_vals = fixem)
+    SEMresults = np.load(output, allow_pickle=True)
+
+    group = 'all'
+    windowoffset = 0
+    yrange = []
+    yrange2 = []
+    Rtextlist, Rvallist = show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+                                    windowoffset, yrange, yrange2)
+    show_SEM_average_beta_for_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+                                     windowoffset=0)
+
 
 
         # G = np.concatenate((x[np.newaxis, nonlatentlist], np.ones((1, NL))))
@@ -4089,30 +4315,6 @@ def test_bootstrap_idea():
         # plt.plot(x, y, 'ok')
         # plt.plot(x[nonlatentlist], y[nonlatentlist], 'or')
         # plt.plot(x[nonlatentlist], fit[0, :], '-k')
-
-
-    group = 'all'
-    windowoffset = 0
-    yrange = []
-    yrange2 = []
-    Rtextlist, Rvallist = show_SEM_timecourse_results(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
-                                    windowoffset, yrange, yrange2)
-
-    yrange = [-0.6, 0.6]
-    yrange2 = [1.6, 0.7, 0.8, 0.6, 0.9, 0.8, 0.5]   # for Feb2022C
-    windowoffset = 0
-
-    group = 'all'
-    show_SEM_average_beta_for_groups(settingsfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
-                                     windowoffset=0)
-
-    # show a specific connection
-    connection_name = 'PBN-LC-DRt'
-
-    settings = np.load(settingsfile, allow_pickle=True).flat[0]
-    covariates = settings['GRPcharacteristicsvalues'][0].astype(float)  # painrating
-
-    plot_correlated_results(SEMresultsname, SEMparametersname, connection_name, covariates, figurenumber = 1)
 
 
 def mod_tplist_for_bootstrap(tplist_full, epoch, modtype, percent_replace = 0, tsize =40):
@@ -4299,8 +4501,9 @@ def sem_with_semopy(clusterlist, fintrinsic_base, SEMresultsname, SEMparametersn
         # # starting point for optimizing intrinsics with given betavals----------------------------------------------------
 
         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-        cost = np.sum(np.abs(betavals ** 2))
-        ssqd = err + Lweight * cost  # L2 regularization
+        # cost = np.sum(np.abs(betavals ** 2)) # L2 regularization
+        cost = np.sum(np.abs(betavals))  # L1 regularization
+        ssqd = err + Lweight * cost
         ssqd_starting = ssqd
         ssqd_record += [ssqd]
 
@@ -4332,8 +4535,9 @@ def sem_with_semopy(clusterlist, fintrinsic_base, SEMresultsname, SEMparametersn
 
             Mconn[ctarget, csource] = betavals
             fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-            cost = np.sum(np.abs(betavals ** 2))
-            ssqd_new = err + Lweight * cost  # L2 regularization
+            # cost = np.sum(np.abs(betavals ** 2))  # L2 regularization
+            cost = np.sum(np.abs(betavals))  # L1 regularization
+            ssqd_new = err + Lweight * cost
 
             err_total = Sinput - fit
             Smean = np.mean(Sinput)
