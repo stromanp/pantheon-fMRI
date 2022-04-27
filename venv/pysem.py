@@ -50,7 +50,7 @@ def dataindices_from_sourceclusters(nclusterlist, sourcenums,index):
 def single_source_fit(y,X):
     # special case of y = b X for a single source
     CC = np.cov(y,X)
-    b = CC[0,1]/CC[1,1]
+    b = CC[0,1]/(CC[1,1] + 1.0e-20)
 
     fit = b*X
     err = y - fit
@@ -297,6 +297,117 @@ def gradient_descent_single(b0, y, X, Lweight, alpha, deltab, tol=1e-6, maxiter=
 #-----------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------------
 # one-source and two-source sem
+def pysem_onesource(cluster_properties, region_properties, timepoints = 0, epoch = 0):
+    print('running pysem_onesource ...')
+
+    # for each region, there is an entry in cluster_properties and in region_properties
+    # clusterdef_entry = {'cx': cx, 'cy': cy, 'cz': cz, 'IDX': IDX, 'nclusters': nclusters, 'rname': rname,
+    #                     'regionindex': regionindex, 'regionnum': regionnum}
+    # regiondata_entry = {'tc': tc, 'tc_sem': tc_sem, 'nruns_per_person': nruns_per_person, 'tsize': tsize}
+    nregions = len(cluster_properties)
+    nclusterlist = [cluster_properties[i]['nclusters'] for i in range(nregions)]
+    nclusterstotal = np.sum(nclusterlist)
+
+    tsize = region_properties[0]['tsize']
+    print('pysem:  tsize = {}'.format(tsize))
+    nruns_per_person = region_properties[0]['nruns_per_person']
+    NP = len(nruns_per_person)   # number of people in the data set
+
+    tcdata = []
+    for i in range(nregions):
+        tc = region_properties[i]['tc']
+        # nc = nclusterlist[i]
+        if i == 0:
+            tcdata = tc
+        else:
+            tcdata = np.append(tcdata,tc,axis=0)
+
+    nclusters,tsize_full = tcdata.shape
+
+    if epoch == 0:
+        ntimepoints = 1  # use all the data (not dynamic)
+    else:
+        if not hasattr(timepoints,'__len__'):
+            timepoints = [timepoints]
+        ntimepoints = len(timepoints)
+
+    # dynamic sem?
+    # timepoints ?
+    # epoch ?
+    # create lists of the data timepoints that need to be extracted for each person/epoch
+    # the result is a list of dictionaries, with size:  ntimepoints x NP
+    if epoch == 0:  # use the full time-course, not dynamic
+        tplist = []
+        tplist1 = []
+        for nn in range(NP):
+            r1 = sum(nruns_per_person[:nn])
+            r2 = sum(nruns_per_person[:(nn+1)])
+            t1 = r1*tsize
+            t2 = r2*tsize
+            tpoints = list(range(t1,t2))
+            tplist1.append({'tp':tpoints})
+        tplist.append(tplist1)  # this is just for consistency when ntimepoints > 0
+    else:
+        tplist = []
+        for ee in range(ntimepoints):
+            et1 = (timepoints[ee] - np.floor(epoch/2)).astype(int)-1
+            et2 = (timepoints[ee] + np.floor(epoch/2)).astype(int)
+            tplist1 = []
+            for nn in range(NP):
+                r1 = sum(nruns_per_person[:nn])
+                r2 = sum(nruns_per_person[:(nn+1)])
+                tp = [] # initialize list
+                tpoints = []
+                for ee2 in range(r1,r2):
+                    tp = list(range((ee2*tsize+et1),(ee2*tsize+et2)))
+                    tpoints = tpoints + tp   # concatenate lists
+                tplist1.append({'tp':tpoints})
+            tplist.append(tplist1)
+
+    tcdata_centered = copy.deepcopy(tcdata)
+    for ttime in range(ntimepoints):
+        for nn in range(NP):
+            tp = tplist[ttime][nn]['tp']
+            tcdata1 = tcdata[:, tp]
+            for ee in range(nruns_per_person[nn]):
+                tpe1 = ee * epoch
+                tpe2 = (ee + 1) * epoch
+                tcdata1_mean = np.mean(tcdata1[:, tpe1:tpe2], axis=1)
+                # tcdata1_mean = np.repeat(tcdata1_mean[:,np.newaxis],epoch*nruns_per_person[nn],axis=1)
+                tcdata1_mean = np.repeat(tcdata1_mean[:, np.newaxis], epoch, axis=1)
+                tcdata1[:, tpe1:tpe2] = tcdata1[:, tpe1:tpe2] - tcdata1_mean  # need to set the mean for each epoch to zero
+            tcdata_centered[:,tp] = tcdata1
+
+    # change to setting data to mean = 0 when it is first loaded
+    CRrecord = np.zeros((ntimepoints,NP,nclusters,nclusters))
+    CCrecord = np.zeros((ntimepoints,NP,nclusters,nclusters))
+    for ttime in range(ntimepoints):
+        for nn in range(NP):
+            tp = tplist[ttime][nn]['tp']
+
+            print('time {}  person {}'.format(ttime+1,nn+1))
+            print('tp includes {} points'.format(len(tp)))
+            print('nruns is {} and tsize/run is {}'.format(nruns_per_person[nn],epoch))
+
+            tcdata1 = tcdata_centered[:,tp]
+            # variance/covariance grid
+            covmatrix = np.cov(tcdata1)
+
+            # corrmatrix = np.corrcoef(tcdata1)   # crashes sometimes
+            tcdata1_2 = np.sum(tcdata1**2,axis = 1)
+            corr = (tcdata1 @ tcdata1.T)/(np.sqrt(tcdata1_2[:,np.newaxis] @ tcdata1_2[:,np.newaxis].T) + 1.0e-20)
+
+            CCrecord[ttime,nn,:,:] = covmatrix
+            CRrecord[ttime,nn,:,:] = corr
+
+    print('pysem:  finished computing variance/covariance matrix ...')
+
+    return CCrecord, CRrecord
+
+
+#-----------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------
+# one-source and two-source sem
 def pysem(cluster_properties, region_properties, timepoints = 0, epoch = 0):
     print('running pysem ...')
 
@@ -419,7 +530,7 @@ def pysem(cluster_properties, region_properties, timepoints = 0, epoch = 0):
         tclusters = list(range(t1,t2))
         for tc in tclusters:
             targetdata = tcdata_centered[tc, :]
-            # print('pysem: calculating for cluster {} of target {} s1 region {} s2 region {} ...{}'.format(tc+1,tregion,s1region,s2region,time.ctime(time.time())))
+            print('pysem: calculating for cluster {} of target {} s1 region {} s2 region {} ...{}'.format(tc+1,tregion,s1region,s2region,time.ctime(time.time())))
 
             s1regions = np.setdiff1d(list(range(nregions)), tregion)
             for s1region in s1regions:

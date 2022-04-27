@@ -649,6 +649,7 @@ def run_preprocessing(settingsfile):
     smooth_choice = settings['smooth_choice']
     define_choice = settings['define_choice']
     clean_choice = settings['clean_choice']
+    braintemplatename = settings['braintemplate']
 
     # identify pre-processing steps to be completed, and data prefixes for inputs for each step
     prefix_list = setprefixlist(settingsfile)
@@ -754,6 +755,7 @@ def run_preprocessing(settingsfile):
 
             if normtemplatename == 'brain':
                 norm_brain_affine = normdata['norm_affine_transformation']
+                output_affine = normdata['output_affine']
                 # img_data, img_affine = i3d.load_and_scale_nifti(niiname)   # this function also scales the images to 1mm cubic voxels
 
                 input_img = nib.load(prefix_niiname)
@@ -767,7 +769,9 @@ def run_preprocessing(settingsfile):
                 print('finished applying normalization ....')
                 # save the normalized nifti images ...
 
-                resulting_img = nib.Nifti1Image(norm_brain_data.astype(float), norm_brain_affine.affine)
+                # the affine matrix for the output is the affine matrix for the template, not the transformation affine
+                # that is stored in norm_brain_affine.affine
+                resulting_img = nib.Nifti1Image(norm_brain_data.astype(float), output_affine)
                 p, f_full = os.path.split(prefix_niiname)
                 f, e = os.path.splitext(f_full)
                 ext = '.nii'
@@ -845,7 +849,9 @@ def run_preprocessing(settingsfile):
             if normtemplatename == 'brain':
                 # need special case for brain data....
                 basedir = os.path.join(os.getcwd(),'braintemplates')
-                wmmapname =  os.path.join(basedir,'avg152wm.nii')
+                bf,be = os.path.splitext(braintemplatename)
+                # the white matter map name must be matched to the brain template that was used for normalization
+                wmmapname =  os.path.join(basedir,bf + '_wm.nii')
                 wmtc, xlname = pybasissets.get_brain_whitematter_noise(prefix_niiname, wmmapname, nametag)
                 # get motion parameters
                 motion_xlname = os.path.join(fullpath, 'motiondata' + nametag + '.xlsx')

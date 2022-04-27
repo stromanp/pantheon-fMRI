@@ -23,7 +23,7 @@ Jobs to do:
 10) Visualization of results
 
 """
-# sys.path.append(r'C:\Users\16135\PycharmProjects\pyspinalfmri3\venv')
+# sys.path.append(r'C:\Users\16135\PycharmProjects\pantheon\venv')
 
 # import necessary modules 
 import tkinter as tk
@@ -289,7 +289,7 @@ class BaseFrame:
 
         # create a label under the pictures (row 2), spanning two columns, to tell the user what they are running
         # specify a black background and white letters, with 12 point bold font
-        self.L0 = tk.Label(self.parent, text = "PANTHEON:  whole CNS fMRI Analysis", bg = bgcol, fg = fgcol1, font = "none 14 bold")
+        self.L0 = tk.Label(self.parent, text = "PANTHEON: whole CNS fMRI Analysis", bg = bgcol, fg = fgcol1, font = "none 14 bold")
         self.L0.grid(row=1, column = 0, columnspan = 2, sticky = 'W')
 
 
@@ -2356,13 +2356,13 @@ class NCbrainFrame:
             print('NCrunclick: databasenum ', dbnum)
             dbhome = df1.loc[dbnum, 'datadir']
             fname = df1.loc[dbnum, 'niftiname']
-            # seriesnumber = df1.loc[dbnum, 'seriesnumber']
+            seriesnumber = df1.loc[dbnum, 'seriesnumber']
             normtemplatename = df1.loc[dbnum, 'normtemplatename']
             niiname = os.path.join(dbhome, fname)
             fullpath, filename = os.path.split(niiname)
             # prefix_niiname = os.path.join(fullpath,self.prefix+filename)
-            # tag = '_s' + str(seriesnumber)
-            normdataname_full = os.path.join(fullpath, normdatasavename + '.npy')
+            tag = '_s' + str(seriesnumber)
+            normdataname_full = os.path.join(fullpath, normdatasavename + tag + '.npy')
 
             # load the nifti data
             # input_datar, affiner = i3d.load_and_scale_nifti(niiname)
@@ -2394,7 +2394,7 @@ class NCbrainFrame:
             self.controller.master.update()
             print('finished normalization calculation ....')
             # save norm_brain_affine for later use...
-            np.save(normdataname_full, {'norm_affine_transformation': norm_brain_affine})
+            np.save(normdataname_full, {'norm_affine_transformation': norm_brain_affine, 'output_affine':ref_affine})
             self.NCresult = norm_brain_img
 
             # display results-----------------------------------------------------
@@ -2448,12 +2448,12 @@ class NCbrainFrame:
             for kname in keylist:
                 if 'Unnamed' in kname: df1.pop(kname)  # remove blank fields from the database
             normdataname_small = normdataname_full.replace(dbhome, '')  # need to strip off dbhome before writing the name
-            df1.loc[dbnum.astype('int'), 'normdataname'] = normdataname_small[1:]
+            df1.loc[dbnum, 'normdataname'] = normdataname_small[1:]
 
             # add normalization quality to database
             if 'norm_quality' not in keylist:
                 df1['norm_quality'] = 0
-            df1.loc[dbnum.astype('int'), 'norm_quality'] = Q[0, 1]
+            df1.loc[dbnum, 'norm_quality'] = Q[0, 1]
 
             # need to delete the existing sheet before writing the new version
             existing_sheet_names = xls.sheet_names
@@ -3536,6 +3536,19 @@ class CLFrame:
         template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = \
             load_templates.load_template_and_masks(normtemplatename, resolution)
 
+        if normtemplatename == 'brain':
+            # for brain data, need to match the template, region map, etc., to the data size/position
+            dbhome = df1.loc[self.DBnum[0], 'datadir']
+            fname = df1.loc[self.DBnum[0], 'niftiname']
+            niiname = os.path.join(dbhome, fname)
+            fullpath, filename = os.path.split(niiname)
+            prefix_niiname = os.path.join(fullpath, self.CLprefix + filename)
+            temp_data = nib.load(prefix_niiname)
+            img_data_affine = temp_data.affine
+            hdr = temp_data.header
+            template_img = i3d.convert_affine_matrices_nearest(template_img, template_affine, img_data_affine, hdr['dim'][1:4])
+            regionmap_img = i3d.convert_affine_matrices_nearest(regionmap_img, template_affine, img_data_affine, hdr['dim'][1:4])
+
         cluster_properties, region_properties = \
             pyclustering.define_clusters_and_load_data(self.DBname, self.DBnum, self.CLprefix, self.networkmodel, regionmap_img, anatlabels)
 
@@ -3863,7 +3876,7 @@ class SEMFrame:
         # first, replace any double spaces with single spaces, and then replace spaces with commas
         entered_text = re.sub('\ +', ',', entered_text)
         entered_text = re.sub('\,\,+', ',', entered_text)
-        SEMtimepoints = np.fromstring(entered_text, dtype=np.int, sep=',')
+        SEMtimepoints = np.fromstring(entered_text, dtype=int, sep=',')
 
         print(SEMtimepoints)
 
@@ -3911,6 +3924,44 @@ class SEMFrame:
 
         # save the updated settings file again
         np.save(settingsfile,settings)
+
+
+    def SEMonesource(self):
+        # define the clusters and load the data
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
+        self.SEMprefix = settings['SEMprefix']
+        self.networkmodel = settings['networkmodel']
+        self.SEMclustername = settings['SEMclustername']
+        self.SEMregionname = settings['SEMregionname']
+        self.SEMresultsdir = settings['SEMresultsdir']
+        self.SEMsavetag = settings['SEMsavetag']
+        self.SEMtimepoints = settings['SEMtimepoints']
+        self.SEMepoch = settings['SEMepoch']
+
+        xls = pd.ExcelFile(self.DBname, engine = 'openpyxl')
+        df1 = pd.read_excel(xls, 'datarecord')
+
+        normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
+        resolution = 1
+        template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = \
+            load_templates.load_template_and_masks(normtemplatename, resolution)
+
+        region_data = np.load(self.SEMregionname, allow_pickle=True).flat[0]
+        region_properties = region_data['region_properties']
+
+        cluster_data = np.load(self.SEMclustername, allow_pickle=True).flat[0]
+        cluster_properties = cluster_data['cluster_properties']
+
+        CCrecord, CRrecord = pysem.pysem_onesource(cluster_properties, region_properties, self.SEMtimepoints, self.SEMepoch)
+
+        DBname = region_data['DBname']   # keep the values that were saved with the data
+        DBnum = region_data['DBnum']
+        # save the results somehow
+        results = {'type':'1source','CCrecord':CCrecord, 'Correcord':CRrecord, 'DBname':DBname, 'DBnum':DBnum, 'cluster_properties':cluster_properties}
+        resultsrecordname = os.path.join(self.SEMresultsdir, 'SEMresults_1source_record_' + self.SEMsavetag + '.npy')
+        np.save(resultsrecordname, results)
 
 
     def SEMtwosource(self):
@@ -4149,22 +4200,25 @@ class SEMFrame:
 
 
         # label, button, for running the definition of clusters, and loading data
+        self.SEMrun1sourcebutton = tk.Button(self.parent, text="Var/Cov", width=bigbigbuttonsize, bg=fgcol1, fg='white',
+                                        command=self.SEMonesource, relief='raised', bd=5)
+        self.SEMrun1sourcebutton.grid(row=9, column=2)
+
+        # label, button, for running the definition of clusters, and loading data
         self.SEMrun2sourcebutton = tk.Button(self.parent, text="2-source SEM", width=bigbigbuttonsize, bg=fgcol1, fg='white',
                                         command=self.SEMtwosource, relief='raised', bd=5)
-        self.SEMrun2sourcebutton.grid(row=9, column=2)
+        self.SEMrun2sourcebutton.grid(row=10, column=2)
 
         # check to indicate to resume a failed run
         self.var1 = tk.IntVar()
         self.SEMresumebox = tk.Checkbutton(self.parent, text = 'Resume previous', width = bigbigbuttonsize, fg = 'black',
                                           command = self.SEMresumecheck, variable = self.var1)
-        self.SEMresumebox.grid(row = 10, column = 1, sticky="E")
+        self.SEMresumebox.grid(row = 11, column = 1, sticky="E")
 
         # label, button, for running the definition of clusters, and loading data
         self.SEMrunnetworkbutton = tk.Button(self.parent, text="Network SEM", width=bigbuttonsize, bg=fgcol1, fg='white',
                                         command=self.SEMrunnetwork, relief='raised', bd=5)
-        self.SEMrunnetworkbutton.grid(row=10, column=2)
-
-
+        self.SEMrunnetworkbutton.grid(row=11, column=2)
 
 
 #-----------Group-level analysis FRAME--------------------------------------------------

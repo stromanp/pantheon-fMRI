@@ -103,14 +103,16 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, networkmodel, regionmap
 
     #  data will be concatenated across the entire group, with all runs in each person:  tsize  = N x ts
     # need to save data on how much runs are loaded per person
-    mode = 'concatenate_group'
+    # mode = 'concatenate_group'
     # nvolmask is similar to removing the initial volumes, except this is the number of volumes that are replaced
     # by a later volume, so that the effects of the initial volumes are not present, but the total number of volumes
     # has not changed
-    nvolmask = 2
-    group_data = GLMfit.compile_data_sets(DBname, DBnum, prefix, mode, nvolmask)   # from GLMfit.py
-    # group_data is now xs, ys, zs, tsize
-    xs,ys,zs,ts = group_data.shape
+
+    # old method ... (uses more memory)
+    # nvolmask = 2
+    # group_data = GLMfit.compile_data_sets(DBname, DBnum, prefix, mode, nvolmask)   # from GLMfit.py
+    # # group_data is now xs, ys, zs, tsize
+    # xs,ys,zs,ts = group_data.shape
 
     # the voxels in the regions of interest need to be extracted
     filename_list, dbnum_person_list, NP = pydatabase.get_datanames_by_person(DBname, DBnum, prefix, mode='list')
@@ -129,16 +131,59 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, networkmodel, regionmap
     # identify the voxels in the regions of interest
     region_properties = []
     cluster_properties = []
+    region_coordinate_list = []
+    region_start = []
+    region_end = []
+    vox_count = 0
     for nn, rname in enumerate(sem_region_list):
-        regionindex = anatnamelist.index(rname)
+        # regionindex = anatnamelist.index(rname)
+        regionindex = [x for x, name in enumerate(anatnamelist) if name == rname]
         regionnum = anatlabels['numbers'][regionindex]
-        cx,cy,cz = np.where(regionmap_img == regionnum)
+        if len(regionnum) > 1:
+            for aa,rr in enumerate(regionnum):
+                cx1,cy1,cz1 = np.where(regionmap_img == rr)
+                if aa == 0:
+                    cx = cx1
+                    cy = cy1
+                    cz = cz1
+                else:
+                    cx = np.concatenate((cx,cx1),axis=0)
+                    cy = np.concatenate((cy,cy1),axis=0)
+                    cz = np.concatenate((cz,cz1),axis=0)
+        else:
+            cx,cy,cz = np.where(regionmap_img == regionnum.values[0])
+        region_start += [vox_count]
+        region_end += [vox_count+len(cx)]
+        vox_count += len(cx)
+        region_coordinate_list.append({'rname':rname, 'nvox':len(cx), 'cx':cx, 'cy':cy, 'cz':cz})
+        if nn == 0:
+            cx_all = cx
+            cy_all = cy
+            cz_all = cz
+        else:
+            cx_all = np.concatenate((cx_all,cx),axis=0)
+            cy_all = np.concatenate((cy_all,cy),axis=0)
+            cz_all = np.concatenate((cz_all,cz),axis=0)
 
-        regiondata = group_data[cx,cy,cz,:]   # nvox x tsize
+    # regiondata = group_data[cx,cy,cz,:]   # nvox x tsize
+    # load the data one region at a time to save memory - necessary for large data sets
+    mode = 'concatenate'
+    nvolmask = 2
+    allregiondata = load_data_from_region(filename_list, nvolmask, mode, cx_all, cy_all, cz_all)
+    nvox,ts = np.shape(allregiondata)
+
+    for nn, rname in enumerate(sem_region_list):
+        nvox = region_coordinate_list[nn]['nvox']
+        cx = region_coordinate_list[nn]['cx']
+        cy = region_coordinate_list[nn]['cy']
+        cz = region_coordinate_list[nn]['cz']
+        n1 = region_start[nn]
+        n2 = region_end[nn]
+
+        regiondata = allregiondata[n1:n2,:]
 
         #-----------------check for extreme variance------------
         tsize = int(ts/nruns_total)
-        nvox = len(cx)
         rdtemp = regiondata.reshape(nvox, tsize, nruns_total, order = 'F').copy()
         varcheck2 = np.var(rdtemp, axis = 1)
         typicalvar2 = np.mean(varcheck2)
@@ -218,15 +263,15 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, networkmodel):
 
     #  data will be concatenated across the entire group, with all runs in each person:  tsize  = N x ts
     # need to save data on how much runs are loaded per person
-    mode = 'concatenate_group'
-    # nvolmask is similar to removing the initial volumes, except this is the number of volumes that are replaced
-    # by a later volume, so that the effects of the initial volumes are not present, but the total number of volumes
-    # has not changed
-    nvolmask = 2
-    print('load_cluster_data:  DBname = ', DBname)
-    group_data = GLMfit.compile_data_sets(DBname, DBnum, prefix, mode, nvolmask)  # from GLMfit.py
-    # group_data is now xs, ys, zs, tsize
-    xs, ys, zs, ts = group_data.shape
+    # mode = 'concatenate_group'
+    # # nvolmask is similar to removing the initial volumes, except this is the number of volumes that are replaced
+    # # by a later volume, so that the effects of the initial volumes are not present, but the total number of volumes
+    # # has not changed
+    # nvolmask = 2
+    # print('load_cluster_data:  DBname = ', DBname)
+    # group_data = GLMfit.compile_data_sets(DBname, DBnum, prefix, mode, nvolmask)  # from GLMfit.py
+    # # group_data is now xs, ys, zs, tsize
+    # xs, ys, zs, ts = group_data.shape
 
     # the voxels in the regions of interest need to be extracted
     filename_list, dbnum_person_list, NP = pydatabase.get_datanames_by_person(DBname, DBnum, prefix, mode='list')
@@ -258,7 +303,13 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, networkmodel):
             print('Problem with inconsistent cluster and network definitions!')
             return region_properties  # to this point region_properties will be incomplete
         else:
-            regiondata = group_data[cx, cy, cz, :]  # nvox x tsize
+            # load the data one region at a time to save memory - necessary for large data sets
+            mode = 'concatenate'
+            nvolmask = 2
+            regiondata = load_data_from_region(filename_list, nvolmask, mode, cx, cy, cz)
+            nvox,ts = np.shape(regiondata)
+
+            # regiondata = group_data[cx, cy, cz, :]  # nvox x tsize
 
             # -----------------check for extreme variance------------
             tsize = int(ts / nruns_total)
@@ -322,5 +373,52 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, networkmodel):
     # fig = plt.figure(22), plt.imshow(tcimg)
 
 
+def load_data_from_region(filename_list, nvolmask, mode, cx, cy, cz):
+    NP = len(filename_list)
+    group_divisor = 0
+    for pnum in range(NP):
+        print('compile_data_sets:  reading participant data ', pnum + 1, ' of ', NP)
+        # per_person_level
+        list1 = filename_list[pnum]
+        divisor = 0
+        for runnum, name in enumerate(list1):
+            # read in the name, and do something with the data ...
+            # if mode is average, then sum the data for now
+            # otherwise, concatenate the data
+            input_img = nib.load(name)
+            input_data = input_img.get_fdata()
+            roi_data = input_data[cx,cy,cz,:]   # check the size of this
+            print('size of roi_data = {}'.format(np.shape(roi_data)))
+
+            nvox, ts = roi_data.shape
+            # mask out the initial volumes, if wanted
+            if nvolmask > 0:
+                for tt in range(nvolmask): roi_data[:, tt] = roi_data[:, nvolmask]
+
+            # # convert to signal change from the average----------------
+            # if data have been cleaned they are already percent signal changes
+            mean_data = np.mean(roi_data, axis=1)
+            mean_data = np.repeat(mean_data[:, np.newaxis], ts, axis=1)
+            roi_data = roi_data - mean_data
+
+            if runnum == 0:
+                person_data = roi_data
+                divisor += 1
+            else:
+                if mode == 'average':
+                    # average across the person
+                    person_data += roi_data
+                    divisor += 1
+                else:
+                    # concatenate across the person
+                    person_data = np.concatenate((person_data, roi_data), axis=1)
+        person_data = person_data / divisor  # average
+
+        if pnum == 0:
+            group_data = person_data
+        else:
+            group_data = np.concatenate((group_data, person_data), axis=1)
+
+    return group_data
 
 
