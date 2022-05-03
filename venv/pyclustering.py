@@ -134,36 +134,47 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, networkmodel, regionmap
     region_coordinate_list = []
     region_start = []
     region_end = []
+    ncluster_list2 = []
     vox_count = 0
     for nn, rname in enumerate(sem_region_list):
         # regionindex = anatnamelist.index(rname)
         regionindex = [x for x, name in enumerate(anatnamelist) if name == rname]
         regionnum = anatlabels['numbers'][regionindex]
+        print('searching for region {} {}'.format(rname,regionnum))
         if len(regionnum) > 1:
             for aa,rr in enumerate(regionnum):
-                cx1,cy1,cz1 = np.where(regionmap_img == rr)
-                if aa == 0:
-                    cx = cx1
-                    cy = cy1
-                    cz = cz1
+                cx,cy,cz = np.where(regionmap_img == rr)
+                region_start += [vox_count]
+                region_end += [vox_count + len(cx)]
+                vox_count += len(cx)
+                region_coordinate_list.append({'rname': rname, 'nvox': len(cx), 'cx': cx, 'cy': cy, 'cz': cz, 'occurrence':aa})
+                if (nn == 0) and (aa == 0):
+                    ncluster_list2 = [np.ceil(ncluster_list[nn]['nclusters']/len(regionnum)).astype(int)]
+                    cx_all = cx
+                    cy_all = cy
+                    cz_all = cz
                 else:
-                    cx = np.concatenate((cx,cx1),axis=0)
-                    cy = np.concatenate((cy,cy1),axis=0)
-                    cz = np.concatenate((cz,cz1),axis=0)
+                    ncluster_list2 += [np.ceil(ncluster_list[nn]['nclusters']/len(regionnum)).astype(int)]
+                    cx_all = np.concatenate((cx_all, cx), axis=0)
+                    cy_all = np.concatenate((cy_all, cy), axis=0)
+                    cz_all = np.concatenate((cz_all, cz), axis=0)
         else:
             cx,cy,cz = np.where(regionmap_img == regionnum.values[0])
-        region_start += [vox_count]
-        region_end += [vox_count+len(cx)]
-        vox_count += len(cx)
-        region_coordinate_list.append({'rname':rname, 'nvox':len(cx), 'cx':cx, 'cy':cy, 'cz':cz})
-        if nn == 0:
-            cx_all = cx
-            cy_all = cy
-            cz_all = cz
-        else:
-            cx_all = np.concatenate((cx_all,cx),axis=0)
-            cy_all = np.concatenate((cy_all,cy),axis=0)
-            cz_all = np.concatenate((cz_all,cz),axis=0)
+
+            region_start += [vox_count]
+            region_end += [vox_count+len(cx)]
+            vox_count += len(cx)
+            region_coordinate_list.append({'rname':rname, 'nvox':len(cx), 'cx':cx, 'cy':cy, 'cz':cz, 'occurrence':0})
+            if nn == 0:
+                ncluster_list2 = [ncluster_list[nn]['nclusters']]
+                cx_all = cx
+                cy_all = cy
+                cz_all = cz
+            else:
+                ncluster_list2 += [ncluster_list[nn]['nclusters']]
+                cx_all = np.concatenate((cx_all,cx),axis=0)
+                cy_all = np.concatenate((cy_all,cy),axis=0)
+                cz_all = np.concatenate((cz_all,cz),axis=0)
 
     # regiondata = group_data[cx,cy,cz,:]   # nvox x tsize
     # load the data one region at a time to save memory - necessary for large data sets
@@ -172,11 +183,13 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, networkmodel, regionmap
     allregiondata = load_data_from_region(filename_list, nvolmask, mode, cx_all, cy_all, cz_all)
     nvox,ts = np.shape(allregiondata)
 
-    for nn, rname in enumerate(sem_region_list):
+    region_name_list = [region_coordinate_list[x]['rname'] for x in range(len(region_coordinate_list))]
+    for nn, rname in enumerate(region_name_list):
         nvox = region_coordinate_list[nn]['nvox']
         cx = region_coordinate_list[nn]['cx']
         cy = region_coordinate_list[nn]['cy']
         cz = region_coordinate_list[nn]['cz']
+        occurrence = region_coordinate_list[nn]['occurrence']
         n1 = region_start[nn]
         n2 = region_end[nn]
 
@@ -212,7 +225,7 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, networkmodel, regionmap
             cz = cz[cvox]
 
         # divide each region into N clusters with similar timecourse properties
-        nclusters = ncluster_list[nn]['nclusters']
+        nclusters = ncluster_list2[nn]
         kmeans = KMeans(n_clusters=nclusters, random_state=0).fit(regiondata)
         IDX = kmeans.labels_
         cluster_tc = kmeans.cluster_centers_
@@ -225,10 +238,67 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, networkmodel, regionmap
             tc[aa,:] = np.mean(regiondata[cc, :], axis=0)
             tc_sem[aa,:] = np.std(regiondata[cc, :], axis=0)/np.sqrt(nvox)
 
-        clusterdef_entry = {'cx':cx, 'cy':cy, 'cz':cz,'IDX':IDX, 'nclusters':nclusters, 'rname':rname, 'regionindex':regionindex, 'regionnum':regionnum}
-        regiondata_entry = {'tc':tc, 'tc_sem':tc_sem, 'nruns_per_person':nruns_per_person, 'tsize':tsize, 'rname':rname, 'DBname':DBname, 'DBnum':DBnum, 'prefix':prefix}
+        clusterdef_entry = {'cx':cx, 'cy':cy, 'cz':cz,'IDX':IDX, 'nclusters':nclusters, 'rname':rname, 'regionindex':regionindex, 'regionnum':regionnum, 'occurrence':occurrence}
+        regiondata_entry = {'tc':tc, 'tc_sem':tc_sem, 'nruns_per_person':nruns_per_person, 'tsize':tsize, 'rname':rname, 'DBname':DBname, 'DBnum':DBnum, 'prefix':prefix, 'occurrence':occurrence}
         region_properties.append(regiondata_entry)
         cluster_properties.append(clusterdef_entry)
+
+    # combine repeated occurrences, if they occur
+    occurrences = [cluster_properties[x]['occurrence'] for x in range(len(cluster_properties))]
+    if (np.array(occurrences) > 0).any():
+        rnamelist = [cluster_properties[x]['rname'] for x in range(len(cluster_properties))]
+        cluster_properties2 = []
+        region_properties2 = []
+        for nn, rname in enumerate(sem_region_list):
+            cr = [x for x in range(len(rnamelist)) if rnamelist[x] == rname]
+            if len(cr) > 1:
+                ncluster_total = 0
+                for aa, cc in enumerate(cr):
+                    if aa == 0:
+                        cx = cluster_properties[cc]['cx']
+                        cy = cluster_properties[cc]['cy']
+                        cz = cluster_properties[cc]['cz']
+                        IDX = cluster_properties[cc]['IDX']
+                        nclusters = cluster_properties[cc]['nclusters']
+                        rname = cluster_properties[cc]['rname']
+                        regionindex = cluster_properties[cc]['regionindex']
+                        regionnum = cluster_properties[cc]['regionnum']
+                        tc = region_properties[cc]['tc']
+                        tc_sem = region_properties[cc]['tc_sem']
+                        nruns_per_person = region_properties[cc]['nruns_per_person']
+                        tsize = region_properties[cc]['tsize']
+                        DBname = region_properties[cc]['DBname']
+                        DBnum = region_properties[cc]['DBnum']
+                        prefix = region_properties[cc]['prefix']
+                        ncluster_total += nclusters
+                    else:
+                        cx2 = cluster_properties[cc]['cx']
+                        cy2 = cluster_properties[cc]['cy']
+                        cz2 = cluster_properties[cc]['cz']
+                        IDX2 = cluster_properties[cc]['IDX']
+                        nclusters2 = cluster_properties[cc]['nclusters']
+                        tc2 = region_properties[cc]['tc']
+                        tc_sem2 = region_properties[cc]['tc_sem']
+
+                        cx = np.concatenate((cx,cx2),axis=0)
+                        cy = np.concatenate((cy,cy2),axis=0)
+                        cz = np.concatenate((cz,cz2),axis=0)
+                        IDX = np.concatenate((IDX,IDX2+ncluster_total),axis=0)
+                        ncluster_total += nclusters2
+                        tc = np.concatenate((tc,tc2),axis=0)
+                        tc_sem = np.concatenate((tc,tc_sem2),axis=0)
+
+                clusterdef_entry_temp = {'cx': cx, 'cy': cy, 'cz': cz, 'IDX': IDX, 'nclusters': ncluster_total, 'rname': rname, 'regionindex': regionindex, 'regionnum': regionnum}
+                regiondata_entry_temp = {'tc': tc, 'tc_sem': tc_sem, 'nruns_per_person': nruns_per_person, 'tsize': tsize, 'rname': rname, 'DBname': DBname, 'DBnum': DBnum, 'prefix': prefix}
+
+                cluster_properties2.append(clusterdef_entry_temp)
+                region_properties2.append(regiondata_entry_temp)
+            else:
+                cluster_properties2.append(cluster_properties[cr[0]])
+                region_properties2.append(region_properties[cr[0]])
+
+        cluster_properties = cluster_properties2
+        region_properties = region_properties2
 
     print('cluster definition complete.')
     return cluster_properties, region_properties

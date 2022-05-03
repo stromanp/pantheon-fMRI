@@ -330,13 +330,33 @@ def pydisplayanatregionslice(templatename, anatname, orientation, displayslice =
 
 
 # display named regions in different colors
-def pydisplayvoxelregionslice(templatename, cx, cy, cz, orientation, displayslice = [], colorlist = []):
-    resolution = 1
-    template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_img = load_templates.load_template_and_masks(templatename, resolution)
+def pydisplayvoxelregionslice(templatename, template_img, cx, cy, cz, orientation, displayslice = [], colorlist = []):
 
-    anatnamelist = []
-    for name in anatlabels['names']:
-        anatnamelist.append(name)
+    #
+    # if templatename == 'brain':
+    #     resolution = 1
+    #     template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_img = load_templates.load_template_and_masks(templatename, resolution)
+    #     # match affine of data
+    #
+    #     # for brain data, need to match the template, region map, etc., to the data size/position
+    #     dbhome = df1.loc[self.DBnum[0], 'datadir']
+    #     fname = df1.loc[self.DBnum[0], 'niftiname']
+    #     niiname = os.path.join(dbhome, fname)
+    #     fullpath, filename = os.path.split(niiname)
+    #     prefix_niiname = os.path.join(fullpath, self.CLprefix + filename)
+    #     temp_data = nib.load(prefix_niiname)
+    #     img_data_affine = temp_data.affine
+    #     hdr = temp_data.header
+    #     template_img = i3d.convert_affine_matrices_nearest(template_img, template_affine, img_data_affine, hdr['dim'][1:4])
+    #     regionmap_img = i3d.convert_affine_matrices_nearest(regionmap_img, template_affine, img_data_affine, hdr['dim'][1:4])
+    #
+    # else:
+    #     resolution = 1
+    #     template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_img = load_templates.load_template_and_masks(templatename, resolution)
+
+    # anatnamelist = []
+    # for name in anatlabels['names']:
+    #     anatnamelist.append(name)
 
     if len(colorlist) == 0:
         colorlist = [0,1,0]  # make it green by default
@@ -353,7 +373,6 @@ def pydisplayvoxelregionslice(templatename, cx, cy, cz, orientation, displayslic
     blue[cx,cy,cz] = colorlist[2]
 
     #--------------------------------------------------------------
-    # this might work for brain regions as well
     if templatename.lower()  == 'brain':
         # display brain data
         if orientation == 'axial':
@@ -964,6 +983,10 @@ def display_anatomical_figure(filename, connectiondata, templatename, regioncolo
         cy2 = data1['cluster_properties'][regionnums]['cy'][idxx]
         cz2 = data1['cluster_properties'][regionnums]['cz'][idxx]
 
+        clustername = data1['clustername']
+        clusterdata = np.load(clustername, allow_pickle=True).flat[0]
+        template_img = clusterdata['template_img']
+
     else:
         # connection data for network results
         networkcomponent = connectiondata['networkcomponent'][0]
@@ -978,6 +1001,8 @@ def display_anatomical_figure(filename, connectiondata, templatename, regioncolo
         clusterdata = np.load(clustername, allow_pickle=True).flat[0]
         nclusterlist = np.array([clusterdata['cluster_properties'][nn]['nclusters'] for nn in range(len(clusterdata['cluster_properties']))])
         namelist = [clusterdata['cluster_properties'][nn]['rname'] for nn in range(len(clusterdata['cluster_properties']))]
+
+        template_img = clusterdata['template_img']
 
         networkmodel = data1['network']
         network, ncluster_list, sem_region_list = pyclustering.load_network_model(networkmodel)
@@ -1005,9 +1030,9 @@ def display_anatomical_figure(filename, connectiondata, templatename, regioncolo
 
     #-------------------------------------------------------------------------------------
     # display one slice of an anatomical region in the selected target figure
-    outputimg = pydisplayvoxelregionslice(templatename, cx, cy, cz, orientation, displayslice = [], colorlist = regioncolor)
+    outputimg = pydisplayvoxelregionslice(templatename, template_img, cx, cy, cz, orientation, displayslice = [], colorlist = regioncolor)
     regioncolor2 = 1.0-np.array(regioncolor)
-    outputimg2 = pydisplayvoxelregionslice(templatename, cx2, cy2, cz2, orientation, displayslice = [], colorlist = regioncolor2)
+    outputimg2 = pydisplayvoxelregionslice(templatename, template_img, cx2, cy2, cz2, orientation, displayslice = [], colorlist = regioncolor2)
 
     xs,ys,nc = np.shape(outputimg)
     if xs > ys:

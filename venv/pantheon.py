@@ -281,16 +281,23 @@ class BaseFrame:
         self.P1=tk.Label(self.parent, image = photo1, bg='grey94').grid(row=0, column=0, sticky = 'W')
 
         # load in another picture, because if one picture is good, two is better
-        photo2 = tk.PhotoImage(file = os.path.join(basedir,'lablogo.gif'))
+        photo2 = tk.PhotoImage(file = os.path.join(basedir,'pantheon_logo2.gif'))
         controller.photo2 = photo2   # need to keep a copy so it is not cleared from memory
         # put in another figure, for pure artistic value, in the 1st row, 2nd column, of a grid layout for the window
         # and make the background black
         self.P2=tk.Label(self.parent, image = photo2, bg='grey94').grid(row=0, column=1, sticky = 'W')
 
+        # load in another picture, because if one picture is good, two is better, etc.
+        photo3 = tk.PhotoImage(file = os.path.join(basedir,'lablogo.gif'))
+        controller.photo3 = photo3   # need to keep a copy so it is not cleared from memory
+        # put in another figure, for pure artistic value, in the 1st row, 2nd column, of a grid layout for the window
+        # and make the background black
+        self.P3=tk.Label(self.parent, image = photo3, bg='grey94').grid(row=0, column=2, sticky = 'W')
+
         # create a label under the pictures (row 2), spanning two columns, to tell the user what they are running
         # specify a black background and white letters, with 12 point bold font
         self.L0 = tk.Label(self.parent, text = "PANTHEON: whole CNS fMRI Analysis", bg = bgcol, fg = fgcol1, font = "none 14 bold")
-        self.L0.grid(row=1, column = 0, columnspan = 2, sticky = 'W')
+        self.L0.grid(row=1, column = 0, columnspan = 3, sticky = 'W')
 
 
 # --------------------BASE FRAME2---------------------------------------------------------------
@@ -3552,7 +3559,7 @@ class CLFrame:
         cluster_properties, region_properties = \
             pyclustering.define_clusters_and_load_data(self.DBname, self.DBnum, self.CLprefix, self.networkmodel, regionmap_img, anatlabels)
 
-        cluster_definition = {'cluster_properties':cluster_properties}
+        cluster_definition = {'cluster_properties':cluster_properties, 'template_img':template_img,'regionmap_img':regionmap_img}
         region_data = {'region_properties':region_properties, 'DBname':self.DBname, 'DBnum':self.DBnum}
 
         # save the results

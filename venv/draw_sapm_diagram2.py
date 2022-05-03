@@ -47,6 +47,7 @@ def run_draw_sapm_plot(type, clusternumber):
     else:
         offset = 0
 
+    regions = define_drawing_regions()
 
     # temporary -----------------------------------------------------------
     if type == 'fixed':
@@ -87,21 +88,41 @@ def run_draw_sapm_plot(type, clusternumber):
     statnames = 'Z'   # column of excel file to read
     scalefactor = 1.0
 
-    Zthresh = stats.norm.ppf(1 - np.array([1.0, 0.05, 0.01, 0.001]))
+    Tthresh = stats.norm.ppf(1 - np.array([1.0, 0.05, 0.01, 0.001]))
     threshold = Zthresh[2]
 
     figurenumber = clusternumber+1+offset
-    draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, scalefactor, cnums, threshold, True, clusterdataname)
+    draw_sapm_plot(results_file, sheetname, regionnames, regions,statnames,figurenumber, scalefactor, cnums, threshold, True, clusterdataname)
 
 
-def draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, scalefactor, cnums, threshold = 0.0, writefigure = False, clusterdataname = []):
-    xls = pd.ExcelFile(results_file, engine='openpyxl')
-    df1 = pd.read_excel(xls, sheetname)
-    connections = df1[regionnames]
-    statvals = df1[statnames]
+def run_draw_sapm_plot_brain():
+    templatename = 'brain'
+    NP = 9
+    cnums = [7, 6, 2, 4, 3, 2, 5, 5, 1, 2, 2, 4]
+    cnums = [2, 2, 2, 4, 3, 2, 5, 5, 1, 2, 2, 4]
+    clusterdataname = r'C:\fMRI-EEG_shared_data_X1\fmri-eeg_motor2_clusters.npy'
+    results_file = r'C:\fMRI-EEG_shared_data_X1\Average Mconn values.xlsx'
 
-    plt.close(figurenumber)
+    Tthresh = stats.t.ppf(1 - np.array([1.0, 0.05, 0.01, 0.001]),NP-1)
 
+
+    sheetname = 'average'  # sheet of excel file to read
+    regionnames = 'regions'   # column of excel file to read
+    statnames = 'T'   # column of excel file to read
+    scalefactor = 0.5
+    threshold = Tthresh[2]
+
+    statnames = 'beta'   # column of excel file to read
+    scalefactor = 10.0
+    threshold = 0.0
+
+    regions = define_drawing_regions_brain()
+
+    figurenumber = 108
+    draw_sapm_plot(templatename, results_file, sheetname, regionnames, regions,statnames,figurenumber, scalefactor, cnums, threshold, True, clusterdataname)
+
+
+def define_drawing_regions():
     # setup region labels and positions
     # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
     #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
@@ -133,7 +154,60 @@ def draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, 
     entry = {'name': 'int2', 'pos':[0.1,0.85], 'labeloffset':np.array([0,-0.05])}
     regions.append(entry)
 
+    return regions
+
+
+def define_drawing_regions_brain():
+    # setup region labels and positions
+    # rnamelist = ['PreCG', 'PostCG', 'SMA', 'SPL', 'AC', 'PC', 'IC', 'Thalamus',
+    #               'Cereb1 ', 'Putamen', 'IFG oper', 'OP']
+    regions = []
+    entry = {'name': 'PreCG', 'pos':[0.4,0.9], 'labeloffset':np.array([0,0.03])}
+    regions.append(entry)
+    entry = {'name': 'PostCG', 'pos':[0.6,0.9], 'labeloffset':np.array([0,0.053])}
+    regions.append(entry)
+    entry = {'name': 'SMA', 'pos':[0.3,0.8], 'labeloffset':np.array([-0.05,0.03])}
+    regions.append(entry)
+    entry = {'name': 'SPL', 'pos':[0.75,0.8], 'labeloffset':np.array([-0.02,0.03])}
+    regions.append(entry)
+    entry = {'name': 'AC', 'pos':[0.35,0.5], 'labeloffset':np.array([0,0.03])}
+    regions.append(entry)
+    entry = {'name': 'PC', 'pos':[0.55,0.5], 'labeloffset':np.array([0.0,-0.05])}
+    regions.append(entry)
+    entry = {'name': 'IC', 'pos':[0.45,0.4], 'labeloffset':np.array([0,-0.05])}
+    regions.append(entry)
+    entry = {'name': 'Thalamus', 'pos':[0.65,0.25], 'labeloffset':np.array([0,-0.05])}
+    regions.append(entry)
+    entry = {'name': 'Cereb1', 'pos':[0.8,0.4], 'labeloffset':np.array([0,-0.05])}
+    regions.append(entry)
+    entry = {'name': 'Putamen', 'pos':[0.35,0.35], 'labeloffset':np.array([0,-0.05])}
+    regions.append(entry)
+    entry = {'name': 'IFGoper', 'pos':[0.1,0.5], 'labeloffset':np.array([-0.05,-0.05])}
+    regions.append(entry)
+    entry = {'name': 'OP', 'pos':[0.9,0.6], 'labeloffset':np.array([0,-0.05])}
+    regions.append(entry)
+    entry = {'name': 'int0', 'pos':[0.3,0.9], 'labeloffset':np.array([-0.05,0.03])}
+    regions.append(entry)
+    entry = {'name': 'int1', 'pos':[0.55,0.25], 'labeloffset':np.array([0,-0.05])}
+    regions.append(entry)
+    entry = {'name': 'int2', 'pos':[0.1,0.6], 'labeloffset':np.array([-0.05,0.03])}
+    regions.append(entry)
+    entry = {'name': 'int3', 'pos':[0.9,0.5], 'labeloffset':np.array([0,-0.05])}
+    regions.append(entry)
+
+    return regions
+
+
+def draw_sapm_plot(templatename, results_file, sheetname, regionnames, regions,statnames,figurenumber, scalefactor, cnums, threshold = 0.0, writefigure = False, clusterdataname = []):
+    xls = pd.ExcelFile(results_file, engine='openpyxl')
+    df1 = pd.read_excel(xls, sheetname)
+    connections = df1[regionnames]
+    statvals = df1[statnames]
+
+    plt.close(figurenumber)
+
     regionlist = [regions[x]['name'] for x in range(len(regions))]
+    regionlist_trunc = [regions[x]['name'][:4] for x in range(len(regions))]
 
     # set some drawing parameters
     ovalsize = (0.1,0.05)
@@ -144,14 +218,12 @@ def draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, 
     fig = plt.figure(figurenumber)
     ax = fig.add_axes([0,0,1,1])
 
-    # show axial slices?
-    if len(clusterdataname) > 0:
-        templatename = 'ccbs'
-        for rr, regionname in enumerate(regionlist):
-            clusternum = cnums[rr]
-            outputimg = display_anatomical_slices(clusterdataname, regionname, clusternum, templatename)
-            # display it somewhere...
-
+    # # show axial slices?
+    # if len(clusterdataname) > 0:
+    #     for rr, regionname in enumerate(regionlist):
+    #         clusternum = cnums[rr]
+    #         outputimg = display_anatomical_slices(clusterdataname, regionname, clusternum, templatename)
+    #         # display it somewhere...
 
     # add ellipses and labels
     for nn in range(len(regions)):
@@ -176,7 +248,7 @@ def draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, 
                 linecolor = 'k'
             else:
                 linecolor = 'r'
-            rlist,ilist = parse_connection_name(c1,regionlist)
+            rlist,ilist = parse_connection_name(c1,regionlist_trunc)
 
             # get positions of ends of lines,arrows, etc... for one connection
             p0 = regions[ilist[0]]['pos']
@@ -247,6 +319,7 @@ def draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, 
 
 
 def parse_connection_name(connection, regionlist):
+
     h1 = connection.index('-')
     h2 = connection[(h1+2):].index('-') + h1 + 2
     r1 = connection[:h1]
@@ -380,6 +453,7 @@ def display_anatomical_slices(clusterdataname, regionname, clusternum, templaten
     # get the connection and region information
     clusterdata = np.load(clusterdataname, allow_pickle=True).flat[0]
     cluster_properties = clusterdata['cluster_properties']
+    template_img = clusterdata['template_img']
     rnamelist = [cluster_properties[x]['rname'] for x in range(len(cluster_properties))]
     targetnum = rnamelist.index(regionname)
 
@@ -392,5 +466,5 @@ def display_anatomical_slices(clusterdataname, regionname, clusternum, templaten
 
     #-------------------------------------------------------------------------------------
     # display one slice of an anatomical region in the selected target figure
-    outputimg = pydisplay.pydisplayvoxelregionslice(templatename, cx, cy, cz, orientation, displayslice = [], colorlist = regioncolor)
+    outputimg = pydisplay.pydisplayvoxelregionslice(templatename, template_img, cx, cy, cz, orientation, displayslice = [], colorlist = regioncolor)
     return outputimg

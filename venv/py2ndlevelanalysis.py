@@ -422,8 +422,12 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                     sourcelimits = cluster_info[sourcenumber]['regionlimits']
                     connection_info = [t[ii],s1[ii],s2[ii],tt,nb[ii]]
 
-                    values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]], v1,v1s,v2,v2s,
+                    # print('target {} {}  source {} {}  v1 {:.3f} {} {:.3f}  v2 {:.3f} {} {:.3f}'.format(targetname, targetcluster, sourcename, sourcecluster,v1,chr(177),v1s,v2,chr(177),v2s))
+                    # print('    target coords {}  limits {} source coords {} limits {}  connection info {}'.format(list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits), connection_info))
+
+                    values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]], [v1,v1s,v2,v2s],
                                              list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),connection_info))
+
                     entry = dict(zip(keys, values))
                     results.append(entry)
 
@@ -476,7 +480,7 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                     sourcelimits = cluster_info[sourcenumber]['regionlimits']
 
                     connection_info = [t[ii],s1[ii],s2[ii],tt,nb[ii]]
-                    values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]], v1,v1s,v2,v2s,
+                    values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]], [v1,v1s,v2,v2s],
                                              list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),connection_info))
                     entry = dict(zip(keys, values))
 

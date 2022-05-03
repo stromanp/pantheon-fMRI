@@ -530,7 +530,7 @@ def pysem(cluster_properties, region_properties, timepoints = 0, epoch = 0):
         tclusters = list(range(t1,t2))
         for tc in tclusters:
             targetdata = tcdata_centered[tc, :]
-            print('pysem: calculating for cluster {} of target {} s1 region {} s2 region {} ...{}'.format(tc+1,tregion,s1region,s2region,time.ctime(time.time())))
+            print('pysem: calculating for overall cluster {} in target {} ...{}'.format(tc+1,tregion+1,time.ctime(time.time())))
 
             s1regions = np.setdiff1d(list(range(nregions)), tregion)
             for s1region in s1regions:
