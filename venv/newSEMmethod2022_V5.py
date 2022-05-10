@@ -506,7 +506,7 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEM
 
 #----------------------------------------------------------------------------------
 # primary function--------------------------------------------------------------------
-def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparametersname, fixed_beta_vals = []):
+def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparametersname, fixed_beta_vals = [], verbose = True):
     starttime = time.ctime()
 
     # initialize gradient-descent parameters--------------------------------------------------------------
@@ -592,6 +592,8 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
                 beta_int1 = 0.0
         else:
             beta_int1 = 0.0
+
+        lastgood_beta_int1 = copy.deepcopy(beta_int1)
 
         # new concept-------------------------------------------
         # 1) test a set of betavalues
@@ -719,7 +721,10 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
         Sconn = Meigv @ Mintrinsic    # signalling over each connection
 
         regionlist = [0, 7]
-        results_text = display_SEM_results_1person(nperson, Sinput, fit, regionlist, nruns, epoch, windowlist=[24, 25])
+        if verbose:
+            results_text = display_SEM_results_1person(nperson, Sinput, fit, regionlist, nruns, epoch, windowlist=[24, 25])
+        else:
+            results_text = ['silent mode','silent mode']
 
         entry = {'Sinput':Sinput, 'Sconn':Sconn, 'beta_int1':beta_int1, 'Mconn':Mconn, 'Minput':Minput,
                  'rtext1':results_text[0], 'rtext2':results_text[1], 'R2total':R2total, 'Mintrinsic':Mintrinsic,
