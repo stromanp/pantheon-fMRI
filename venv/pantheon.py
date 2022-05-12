@@ -1754,7 +1754,8 @@ class NCFrame:
                 if 'Unnamed' in kname: df1.pop(kname)  # remove blank fields from the database
             # df1.pop('Unnamed: 0')
             normdataname_small = normdataname_full.replace(dbhome, '')  # need to strip off dbhome before writing the name
-            df1.loc[dbnum.astype('int'), 'normdataname'] = normdataname_small[1:]
+            # df1.loc[dbnum.astype('int'), 'normdataname'] = normdataname_small[1:]
+            df1.loc[dbnum.astype('int'), 'normdataname'] = normdataname_small
 
             # add normalization quality to database
             if 'norm_quality' not in keylist:
@@ -2482,7 +2483,8 @@ class NCbrainFrame:
             for kname in keylist:
                 if 'Unnamed' in kname: df1.pop(kname)  # remove blank fields from the database
             normdataname_small = normdataname_full.replace(dbhome, '')  # need to strip off dbhome before writing the name
-            df1.loc[dbnum, 'normdataname'] = normdataname_small[1:]
+            # df1.loc[dbnum, 'normdataname'] = normdataname_small[1:]
+            df1.loc[dbnum, 'normdataname'] = normdataname_small
 
             # add normalization quality to database
             if 'norm_quality' not in keylist:
