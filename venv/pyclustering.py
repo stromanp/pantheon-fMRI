@@ -35,6 +35,11 @@ def load_network_model(networkmodel):
     xls = pd.ExcelFile(networkmodel, engine = 'openpyxl')
     dnet = pd.read_excel(xls, 'connections')
     dnet.pop('Unnamed: 0')   # remove this blank field from the beginning
+    column_names = dnet.columns
+    for checkname in column_names:
+        if 'Unnamed' in checkname:
+            print('found and removed invalid column:  {}'.format(checkname))
+            dnet.pop(checkname)   # remove invalid columns
     dnclusters = pd.read_excel(xls, 'nclusters')
 
     nregions = len(dnclusters)
