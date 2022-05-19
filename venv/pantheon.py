@@ -73,6 +73,7 @@ if os.name == 'nt':
     fgletter3 = 'white'
     widgetfont = "none 9 bold"
     labelfont = "none 10 bold"
+    radiofont = "none 9"
 else:
     # colours for Mac/Linux
     fgcol1 = 'navy'
@@ -82,8 +83,9 @@ else:
     fgletter1 = 'black'
     fgletter2 = 'black'
     fgletter3 = 'black'
-    widgetfont = "none 8 bold"
-    labelfont = "none 9 bold"
+    widgetfont = "none 9 bold"
+    labelfont = "none 10 bold"
+    radiofont = "none 9"
 
 bigbigbuttonsize = 21
 bigbuttonsize = 14
@@ -2868,13 +2870,13 @@ class GLMFrame:
         self.GLML7 = tk.Label(self.parent, text="Correction for multiple comparisons:", font = labelfont)
         self.GLML7.grid(row=6, column=1, sticky='W')
         self.GLMpcorrectionmethod = tk.IntVar(None,1)
-        self.GLMcorr1 = tk.Radiobutton(self.parent, text = 'no correction', width = smallbuttonsize, fg = fgletter2,
+        self.GLMcorr1 = tk.Radiobutton(self.parent, text = 'no correction', width = smallbuttonsize, fg = fgletter2, font = radiofont,
                                           command = self.GLMsetcorrtype, variable = self.GLMpcorrectionmethod, value = 1, state = tk.DISABLED)
         self.GLMcorr1.grid(row = 6, column = 2, sticky="E")
-        self.GLMcorr2 = tk.Radiobutton(self.parent, text = 'GRF', width = smallbuttonsize, fg = fgletter2,
+        self.GLMcorr2 = tk.Radiobutton(self.parent, text = 'GRF', width = smallbuttonsize, fg = fgletter2, font = radiofont,
                                           command = self.GLMsetcorrtype, variable = self.GLMpcorrectionmethod, value = 2, state = tk.DISABLED)
         self.GLMcorr2.grid(row = 6, column = 3, sticky="E")
-        self.GLMcorr3 = tk.Radiobutton(self.parent, text = 'Bonferroni', width = smallbuttonsize, fg = fgletter2,
+        self.GLMcorr3 = tk.Radiobutton(self.parent, text = 'Bonferroni', width = smallbuttonsize, fg = fgletter2, font = radiofont,
                                           command = self.GLMsetcorrtype, variable = self.GLMpcorrectionmethod, value = 3, state = tk.DISABLED)
         self.GLMcorr3.grid(row = 6, column = 4, sticky="E")
 
@@ -5299,43 +5301,43 @@ class GRPFrame:
         # ---------radio buttons to indicate type of analysis to do----------------
         # checkboxes to indicate 1) signficiance from zero, 2) group differences, 3) correlation
         self.GRPanalysistypevalue = tk.IntVar(None,1)
-        self.GRPsig1 = tk.Radiobutton(self.parent, text = 'Sign. non-zero', width = bigbuttonsize, fg = fgletter2,
+        self.GRPsig1 = tk.Radiobutton(self.parent, text = 'Sign. non-zero', width = bigbuttonsize, fg = fgletter2, font = radiofont,
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 1)
         self.GRPsig1.grid(row = 5, column = 1, sticky="W")
 
         self.var2 = tk.IntVar()
-        self.GRPsig2 = tk.Radiobutton(self.parent, text = 'Avg. Group Diff.', width = bigbuttonsize, fg = fgletter2,
+        self.GRPsig2 = tk.Radiobutton(self.parent, text = 'Avg. Group Diff.', width = bigbuttonsize, fg = fgletter2, font = radiofont,
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 2)
         self.GRPsig2.grid(row = 6, column = 1, sticky="W")
 
         self.var3 = tk.IntVar()
-        self.GRPsig2p = tk.Radiobutton(self.parent, text = 'Paired Group Diff.', width = bigbuttonsize, fg = fgletter2,
+        self.GRPsig2p = tk.Radiobutton(self.parent, text = 'Paired Group Diff.', width = bigbuttonsize, fg = fgletter2, font = radiofont,
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 3)
         self.GRPsig2p.grid(row = 7, column = 1, sticky="W")
 
         self.var4 = tk.IntVar()
-        self.GRPcorr = tk.Radiobutton(self.parent, text = 'Correlation', width = bigbuttonsize, fg = fgletter2,
+        self.GRPcorr = tk.Radiobutton(self.parent, text = 'Correlation', width = bigbuttonsize, fg = fgletter2, font = radiofont,
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 4)
         self.GRPcorr.grid(row = 5, column = 2, sticky="W")
 
         self.var5 = tk.IntVar()
-        self.GRPcorr = tk.Radiobutton(self.parent, text = 'Regression', width = bigbuttonsize, fg = fgletter2,
+        self.GRPcorr = tk.Radiobutton(self.parent, text = 'Regression', width = bigbuttonsize, fg = fgletter2, font = radiofont,
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 5)
         self.GRPcorr.grid(row = 6, column = 2, sticky="W")
 
         self.var8 = tk.IntVar()
-        self.GRPtime = tk.Radiobutton(self.parent, text = 'Time Paired Diff.', width = bigbuttonsize, fg = fgletter2,
+        self.GRPtime = tk.Radiobutton(self.parent, text = 'Time Paired Diff.', width = bigbuttonsize, fg = fgletter2, font = radiofont,
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 8)
         self.GRPtime.grid(row = 7, column = 2, sticky="W")
 
 
         self.var6 = tk.IntVar()
-        self.GRPcorr = tk.Radiobutton(self.parent, text = 'ANOVA', width = bigbuttonsize, fg = fgletter2,
+        self.GRPcorr = tk.Radiobutton(self.parent, text = 'ANOVA', width = bigbuttonsize, fg = fgletter2, font = radiofont,
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 6)
         self.GRPcorr.grid(row = 5, column = 3, sticky="W")
 
         self.var7 = tk.IntVar()
-        self.GRPcorr = tk.Radiobutton(self.parent, text = 'ANCOVA', width = bigbuttonsize, fg = fgletter2,
+        self.GRPcorr = tk.Radiobutton(self.parent, text = 'ANCOVA', width = bigbuttonsize, fg = fgletter2, font = radiofont,
                                           command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 7)
         self.GRPcorr.grid(row = 6, column = 3, sticky="W")
 
@@ -5925,11 +5927,11 @@ class DisplayFrame:
         self.DISPlabel4 = tk.Label(self.parent, text="Plot Method:", font = labelfont)
         self.DISPlabel4.grid(row=6, column=1, sticky='E')
         self.DISPplotmethod = tk.IntVar(None,1)
-        self.DISPmethod1 = tk.Radiobutton(self.parent, text = 'Box Plot', width = smallbuttonsize, fg = fgletter2,
+        self.DISPmethod1 = tk.Radiobutton(self.parent, text = 'Box Plot', width = smallbuttonsize, fg = fgletter2, font = radiofont,
                                           command = self.DISPsetmethodtype, variable = self.DISPplotmethod, value = 1)
         self.DISPmethod1.grid(row = 6, column = 2, sticky="W")
 
-        self.DISPmethod2 = tk.Radiobutton(self.parent, text = 'XY Scatter Plot', width = smallbuttonsize, fg = fgletter2,
+        self.DISPmethod2 = tk.Radiobutton(self.parent, text = 'XY Scatter Plot', width = smallbuttonsize, fg = fgletter2, font = radiofont,
                                           command = self.DISPsetmethodtype, variable = self.DISPplotmethod, value = 2)
         self.DISPmethod2.grid(row = 6, column = 3, sticky="W")
 
@@ -5938,15 +5940,15 @@ class DisplayFrame:
         self.DISPlabel5.grid(row=6, column=4, sticky='E')
 
         self.DISPshowanat = tk.IntVar(None,2)
-        self.DISPanat1 = tk.Radiobutton(self.parent, text = 'Axial', width = smallbuttonsize, fg = fgletter2,
+        self.DISPanat1 = tk.Radiobutton(self.parent, text = 'Axial', width = smallbuttonsize, fg = fgletter2, font = radiofont,
                                           command = self.DISPsetanattype, variable = self.DISPshowanat, value = 1)
         self.DISPanat1.grid(row = 6, column = 5, sticky="W")
 
-        self.DISPanat2 = tk.Radiobutton(self.parent, text = 'Sagittal', width = smallbuttonsize, fg = fgletter2,
+        self.DISPanat2 = tk.Radiobutton(self.parent, text = 'Sagittal', width = smallbuttonsize, fg = fgletter2, font = radiofont,
                                           command = self.DISPsetanattype, variable = self.DISPshowanat, value = 2)
         self.DISPanat2.grid(row = 6, column = 6, sticky="W")
 
-        self.DISPanat3 = tk.Radiobutton(self.parent, text = 'Coronal', width = smallbuttonsize, fg = fgletter2,
+        self.DISPanat3 = tk.Radiobutton(self.parent, text = 'Coronal', width = smallbuttonsize, fg = fgletter2, font = radiofont,
                                           command = self.DISPsetanattype, variable = self.DISPshowanat, value = 3)
         self.DISPanat3.grid(row = 6, column = 7, sticky="W")
 
