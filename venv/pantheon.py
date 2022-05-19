@@ -71,8 +71,9 @@ if os.name == 'nt':
     fgletter1 = 'white'
     fgletter2 = 'black'
     fgletter3 = 'white'
+    widgetfont = "none 9 bold"
 else:
-    # colours for Mac/Linus
+    # colours for Mac/Linux
     fgcol1 = 'navy'
     fgcol2 = 'navy'
     fgcol3 = 'navy'
@@ -80,6 +81,7 @@ else:
     fgletter1 = 'black'
     fgletter2 = 'black'
     fgletter3 = 'black'
+    widgetfont = "none 8 bold"
 
 bigbigbuttonsize = 21
 bigbuttonsize = 14
