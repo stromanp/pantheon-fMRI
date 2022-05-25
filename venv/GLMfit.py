@@ -255,11 +255,26 @@ def compile_data_sets(DBname, dbnumlist, prefix, mode = 'concatenate_group', nvo
                 if nvolmask > 0:
                     for tt in range(nvolmask): input_data[:,:,:,tt] = input_data[:,:,:,nvolmask]
 
+                if runnum == 0 and pnum == 0:
+                    fixed_ts = ts    # set the number of volumes to be constant
+                else:
+                    if ts < fixed_ts:
+                        mean_data = np.mean(input_data, axis=3)
+                        temp_data = np.repeat(mean_data[:,:,:,np.newaxis],fixed_ts,axis=3)
+                        temp_data[:,:,:,:ts] = input_data    # pad the missing data points with the
+                                                            # time-series mean value for each voxel
+                        input_data = copy.deepcopy(temp_data)
+                    if ts > fixed_ts:
+                        input_data = input_data[:,:,:,:fixed_ts]
+
                 # # convert to signal change from the average----------------
                 # if data have been cleaned they are already percent signal changes
                 mean_data = np.mean(input_data, axis=3)
                 mean_data = np.repeat(mean_data[:,:,:,np.newaxis],ts,axis=3)
-                input_data = input_data - mean_data
+                if prefix[0] == 'x':
+                    input_data = input_data - mean_data
+                else:
+                    input_data = 100.0*(input_data - mean_data)/(mean_data + 1.0e-20)
 
                 if runnum == 0:
                     person_data = input_data
@@ -273,7 +288,6 @@ def compile_data_sets(DBname, dbnumlist, prefix, mode = 'concatenate_group', nvo
                         # concatenate across the person
                         person_data = np.concatenate((person_data,input_data), axis = 3)
             person_data = person_data/divisor # average
-
 
             # group level
             options_list = ['concatenate_group', 'group_concatenate_by_person_avg', 'avg_by_person',
@@ -296,17 +310,17 @@ def compile_data_sets(DBname, dbnumlist, prefix, mode = 'concatenate_group', nvo
                     else:
                         group_data = np.concatenate((group_data,person_data[:,:,:,:,np.newaxis]),axis = 4)
                 if mode == 'concatenate_by_person':
-                    # need to pad every person out to the same length
-                    tsize_group = np.shape(group_data)[3]
-                    xs,ys,zs,tsize_person = np.shape(person_data)
-                    if tsize_person > tsize_group:
-                        new_group_data = np.zeros((xs,ys,zs,tsize_person))
-                        new_group_data[:,:,:,:tsize_group] = group_data
-                        group_data = new_group_data
-                    if tsize_group > tsize_person:
-                        new_person_data = np.zeros((xs,ys,zs,tsize_group))
-                        new_person_data[:,:,:,:tsize_person] = person_data
-                        person_data = new_person_data
+                    # need to pad every person out to the same length  --> taken care of earlier now
+                    # tsize_group = np.shape(group_data)[3]
+                    # xs,ys,zs,tsize_person = np.shape(person_data)
+                    # if tsize_person > tsize_group:
+                    #     new_group_data = np.zeros((xs,ys,zs,tsize_person))
+                    #     new_group_data[:,:,:,:tsize_group] = group_data
+                    #     group_data = new_group_data
+                    # if tsize_group > tsize_person:
+                    #     new_person_data = np.zeros((xs,ys,zs,tsize_group))
+                    #     new_person_data[:,:,:,:tsize_person] = person_data
+                    #     person_data = new_person_data
                     if np.ndim(group_data) == 4:
                         group_data = np.concatenate((group_data[:,:,:,:,np.newaxis],person_data[:,:,:,:,np.newaxis]),axis = 4)
                     else:

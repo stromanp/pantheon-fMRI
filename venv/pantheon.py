@@ -1564,6 +1564,7 @@ class NCFrame:
             img = input_data[xmid,:,:]
             img = (255.*img/np.max(img)).astype(np.uint8)
             image_tk = ImageTk.PhotoImage(Image.fromarray(img))
+        verticalsize = ys
         self.controller.img1d = image_tk  # keep a copy so it persists
         self.window1.configure(width=image_tk.width(), height=image_tk.height())
         self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
@@ -1582,7 +1583,7 @@ class NCFrame:
         self.window3.configure(width=image_tk.width(), height=image_tk.height())
         self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
 
-        time.sleep(0.5)
+        time.sleep(0.1)
         #-----------end of display--------------------------------
 
         print('Normalization: databasename ',self.NCdatabasename)
@@ -1650,10 +1651,12 @@ class NCFrame:
                 xmid = np.round(xs/2).astype(int)
                 display_image = reverse_map_image[xmid,:,:]
                 display_image = (255. * display_image / np.max(display_image)).astype(np.uint8)
-                if ys > 128:
-                    display_imager = i3d.resize_2D(display_image, 0.5)
-                else:
-                    display_imager = copy.deepcopy(display_image)
+                vscale = 0.5*(verticalsize/ys)
+                display_imager = i3d.resize_2D(display_image, vscale)
+                # if ys > 128:
+                #     display_imager = i3d.resize_2D(display_image, 0.5)
+                # else:
+                #     display_imager = copy.deepcopy(display_image)
                 image_tk = ImageTk.PhotoImage(Image.fromarray(display_imager))
 
                 self.controller.img2d = image_tk   # keep a copy so it persists
@@ -1667,10 +1670,12 @@ class NCFrame:
                 xmid = np.round(xs/2).astype(int)
                 display_image = template_img[xmid,:,:]
                 display_image = (255. * display_image / np.max(display_image)).astype(np.uint8)
-                if ys > 128:
-                    display_imager = i3d.resize_2D(display_image, 0.5)
-                else:
-                    display_imager = copy.deepcopy(display_image)
+                vscale = 0.5*(verticalsize/ys)
+                display_imager = i3d.resize_2D(display_image, vscale)
+                # if ys > 128:
+                #     display_imager = i3d.resize_2D(display_image, 0.5)
+                # else:
+                #     display_imager = copy.deepcopy(display_image)
                 image_tk = ImageTk.PhotoImage(Image.fromarray(display_imager))
                 self.controller.img3d = image_tk   # keep a copy so it persists
                 self.window3.configure(width=image_tk.width(), height=image_tk.height())
@@ -1694,7 +1699,9 @@ class NCFrame:
                 xmid = np.round(xs/2).astype(int)
                 img2 = reverse_map_image[xmid,:,:]
                 img2 = (255. * img2 / np.max(img2)).astype(np.uint8)
-                img2r = i3d.resize_2D(img2, 0.5)
+                vscale = 0.5*(verticalsize/ys)
+                img2r = i3d.resize_2D(img2, vscale)
+                # img2r = i3d.resize_2D(img2, 0.5)
                 image_tk = ImageTk.PhotoImage(Image.fromarray(img2r))
                 self.controller.img2d = image_tk   # keep a copy so it persists
                 self.window2.configure(width=image_tk.width(), height=image_tk.height())
@@ -1704,7 +1711,9 @@ class NCFrame:
                 xmid = np.round(xs/2).astype(int)
                 img3 = template_img[xmid,:,:]
                 img3 = (255. * img3 / np.max(img3)).astype(np.uint8)
-                img3r = i3d.resize_2D(img3, 0.5)
+                vscale = 0.5*(verticalsize/ys)
+                img3r = i3d.resize_2D(img3, vscale)
+                # img3r = i3d.resize_2D(img3, 0.5)
                 image_tk = ImageTk.PhotoImage(Image.fromarray(img3r))
                 self.controller.img3d = image_tk   # keep a copy so it persists
                 self.window3.configure(width=image_tk.width(), height=image_tk.height())
@@ -1713,7 +1722,7 @@ class NCFrame:
                 image_tk = self.controller.img1d
                 self.window1.configure(width=image_tk.width(), height=image_tk.height())
                 self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
-                time.sleep(1)
+                time.sleep(0.1)
 
                 nfordisplay = len(result)
                 for nf in range(nfordisplay):
@@ -1792,7 +1801,9 @@ class NCFrame:
             xmid = np.round(xs / 2).astype(int)
             img2 = norm_result_image[xmid, :, :]
             img2 = (255. * img2 / np.max(img2)).astype(np.uint8)
-            img2r = i3d.resize_2D(img2, 0.5)
+            vscale = 0.5 * (verticalsize / ys)
+            img2r = i3d.resize_2D(img2, vscale)
+            # img2r = i3d.resize_2D(img2, 0.5)
             image_tk = ImageTk.PhotoImage(Image.fromarray(img2r))
             self.controller.img2d = image_tk  # keep a copy so it persists
             self.window2.configure(width=image_tk.width(), height=image_tk.height())
@@ -1909,7 +1920,7 @@ class NCFrame:
         self.controller.img1d = image_tk  # keep a copy so it persists
         self.window1.configure(width=image_tk.width(), height=image_tk.height())
         self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
-        time.sleep(0.5)
+        time.sleep(0.1)
         #-----------end of display--------------------------------
 
         # tweak the normalization results for consistency
@@ -1981,10 +1992,12 @@ class NCFrame:
         xmid = np.round(xs / 2).astype(int)
         display_image = reverse_map_image[xmid, :, :]
         display_image = (255. * display_image / np.max(display_image)).astype(np.uint8)
-        if ys > 128:
-            display_imager = i3d.resize_2D(display_image, 0.5)
-        else:
-            display_imager = copy.deepcopy(display_image)
+        vscale = 0.5 * (verticalsize / ys)
+        display_imager = i3d.resize_2D(display_image, vscale)
+        # if ys > 128:
+        #     display_imager = i3d.resize_2D(display_image, 0.5)
+        # else:
+        #     display_imager = copy.deepcopy(display_image)
         image_tk = ImageTk.PhotoImage(Image.fromarray(display_imager))
 
         self.controller.img2d = image_tk  # keep a copy so it persists
@@ -2000,10 +2013,12 @@ class NCFrame:
         xmid = np.round(xs / 2).astype(int)
         display_image = template_img[xmid, :, :]
         display_image = (255. * display_image / np.max(display_image)).astype(np.uint8)
-        if ys > 128:
-            display_imager = i3d.resize_2D(display_image, 0.5)
-        else:
-            display_imager = copy.deepcopy(display_image)
+        vscale = 0.5 * (verticalsize / ys)
+        display_imager = i3d.resize_2D(display_image, vscale)
+        # if ys > 128:
+        #     display_imager = i3d.resize_2D(display_image, 0.5)
+        # else:
+        #     display_imager = copy.deepcopy(display_image)
         image_tk = ImageTk.PhotoImage(Image.fromarray(display_imager))
 
         self.controller.img3d = image_tk  # keep a copy so it persists
@@ -2384,7 +2399,7 @@ class NCbrainFrame:
         self.window3.configure(width=image_tk.width(), height=image_tk.height())
         self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
 
-        time.sleep(0.5)
+        time.sleep(0.1)
         # -----------end of display--------------------------------
 
         print('Normalization: databasename ', self.NCdatabasename)
@@ -2454,7 +2469,9 @@ class NCbrainFrame:
             zmid = np.floor(zs/2).astype(int)
             img2 = norm_brain_img[:,:,zmid]
             img2= (255. * img2 / np.max(img2)).astype(np.uint8)
-            img2r = i3d.resize_2D(img2, 0.5)
+            vscale = 0.5 * (verticalsize / ys)
+            img2r = i3d.resize_2D(img2, vscale)
+            # img2r = i3d.resize_2D(img2, 0.5)
             image_tk = ImageTk.PhotoImage(Image.fromarray(img2r))
             self.controller.img2d = image_tk
             self.window2.configure(width=image_tk.width(), height=image_tk.height())
@@ -2466,7 +2483,9 @@ class NCbrainFrame:
             zmid = np.floor(zs/2).astype(int)
             img3 = ref_data[:,:,zmid]
             img3 = (255. * img3 / np.max(img3)).astype(np.uint8)
-            img3r = i3d.resize_2D(img3, 0.5)
+            vscale = 0.5 * (verticalsize / ys)
+            img3r = i3d.resize_2D(img3, vscale)
+            # img3r = i3d.resize_2D(img3, 0.5)
             image_tk = ImageTk.PhotoImage(Image.fromarray(img3r))
             self.controller.img3d = image_tk
             self.window3.configure(width=image_tk.width(), height=image_tk.height())
