@@ -38,6 +38,7 @@ from statsmodels.formula.api import ols
 import os
 from mpl_toolkits import mplot3d
 import random
+import draw_sapm_diagram2 as dsd2
 
 
 def sub2ind(vsize, indices):
@@ -3992,7 +3993,7 @@ def noise_test():
 
 
 # main program
-def main():
+def run_a_bunch_of_different_networks():
     # main function
     # settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
     covariatesfile = r'D:\threat_safety_python\copy_of_covariates.npy'
@@ -4682,6 +4683,7 @@ def Beta_distribution_study_main(studyname, cord_cluster, type, reload_existing 
 def view_distributions(type, cord_cluster, display_connection_number):
 
     studylist = ['allthreat','RS1nostim','Low','Sens']
+    plotcolor = [[0,0,1],[1,0.5,0],[1,0,1],[0,1,0]]
 
     nullname = 'E:\\beta_distribution\\Sens_fixed_C6RD0\\SEMphysio_nullset.npy'
     nullresults = np.load(nullname, allow_pickle=True)
@@ -4767,7 +4769,7 @@ def view_distributions(type, cord_cluster, display_connection_number):
         hist = np.histogram(betaval_record[nn,list(range(v1,v2))], bins=bins)
         bin_centers = (hist[1][1:] + hist[1][:-1]) / 2.0
         offset = mm*0.2
-        plt.plot(bin_centers,np.array(hist[0])+offset,'-')
+        plt.plot(bin_centers,np.array(hist[0])+offset,'-',color = plotcolor[mm])
 
     # show null distribution for comparison
     # plt.close(windownum+2)
@@ -4797,7 +4799,7 @@ def view_distributions(type, cord_cluster, display_connection_number):
         hist = np.histogram(R2_record[list(range(v1,v2))], bins=bins)
         bin_centers = (hist[1][1:] + hist[1][:-1]) / 2.0
         offset = 0.2*mm
-        plt.plot(bin_centers,np.array(hist[0])+offset,'-')
+        plt.plot(bin_centers,np.array(hist[0])+offset,'-',color = plotcolor[mm])
 
     # show null distribution for comparison
     # plt.close(windownum+2)
@@ -5736,10 +5738,24 @@ def check_single_result_details(nperson = 27, reload_existing=False):
             con_name = '{}-{}-{}'.format('latent', rnamelist[targetpair[0]], rnamelist[targetpair[1]])
         print('negative:  {} {}'.format(nn, con_name))
 
-
-
     return SEMresultsname
 
 
-# if __name__ == '__main__':
-#     main()
+def main():
+    # studyname:   allthreat, RS1nostim, Low, Sens
+    starttime = time.ctime()
+    studynamelist = ['allthreat', 'RS1nostim', 'Low', 'Sens']
+    for cord_cluster in range(1,5):
+        for studyname in studynamelist:
+            print('--------------------------------------------')
+            print('running {} cluster {}  at {}'.format(studyname,cord_cluster,time.ctime()))
+            print('---------------------------------------------\n\n')
+            type = 'fixed'
+            Beta_distribution_study_main(studyname, cord_cluster, type, reload_existing=False)
+
+    print('started at {}'.format(starttime))
+    print('finished at {}'.format(time.ctime()))
+
+if __name__ == '__main__':
+    main()
+

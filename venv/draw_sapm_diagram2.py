@@ -38,6 +38,77 @@ import pydisplay
 # SEMresults_load = np.load(SEMresultsname, allow_pickle=True)
 #-----------------------------------------------------------------------
 
+def create_sapm_plot(cnums, resultsfile, sheetname, regionnames, statname, drawregionsfile, scalefactor, threshold, figurenumber = 5):
+    # studyname:   allthreat, Low, Sens, RS1nostim
+
+    type = 'fixed'
+    cord_cluster = 0
+
+    if type == 'fixed':
+        if cord_cluster == 0:
+            cnums = [0, 3, 3, 1, 4, 1, 3, 3, 4, 1]  # fixed 0
+        if cord_cluster == 1:
+            cnums = [1, 3, 3, 1, 3, 1, 3, 3, 2, 1]  # fixed 1
+        if cord_cluster == 2:
+            cnums = [2, 3, 3, 1, 1, 1, 3, 3, 2, 0]  # fixed 2
+        if cord_cluster == 3:
+            cnums = [3, 3, 2, 1, 0, 1, 2, 3, 4, 1]  # fixed 3
+        if cord_cluster == 4:
+            cnums = [4, 3, 3, 1, 0, 1, 2, 3, 4, 3]  # fixed 4
+    else:
+        if cord_cluster == 0:
+            cnums = [0, 4, 4, 2, 2, 3, 3, 2, 3, 1]  # random 0
+        if cord_cluster == 1:
+            cnums = [1, 4, 2, 3, 2, 1, 1, 2, 3, 0]  # random 1
+        if cord_cluster == 2:
+            cnums = [2, 2, 2, 0, 0, 2, 0, 3, 1, 3]  # random 2
+        if cord_cluster == 3:
+            cnums = [3, 3, 1, 4, 4, 1, 3, 3, 1, 0]  # random 3
+        if cord_cluster == 4:
+            cnums = [4, 4, 2, 1, 0, 3, 3, 3, 2, 0]  # random 4
+
+
+    drawregionsfile = r'E:\beta_distribution\cord_region_drawing_positions.xlsx'
+    resultsfile = r'E:\beta_distribution\RS1nostim_fixed_C6RD3\all All Average Mconn values.xlsx'
+    sheetname = 'average'
+    regionnames = 'regions'
+    statname = 'beta'
+    scalefactor = 10.0
+    threshold = 0.0
+    figurenumber = 14
+
+    regions = define_drawing_regions_from_file(drawregionsfile)
+    writefigure = True
+
+    draw_general_sapm_plot(regions, resultsfile, sheetname, regionnames, statname, drawregionsfile, figurenumber,
+                           scalefactor, cnums, threshold, writefigure)
+
+    # make figures of regions
+    clusterdataname = r'E:\threat_safety_clusterdata.npy'
+    regionlist = [regions[x]['name'] for x in range(len(regions))]
+    templatename = 'ccbs'
+    outputfolder = r'E:\beta_distribution'
+    draw_sapm_regions(regionlist, clusterdataname, cnums, templatename, outputfolder)
+
+
+
+def draw_sapm_regions(regionlist, clusterdataname, cnums, templatename, outputfolder):
+    # show axial slices?
+    if len(clusterdataname) > 0:
+        for rr, regionname in enumerate(regionlist):
+            if rr < len(cnums):
+                clusternum = cnums[rr]
+                outputimg = display_anatomical_slices(clusterdataname, regionname, clusternum, templatename)
+
+                # display it somewhere...
+                f = 'region_{}{}.svg'.format(regionname,clusternum)
+                svgname = os.path.join(outputfolder, f)
+                plt.figure(100+rr)
+                plt.imshow(outputimg)
+                plt.savefig(svgname, format='svg')
+                print('saved figure as {}'.format(svgname))
+
+
 def run_draw_sapm_plot(type, clusternumber):
     # load excel file with results to display
     # type = 'fixed'
@@ -119,7 +190,26 @@ def run_draw_sapm_plot_brain():
     regions = define_drawing_regions_brain()
 
     figurenumber = 108
-    draw_sapm_plot(templatename, results_file, sheetname, regionnames, regions,statnames,figurenumber, scalefactor, cnums, threshold, True, clusterdataname)
+    draw_sapm_plot(results_file, sheetname, regionnames, regions,statnames,figurenumber, scalefactor, cnums, threshold, True)
+
+
+
+def define_drawing_regions_from_file(regionfilename):
+    # setup region labels and positions
+    xls = pd.ExcelFile(regionfilename, engine='openpyxl')
+    df1 = pd.read_excel(xls, 'regions')
+    names = df1['name']
+    posx = df1['posx']
+    posy = df1['posy']
+    offset_x = df1['labeloffset_x']
+    offset_y = df1['labeloffset_y']
+
+    regions = []
+    for nn in range(len(names)):
+        entry = {'name': names[nn], 'pos':[posx[nn],posy[nn]], 'labeloffset':np.array([offset_x[nn],offset_y[nn]])}
+        regions.append(entry)
+
+    return regions
 
 
 def define_drawing_regions():
@@ -198,7 +288,123 @@ def define_drawing_regions_brain():
     return regions
 
 
-def draw_sapm_plot(templatename, results_file, sheetname, regionnames, regions,statnames,figurenumber, scalefactor, cnums, threshold = 0.0, writefigure = False, clusterdataname = []):
+def draw_general_sapm_plot(regions, results_file, sheetname, regionnames, statnames, regiondeffile,figurenumber, scalefactor, cnums, threshold = 0.0, writefigure = False):
+    xls = pd.ExcelFile(results_file, engine='openpyxl')
+    df1 = pd.read_excel(xls, sheetname)
+    connections = df1[regionnames]
+    statvals = df1[statnames]
+
+    plt.close(figurenumber)
+
+    regionlist = [regions[x]['name'] for x in range(len(regions))]
+    regionlist_trunc = [regions[x]['name'][:4] for x in range(len(regions))]
+
+    # set some drawing parameters
+    ovalsize = (0.1,0.05)
+    width = 0.001
+    ovalcolor = [0,0,0]
+
+    # start drawing
+    fig = plt.figure(figurenumber)
+    ax = fig.add_axes([0,0,1,1])
+
+    # add ellipses and labels
+    for nn in range(len(regions)):
+        ellipse = mpatches.Ellipse(regions[nn]['pos'],ovalsize[0],ovalsize[1], alpha = 0.3)
+        ax.add_patch(ellipse)
+        if nn < len(cnums):
+            ax.annotate('{}{}'.format(regions[nn]['name'],cnums[nn]),regions[nn]['pos']+regions[nn]['labeloffset'])
+        else:
+            ax.annotate(regions[nn]['name'],regions[nn]['pos']+regions[nn]['labeloffset'])
+
+    an_list = []
+    connection_list = []
+    acount = 0
+    for nn in range(len(connections)):
+        # plot lines for connections
+        c1 = connections[nn]
+        val1 = statvals[nn]
+        m,s = parse_statval(val1)
+        if np.abs(m) > threshold:
+            linethick = np.min([5.0, np.abs(m)*scalefactor])
+            if m > 0:
+                linecolor = 'k'
+            else:
+                linecolor = 'r'
+            rlist,ilist = parse_connection_name(c1,regionlist_trunc)
+
+            # get positions of ends of lines,arrows, etc... for one connection
+            p0 = regions[ilist[0]]['pos']
+            p1 = regions[ilist[1]]['pos']
+            p2 = regions[ilist[2]]['pos']
+
+            if p0 != p1  and  p1 != p2:
+                pe0, pe1a, pe1b, pe2, pe1ab_connectionstyle, specialcase = points_on_ellipses2(p0,p1,p2,ovalsize)
+                print('{}  {}'.format(c1,pe1ab_connectionstyle))
+
+                connection_type1 = {'con':'{}-{}'.format(rlist[0],rlist[1]), 'type':'input'}
+                connection_type2 = {'con':'{}-{}'.format(rlist[1],rlist[2]), 'type':'output'}
+                connection_joiner = {'con':'{}-{}'.format(rlist[1],rlist[1]), 'type':'joiner'}
+
+                if specialcase:
+                    print('special case...')
+                    an1 = ax.annotate('',xy=pe1a,xytext = pe0, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
+                    acount+= 1
+                    an_list.append(an1)
+                    connection_list.append(connection_type1)
+                    an1 = ax.annotate('',xy=pe2,xytext = pe1b, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
+                    acount+= 1
+                    an_list.append(an1)
+                    connection_list.append(connection_type2)
+                else:
+                    an1 = ax.annotate('',xy=pe1a,xytext = pe0, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
+                    acount+= 1
+                    an_list.append(an1)
+                    connection_list.append(connection_type1)
+                    an1 = ax.annotate('',xy=pe2,xytext = pe1b, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
+                    acount+= 1
+                    an_list.append(an1)
+                    connection_list.append(connection_type2)
+                    an1 = ax.annotate('',xy=pe1b,xytext = pe1a, arrowprops=dict(arrowstyle="->", connectionstyle=pe1ab_connectionstyle, linewidth = linethick/2.0, color = linecolor, shrinkA = 0.0, shrinkB = 0.0))
+                    acount+= 1
+                    an_list.append(an1)
+                    connection_list.append(connection_joiner)
+            else:
+                print('ambiguous connection not drawn:  {}'.format(c1))
+
+    # look for inputs and outputs drawn for the same connection.  Only show the input if both exist
+    conlist = [connection_list[x]['con'] for x in range(len(connection_list))]
+    typelist = [connection_list[x]['type'] for x in range(len(connection_list))]
+    for nn in range(len(connection_list)):
+        con = conlist[nn]
+        c = np.where([conlist[x] == con for x in range(len(conlist))])[0]
+        if len(c) > 1:
+            t = [typelist[x] for x in c]
+            if 'input' in t:   # if some of the connections are inputs, do not draw outputs at the same place
+                c2 = np.where([typelist[x] == 'output' for x in c])[0]
+                if len(c2) > 0:
+                    redundant_c = c[c2]
+                    # remove the redundant connections
+                    for c3 in redundant_c:
+                        a = an_list[c3]
+                        a.remove()
+                        typelist[c3] = 'removed'
+                        connection_list[c3]['type'] = 'removed'
+
+
+    if writefigure:
+        p,f1 = os.path.split(results_file)
+        f,e = os.path.splitext(f1)
+        svgname = os.path.join(p,f+sheetname+'.svg')
+        plt.figure(figurenumber)
+        plt.savefig(svgname, format='svg')
+        print('saved figure as {}'.format(svgname))
+
+
+
+def draw_sapm_plot(results_file, sheetname, regionnames, regions,statnames,figurenumber, scalefactor, cnums, threshold = 0.0, writefigure = False):
+    # templatename, clusterdataname = []
+    #
     xls = pd.ExcelFile(results_file, engine='openpyxl')
     df1 = pd.read_excel(xls, sheetname)
     connections = df1[regionnames]
