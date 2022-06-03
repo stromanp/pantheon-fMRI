@@ -39,6 +39,7 @@ import os
 from mpl_toolkits import mplot3d
 import random
 import draw_sapm_diagram2 as dsd2
+import copy
 
 
 def sub2ind(vsize, indices):
@@ -336,7 +337,7 @@ def ind2sub_ndims(vsize,index):
 
 #---------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
-def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname):
+def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname, fullgroup = False):
 
     outputdir, f = os.path.split(SEMparametersname)
     network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count = load_network_model_w_intrinsics(networkfile)
@@ -402,6 +403,21 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEM
             tcdata_centered[:, tp] = tcdata[:, tp] - temp_mean  # center each epoch, in each person
         tplist1.append({'tp': tpoints})
     tplist_full.append(tplist1)
+
+
+    if fullgroup:
+        # special case to fit the full group together
+        # treat the whole group like one person
+        tpgroup_full = []
+        tpgroup = []
+        tp = []
+        for nn in range(NP):
+            tp += tplist_full[0][nn]['tp']   # concatenate timepoint lists
+        tpgroup.append({'tp': tp})
+        tpgroup_full.append(tpgroup)
+        tplist_full = copy.deepcopy(tpgroup_full)
+        nruns_per_person = [np.sum(nruns_per_person)]
+
 
     Nintrinsic = fintrinsic_count + vintrinsic_count
     nregions = len(rnamelist)
@@ -605,21 +621,6 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
 
         lastgood_beta_int1 = copy.deepcopy(beta_int1)
 
-        # new concept-------------------------------------------
-        # 1) test a set of betavalues
-        # 2) fit to get the intrinsics that would go along with them
-        # 3) see how that solution fits the data
-        # e,v = np.linalg.eig(Mconn)    # Mconn is nbeta x nbeta   where nbeta = ncon + Nintrinsic
-        # Meigv = v[:,-Nintrinsic:]
-        # # Sinput[:nregions,:] = Minput @ Meigv @ Mintrinsic   #  [nr x tsize] = [nr x ncon] @ [ncon x Nint] @ [Nint x tsize]
-        # # Mintrinsic = np.linalg.inv(Meigv.T @ Minput.T @ Minput @ Meigv) @ Meigv.T @ Minput.T @ Sin
-        # Sin = Sinput[:nregions, :]
-        # M1 = Minput @ Meigv
-        # Mintrinsic = np.linalg.inv(M1.T @ M1) @ M1.T @ Sin
-        #
-        # v1 = np.mean(np.reshape(np.real(Mintrinsic[1, :]), (5, 40)), axis=0)
-        # v2 = np.mean(np.reshape(np.real(Mintrinsic[2, :]), (5, 40)), axis=0)
-
         # initialize beta values-----------------------------------
         beta_initial = np.zeros(len(csource))
         # beta_initial = np.random.randn(len(csource))
@@ -751,7 +752,8 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
 
         entry = {'Sinput':Sinput, 'Sconn':Sconn, 'beta_int1':beta_int1, 'Mconn':Mconn, 'Minput':Minput,
                  'rtext1':results_text[0], 'rtext2':results_text[1], 'R2total':R2total, 'Mintrinsic':Mintrinsic,
-                 'Meigv':Meigv, 'betavals':betavals, 'fintrinsic1':fintrinsic1, 'clusterlist':clusterlist}
+                 'Meigv':Meigv, 'betavals':betavals, 'fintrinsic1':fintrinsic1, 'clusterlist':clusterlist,
+                 'fintrinsic_base':fintrinsic_base}
         SEMresults.append(copy.deepcopy(entry))
 
         stoptime = time.ctime()
@@ -3396,6 +3398,7 @@ def write_Mconn_values2(Mconn, Mconn_sem, NP, betanamelist, rnamelist, beta_list
 
     Tvals = Mconn/(Mconn_sem + 1.0e-20)
     Tthresh = stats.t.ppf(1 - pthresh, NP - 1)
+    if np.isnan(Tthresh):  Tthresh = 0.0
 
     labeltext_record = []
     valuetext_record = []
@@ -4490,7 +4493,7 @@ def IDstudy_main(cord_cluster, type, reload_existing = False):
 # main program
 def Beta_distribution_study_main(studyname, cord_cluster, type, reload_existing = False):
 
-    # studyname:   allthreat, RS1nostim, Low, Sens
+    # studyname:   allthreat, RS1nostim, Low, Sens, all_condition
 
     if type == 'fixed':
         if cord_cluster == 0:
@@ -4524,6 +4527,11 @@ def Beta_distribution_study_main(studyname, cord_cluster, type, reload_existing 
 
     # main function
     # settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+
+    if studyname == 'all_condition':
+        covariatesfile = r'E:\all_condition_covariates.npy'
+        regiondataname = r'E:\all_condition_region_data.npy'
+        clusterdataname = r'E:\threat_safety_clusterdata.npy'
 
     if studyname == 'allthreat':
         covariatesfile = r'E:\allthreat_covariates.npy'
@@ -4578,14 +4586,14 @@ def Beta_distribution_study_main(studyname, cord_cluster, type, reload_existing 
 
     # run the analysis with SAPM
     clusterlist = np.array(cnums) + full_rnum_base
-    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
+    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname, fullgroup=False)
 
     if reload_existing:
         output = SEMresultsname
     else:
         output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
 
-    SEMresults = np.load(output, allow_pickle=True).flat[0]
+    SEMresults = np.load(output, allow_pickle=True)
 
     group = 'all'
     windowoffset = 0

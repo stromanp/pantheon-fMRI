@@ -349,7 +349,7 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, networkmodel):
     # xs, ys, zs, ts = group_data.shape
 
     # the voxels in the regions of interest need to be extracted
-    filename_list, dbnum_person_list, NP = pydatabase.get_datanames_by_person(DBname, DBnum, prefix, mode='list')
+    filename_list, dbnum_person_list, NP = pydatabase.get_datanames_by_person(DBname, DBnum, prefix, mode='list', separate_conditions = True)
     nruns_per_person = np.zeros(NP).astype(int)
     for nn in range(NP):
         nruns_per_person[nn] = len(filename_list[nn])

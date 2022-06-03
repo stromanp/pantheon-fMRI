@@ -8,10 +8,14 @@ import scipy.io
 #----------------get_datanames_by_person------------------------------------------
 # function to extract nifti format data file names, according to the participant id
 # this function allows for multiple data sets from each person
-def get_datanames_by_person(DBname, dbnumlist, prefix, mode = 'dict'):
+def get_datanames_by_person(DBname, dbnumlist, prefix, mode = 'dict', separate_conditions = True):
     # output mode can be 'dict' for outputs in dictionary form,
     # or the output can be as a list
     # BASEdir = os.path.dirname(DBname)
+    #
+    # if "separate_conditions" is True then data from the same person, but different study conditions
+    # will be listed separately, not as one person
+    #
     xls = pd.ExcelFile(DBname, engine = 'openpyxl')
     df1 = pd.read_excel(xls, 'datarecord')
     filename_list = []
@@ -33,8 +37,16 @@ def get_datanames_by_person(DBname, dbnumlist, prefix, mode = 'dict'):
         patientid_list.append(patientid)
         studygroup_list.append(studygroup)
 
-    # get the unique patient id's
-    unique_pid, unique_index, original_index = unique_in_list(patientid_list)
+    combined_list = []
+    if separate_conditions:
+        for nn in range(len(dbnumlist)):
+            tempname = '{}_{}'.format(patientid_list[nn],studygroup_list[nn])
+            combined_list.append(tempname)
+        unique_pid, unique_index, original_index = unique_in_list(combined_list)
+    else:
+        # get the unique patient id's
+        unique_pid, unique_index, original_index = unique_in_list(patientid_list)
+
     NP = np.size(unique_pid)
     # get all the information that belongs with each patient (i.e. person)
     if mode == 'dict':

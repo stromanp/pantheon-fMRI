@@ -38,11 +38,29 @@ import pydisplay
 # SEMresults_load = np.load(SEMresultsname, allow_pickle=True)
 #-----------------------------------------------------------------------
 
-def create_sapm_plot(cnums, resultsfile, sheetname, regionnames, statname, drawregionsfile, scalefactor, threshold, figurenumber = 5):
-    # studyname:   allthreat, Low, Sens, RS1nostim
+def create_sapm_plots(studynum, type, cord_cluster, figurenumber = 0):
+    # (cnums, resultsfile, sheetname, regionnames, statname, drawregionsfile, scalefactor, threshold, clusterdataname,
+    #  templatename, outputfolder, figurenumber = 5):
 
-    type = 'fixed'
-    cord_cluster = 0
+    # studynum = 0
+    # type = 'fixed'
+    # cord_cluster = 0
+
+    outputfolder = r'E:\beta_distribution'
+
+    studynames = ['allthreat','Low','Sens','RS1nostim', 'all_condition']
+    studyname = studynames[studynum]
+    drawregionsfile = r'E:\beta_distribution\cord_region_drawing_positions.xlsx'
+    resultsfile = 'E:\\beta_distribution\\{}_fixed_C6RD{}\\all All Average Mconn values.xlsx'.format(studyname,cord_cluster)
+    sheetname = 'average'
+    regionnames = 'regions'
+    statname = 'beta'
+    scalefactor = 10.0
+    threshold = 0.0
+    if figurenumber == 0:
+        figurenumber = 10+studynum
+
+    outputname = os.path.join(outputfolder, 'SAPMplot_{}_{}_{}{}.svg'.format(studyname, sheetname, type, cord_cluster))
 
     if type == 'fixed':
         if cord_cluster == 0:
@@ -67,27 +85,16 @@ def create_sapm_plot(cnums, resultsfile, sheetname, regionnames, statname, drawr
         if cord_cluster == 4:
             cnums = [4, 4, 2, 1, 0, 3, 3, 3, 2, 0]  # random 4
 
-
-    drawregionsfile = r'E:\beta_distribution\cord_region_drawing_positions.xlsx'
-    resultsfile = r'E:\beta_distribution\RS1nostim_fixed_C6RD3\all All Average Mconn values.xlsx'
-    sheetname = 'average'
-    regionnames = 'regions'
-    statname = 'beta'
-    scalefactor = 10.0
-    threshold = 0.0
-    figurenumber = 14
-
     regions = define_drawing_regions_from_file(drawregionsfile)
     writefigure = True
 
     draw_general_sapm_plot(regions, resultsfile, sheetname, regionnames, statname, drawregionsfile, figurenumber,
-                           scalefactor, cnums, threshold, writefigure)
+                           scalefactor, cnums, threshold, outputname, writefigure)
 
     # make figures of regions
     clusterdataname = r'E:\threat_safety_clusterdata.npy'
-    regionlist = [regions[x]['name'] for x in range(len(regions))]
     templatename = 'ccbs'
-    outputfolder = r'E:\beta_distribution'
+    regionlist = [regions[x]['name'] for x in range(len(regions))]
     draw_sapm_regions(regionlist, clusterdataname, cnums, templatename, outputfolder)
 
 
@@ -288,7 +295,7 @@ def define_drawing_regions_brain():
     return regions
 
 
-def draw_general_sapm_plot(regions, results_file, sheetname, regionnames, statnames, regiondeffile,figurenumber, scalefactor, cnums, threshold = 0.0, writefigure = False):
+def draw_general_sapm_plot(regions, results_file, sheetname, regionnames, statnames, regiondeffile,figurenumber, scalefactor, cnums, threshold = 0.0, outputname = 'SAPMplot', writefigure = False):
     xls = pd.ExcelFile(results_file, engine='openpyxl')
     df1 = pd.read_excel(xls, sheetname)
     connections = df1[regionnames]
@@ -393,11 +400,8 @@ def draw_general_sapm_plot(regions, results_file, sheetname, regionnames, statna
 
 
     if writefigure:
-        p,f1 = os.path.split(results_file)
-        f,e = os.path.splitext(f1)
-        svgname = os.path.join(p,f+sheetname+'.svg')
         plt.figure(figurenumber)
-        plt.savefig(svgname, format='svg')
+        plt.savefig(outputname, format='svg')
         print('saved figure as {}'.format(svgname))
 
 
