@@ -666,12 +666,15 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
         dssq_record = np.ones(3)
         dssq_count = 0
         sequence_count = 0
-        while alpha > alpha_limit  and iter < nitermax  and converging:
+        while alpha > alpha_limit and iter < nitermax and converging:
             iter += 1
             # gradients in betavals and beta_int1
             Mconn[ctarget, csource] = betavals
-            fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-            dssq_db, ssqd, dssq_dbeta1 = gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight)
+            fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
+                                                                     vintrinsic_count, beta_int1, fintrinsic1)
+            dssq_db, ssqd, dssq_dbeta1 = gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval,
+                                                                fintrinsic_count, vintrinsic_count, beta_int1,
+                                                                fintrinsic1, Lweight)
             ssqd_record += [ssqd]
 
             # fix some beta values at zero, if specified
@@ -692,7 +695,8 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
             # betavals[betavals <= -betalimit] = -betalimit
 
             Mconn[ctarget, csource] = betavals
-            fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
+            fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
+                                                                     vintrinsic_count, beta_int1, fintrinsic1)
             # cost = np.sum(np.abs(betavals**2))  # L2 regularization
             cost = np.sum(np.abs(betavals))  # L1 regularization
             ssqd_new = err + Lweight * cost
@@ -703,7 +707,7 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
             R2total = 1 - np.sum((err_total - errmean) ** 2) / np.sum((Sinput - Smean) ** 2)
 
             # Sinput_sim, Soutput_sim = network_sim(Sinput_full, Soutput_full, Minput, Moutput)
-            results_record.append({'Sinput': fit, 'Mintrinsic': Mintrinsic, 'Meigv':Meigv})
+            results_record.append({'Sinput': fit, 'Mintrinsic': Mintrinsic, 'Meigv': Meigv})
 
             if ssqd_new >= ssqd:
                 alpha *= 0.5
@@ -735,9 +739,8 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
                 if np.max(dssq_record) < 0.1:  converging = False
 
             print('beta vals:  iter {} alpha {:.3e}  delta ssq {:.4f}  relative: {:.1f} percent  '
-                  'R2 {:.3f}'.format(iter,alpha, -dssqd,100.0 * ssqd / ssqd_starting, R2total))
+                  'R2 {:.3f}'.format(iter, alpha, -dssqd, 100.0 * ssqd / ssqd_starting, R2total))
             # now repeat it ...
-
 
         # fit the results now to determine output signaling from each region
         Mconn[ctarget, csource] = betavals

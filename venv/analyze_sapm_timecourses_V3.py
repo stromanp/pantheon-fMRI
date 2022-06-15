@@ -204,85 +204,10 @@ def analyze_sapm_latents(studyname, cord_cluster, type):
     valuenames = ['lat0','lat1','lat2'] + rnamelistshort + betanamelist2
     # valuenames = copy.deepcopy(rnamelistshort)
 
-
-    # use kmeans to look for common states
-
     # look for common "states" during different periods of the paradigm and in different conditions
-    windownum = 33
-    plt.close(windownum)
-    fig = plt.figure(windownum)
 
-    ss = 4
-    if ss == 0: pnums = np.array(list(range(55)))  # pain condition
-    if ss == 1: pnums = np.array(list(range(55,74)))  # RS1 condition
-    if ss == 2: pnums = np.array(list(range(74,94)))  # Low condition
-    if ss == 3: pnums = np.array(list(range(94,114)))  # Sens condition
-    if ss == 4: pnums = np.array(list(range(114)))  # all conditions
-    tperiod = np.array(list(range(6,17)))   # before stim
-    tperiod = np.array(list(range(18,23)))   # during stim
-    tperiod = np.array(list(range(25,36)))   # after stim
-    tperiod = np.array(list(range(40)))    #  all time points
-    valuelist = np.array(list(range(3,13)))   # subset of values
-    valuelist = np.array(list(range(46)))   # all values
-    npnums = len(pnums)
-    epoch = len(tperiod)
-    subnvals = len(valuelist)
-
-    vals = np.reshape(person_state[pnums,:,:][:,tperiod,:][:,:,valuelist],(npnums*epoch, subnvals))
-
-    # try clustering to look for states
-    nstates = 8
-    kmeans = KMeans(n_clusters=nstates, random_state=1)
-    kmeans.fit(vals)
-    cv = kmeans.cluster_centers_
-
-    # use these as initial estimates for gradient-descent fitting method
-    initial_states = copy.deepcopy(cv)
-    working_states, ssqd_record, wout, fit = gradient_descent_states(vals, initial_states, 250, 1e-4, 1e-6, 0.05)
-    # now show results .....
-
-    fig = plt.figure(46)
-    nrows = np.floor(np.sqrt(subnvals)).astype(int)
-    ncols = subnvals // nrows + 1
-    for aa in range(subnvals):
-        ax = fig.add_subplot(nrows,ncols,aa+1)
-        plt.plot(vals[:, aa], fit[:, aa], 'ob')
-        # add a label for each plot
-        ax.title.set_text(valuenames[valuelist[aa]])
-
-
-
-
-    ax = fig.add_subplot()
-    colorvals = np.array([[1, 0, 0], [1, 0.5, 0], [0, 1, 0], [0, 1, 1], [0, 0, 1]])
-    state_definition = []
-    bwidth = 1.0 / (ncomponents + 1)
-    for nn in range(ncomponents):
-        x = np.array(range(nvals)) + nn * bwidth
-        state = cv[nn,:]
-        statelabel = 'state{}'.format(nn)
-        ax.barh(x, np.array(state), bwidth, color=colorvals[nn, :], label=statelabel)
-
-    ax.set_xlabel('Values')
-    ax.set_title('Signal values for each state')
-    y = x = np.array(range(nvals)) + (ncomponents / 2) * bwidth
-    ax.set_yticks(y)
-    ax.set_yticklabels(valuenames)
-    ax.legend()
-
-
-
-    # identify a limited number of states that can explain all of the data points
-    nstates = 4
-    NP,tsize,nvals = np.shape(person_state)
-    # use person_stater which is NP*tsize x nvals
-
-    states = np.zeros((nstates,nvals))  # initialize states
-
-
-
-    # find dominant states in the data set
-    pca = PCA(n_components = 6)
+    # use PCA to look for common states
+    pca = PCA(n_components = 30)
     person_stater = np.reshape(person_state,(NP*tsize,nvals))
     pca.fit(person_stater)
 
@@ -303,239 +228,236 @@ def analyze_sapm_latents(studyname, cord_cluster, type):
     #  therefore loadings is [ndatapoints x nterms]
     loadings = person_stater @ components.T @ np.linalg.inv(components @ components.T)
     fit_check = (loadings @ components)
+    fit_check2 = loadings[:,:2] @ components[:2,:]
 
     loadingsr = np.reshape(loadings,(NP,tsize,ncomponents))
     fit_checkr = np.reshape(fit_check,(NP,tsize,nvals))
 
-    # do ica on the loadings to find the patterns
-    # ica
-    rng = np.random.RandomState(42)
-    ica = FastICA(random_state=rng, whiten="arbitrary-variance")
-    ica.fit(loadings)
-    components_ica = ica.components_
-    mixing_ica = ica.mixing_   # probably the same as loadings
-    S_ica_ = ica.fit(loadings).transform(loadings)  # Estimate the sources
-    S_ica_ /= S_ica_.std(axis=0)
-
-    loadings2_ica = loadings @ components_ica.T @ np.linalg.inv(components_ica @ components_ica.T)
-    fit_check_ica = (loadings_ica @ components_ica)
-
-    loadings_icar = np.reshape(loadings_ica,(NP,tsize,ncomponents))
-    fit_check_icar = np.reshape(fit_check_ica,(NP,tsize,nvals))
-
-
-    # look for common "states" during different periods of the paradigm and in different conditions
-    windownum = 21
+    # now show results .....
+    windownum = 54
     plt.close(windownum)
     fig = plt.figure(windownum)
-    for ss in range(5):
-        if ss == 0: pnums = np.array(list(range(55)))  # pain condition
-        if ss == 1: pnums = np.array(list(range(55,74)))  # RS1 condition
-        if ss == 2: pnums = np.array(list(range(74,94)))  # Low condition
-        if ss == 3: pnums = np.array(list(range(94,114)))  # Sens condition
-        if ss == 4: pnums = np.array(list(range(114)))  # all conditions
-        tperiod = np.array(list(range(18,23)))   # during stim
-        tperiod = np.array(list(range(25,36)))   # after stim
-        tperiod = np.array(list(range(6,17)))   # before stim
-        npnums = len(pnums)
-        epoch = len(tperiod)
-
-        vals = np.reshape(loadingsr[pnums,:,:][:,tperiod,:],(npnums*epoch, ncomponents))
-        # vals = np.reshape(loadings_icar[pnums,:,:][:,tperiod,:],(npnums*epoch, ncomponents))
-
-        fig.add_subplot(2,3,ss+1)
-        nv,nc = np.shape(vals)
-        red = np.linspace(-1,1,nv)
-        red[red<0] = 0
-        blue = np.linspace(1,-1,nv)
-        blue[blue<0] = 0
-        green = 1-np.abs(np.linspace(1,-1,nv))
-        pointcolors = np.concatenate((red[:,np.newaxis],green[:,np.newaxis],blue[:,np.newaxis]),axis=1)
-
-        # try clustering to look for states
-        kmeans = KMeans(n_clusters=4, random_state=1)
-        kmeans.fit(vals)
-        cv = kmeans.cluster_centers_
-        for aa in range(nv):
-            plt.plot(vals[aa,0],vals[aa,1],'x',color=pointcolors[aa,:])
-        # plt.plot(vals[:,0],vals[:,1],'xb')
-        # plt.plot(cv[:,0],cv[:,1],'or')
-
-        # for PCA:
-        plt.xlim(-15,15)
-        plt.ylim(-10,10)
-
-        # for vv in range(6):
-        #     plt.hist(vals[:,vv],bins = 31)
+    nrows = np.floor(np.sqrt(nvals)).astype(int)
+    ncols = nvals // nrows + 1
+    for aa in range(nvals):
+        ax = fig.add_subplot(nrows,ncols,aa+1)
+        plt.plot(person_stater[:, aa], fit_check[:, aa], 'ob')
+        # add a label for each plot
+        ax.title.set_text(valuenames[valuelist[aa]])
 
 
-    mean_loadingsr = np.mean(loadingsr,axis=0)
-
-    windownum = 27
+    # show the different components ...
+    ncomponents_to_show = 3
+    windownum = 60
     plt.close(windownum)
     fig = plt.figure(windownum)
-    runnum = 70
-    tpoint = 10
-    plt.plot(person_state[runnum,tpoint,:],fit_checkr[runnum,tpoint,:],'ob')
-
-
-    windownum = 31
-    plt.close(windownum)
-    fig = plt.figure(windownum)
-    runnum = 70
-    termnum = 20
-    componentnum = 1
-    plt.plot(range(tsize),person_state[runnum,:,termnum],'-ob')
-    plt.plot(range(tsize),fit_checkr[runnum,:,termnum],'-og')
-    plt.plot(range(tsize),loadingsr[runnum,:,componentnum],'-xr')
-
-
-
-    windownum = 71
-    plt.close(windownum)
-    fig = plt.figure(windownum)
-    componentnum = 6
-    plt.plot(range(tsize),mean_loadingsr[:,componentnum],'-ob')
-
-
-
-    windownum = 28
-    plt.close(windownum)
-    fig = plt.figure(windownum)
-    termnum = 0
-    ntoshow = 114
-    for person in range(ntoshow):
-        plt.plot(range(40), loadingsr[person,:, termnum], 'ob')
-
-        if person == 0:
-            totalload = np.array(loadingsr[person,:, termnum])
-        else:
-            totalload += np.array(loadingsr[person,:, termnum])
-    totalload /= ntoshow
-    plt.plot(range(40),totalload,'-or')
-
-
-    # hidden markov model---------------------------------------------
-    nruns,tsize,nvals = np.shape(person_state)
-
-    training_ratio = 0.7
-    train_sample = np.sort(np.random.choice(list(range(nruns)),np.floor(training_ratio*nruns).astype(int), replace=False))
-    validate_sample = np.array([x for x in list(range(nruns)) if x not in train_sample])
-
-    ntrain = len(train_sample)
-    nvalidate = len(validate_sample)
-
-    X = np.reshape(person_state,(nruns*tsize,nvals))
-    X_train = np.reshape(person_state[train_sample,:,:],(ntrain*tsize,nvals))
-    X_validate = np.reshape(person_state[validate_sample,:,:],(nvalidate*tsize,nvals))
-
-
-    best_score_record = []
-    for ncomponents in [4]:
-        model = hmm.GaussianHMM(n_components=ncomponents, covariance_type="full", init_params = 'stmc')
-        # assume 4 possible states:   outward focussed, inward focused, focusing on pain, ignoring pain
-        # model.startprob_ = np.array([0.4, 0.4, 0.1, 0.1])
-        # model.transmat_ = np.array([[0.5, 0.3, 0.1, 0.1],
-        #                             [0.3, 0.5, 0.1, 0.1],
-        #                             [0.1, 0.1, 0.5, 0.3],
-        #                             [0.1, 0.1, 0.3, 0.5]])
-
-
-        best_score = best_model = None
-        n_fits = 250
-        np.random.seed(13)
-        for idx in range(n_fits):
-            model = hmm.GaussianHMM(n_components=ncomponents, covariance_type="full",
-                                    random_state=idx, init_params='stmc')
-            model.fit(X_train)
-            score = model.score(X_validate)
-            print(f'Model #{idx}\tScore: {score}')
-            if best_score is None or score > best_score:
-                best_model = model
-                best_score = score
-
-        print(f'Best score:      {best_score}')
-        best_score_record.append({'ncomponents':ncomponents, 'best_score':best_score})
-
-        # use the Viterbi algorithm to predict the most likely sequence of states
-        # given the model
-        states = best_model.predict(X_validate)
-
-        # save the model---------------------------------------------
-        model_output_name = r'E:\{}_markov_model_{}.pkl'.format(studyname,ncomponents)
-        reload_the_model = False
-        save_the_model = False
-        if save_the_model:
-            import pickle
-            with open(model_output_name, "wb") as file:
-                pickle.dump(best_model, file)
-        if reload_the_model:
-            with open(model_output_name, "rb") as file:
-                pickle.load(file)
-        # ----------------------------------------------------
-
-        # look at the results
-        predicted_states = best_model.predict(X)
-
-        state_prob = best_model.predict_proba(X)
-        state_probr = np.reshape(state_prob,(nruns,tsize,ncomponents))
-        mean_state_probr = np.mean(state_probr,axis=0)
-
-        windownum = 37
-        plt.close(windownum)
-        fig = plt.figure(windownum)
-        for nn in range(ncomponents):
-            ax1 = fig.add_subplot(ncomponents,1,nn+1)
-            plt.plot(range(40), mean_state_probr[:, nn], '-or')
-
-
-    # model.means_ = np.array([[0.0, 0.0], [3.0, -3.0], [5.0, 10.0]])
-    # model.covars_ = np.tile(np.identity(2), (3, 1, 1))
-    # X, Z = model.sample(100)
-
-    #---------------------
-
-    # print(f'Emission Matrix Generated:\n{best_model.emissionprob_.round(3)}\n\n')
-
-    plt.close(121)
-    fig = plt.figure(121)
     ax = fig.add_subplot()
-    colorvals = np.array([[1,0,0],[1,0.5,0],[0,1,0],[0,1,1],[0,0,1]])
+    colorvals = np.array([[1, 0, 0], [1, 0.5, 0], [0, 1, 0], [0, 1, 1], [0, 0, 1]])
+    colorvals = np.array([[1, 0, 0], [0, 0, 1], [0, 1, 0]])
     state_definition = []
-    bwidth = 1.0/(ncomponents+1)
-    for nn in range(ncomponents):
-        x = np.array(range(nvals))+nn*bwidth
-        state = best_model.sample(currstate=nn)[0]
-        state_definition.append({'state':state})
+    bwidth = 1.0 / (ncomponents_to_show + 1)
+    for nn in range(ncomponents_to_show):
+        x = np.array(range(nvals)) + nn * bwidth
+        state = components[nn,:]
         statelabel = 'state{}'.format(nn)
-        ax.barh(x,np.array(state[0]),bwidth,color = colorvals[nn,:],label = statelabel)
+        ax.barh(x, np.array(state), bwidth, color=colorvals[nn, :], label=statelabel)
 
     ax.set_xlabel('Values')
     ax.set_title('Signal values for each state')
-    y = x = np.array(range(nvals))+(ncomponents/2)*bwidth
+    y = x = np.array(range(nvals)) + (ncomponents_to_show / 2) * bwidth
     ax.set_yticks(y)
     ax.set_yticklabels(valuenames)
     ax.legend()
 
 
-    # look at the states in a particular run
-    runnum = 20
-    run_state_prob = state_probr[runnum,:,:]
-    valueset = person_state[runnum,:,:]
 
-    valuenum = 7
-    val_actual = np.zeros(tsize)
-    val_predicted = np.zeros(tsize)
-    for tt in range(tsize):
-        p = run_state_prob[tt,:]
-        pc = np.argmax(p)
-        val_actual[tt] = valueset[tt,valuenum]
-        val_predicted[tt] = state_definition[pc]['state'][0][valuenum]
+    # compare with pain ratings
+    ss = 4
+    if ss == 0: pnums = np.array(list(range(57)))  # pain condition
+    if ss == 1: pnums = np.array(list(range(57,74)))  # RS1 condition
+    if ss == 2: pnums = np.array(list(range(74,94)))  # Low condition
+    if ss == 3: pnums = np.array(list(range(94,114)))  # Sens condition
+    if ss == 4: pnums = np.array(list(range(114)))  # all conditions
 
-    plt.close(99)
-    fig = plt.figure(99)
-    plt.plot(range(tsize),val_actual,'-ob')
-    plt.plot(range(tsize),val_predicted,'-xr')
+    painratings = np.array(GRPcharacteristicsvalues[1,:]).astype(float)   # size is NP
+    loadings_corr = np.zeros((tsize,nstates))
+    for aa in range(tsize):
+        for bb in range(nstates):
+            R = np.corrcoef(painratings[pnums],loadingsr[pnums,aa,bb])
+            loadings_corr[aa,bb] = R[0,1]
+
+    windownum = 102
+    plt.close(windownum)
+    fig = plt.figure(windownum, figsize=(15, 18))
+    for bb in range(nstates):
+        ax = fig.add_subplot(nstates,1,bb+1)
+        plt.plot(range(tsize), loadings_corr[:, bb], '-o', color=[0, 0, 1])
+
+    windownum = 103
+    plt.close(windownum)
+    fig = plt.figure(windownum)
+    plt.plot(painratings, loadingsr[:,20,0],'og')
+    print(np.corrcoef(painratings, loadingsr[:,20,0]))
+    plt.close(windownum+1)
+    fig = plt.figure(windownum+1)
+    plt.plot(painratings, loadingsr[:,20,4],'ob')
+    print(np.corrcoef(painratings, loadingsr[:,20,4]))
+
+
+
+
+
+    # use kmeans to look for common states
+    windownum = 33
+    plt.close(windownum)
+    fig = plt.figure(windownum)
+
+    ss = 4
+    if ss == 0: pnums = np.array(list(range(57)))  # pain condition
+    if ss == 1: pnums = np.array(list(range(57,74)))  # RS1 condition
+    if ss == 2: pnums = np.array(list(range(74,94)))  # Low condition
+    if ss == 3: pnums = np.array(list(range(94,114)))  # Sens condition
+    if ss == 4: pnums = np.array(list(range(114)))  # all conditions
+    tperiod = np.array(list(range(6,17)))   # before stim
+    tperiod = np.array(list(range(18,23)))   # during stim
+    tperiod = np.array(list(range(25,36)))   # after stim
+    tperiod = np.array(list(range(40)))    #  all time points
+    valuelist = np.array(list(range(3,13)))   # subset of values
+    valuelist = np.array(list(range(46)))   # all values
+    npnums = len(pnums)
+    epoch = len(tperiod)
+    subnvals = len(valuelist)
+
+    vals = np.reshape(person_state[pnums,:,:][:,tperiod,:][:,:,valuelist],(npnums*epoch, subnvals))
+
+    # try clustering to look for states
+    nstates = 6
+    kmeans = KMeans(n_clusters=nstates, random_state=1)
+    kmeans.fit(vals)
+    cv = kmeans.cluster_centers_
+
+    # use these as initial estimates for gradient-descent fitting method
+    initial_states = copy.deepcopy(cv)
+    working_states, ssqd_record, wout, fit = gradient_descent_states(vals, initial_states, 250, 1e-4, 1e-6, 0.05)
+
+    # now show results .....
+    windownum = 49
+    plt.close(windownum)
+    fig = plt.figure(windownum)
+    nrows = np.floor(np.sqrt(subnvals)).astype(int)
+    ncols = subnvals // nrows + 1
+    for aa in range(subnvals):
+        ax = fig.add_subplot(nrows,ncols,aa+1)
+        plt.plot(vals[:, aa], fit[:, aa], 'ob')
+        # add a label for each plot
+        ax.title.set_text(valuenames[valuelist[aa]])
+
+    meanvals = np.repeat(np.mean(vals,axis=0)[np.newaxis,:],npnums*epoch,axis=0)
+    R2 = 1 - np.sum((vals-fit)**2)/np.sum((vals-meanvals)**2)
+    print('R2 value of fit is {:.3f}'.format(R2))
+
+    # identify when the states occur during the stimulation paradigm
+    statenum = np.argmax(np.abs(wout),axis=1)
+    statenumr = np.reshape(statenum,(npnums,epoch))
+    woutr = np.reshape(wout,(npnums,epoch,nstates))
+    stateflag = copy.deepcopy(woutr)
+    stateflag[np.abs(stateflag)>0] = 1
+    stateprob = np.sum(stateflag,axis=0)/NP
+
+    windownum=34
+    plt.close(windownum)
+    fig = plt.figure(windownum)
+    nrows = np.floor(np.sqrt(nstates)).astype(int)
+    ncols = nstates // nrows + 1
+    colorvals = np.array([[1, 0, 0], [1, 0.5, 0], [1, 1, 0], [0.5, 1, 0],[0,1,0], [0, 1, 0.5], [0, 1, 1], [0, 0.5, 1], [0, 0, 1]])
+    for nn in range(nstates):
+        ax = fig.add_subplot(nstates,1,nn+1)
+        plt.plot(range(epoch),stateprob[:,nn],'-o',color = colorvals[nn,:])
+
+
+    # compare with covariates
+    # GRPcharacteristicslist = cov['GRPcharacteristicslist']
+    # GRPcharacteristicsvalues = cov['GRPcharacteristicsvalues']
+    painratings = np.array(GRPcharacteristicsvalues[1,:]).astype(float)   # size is NP
+    woutr   # size is NP x tsize x nstates
+    person_state   # size is NP x tsize x nvals
+    stateflag = copy.deepcopy(woutr)
+    stateflag[np.abs(stateflag)>0] = 1
+
+    wcorr = np.zeros((tsize,nstates))
+    state_corr = np.zeros((tsize,nstates))
+    person_state_corr = np.zeros((NP,nvals))
+    for aa in range(tsize):
+        for bb in range(nstates):
+            R = np.corrcoef(painratings,woutr[:,aa,bb])
+            wcorr[aa,bb] = R[0,1]
+            R = np.corrcoef(painratings,stateflag[:,aa,bb])
+            state_corr[aa,bb] = R[0,1]
+
+    for aa in range(tsize):
+        for bb in range(nvals):
+            R = np.corrcoef(painratings,person_state[:,aa,bb])
+            person_state_corr[aa,bb] = R[0,1]
+
+
+    look_at_groups = False
+    if look_at_groups:
+        # look at groups
+        for ss in range(5):
+            if ss == 0: pnums2 = np.array(list(range(57)))  # pain condition
+            if ss == 1: pnums2 = np.array(list(range(57,74)))  # RS1 condition
+            if ss == 2: pnums2 = np.array(list(range(74,94)))  # Low condition
+            if ss == 3: pnums2 = np.array(list(range(94,114)))  # Sens condition
+            if ss == 4: pnums2 = np.array(list(range(114)))  # all conditions
+
+            person_state2 = person_state[pnums2,:,:]
+            npnums2 = len(pnums2)
+            vals2 = np.reshape(person_state2,(npnums2*epoch, subnvals))
+            woutr2 = woutr[pnums2,:,:]
+            wout2 = np.reshape(woutr2, (npnums2*epoch, nstates))
+            fit2 = wout2 @ working_states
+
+            meanvals2 = np.repeat(np.mean(vals2,axis=0)[np.newaxis,:],npnums2*epoch,axis=0)
+            R2 = 1 - np.sum((vals2-fit2)**2)/np.sum((vals2-meanvals2)**2)
+            print('R2 value of fit is {:.3f}'.format(R2))
+
+            # identify when the states occur during the stimulation paradigm
+            statenum2 = np.argmax(np.abs(wout2),axis=1)
+            statenumr2 = np.reshape(statenum2,(npnums2,epoch))
+            stateflag2 = copy.deepcopy(woutr2)
+            stateflag2[np.abs(stateflag2)>0] = 1
+            stateprob2 = np.sum(stateflag2,axis=0)/npnums2
+
+            windownum=40+ss
+            plt.close(windownum)
+            fig = plt.figure(windownum)
+            nrows = np.floor(np.sqrt(nstates)).astype(int)
+            ncols = nstates // nrows + 1
+            colorvals = np.array([[1, 0, 0], [1, 0.5, 0], [1, 1, 0], [0.5, 1, 0],[0,1,0], [0, 1, 0.5], [0, 1, 1], [0, 0.5, 1], [0, 0, 1]])
+            for nn in range(nstates):
+                ax = fig.add_subplot(nstates,1,nn+1)
+                plt.plot(range(epoch),stateprob2[:,nn],'-o',color = colorvals[nn,:])
+
+
+
+    #
+    # ax = fig.add_subplot()
+    # colorvals = np.array([[1, 0, 0], [1, 0.5, 0], [0, 1, 0], [0, 1, 1], [0, 0, 1]])
+    # state_definition = []
+    # bwidth = 1.0 / (ncomponents + 1)
+    # for nn in range(ncomponents):
+    #     x = np.array(range(nvals)) + nn * bwidth
+    #     state = cv[nn,:]
+    #     statelabel = 'state{}'.format(nn)
+    #     ax.barh(x, np.array(state), bwidth, color=colorvals[nn, :], label=statelabel)
+    #
+    # ax.set_xlabel('Values')
+    # ax.set_title('Signal values for each state')
+    # y = x = np.array(range(nvals)) + (ncomponents / 2) * bwidth
+    # ax.set_yticks(y)
+    # ax.set_yticklabels(valuenames)
+    # ax.legend()
+    #
 
 
 
@@ -553,14 +475,19 @@ def identify_states(data, initial_states):
 def cost_function(data,working_states,Lweight):
     ndata, nvals = np.shape(data)
     nstates, nvals2 = np.shape(working_states)
-    statecov = np.diag(working_states @ working_states.T)
     ssq_record = np.zeros(ndata)
     wout_record = np.zeros((ndata,nstates))
+
+    working_states_mean = np.mean(working_states,axis=1)
+    working_states_zm = working_states - np.repeat(working_states_mean[:,np.newaxis],nvals2,axis=1)
+    statecov = np.diag(working_states_zm @ working_states_zm.T)
+
     for nn in range(ndata):
         d = data[nn,:]
-        w = (d @ working_states.T)/(statecov + 1.0e-10)
-        fit = np.diag(w) @ working_states
-        d2 = np.repeat(d[np.newaxis,:],nstates,axis=0)
+        d0 = d - np.mean(d)
+        w = (d0 @ working_states_zm.T)/(statecov + 1.0e-10)
+        fit = np.diag(w) @ working_states_zm
+        d2 = np.repeat(d0[np.newaxis,:],nstates,axis=0)
         ssq = np.sum((fit-d2)**2,axis=1)
         x = np.argmin(ssq)
         # wout = np.zeros(nstates)
@@ -577,20 +504,25 @@ def cost_function(data,working_states,Lweight):
 def fit_function(data,working_states):
     ndata, nvals = np.shape(data)
     nstates, nvals2 = np.shape(working_states)
-    statecov = np.diag(working_states @ working_states.T)
     fit_record = np.zeros(np.shape(data))
     wout_record = np.zeros((ndata,nstates))
+
+    working_states_mean = np.mean(working_states,axis=1)
+    working_states_zm = working_states - np.repeat(working_states_mean[:,np.newaxis],nvals2,axis=1)
+    statecov = np.diag(working_states_zm @ working_states_zm.T)
+
     for nn in range(ndata):
         d = data[nn,:]
-        w = (d @ working_states.T)/(statecov + 1.0e-10)
-        fit = np.diag(w) @ working_states
-        d2 = np.repeat(d[np.newaxis,:],nstates,axis=0)
+        d0 = d - np.mean(d)
+        w = (d0 @ working_states_zm.T)/(statecov + 1.0e-10)
+        fit = np.diag(w) @ working_states_zm    # + np.repeat(working_states_mean[:,np.newaxis],nvals2,axis=1)
+        d2 = np.repeat(d0[np.newaxis,:],nstates,axis=0)
         ssq = np.sum((fit-d2)**2,axis=1)
         x = np.argmin(ssq)
         wout = np.zeros(nstates)
         wout[x] = w[x]
         wout_record[nn,:] = wout
-        fit_record[nn,:] = fit[x,:]
+        fit_record[nn,:] = fit[x,:] + np.mean(d)
         # ssq_record[nn] = ssq[x]
 
     return wout_record, fit_record
@@ -663,7 +595,10 @@ def gradient_descent_states(data, initial_states, itermax = 20, initial_alpha = 
         count_text = '     distribution:'
         for cc in range(nstates):  count_text += '  {:.1f} %'.format(100.0*wcount[cc]/ndata)
 
-        print('state vals:  iter {} alpha {:.3e}  delta ssq {:.4f}  relative: {:.1f} percent'.format(iter, alpha, -dssqd, 100.0 * totalcost / ssqd_starting))
+        meanvals = np.repeat(np.mean(data, axis=0)[np.newaxis, :], ndata, axis=0)
+        R2 = 1 - np.sum((data - fit) ** 2) / np.sum((data - meanvals) ** 2)
+
+        print('state vals:  iter {} alpha {:.3e} R2 {:.3f}  delta ssq {:.4f}  relative: {:.1f} percent'.format(iter, alpha,R2, -dssqd, 100.0 * totalcost / ssqd_starting))
         print(count_text)
 
     # check quality of result
