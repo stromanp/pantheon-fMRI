@@ -185,10 +185,13 @@ def analyze_sapm_latents(studyname, cord_cluster, type):
         if nn == 0:
             nvals = np.shape(valueset)[0]
             person_state = np.zeros((NP,tsize,nvals))
+            nbetavals = len(betavals)
+            betaval_record = np.zeros((NP,nbetavals))
 
         # t1 = nn*tsize
         # t2 = (nn+1)*tsize
         person_state[nn,:,:] = valueset.T
+        betaval_record[nn,:] = betavals
 
     betanamelist2 = []
     for nn in range(len(beta_list)):
@@ -204,10 +207,27 @@ def analyze_sapm_latents(studyname, cord_cluster, type):
     valuenames = ['lat0','lat1','lat2'] + rnamelistshort + betanamelist2
     # valuenames = copy.deepcopy(rnamelistshort)
 
+    connection_name_list = []
+    ncon = len(csource)
+    for nn in range(ncon):
+        spair = beta_list[csource[nn]]['pair']
+        tpair = beta_list[ctarget[nn]]['pair']
+        if spair[0] < nregions:
+            sname0 = rnamelist[spair[0]]
+        else:
+            sname0 = 'latent{}'.format(spair[0]-nregions)
+        # latent regions are never target
+        sname1 = rnamelist[spair[1]]
+        tname1 = rnamelist[tpair[1]]
+
+        name = '{}-{}-{}'.format(sname0,sname1,tname1)
+        connection_name_list.append(name)
+
     # look for common "states" during different periods of the paradigm and in different conditions
 
     # use PCA to look for common states
-    pca = PCA(n_components = 30)
+    nstates = 30   # the number to look at
+    pca = PCA(n_components = nstates)
     person_stater = np.reshape(person_state,(NP*tsize,nvals))
     pca.fit(person_stater)
 
@@ -243,7 +263,7 @@ def analyze_sapm_latents(studyname, cord_cluster, type):
         ax = fig.add_subplot(nrows,ncols,aa+1)
         plt.plot(person_stater[:, aa], fit_check[:, aa], 'ob')
         # add a label for each plot
-        ax.title.set_text(valuenames[valuelist[aa]])
+        ax.title.set_text(valuenames[aa])
 
 
     # show the different components ...
@@ -270,14 +290,93 @@ def analyze_sapm_latents(studyname, cord_cluster, type):
     ax.legend()
 
 
+    # are there patterns in the amounts of each component, and pain ratings?
+    #   but ... at which time point?
+    cluster_record = []
+    for tp in range(18,23):
+        L = loadingsr[:,tp,:6]
+        data = np.concatenate((painratings[:,np.newaxis], L), axis = 1)
+        # try clustering to look for patterns
+        nstates = 10
+        kmeans = KMeans(n_clusters=nstates, random_state=1)
+        kmeans.fit(data)
+        cv = kmeans.cluster_centers_
+        labels = kmeans.labels_
+        # sort by pain rating
+        # x = np.argsort(cv[:,0])
+        # for aa in range(nstates): print(cv[x[aa],:])
+
+        cluster_record.append({'cv':cv, 'labels':labels})
+
+    # are clusters consistent across time points?
+    # nclustersets = len(cluster_record)
+    # cluster_compare = np.zeros((nclustersets, nclustersets, nstates,nstates))
+    # for aa in range(len(cluster_record)):
+    #     labels1 = cluster_record[aa]['labels']
+    #     for bb in range(len(cluster_record)):
+    #         labels2 = cluster_record[bb]['labels']
+    #
+    #         for cc in range(nstates):
+    #             x = np.where(labels1 == cc)[0]
+    #             for dd in range(nstates):
+    #                 y = np.where(labels2 == dd)[0]
+    #                 match = [m for m in x if m in y]
+    #                 matchratio = len(match)/len(x)
+    #                 cluster_compare[aa,bb,cc,dd] = matchratio
+
+
+    # plot clusters
+    windownum = 8
+    plt.close(windownum)
+    fig = plt.figure(windownum)
+    fig.suptitle('6 clusters')
+    ax = fig.add_subplot(projection='3d')
+    ax.scatter(data[:,0],data[:,1],data[:,2],'ob')
+    ax.scatter(cv[:,0],cv[:,1],cv[:,2],'or')
+
+    # plot cluster centers at each time point, using the cluster labels at one time point
+    tref = 2
+    cluster_record2 = []
+    labels1 = cluster_record[tref]['labels']
+    for tp in range(18, 23):
+        L = loadingsr[:, tp, :6]
+        data = np.concatenate((painratings[:, np.newaxis], L), axis=1)
+        cv2 = np.zeros((nstates,7))
+        for aa in range(nstates):
+            x = np.where(labels1 == aa)[0]
+            datasub = data[x,:]
+            cv2[aa,:] = np.mean(datasub,axis=0)
+        cluster_record2.append({'cv': cv2, 'labels': labels1})
+
+    # plot temporal progression of clusters
+    ntime = len(cluster_record2)
+    dynamic_cv_data = np.zeros((ntime,nstates,7))
+    for aa in range(nstates):
+        for tt in range(ntime):
+            dynamic_cv_data[tt,:,:] = cluster_record2[tt]['cv']
+
+    windownum = 9
+    plt.close(windownum)
+    fig = plt.figure(windownum)
+    fig.suptitle('temporal progress of clusters')
+    ax = fig.add_subplot(projection='3d')
+    statelist = list(range(nstates))
+    statelist.remove(8)
+    for aa in statelist:
+        # ax.scatter(data[:,0],data[:,1],data[:,2],'ob')
+        cv = dynamic_cv_data[:,aa,:]
+        ax.plot3D(cv[:,0],cv[:,1],cv[:,2],'-og')
+    ax.scatter3D(dynamic_cv_data[0,statelist,0], dynamic_cv_data[0,statelist,1], dynamic_cv_data[0,statelist,2], color = [1,0,0])
+
 
     # compare with pain ratings
-    ss = 4
+    ss = 5
     if ss == 0: pnums = np.array(list(range(57)))  # pain condition
     if ss == 1: pnums = np.array(list(range(57,74)))  # RS1 condition
     if ss == 2: pnums = np.array(list(range(74,94)))  # Low condition
-    if ss == 3: pnums = np.array(list(range(94,114)))  # Sens condition
+    if ss == 3: pnums = np.array([94, 95] + list(range(97,114)))  # Sens condition
     if ss == 4: pnums = np.array(list(range(114)))  # all conditions
+    if ss == 5: pnums = np.array(list(range(57)) + list(range(74,114)))  # all stim conditions
 
     painratings = np.array(GRPcharacteristicsvalues[1,:]).astype(float)   # size is NP
     loadings_corr = np.zeros((tsize,nstates))
@@ -286,23 +385,56 @@ def analyze_sapm_latents(studyname, cord_cluster, type):
             R = np.corrcoef(painratings[pnums],loadingsr[pnums,aa,bb])
             loadings_corr[aa,bb] = R[0,1]
 
-    windownum = 102
-    plt.close(windownum)
-    fig = plt.figure(windownum, figsize=(15, 18))
-    for bb in range(nstates):
-        ax = fig.add_subplot(nstates,1,bb+1)
-        plt.plot(range(tsize), loadings_corr[:, bb], '-o', color=[0, 0, 1])
+    # correlations with original values
+    person_state_corr = np.zeros((tsize,nvals))
+    for aa in range(tsize):
+        for bb in range(nvals):
+            R = np.corrcoef(painratings[pnums],person_state[pnums,aa,bb])
+            person_state_corr[aa,bb] = R[0,1]
 
-    windownum = 103
-    plt.close(windownum)
-    fig = plt.figure(windownum)
-    plt.plot(painratings, loadingsr[:,20,0],'og')
-    print(np.corrcoef(painratings, loadingsr[:,20,0]))
-    plt.close(windownum+1)
-    fig = plt.figure(windownum+1)
-    plt.plot(painratings, loadingsr[:,20,4],'ob')
-    print(np.corrcoef(painratings, loadingsr[:,20,4]))
+    # correlations with beta values
+    betaval_corr = np.zeros(nbetavals)
+    for aa in range(nbetavals):
+        if np.std(betaval_record[pnums, aa]) > 0:
+            R = np.corrcoef(painratings[pnums], betaval_record[pnums, aa])
+            betaval_corr[aa] = R[0,1]
 
+    x = np.argmax(betaval_corr)
+    XYplot(painratings[pnums], betaval_record[pnums, x], 23, connection_name_list[x], [0, 1, 0], 'o', True)
+
+
+    # look at top results in person_state_corr
+    ia,ib = np.unravel_index(np.argsort(np.abs(person_state_corr), axis=None), person_state_corr.shape)
+    ia = ia[::-1]
+    ib = ib[::-1]
+
+
+    # # sequence of changes over time course of paradigm
+    # bb = 33
+    # bb = 5
+    # ymax = np.max(person_state[pnums,:,bb])
+    # ymin = np.min(person_state[pnums,:,bb])
+    # windownum = 10
+    # plt.close(windownum)
+    # fig = plt.figure(windownum)
+    # fig.suptitle(valuenames[bb])
+    # aa = 0
+    # hh, = plt.plot(painratings[pnums],person_state[pnums,aa,bb],'ob')
+    # plt.ylim(ymin,ymax)
+    # label = 'time {}'.format(aa)
+    # ahh = plt.annotate(label, (xa,ya))
+    # xa = np.min(painratings[pnums])
+    # ya = ymin
+    #
+    # for aa in range(tsize):
+    #     # plt.plot(painratings[pnums],person_state[pnums,aa,bb],'ob')
+    #     hh.set_ydata(person_state[pnums,aa,bb])
+    #     plt.draw()
+    #     label = 'time {}'.format(aa)
+    #     ahh.remove()
+    #     ahh = plt.annotate(label, (xa,ya))
+    #     plt.show()
+    #     plt.pause(0.5)
 
 
 
@@ -606,3 +738,35 @@ def gradient_descent_states(data, initial_states, itermax = 20, initial_alpha = 
     wout, fit = fit_function(data, working_states)
 
     return working_states, ssqd_record, wout, fit
+
+
+
+def XYplot(x,y, windownum = 1, title = '', color = [0,0,1], symbol = 'o', regressionline = False):
+    plt.close(windownum)
+    fig = plt.figure(windownum)
+    plt.plot(x,y,marker = symbol, linestyle = '', color = color)
+    if len(title) > 0:
+        fig.suptitle(title)
+
+    if regressionline:
+        nx = len(x)
+        G = np.concatenate((x[np.newaxis,:],np.ones((1,nx))),axis=0)
+        b = y @ G.T @ np.linalg.inv(G @ G.T)
+        fit = b @ G
+        plt.plot(x, fit, marker='', color=color)
+
+        R2 = 1 - np.sum((y-fit)**2) / (np.sum((y-np.mean(y))**2) + 1.0e-20)
+        R2text = 'R2 = {:.3f}'.format(R2)
+
+        scale = np.max(np.abs([np.log10(np.abs(b))]))
+        if scale > 3:
+            linetext = 'y = {:.3e} x + {:.3e}  {}'.format(b[0],b[1],R2text)
+        else:
+            linetext = 'y = {:.3f} x + {:.3f}  {}'.format(b[0],b[1],R2text)
+
+        xa = np.min(x)
+        if b[0] > 0:
+            ya = np.max(y)
+        else:
+            ya = np.min(y)
+        plt.annotate(linetext, (xa,ya))
