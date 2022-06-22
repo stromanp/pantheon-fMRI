@@ -25,9 +25,13 @@ from hmmlearn import hmm
 
 
 # main program
-def analyze_sapm_latents(studyname, cord_cluster, type):
+def analyze_sapm_latents(cord_cluster, type):
 
     # studyname:   allthreat, RS1nostim, Low, Sens, all_condition
+    # use these settings for testing consistency etc...
+    type = 'fixed'
+    cord_cluster = 4
+    studyname = 'all_condition'
 
     # setup inputs for this particular set of studies
     if type == 'fixed':
@@ -187,11 +191,24 @@ def analyze_sapm_latents(studyname, cord_cluster, type):
             person_state = np.zeros((NP,tsize,nvals))
             nbetavals = len(betavals)
             betaval_record = np.zeros((NP,nbetavals))
+            R2_record = np.zeros(NP)
 
         # t1 = nn*tsize
         # t2 = (nn+1)*tsize
         person_state[nn,:,:] = valueset.T
         betaval_record[nn,:] = betavals
+        R2_record[nn] = R2total
+
+
+    # show the R2 distribution
+    plt.close(204)
+    fig = plt.figure(204, figsize = (8,6))
+    b = np.linspace(0.3, 0.8, 12)
+    plt.hist(R2_record, bins=b)
+    plt.xlim(0.2, 0.9)
+
+    print('R2 range from {:.3f} to {:.3f}'.format(R2_record.min(), R2_record.max()))
+
 
     betanamelist2 = []
     for nn in range(len(beta_list)):
@@ -226,12 +243,30 @@ def analyze_sapm_latents(studyname, cord_cluster, type):
     # look for common "states" during different periods of the paradigm and in different conditions
 
     # use PCA to look for common states
-    nstates = 30   # the number to look at
+    # select data to use for PCA
+    ss = 5
+    if ss == 0: pnums = np.array(list(range(23)) + list(range(24,57)))  # pain condition, exclude 23
+    if ss == 1: pnums = np.array(list(range(57,74)))  # RS1 condition
+    if ss == 2: pnums = np.array(list(range(74,94)))  # Low condition
+    if ss == 3: pnums = np.array([94, 95] + list(range(97,114)))  # Sens condition
+    if ss == 4: pnums = np.array(list(range(114)))  # all conditions
+    if ss == 5: pnums = np.array(list(range(23)) + list(range(24,57)) + list(range(74,114)))  # all stim conditions
+    NPsub = len(pnums)
+
+    timesample = list(range(3,30))
+    ntimesample = len(timesample)
+
+    nstates = 10   # the number to look at
     pca = PCA(n_components = nstates)
     person_stater = np.reshape(person_state,(NP*tsize,nvals))
-    pca.fit(person_stater)
+    person_stater_sub = np.reshape(person_state[pnums,:,:][:,timesample,:],(NPsub*ntimesample,nvals))
+    pca.fit(person_stater_sub)
 
-    S_pca_ = pca.fit(person_stater).transform(person_stater)
+    S_pca_ = pca.fit(person_stater_sub).transform(person_stater_sub)
+
+    # components_   is [ncomponents x nfeatures]
+    #  scores from pca.transform(x) is   [nsamples x ncomponents]
+    # input data X is  [nsamples x nfeatures]
 
     print(pca.explained_variance_ratio_)
     components = pca.components_
@@ -239,19 +274,39 @@ def analyze_sapm_latents(studyname, cord_cluster, type):
     ncomponents = pca.n_components_
     explained_variance = pca.explained_variance_
 
-    fit_person_state = (pca.fit_transform(person_stater))
+    fit_person_state = (pca.fit_transform(person_stater_sub))
     params = pca.get_params()
 
     # components is [nterms x nvalues]
     # person_state.T is [ndatapoints x nvalues]
     # person_state.T = loadings @ components   --> fitting the original data to the principcal components
     #  therefore loadings is [ndatapoints x nterms]
-    loadings = person_stater @ components.T @ np.linalg.inv(components @ components.T)
-    fit_check = (loadings @ components)
-    fit_check2 = loadings[:,:2] @ components[:2,:]
+
+    # get loadings for all data, not just ones used for PCA
+    mu = np.mean(person_stater, axis=0)
+    mu = np.repeat(mu[np.newaxis, :], NP*tsize, axis=0)
+
+    loadings = (person_stater-mu) @ components.T @ np.linalg.inv(components @ components.T)
+    fit_check = (loadings @ components) + mu
+    fit_check2 = loadings[:,:2] @ components[:2,:] + mu
+
+    loadings2 = pca.transform(person_stater)
 
     loadingsr = np.reshape(loadings,(NP,tsize,ncomponents))
     fit_checkr = np.reshape(fit_check,(NP,tsize,nvals))
+
+
+    # compare with pain ratings
+    ss = 6
+    if ss == 0: pnums = np.array(list(range(23)) + list(range(24,57)))  # pain condition, exclude 23
+    if ss == 1: pnums = np.array(list(range(57,74)))  # RS1 condition
+    if ss == 2: pnums = np.array(list(range(74,94)))  # Low condition
+    if ss == 3: pnums = np.array([94, 95] + list(range(97,114)))  # Sens condition
+    if ss == 4: pnums = np.array(list(range(114)))  # all conditions
+    if ss == 5: pnums = np.array(list(range(57)) + list(range(74,114)))  # all stim conditions
+    if ss == 6: pnums = np.array(list(range(57,74)) + list(range(74,114)) + [94, 95] + list(range(97,114)) ) # all low conditions
+
+    painratings = np.array(GRPcharacteristicsvalues[1,:]).astype(float)   # size is NP
 
     # now show results .....
     windownum = 54
@@ -268,7 +323,7 @@ def analyze_sapm_latents(studyname, cord_cluster, type):
 
     # show the different components ...
     ncomponents_to_show = 3
-    windownum = 60
+    windownum = 62
     plt.close(windownum)
     fig = plt.figure(windownum)
     ax = fig.add_subplot()
@@ -292,12 +347,18 @@ def analyze_sapm_latents(studyname, cord_cluster, type):
 
     # are there patterns in the amounts of each component, and pain ratings?
     #   but ... at which time point?
+    p = painratings[pnums]
+    c = np.where(p > 20)[0]
+
     cluster_record = []
-    for tp in range(18,23):
-        L = loadingsr[:,tp,:6]
-        data = np.concatenate((painratings[:,np.newaxis], L), axis = 1)
+    timepoints = range(8,18)   # anticipation period
+    timepoints = range(18,23)  # stim period
+    transitiontime = 2
+    for tp in timepoints:
+        L = loadingsr[pnums[c],tp,:6]
+        data = np.concatenate((painratings[pnums[c],np.newaxis], L), axis = 1)
         # try clustering to look for patterns
-        nstates = 10
+        nstates = 6
         kmeans = KMeans(n_clusters=nstates, random_state=1)
         kmeans.fit(data)
         cv = kmeans.cluster_centers_
@@ -308,23 +369,6 @@ def analyze_sapm_latents(studyname, cord_cluster, type):
 
         cluster_record.append({'cv':cv, 'labels':labels})
 
-    # are clusters consistent across time points?
-    # nclustersets = len(cluster_record)
-    # cluster_compare = np.zeros((nclustersets, nclustersets, nstates,nstates))
-    # for aa in range(len(cluster_record)):
-    #     labels1 = cluster_record[aa]['labels']
-    #     for bb in range(len(cluster_record)):
-    #         labels2 = cluster_record[bb]['labels']
-    #
-    #         for cc in range(nstates):
-    #             x = np.where(labels1 == cc)[0]
-    #             for dd in range(nstates):
-    #                 y = np.where(labels2 == dd)[0]
-    #                 match = [m for m in x if m in y]
-    #                 matchratio = len(match)/len(x)
-    #                 cluster_compare[aa,bb,cc,dd] = matchratio
-
-
     # plot clusters
     windownum = 8
     plt.close(windownum)
@@ -334,18 +378,20 @@ def analyze_sapm_latents(studyname, cord_cluster, type):
     ax.scatter(data[:,0],data[:,1],data[:,2],'ob')
     ax.scatter(cv[:,0],cv[:,1],cv[:,2],'or')
 
+
     # plot cluster centers at each time point, using the cluster labels at one time point
-    tref = 2
+    tref = 0
     cluster_record2 = []
     labels1 = cluster_record[tref]['labels']
-    for tp in range(18, 23):
-        L = loadingsr[:, tp, :6]
-        data = np.concatenate((painratings[:, np.newaxis], L), axis=1)
+    for tp in timepoints:
+        L = loadingsr[pnums[c], tp, :6]
+        data = np.concatenate((painratings[pnums[c], np.newaxis], L), axis=1)
         cv2 = np.zeros((nstates,7))
         for aa in range(nstates):
             x = np.where(labels1 == aa)[0]
             datasub = data[x,:]
             cv2[aa,:] = np.mean(datasub,axis=0)
+            print('state {}  {} members  pain rating {:.1f}'.format(aa,len(x),cv2[aa,0]))
         cluster_record2.append({'cv': cv2, 'labels': labels1})
 
     # plot temporal progression of clusters
@@ -355,58 +401,141 @@ def analyze_sapm_latents(studyname, cord_cluster, type):
         for tt in range(ntime):
             dynamic_cv_data[tt,:,:] = cluster_record2[tt]['cv']
 
-    windownum = 9
+
+    clusterpains = dynamic_cv_data[0,:,0]
+    x = np.argsort(clusterpains)
+    windownum = 10
+    plt.close(windownum)
+    fig = plt.figure(windownum)
+    fig.suptitle('temporal progress of clusters')
+    statelist = list(range(nstates))
+    # statelist.remove(8)
+    xmax = dynamic_cv_data[:,:,1].max()
+    xmin = dynamic_cv_data[:,:,1].min()
+    ymax = dynamic_cv_data[:,:,2].max()
+    ymin = dynamic_cv_data[:,:,2].min()
+    zmax = dynamic_cv_data[:,:,3].max()
+    zmin = dynamic_cv_data[:,:,3].min()
+    nrows = np.floor(np.sqrt(nstates)).astype(int)
+    ncols = np.ceil(nstates/nrows).astype(int)
+    for aa in range(len(statelist)):
+        ax = fig.add_subplot(ncols,nrows,aa+1, projection='3d')
+        cv = dynamic_cv_data[:,statelist[x[aa]],:]
+        clusterpain = cv[0,0]
+        ax.plot(cv[:,1],cv[:,2],cv[:,3],'-ok')
+        ax.plot(cv[transitiontime:,1],cv[transitiontime:,2],cv[transitiontime:,3],'-b')
+        ax.plot(cv[0,1],cv[0,2],cv[0,3],'og')
+        ax.plot(cv[transitiontime,1],cv[transitiontime,2],cv[transitiontime,3],'or')
+        ax.plot(cv[-1,1],cv[-1,2],cv[-1,3],'oy')
+        paintext = 'pain = {:.1f}'.format(clusterpain)
+        ax.title.set_text(paintext)
+
+        plt.xlim(xmin, xmax)
+        plt.ylim(ymin,ymax)   # component 2
+        # if statelist[x[aa]] != 8:
+        #     # plt.ylim(-0.7,1.5)   # component 1
+        #     plt.ylim(-1.5,1.5)   # component 2
+
+    windownum = 29
     plt.close(windownum)
     fig = plt.figure(windownum)
     fig.suptitle('temporal progress of clusters')
     ax = fig.add_subplot(projection='3d')
     statelist = list(range(nstates))
-    statelist.remove(8)
+    # statelist.remove(8)
+    flagpoint = 2
     for aa in statelist:
         # ax.scatter(data[:,0],data[:,1],data[:,2],'ob')
         cv = dynamic_cv_data[:,aa,:]
         ax.plot3D(cv[:,0],cv[:,1],cv[:,2],'-og')
-    ax.scatter3D(dynamic_cv_data[0,statelist,0], dynamic_cv_data[0,statelist,1], dynamic_cv_data[0,statelist,2], color = [1,0,0])
+    ax.scatter3D(dynamic_cv_data[flagpoint,statelist,0], dynamic_cv_data[flagpoint,statelist,1], dynamic_cv_data[flagpoint,statelist,2], color = [1,0,0])
+    plt.ylim(-5, 5)
 
+
+    for state in range(6):
+        comp = 3
+        p = dynamic_cv_data[flagpoint,state,0]
+        title = 'pain {:.1f} component {} vs pain'.format(p,comp)
+        y = dynamic_cv_data[:,state,comp]
+        x = np.array(list(range(5)))
+        XYplot(x, y, 30+state, title, [0, 1, 0], 'o', True)
+        plt.ylim(-5,3)
+
+
+
+
+    # change methods now ....
 
     # compare with pain ratings
-    ss = 5
-    if ss == 0: pnums = np.array(list(range(57)))  # pain condition
+    ss = 6
+    if ss == 0: pnums = np.array(list(range(23)) + list(range(24,57)))  # pain condition
     if ss == 1: pnums = np.array(list(range(57,74)))  # RS1 condition
     if ss == 2: pnums = np.array(list(range(74,94)))  # Low condition
     if ss == 3: pnums = np.array([94, 95] + list(range(97,114)))  # Sens condition
-    if ss == 4: pnums = np.array(list(range(114)))  # all conditions
-    if ss == 5: pnums = np.array(list(range(57)) + list(range(74,114)))  # all stim conditions
+    if ss == 4: pnums = np.array(list(range(23)) + list(range(24,114)))  # all conditions
+    if ss == 5: pnums = np.array(list(range(23)) + list(range(24,57)) + list(range(74,114)))  # all stim conditions
+    if ss == 6: pnums = np.array(list(range(23)) + list(range(24,57)) + list(range(74,94)))  # all pain conditions
 
     painratings = np.array(GRPcharacteristicsvalues[1,:]).astype(float)   # size is NP
     loadings_corr = np.zeros((tsize,nstates))
     for aa in range(tsize):
         for bb in range(nstates):
-            R = np.corrcoef(painratings[pnums],loadingsr[pnums,aa,bb])
+            p = painratings[pnums]
+            y = loadingsr[pnums,aa,bb]
+            c = np.where(p > 20)[0]
+            R = np.corrcoef(p[c],y[c])
             loadings_corr[aa,bb] = R[0,1]
 
     # correlations with original values
     person_state_corr = np.zeros((tsize,nvals))
     for aa in range(tsize):
         for bb in range(nvals):
-            R = np.corrcoef(painratings[pnums],person_state[pnums,aa,bb])
+            p = painratings[pnums]
+            y = person_state[pnums,aa,bb]
+            c = np.where(p > 20)[0]
+            R = np.corrcoef(p[c],y[c])
             person_state_corr[aa,bb] = R[0,1]
 
     # correlations with beta values
     betaval_corr = np.zeros(nbetavals)
     for aa in range(nbetavals):
         if np.std(betaval_record[pnums, aa]) > 0:
-            R = np.corrcoef(painratings[pnums], betaval_record[pnums, aa])
+            p = painratings[pnums]
+            y = betaval_record[pnums, aa]
+            c = np.where(p > 20)[0]
+            R = np.corrcoef(p[c],y[c])
             betaval_corr[aa] = R[0,1]
 
-    x = np.argmax(betaval_corr)
-    XYplot(painratings[pnums], betaval_record[pnums, x], 23, connection_name_list[x], [0, 1, 0], 'o', True)
+    x = np.argsort(np.abs(betaval_corr))
+    x = x[::-1]
+    aa = 1
+    title = 'beta vals {}'.format(connection_name_list[x[aa]])
+    p = painratings[pnums]
+    c = np.where(p > 20)[0]
+    XYplot(painratings[pnums[c]], betaval_record[pnums[c], x[aa]], 21, title, [0, 1, 0], 'o', True)
+
+
+    # look at top results in loadings_corr
+    ia,ib = np.unravel_index(np.argsort(np.abs(loadings_corr), axis=None), loadings_corr.shape)
+    ia = ia[::-1]
+    ib = ib[::-1]
+    aa=1
+    title = 'loadings, time {} {}'.format(ia[aa], connection_name_list[ib[aa]])
+    p = painratings[pnums]
+    c = np.where(p > 20)[0]
+    XYplot(painratings[pnums[c]], loadingsr[pnums[c], ia[aa],ib[aa]], 22, title, [0, 1, 0], 'o', True)
 
 
     # look at top results in person_state_corr
     ia,ib = np.unravel_index(np.argsort(np.abs(person_state_corr), axis=None), person_state_corr.shape)
     ia = ia[::-1]
     ib = ib[::-1]
+    aa = 3
+    title = 'person state, time {}, {}'.format(ia[aa],connection_name_list[ib[aa]])
+    p = painratings[pnums]
+    c = np.where(p > 20)[0]
+    XYplot(painratings[pnums[c]], person_state[pnums[c],ia[aa],ib[aa]], 23, title, [0, 1, 0], 'o', True)
+
 
 
     # # sequence of changes over time course of paradigm
@@ -444,16 +573,19 @@ def analyze_sapm_latents(studyname, cord_cluster, type):
     plt.close(windownum)
     fig = plt.figure(windownum)
 
-    ss = 4
+    ss = 5
     if ss == 0: pnums = np.array(list(range(57)))  # pain condition
     if ss == 1: pnums = np.array(list(range(57,74)))  # RS1 condition
     if ss == 2: pnums = np.array(list(range(74,94)))  # Low condition
     if ss == 3: pnums = np.array(list(range(94,114)))  # Sens condition
     if ss == 4: pnums = np.array(list(range(114)))  # all conditions
+    if ss == 5: pnums = np.array(list(range(57)) + list(range(74,94)))  # all pain conditions
+
     tperiod = np.array(list(range(6,17)))   # before stim
-    tperiod = np.array(list(range(18,23)))   # during stim
     tperiod = np.array(list(range(25,36)))   # after stim
     tperiod = np.array(list(range(40)))    #  all time points
+    tperiod = np.array(list(range(18,23)))   # during stim
+
     valuelist = np.array(list(range(3,13)))   # subset of values
     valuelist = np.array(list(range(46)))   # all values
     npnums = len(pnums)

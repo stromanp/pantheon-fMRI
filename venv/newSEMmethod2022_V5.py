@@ -5767,6 +5767,233 @@ def main():
     print('started at {}'.format(starttime))
     print('finished at {}'.format(time.ctime()))
 
+
+
+
+# gradient descent method to find best clusters
+def gradient_descent_cluster_search():
+    # settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+    covariatesfile = r'E:\all_condition_covariates.npy'
+    regiondataname = r'E:\all_condition_region_data.npy'
+    clusterdataname = r'E:\threat_safety_clusterdata.npy'
+
+    basedir = r'E:\cluster_search'
+    if not os.path.exists(basedir): os.mkdir(basedir)
+
+    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model5.npy')
+    SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
+    networkfile = r'D:/threat_safety_python/network_model_5cluster_v5_w_3intrinsics.xlsx'
+
+    # load paradigm data--------------------------------------------------------------------
+    DBname = r'D:/threat_safety_python/threat_safety_database.xlsx'
+    xls = pd.ExcelFile(DBname, engine='openpyxl')
+    df1 = pd.read_excel(xls, 'paradigm1_BOLD')
+    del df1['Unnamed: 0']  # get rid of the unwanted header column
+    fields = list(df1.keys())
+    paradigm = df1['paradigms_BOLD']
+    timevals = df1['time']
+    paradigm_centered = paradigm - np.mean(paradigm)
+    dparadigm = np.zeros(len(paradigm))
+    dparadigm[1:] = np.diff(paradigm_centered)
+
+    regiondataname = r'D:/threat_safety_python/threat_safety_regiondata_allthreat55.npy'
+    clusterdataname = r'D:/threat_safety_python/threat_safety_clusterdata.npy'
+
+    # get cluster info and setup for saving information later
+    cluster_data = np.load(clusterdataname, allow_pickle=True).flat[0]
+    cluster_properties = cluster_data['cluster_properties']
+    nregions = len(cluster_properties)
+    nclusterlist = [cluster_properties[i]['nclusters'] for i in range(nregions)]
+    rnamelist = [cluster_properties[i]['rname'] for i in range(nregions)]
+    namelist_addon = ['R '+n for n in rnamelist]
+    namelist = rnamelist + namelist_addon
+
+    # ---------------------
+    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+    tcdata = SEMparams['tcdata_centered']  # data for all regions/clusters concatenated along time dimension for all runs
+    # need to get principal components for each region to model the clusters as a continuum
+
+    component_data = np.zeros(np.shape(tcdata))
+    original_loadings = []
+    for regionnum in range(nregions):
+        r1 = sum(nclusterlist[:regionnum])
+        r2 = sum(nclusterlist[:(regionnum + 1)])
+
+        nstates = nclusterlist[regionnum]  # the number to look at
+        pca = PCA(n_components = nstates)
+        tcdata_region = tcdata[r1:r2,:]
+        pca.fit(tcdata_region)
+        S_pca_ = pca.fit(tcdata_region).transform(tcdata_region)
+
+        # components_   is [ncomponents x nfeatures]
+        #  scores from pca.transform(x) is   [nsamples x ncomponents]
+        # input data X is  [nsamples x nfeatures]
+
+        components = pca.components_
+        # use components in SAPM in place of original region data
+
+        # get loadings
+        mu = np.mean(tcdata_region, axis=0)
+        mu = np.repeat(mu[np.newaxis, :], nstates, axis=0)
+
+        loadings = pca.transform(tcdata_region)
+        fit_check = (loadings @ components) + mu
+
+        component_data[r1:r2,:] = components
+        original_loadings.append({'loadings':loadings})
+
+        # print(pca.explained_variance_ratio_)
+        # singular_values = pca.singular_values_
+        # ncomponents = pca.n_components_
+        # explained_variance = pca.explained_variance_
+        # fit_tcdata_region = (pca.fit_transform(tcdata_region))
+        # params = pca.get_params()
+        #
+        # loadings = (tcdata_region-mu) @ components.T @ np.linalg.inv(components @ components.T)
+        # fit_check = (loadings @ components) + mu
+        # loadings2 = pca.transform(tcdata_region)
+        # fit_check2 = np.dot(loadings2,components) + mu
+        # fit_check3 = (loadings2 @ components) + mu
+
+
+
+
+    # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
+    #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
+    full_rnum_base =  np.array([0,5,10,15,20,25,30,35,40,45])
+    # cluster set 1
+    cnums = [0, 3, 3, 0, 2, 1, 3, 3, 4, 3]
+
+    # namelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC', 'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus',
+    #         'Rtotal', 'R C6RD',  'R DRt', 'R Hyp','R LC', 'R NGC', 'R NRM', 'R NTS', 'R PAG',
+    #         'R PBN', 'R Thal']
+
+    # starting values
+    # cnums = [0, 4, 2, 0, 4, 1, 3, 1, 3, 4] # original starting point
+    cnums_original = copy.deepcopy(cnums)
+    adjust_region = 4   # pick one to start
+    last_Rtotal = 0.0  # initialize
+    iter = 0
+    still_searching = True
+    excelsheetname = 'clusters'
+    excelfilename = os.path.join(outputdir, 'search_clusters.xlsx')
+    outputdata = []
+    strikenumber = 0
+
+    while still_searching:
+        resultsrecord = []
+        Rvalrecord = []
+        Rtotal_list = np.zeros(5)
+        for clusternum in range(5):
+            cnums[adjust_region] = clusternum
+
+            clusterlist = np.array(cnums) + full_rnum_base
+            prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
+            output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
+
+
+
+            SEMresults = np.load(output, allow_pickle=True).flat[0]
+
+            group = 'all'
+            windowoffset = 0
+            yrange = []
+            yrange2 = []
+            Rtextlist, Rvallist = show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+                                            windowoffset, yrange, yrange2)
+
+            resultsrecord.append({'Rtextlist':Rtextlist})
+            Rvalrecord.append({'Rvallist':Rvallist})
+            Rtotal_list[clusternum] = np.sum(Rvallist)
+
+        # check the results
+        clusternum = np.argmax(Rtotal_list)   # find the cluster number that gives the best Rtotal
+        Rtotal = Rtotal_list[clusternum]
+
+        if Rtotal > last_Rtotal:
+            cnums[adjust_region] = clusternum
+            Rvallist = Rvalrecord[clusternum]['Rvallist']
+            Rvallist2 = [Rvallist[a][0] for a in range(len(Rvallist))]  # flatten this list
+            Rvallist_temp = np.array(copy.deepcopy(Rvallist))
+            Rvallist_temp[adjust_region] = 1.0
+            last_adjust_region = adjust_region
+            adjust_region = np.argmin(Rvallist_temp)   # adjust the region with the worst fit, but not the same one that was just done
+            sample_list = [1,2,3,4,5,6,7,9]
+            if adjust_region == 0  |  adjust_region == 8:
+                adjust_region = np.random.choice(sample_list)   # don't change the C6RD cluster
+            if np.mod(iter,3) == 2:
+                adjust_region = np.random.choice(list(range(1, 10)))   # throw a random one once in a while
+            last_Rtotal = Rtotal
+            # save the results and keep going
+            # write out cnums, Rtotal, and Rvallist
+            values = cnums + [Rtotal] + Rvallist2
+            entry = dict(zip(namelist, values))
+            outputdata.append(entry)
+            print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+            pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'replace')
+            iter += 1
+            strikenumber = 0
+        else:
+            strikenumber += 1
+            if strikenumber > 2:
+                still_searching = False
+            else:
+                cnums[adjust_region] = clusternum
+                Rvallist = Rvalrecord[clusternum]['Rvallist']
+                Rvallist2 = [Rvallist[a][0] for a in range(len(Rvallist))]  # flatten this list
+                Rvallist_temp = np.array(copy.deepcopy(Rvallist))
+
+                values = cnums + [Rtotal] + Rvallist2
+                entry = dict(zip(namelist, values))
+                outputdata.append(entry)
+                print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+                pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'replace')
+                iter += 1
+
+                sample_list = [1,2,3,4,5,6,7,9]
+                adjust_region = np.random.choice(sample_list)   # don't change the C6RD cluster
+
+
+    yrange = [-0.6, 0.6]
+    yrange2 = [1.6, 0.7, 0.8, 0.6, 0.9, 0.8, 0.5]   # for Feb2022C
+    windowoffset = 0
+    group = 'Female'
+    show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+                                    windowoffset, yrange, yrange2)
+
+    group = 'Male'
+    show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+                                    windowoffset, yrange, yrange2)
+
+    show_SEM_timecourse_results_compare_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered)
+
+    group = 'all'
+    show_SEM_average_beta_for_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+                                     windowoffset=0)
+
+    # display a cluster
+    # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
+    #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
+    # cnums = [0, 0, 3, 0, 3, 0, 0, 3, 3, 3]  # SEMmodel5e
+    # targetnum = 9
+    # targetcluster = cnums[targetnum]
+    # targetcluster = 3
+    # orientation = 'sagittal'
+    # outputimg = display_anatomical_cluster(clusterdataname, targetnum, targetcluster, orientation='axial', regioncolor=[0, 1, 1])
+    # plt.close(1)
+    # fig = plt.figure(1), plt.imshow(outputimg)
+
+    # SEMresultsname = os.path.join(outputdir, 'SEMphysio_nullset.npy')
+    # sem_physio_nulldist2(clusterlist, fintrinsic_base, SEMresultsname, SEMparametersname)
+
+    # null distribution has p < 0.05 at arctanh(R) = 0.593
+    # to scale distribution to match normal distribution, multiply by 2.774 (no idea why this number)
+
+
+
+
+
+
 if __name__ == '__main__':
     main()
 
