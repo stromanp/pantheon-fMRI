@@ -57,6 +57,10 @@ def analyze_sapm_latents(cord_cluster, type):
         if cord_cluster == 4:
             cnums = [4, 4, 2, 1, 0, 3, 3, 3, 2, 0]  # random 4
 
+    # from gradient descent search for best clusters...
+    # based on pain data
+    # best cluster set is: [3. 4. 4. 0. 4. 2. 4. 0. 4. 4.]
+
     basedir = r'E:\beta_distribution'
     outputdir = r'E:\beta_distribution\{}_{}_C6RD{}'.format(studyname,type,cord_cluster)
     if not os.path.exists(outputdir): os.mkdir(outputdir)
