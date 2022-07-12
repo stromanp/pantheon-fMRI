@@ -52,6 +52,7 @@ def sub2ind(vsize, indices):
         w += indices[nn]*np.prod(vsize[:nn])
     return w
 
+
 def all_flat_indices_nfixed(vsize, fixedindices, fixedvals):
     # give all the combinations for the values that are allowed to vary
     ndims = len(vsize)
@@ -444,7 +445,7 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEM
 
     ncon = nbeta - Nintrinsic
 
-    # recorder to put intrinsic inputs at the end-------------
+    # reorder to put intrinsic inputs at the end-------------
     beta_list2 = []
     beta_id2 = []
     x = np.where(np.array(sourcelist) < nregions)[0]
@@ -5734,6 +5735,7 @@ def mod_tplist_for_bootstrap(tplist_full, epoch, modtype, percent_replace = 0, t
     return tplist_full2
 
 
+
 #--------------compare with semopy------------------------------------
 def sem_with_semopy(clusterlist, fintrinsic_base, SEMresultsname, SEMparametersname):
     print('running comparison of methods with semopy....')
@@ -6269,6 +6271,7 @@ def check_single_result_details(nperson = 27, reload_existing=False):
     return SEMresultsname
 
 
+
 def main():
     # studyname:   allthreat, RS1nostim, Low, Sens
     starttime = time.ctime()
@@ -6465,7 +6468,7 @@ def gradient_descent_cluster_search():
     output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
 
     SEMresults = np.load(output, allow_pickle=True)
-    R2list1 = [SEMresults[aa]['R2total'] for aa in range(NP)]
+    R2list3 = [SEMresults[aa]['R2total'] for aa in range(NP)]
 
     # compare with previous results
     cnums = [3, 3, 2, 1, 0, 1, 2, 3, 4, 1]
@@ -6475,6 +6478,14 @@ def gradient_descent_cluster_search():
 
     SEMresults2 = np.load(output, allow_pickle=True)
     R2list2 = [SEMresults2[aa]['R2total'] for aa in range(NP)]
+
+
+    # first run:
+    # from gradient descent search for best clusters...
+    # best cluster set is: [3 4 4 0 4 2 4 0 4 4]
+    # second run
+    # best cluster set is : [4 0 3 4 4 0 3 0 1 0]
+
 
 
 def loadings_gradients(beta, PCparams,PCloadings,paradigm_centered,SEMresultsname,SEMparametersname,subsample):
