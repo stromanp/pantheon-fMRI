@@ -6291,22 +6291,22 @@ def main():
 
 
 # gradient descent method to find best clusters
-def gradient_descent_cluster_search():
+def gradient_descent_cluster_search(initial_clusters = []):
     # settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
-    covariatesfile = r'E:\all_condition_covariates.npy'
-    regiondataname = r'E:\all_condition_region_data.npy'
-    clusterdataname = r'E:\threat_safety_clusterdata.npy'
+    # covariatesfile = r'E:\all_condition_covariates.npy'
+    # regiondataname = r'E:\all_condition_region_data.npy'
+    # clusterdataname = r'E:\threat_safety_clusterdata.npy'
 
-    basedir = r'E:\cluster_search'
+    basedir = r'E:\FM2021data'
     if not os.path.exists(basedir): os.mkdir(basedir)
 
     outputdir = basedir
     SEMresultsname = os.path.join(outputdir, 'SEMphysio_model5.npy')
     SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
-    networkfile = r'D:/threat_safety_python/network_model_5cluster_v5_w_3intrinsics.xlsx'
+    networkfile = r'E:/network_model_5cluster_v5_w_3intrinsics.xlsx'
 
     # load paradigm data--------------------------------------------------------------------
-    DBname = r'D:/threat_safety_python/threat_safety_database.xlsx'
+    DBname = r'E:\FM2021data\FMS2_database_July27_2022b.xlsx'
     xls = pd.ExcelFile(DBname, engine='openpyxl')
     df1 = pd.read_excel(xls, 'paradigm1_BOLD')
     del df1['Unnamed: 0']  # get rid of the unwanted header column
@@ -6317,8 +6317,8 @@ def gradient_descent_cluster_search():
     dparadigm = np.zeros(len(paradigm))
     dparadigm[1:] = np.diff(paradigm_centered)
 
-    regiondataname = r'D:/threat_safety_python/threat_safety_regiondata_allthreat55.npy'
-    clusterdataname = r'D:/threat_safety_python/threat_safety_clusterdata.npy'
+    regiondataname = r'E:\FM2021data\HCstim_region_data.npy'
+    clusterdataname = r'E:\FM2021data\FM2021_cluster_definition.npy'
 
     # get cluster info and setup for saving information later
     cluster_data = np.load(clusterdataname, allow_pickle=True).flat[0]
@@ -6388,44 +6388,67 @@ def gradient_descent_cluster_search():
     PCparams = {'components':component_data, 'average':average_data, 'loadings':original_loadings}
 
     # for one set of PCloadings
-    Lweight = 1.0e-3
-    beta = 0.1
-    alpha = 1e-2
+    Lweight = 1.0e-6
+    beta = 0.01
+    alpha = 1e-3
+    initial_alpha = copy.deepcopy(alpha)
     alphalimit = 1e-5
-    maxiter = 20
-    subsample = [2,0]  # use every 2nd data set, starting with 0
+    maxiter = 40
+    subsample = [1,0]  # [2,0] use every 2nd data set, starting with 0
 
-    PCloadings = 0.1*np.random.randn(nclusters_total)
+    PCloadings = 1e-4*np.random.randn(nclusters_total)
+
+    if len(initial_clusters) == nregions:
+        for aa in range(nregions):
+            L = original_loadings[aa,:,:]
+            cluster = initial_clusters[aa]
+            r1 = sum(nclusterlist[:aa])
+            r2 = sum(nclusterlist[:(aa + 1)])
+            PCloadings[r1:r2] = L[cluster,:]
+
     lastgood_PCloadings = copy.deepcopy(PCloadings)
 
     # gradient descent to find best cluster combination
     iter = 0
     costrecord = []
     print('starting gradient descent search of clusters at {}'.format(time.ctime()))
+    recalculate_load_gradients = True
+    runcount = 0
     while (alpha > alphalimit) and (iter < maxiter):
         # subsample[1] = iter % 2   # vary which data sets are used out of the subsample
         iter += 1
         # gradients in PCloadings
-        load_gradients, basecost = loadings_gradients(beta, PCparams, PCloadings, paradigm_centered, SEMresultsname, SEMparametersname, subsample)
+        if recalculate_load_gradients:
+            load_gradients, basecost = loadings_gradients(beta, PCparams, PCloadings, paradigm_centered, SEMresultsname, SEMparametersname, subsample, Lweight)
+        else:
+            print('not calculating load gradients')
         PCloadings -= alpha*load_gradients
 
         SEMresults = sem_physio_model_PCAclusters(PCparams, PCloadings, paradigm_centered,
-                            SEMresultsname, SEMparametersname, nitermax = 50, alpha_limit = 1e-4,
+                            SEMresultsname, SEMparametersname, nitermax = 100, alpha_limit = 1e-5,
                             subsample = subsample)
                             # , fixed_beta_vals = [], verbose = False, nprocessors = 8
         # cost function
         R2list = np.array([SEMresults[x]['R2total'] for x in range(len(SEMresults))])
         newcost = np.sum(1-R2list) + Lweight*np.sum(np.abs(PCloadings))
+        R2cost_portion = np.sum(1-R2list)
+        L1cost_portion = Lweight*np.sum(np.abs(PCloadings))
 
         costrecord += [basecost]
 
         if newcost < basecost:
             lastgood_PCloadings = copy.deepcopy(PCloadings)
-            print('iter {}  delta cost = {:.3e}  alpha = {:.2e}   {}'.format(iter,newcost-basecost,alpha,time.ctime()))
+            recalculate_load_gradients = True
+            runcount += 1
+            if runcount > 2:
+                alpha = np.min([initial_alpha, 1.5*alpha])
+            print('iter {}  new cost = {:.3e}  base cost = {:.3e}  delta cost = {:.3e}  alpha = {:.2e}   {}'.format(iter,newcost, basecost, newcost-basecost,alpha,time.ctime()))
         else:
             PCloadings = copy.deepcopy(lastgood_PCloadings)
-            alpha *= 0.1
-            print('iter {} - no improvement   alpha = {:.2e}   {}'.format(iter,alpha,time.ctime()))
+            alpha *= 0.5
+            recalculate_load_gradients = False
+            runcount = 0
+            print('iter {} - no improvement   new cost = {:.3e}  base cost = {:.3e}  R2 portion = {:.2e}   L1 portion = {:.2e}  alpha = {:.2e}   {}'.format(iter,newcost, basecost,R2cost_portion,L1cost_portion,alpha,time.ctime()))
 
     results = {'costrecord':costrecord, 'PCloadings':PCloadings, 'original_loadings':original_loadings, 'PCscalefactor':PCscalefactor}
     outputname = os.path.join(outputdir, 'GDresults2.npy')
@@ -6436,7 +6459,7 @@ def gradient_descent_cluster_search():
     best_clusters = np.zeros(nregions)
     for region in range(nregions):
         print('\noriginal loadings region {}'.format(region))
-        L = original_loadings[0, :, :]
+        L = original_loadings[region, :, :]
         for cc in range(5): print('{:.3f} {:.3f} {:.3f} {:.3f} {:.3f}'
                                   .format(L[cc, 0], L[cc, 1], L[cc, 2], L[cc, 3], L[cc, 4]))
 
@@ -6468,29 +6491,30 @@ def gradient_descent_cluster_search():
     output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
 
     SEMresults = np.load(output, allow_pickle=True)
-    R2list3 = [SEMresults[aa]['R2total'] for aa in range(NP)]
+    R2list3 = [SEMresults[aa]['R2total'] for aa in range(len(SEMresults))]
 
     # compare with previous results
-    cnums = [3, 3, 2, 1, 0, 1, 2, 3, 4, 1]
+    cnums = [1, 4, 1, 3, 1, 0, 4, 2, 1, 2]  # FMstim, from the last TWO GD attempts
+    cnums = [1, 0, 4, 0, 0, 0, 4, 4, 2, 2]  # HCstim, last GD attempt
     clusterlist = cnums + full_rnum_base
     prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
     output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
 
     SEMresults2 = np.load(output, allow_pickle=True)
-    R2list2 = [SEMresults2[aa]['R2total'] for aa in range(NP)]
+    R2list2 = [SEMresults2[aa]['R2total'] for aa in range(len(SEMresults2))]
+
+    print('current results:  best cluster set: {}'.format(best_clusters))
+    print('previous results:  best cluster set: {}'.format(cnums))
+    print('compare R2 values: ')
+    print('new R2:     old R2:')
+    for aa in range(len(R2list3)):
+        print('{:.3f}     {:.3f}'.format(R2list3[aa],R2list2[aa]))
 
 
-    # first run:
-    # from gradient descent search for best clusters...
-    # best cluster set is: [3 4 4 0 4 2 4 0 4 4]
-    # second run
-    # best cluster set is : [4 0 3 4 4 0 3 0 1 0]
 
-
-
-def loadings_gradients(beta, PCparams,PCloadings,paradigm_centered,SEMresultsname,SEMparametersname,subsample):
+def loadings_gradients(beta, PCparams,PCloadings,paradigm_centered,SEMresultsname,SEMparametersname,subsample, Lweight = 1.0e-3):
     SEMresults = sem_physio_model_PCAclusters(PCparams, PCloadings, paradigm_centered, SEMresultsname,
-                                              SEMparametersname, nitermax = 50, alpha_limit = 1e-4,
+                                              SEMparametersname, nitermax = 100, alpha_limit = 1e-5,
                                               subsample = subsample)
                                                 # , fixed_beta_vals = [], verbose = False, nprocessors = 8
 
@@ -6507,7 +6531,7 @@ def loadings_gradients(beta, PCparams,PCloadings,paradigm_centered,SEMresultsnam
         testload = copy.deepcopy(PCloadings)
         testload[aa] += beta
         SEMresults = sem_physio_model_PCAclusters(PCparams, testload, paradigm_centered, SEMresultsname,
-                                                  SEMparametersname, nitermax = 50, alpha_limit = 1e-4, subsample = subsample)
+                                                  SEMparametersname, nitermax = 100, alpha_limit = 1e-5, subsample = subsample)
                                                     # , fixed_beta_vals = [], verbose = False, nprocessors = 8
 
         # cost function

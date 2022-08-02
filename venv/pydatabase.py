@@ -160,7 +160,7 @@ def convert_matlab_database(matlabfilename, database_inputfields, database_outpu
                     value = (input_datarecord[database_inputfields[nn]][0][ii].flatten())[0]
                 except:
                     value = (input_datarecord[database_inputfields[nn]][0][ii].flatten())
-            if nn == 1:
+            if nn == 0:
                 entry = {outputfields[nn]:value}
             else:
                 entry[outputfields[nn]] = value
@@ -168,7 +168,7 @@ def convert_matlab_database(matlabfilename, database_inputfields, database_outpu
 
     # write it to the database by appending a sheet to the excel file
     dataf = pd.DataFrame(output_datarecord)
-    with pd.ExcelWriter(outputname, mode='w') as writer:
+    with pd.ExcelWriter(outputname, mode='w', engine='openpyxl') as writer:
         dataf.to_excel(writer, sheet_name='datarecord')
 
     # df1 = pd.DataFrame(columns=outputfields, data=[])
@@ -186,5 +186,5 @@ def convert_matlab_database(matlabfilename, database_inputfields, database_outpu
 
     # write it to the database by appending a sheet to the excel file
     datap = pd.DataFrame(pdata)
-    with pd.ExcelWriter(outputname, mode='a') as writer:
+    with pd.ExcelWriter(outputname, mode='a', engine='openpyxl') as writer:
         datap.to_excel(writer, sheet_name='paradigm1')

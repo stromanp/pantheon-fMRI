@@ -13,6 +13,7 @@ import pybasissets
 import pydatabase
 import GLMfit
 from sklearn.cluster import KMeans
+import copy
 
 
 def load_network_model(networkmodel):
@@ -147,19 +148,62 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, networkmodel, regionmap
         regionnum = anatlabels['numbers'][regionindex]
         print('searching for region {} {}'.format(rname,regionnum))
         if len(regionnum) > 1:
-            for aa,rr in enumerate(regionnum):
-                cx,cy,cz = np.where(regionmap_img == rr)
+            # if the number of clusters divides evenly into the number of regions
+            # then split the clusters amongst the regions (to maintain R/L divisions for example)
+            # otherwise, put all the regions together
+            clusters_per_region = ncluster_list[nn]['nclusters']/len(regionnum)
+            if clusters_per_region == np.floor(clusters_per_region):
+                for aa,rr in enumerate(regionnum):
+                    cx,cy,cz = np.where(regionmap_img == rr)
+                    region_start += [vox_count]
+                    region_end += [vox_count + len(cx)]
+                    vox_count += len(cx)
+                    region_coordinate_list.append({'rname': rname, 'nvox': len(cx), 'cx': cx, 'cy': cy, 'cz': cz, 'occurrence':aa})
+                    if (nn == 0) and (aa == 0):
+                        ncluster_list2 = [np.ceil(ncluster_list[nn]['nclusters']/len(regionnum)).astype(int)]
+                        cx_all = cx
+                        cy_all = cy
+                        cz_all = cz
+                    else:
+                        ncluster_list2 += [np.ceil(ncluster_list[nn]['nclusters']/len(regionnum)).astype(int)]
+                        cx_all = np.concatenate((cx_all, cx), axis=0)
+                        cy_all = np.concatenate((cy_all, cy), axis=0)
+                        cz_all = np.concatenate((cz_all, cz), axis=0)
+            else:
+                for aa,rr in enumerate(regionnum):
+                    cx,cy,cz = np.where(regionmap_img == rr)
+                    if aa == 0:
+                        cx_full = cx
+                        cy_full = cy
+                        cz_full = cz
+                    else:
+                        cx_full = np.concatenate((cx_full, cx), axis=0)
+                        cy_full = np.concatenate((cy_full, cy), axis=0)
+                        cz_full = np.concatenate((cz_full, cz), axis=0)
+
+                print('shape of cx_full is {}'.format(np.shape(cx_full)))
+                cx = np.unique(cx_full)
+                cy = np.unique(cy_full)
+                cz = np.unique(cz_full)
+
+                cx = copy.deepcopy(cx_full)
+                cy = copy.deepcopy(cy_full)
+                cz = copy.deepcopy(cz_full)
+                print('shape of cx after unique function is {}'.format(np.shape(cx)))
+
                 region_start += [vox_count]
                 region_end += [vox_count + len(cx)]
                 vox_count += len(cx)
-                region_coordinate_list.append({'rname': rname, 'nvox': len(cx), 'cx': cx, 'cy': cy, 'cz': cz, 'occurrence':aa})
-                if (nn == 0) and (aa == 0):
-                    ncluster_list2 = [np.ceil(ncluster_list[nn]['nclusters']/len(regionnum)).astype(int)]
+                region_coordinate_list.append(
+                    {'rname': rname, 'nvox': len(cx), 'cx': cx, 'cy': cy, 'cz': cz, 'occurrence': 0})
+
+                if nn == 0:
+                    ncluster_list2 = [ncluster_list[nn]['nclusters']]
                     cx_all = cx
                     cy_all = cy
                     cz_all = cz
                 else:
-                    ncluster_list2 += [np.ceil(ncluster_list[nn]['nclusters']/len(regionnum)).astype(int)]
+                    ncluster_list2 += [ncluster_list[nn]['nclusters']]
                     cx_all = np.concatenate((cx_all, cx), axis=0)
                     cy_all = np.concatenate((cy_all, cy), axis=0)
                     cz_all = np.concatenate((cz_all, cz), axis=0)

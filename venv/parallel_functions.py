@@ -214,6 +214,7 @@ def gradient_descent_per_person(data):
         Smean = np.mean(Sinput)
         errmean = np.mean(err_total)
         R2total = 1 - np.sum((err_total - errmean) ** 2) / np.sum((Sinput - Smean) ** 2)
+        if R2total < 0: R2total = 0.0
 
         # Sinput_sim, Soutput_sim = network_sim(Sinput_full, Soutput_full, Minput, Moutput)
         results_record.append({'Sinput': fit, 'Mintrinsic': Mintrinsic, 'Meigv': Meigv})
