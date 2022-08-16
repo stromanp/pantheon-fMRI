@@ -37,52 +37,70 @@ import scipy.stats as stats
 # SEMresults_load = np.load(SEMresultsname, allow_pickle=True)
 #-----------------------------------------------------------------------
 
-def run_draw_sapm_plot(type, clusternumber):
-    # load excel file with results to display
-    # type = 'fixed'
-    # clusternumber = 0
-    if type == 'random':
-        offset = 5
-    else:
-        offset = 0
+def run_draw_sapm_plot():
+    # required inputs:
+    # cnums
+    # results_file = r'D:\threat_safety_python\individual_differences\{}_C6RD{}\all All Average Mconn values_corr.xlsx'.format(type,clusternumber)
+    # sheetname = 'correlation'  # sheet of excel file to read
+    # regionnames = 'regions'   # column of excel file to read
+    # statnames = 'Z'   # column of excel file to read
+    # scalefactor = 1.0
+
+    cnums = [1,4,1,3,1,0,4,2,1,2]
+    outputdir = r'E:\FM2021data'
+    results_file = os.path.join(outputdir, 'FMstim All Average Mconn values.xlsx')
+    covariatesfile = r'E:\FM2021data\FMstim_covariates.npy'
+
+    # covariatesfile = r'E:\FM2021data\FMstim_covariates.npy'
+    # SEMresultsname = os.path.join(outputdir, 'FMS2_SAPM_model6.npy')
+    # SEMparametersname = os.path.join(outputdir, 'SAPMparameters_model6.npy')
+    # networkfile = r'E:/network_model_5cluster_v6_w_3intrinsics.xlsx'
+    # DBname = r'E:\FM2021data\FMS2_database_July27_2022b.xlsx'
+    # regiondataname = r'E:\FM2021data\HCstim_region_data.npy'
+    # clusterdataname = r'E:\FM2021data\FM2021_cluster_definition.npy'
+    # group = 'HCstim6'
+
+    # if type == 'random':
+    #     offset = 5
+    # else:
+    #     offset = 0
+    #
+    # # temporary -----------------------------------------------------------
+    # if type == 'fixed':
+    #     if clusternumber == 0:
+    #         cnums = [0, 3, 3, 1, 4, 1, 3, 3, 4, 1]  # fixed 0
+    #     if clusternumber == 1:
+    #         cnums = [1, 3, 3, 1, 3, 1, 3, 3, 2, 1]  # fixed 1
+    #     if clusternumber == 2:
+    #         cnums = [2, 3, 3, 1, 1, 1, 3, 3, 2, 0]  # fixed 2
+    #     if clusternumber == 3:
+    #         cnums = [3, 3, 2, 1, 0, 1, 2, 3, 4, 1]  # fixed 3
+    #     if clusternumber == 4:
+    #         cnums = [4, 3, 3, 1, 0, 1, 2, 3, 4, 3]  # fixed 4
+    # else:
+    #     if clusternumber == 0:
+    #         cnums = [0, 4, 4, 2, 2, 3, 3, 2, 3, 1]  # random 0
+    #     if clusternumber == 1:
+    #         cnums = [1, 4, 2, 3, 2, 1, 1, 2, 3, 0]  # random 1
+    #     if clusternumber == 2:
+    #         cnums = [2, 2, 2, 0, 0, 2, 0, 3, 1, 3]  # random 2
+    #     if clusternumber == 3:
+    #         cnums = [3, 3, 1, 4, 4, 1, 3, 3, 1, 0]  # random 3
+    #     if clusternumber == 4:
+    #         cnums = [4, 4, 2, 1, 0, 3, 3, 3, 2, 0]  # random 4
+    # #----------------------------------------------------------------------
 
 
-    # temporary -----------------------------------------------------------
-    if type == 'fixed':
-        if clusternumber == 0:
-            cnums = [0, 3, 3, 1, 4, 1, 3, 3, 4, 1]  # fixed 0
-        if clusternumber == 1:
-            cnums = [1, 3, 3, 1, 3, 1, 3, 3, 2, 1]  # fixed 1
-        if clusternumber == 2:
-            cnums = [2, 3, 3, 1, 1, 1, 3, 3, 2, 0]  # fixed 2
-        if clusternumber == 3:
-            cnums = [3, 3, 2, 1, 0, 1, 2, 3, 4, 1]  # fixed 3
-        if clusternumber == 4:
-            cnums = [4, 3, 3, 1, 0, 1, 2, 3, 4, 3]  # fixed 4
-    else:
-        if clusternumber == 0:
-            cnums = [0, 4, 4, 2, 2, 3, 3, 2, 3, 1]  # random 0
-        if clusternumber == 1:
-            cnums = [1, 4, 2, 3, 2, 1, 1, 2, 3, 0]  # random 1
-        if clusternumber == 2:
-            cnums = [2, 2, 2, 0, 0, 2, 0, 3, 1, 3]  # random 2
-        if clusternumber == 3:
-            cnums = [3, 3, 1, 4, 4, 1, 3, 3, 1, 0]  # random 3
-        if clusternumber == 4:
-            cnums = [4, 4, 2, 1, 0, 3, 3, 3, 2, 0]  # random 4
-    #----------------------------------------------------------------------
-
-
-    results_file = r'D:\threat_safety_python\individual_differences\{}_C6RD{}\all All Average Mconn values_corr.xlsx'.format(type,clusternumber)
-    sheetname = 'correlation'  # sheet of excel file to read
-    regionnames = 'regions'   # column of excel file to read
-    statnames = 'Z'   # column of excel file to read
-    scalefactor = 1.0
-
+    # results_file = r'D:\threat_safety_python\individual_differences\{}_C6RD{}\all All Average Mconn values_corr.xlsx'.format(type,clusternumber)
+    # sheetname = 'correlation'  # sheet of excel file to read
+    # regionnames = 'regions'   # column of excel file to read
+    # statnames = 'Z'   # column of excel file to read
+    # scalefactor = 1.0
+    #
     Zthresh = stats.norm.ppf(1 - np.array([1.0, 0.05, 0.01, 0.001]))
     threshold = Zthresh[2]
 
-    results_file = r'D:\threat_safety_python\individual_differences\{}_C6RD{}\all All Average Mconn values.xlsx'.format(type,clusternumber)
+    # results_file = r'D:\threat_safety_python\individual_differences\{}_C6RD{}\all All Average Mconn values.xlsx'.format(type,clusternumber)
     sheetname = 'average'  # sheet of excel file to read
     regionnames = 'regions'   # column of excel file to read
     statnames = 'beta'   # column of excel file to read
@@ -93,7 +111,7 @@ def run_draw_sapm_plot(type, clusternumber):
     threshold = Zthresh[2]
     threshold = 0.0
 
-    figurenumber = clusternumber+1+offset
+    figurenumber = 1
     draw_sapm_plot(results_file, sheetname, regionnames,statnames,figurenumber, scalefactor, cnums, threshold, True)
 
 

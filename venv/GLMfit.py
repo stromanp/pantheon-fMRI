@@ -266,6 +266,7 @@ def compile_data_sets(DBname, dbnumlist, prefix, mode = 'concatenate_group', nvo
                         input_data = copy.deepcopy(temp_data)
                     if ts > fixed_ts:
                         input_data = input_data[:,:,:,:fixed_ts]
+                        ts = fixed_ts
 
                 # # convert to signal change from the average----------------
                 # if data have been cleaned they are already percent signal changes

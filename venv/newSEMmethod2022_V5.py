@@ -621,6 +621,7 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
                 beta_int1 = 0.0
         else:
             beta_int1 = 0.0
+            fintrinsic1 = []
 
         lastgood_beta_int1 = copy.deepcopy(beta_int1)
 
@@ -2364,142 +2365,148 @@ def show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsnam
         R2totalrecord[nperson] = R2total
 
 
+    if len(covariates1) > 1 and len(covariates2) > 1:
+        # ancova sex x pain rating---------------------------------------
+        # ANCOVA group vs pain rating
+        statstype = 'ANCOVA'
+        formula_key1 = 'C(Group)'
+        formula_key2 = 'pain'
+        formula_key3 = 'C(Group):' + 'pain'
+        atype = 2
 
-    # ancova sex x pain rating---------------------------------------
-    # ANCOVA group vs pain rating
-    statstype = 'ANCOVA'
-    formula_key1 = 'C(Group)'
-    formula_key2 = 'pain'
-    formula_key3 = 'C(Group):' + 'pain'
-    atype = 2
+        # separate by sex
+        g1 = np.where(covariates1 == 'Female')[0]
+        g2 = np.where(covariates1 == 'Male')[0]
 
-    # separate by sex
-    g1 = np.where(covariates1 == 'Female')[0]
-    g2 = np.where(covariates1 == 'Male')[0]
+        cov1 = covariates2[g1]
+        cov2 = covariates2[g2]
+        ancova_p = np.ones((nbeta,nbeta,3))
+        ttest_p = np.ones((nbeta,nbeta,2))
+        for aa in range(ncon):
+            for bb in range(ncon):
+                m = Mrecord[aa, bb, :]
+                if np.var(m) > 0:
+                    b1 = m[g1]
+                    b2 = m[g2]
+                    anova_table, p_MeoG, p_MeoC, p_intGC = py2ndlevelanalysis.run_ANOVA_or_ANCOVA2(b1, b2, cov1, cov2, 'pain', formula_key1,
+                                                                                formula_key2, formula_key3, atype)
+                    ancova_p[aa,bb, :] = np.array([p_MeoG, p_MeoC, p_intGC])
 
-    cov1 = covariates2[g1]
-    cov2 = covariates2[g2]
-    ancova_p = np.ones((nbeta,nbeta,3))
-    ttest_p = np.ones((nbeta,nbeta,2))
-    for aa in range(ncon):
-        for bb in range(ncon):
-            m = Mrecord[aa, bb, :]
-            if np.var(m) > 0:
-                b1 = m[g1]
-                b2 = m[g2]
-                anova_table, p_MeoG, p_MeoC, p_intGC = py2ndlevelanalysis.run_ANOVA_or_ANCOVA2(b1, b2, cov1, cov2, 'pain', formula_key1,
-                                                                            formula_key2, formula_key3, atype)
-                ancova_p[aa,bb, :] = np.array([p_MeoG, p_MeoC, p_intGC])
+                    if (np.var(b1) > 0) & (np.var(b2) > 0):
+                        t, p = stats.ttest_ind(b1, b2, equal_var=False)
+                        ttest_p[aa,bb,:] = np.array([p,t])
 
-                if (np.var(b1) > 0) & (np.var(b2) > 0):
-                    t, p = stats.ttest_ind(b1, b2, equal_var=False)
-                    ttest_p[aa,bb,:] = np.array([p,t])
+        columns = [name[:3] + ' in' for name in betanamelist]
+        rows = [name[:3] for name in betanamelist]
 
-    columns = [name[:3] + ' in' for name in betanamelist]
-    rows = [name[:3] for name in betanamelist]
-
-    p, f = os.path.split(SEMresultsname)
-    pd.options.display.float_format = '{:.2e}'.format
-    df = pd.DataFrame(ancova_p[:,:,0], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mancova_MeoG.xlsx')
-    df.to_excel(xlname)
-    df = pd.DataFrame(ancova_p[:,:,1], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mancova_MeoP.xlsx')
-    df.to_excel(xlname)
-    df = pd.DataFrame(ancova_p[:,:,2], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mancova_IntGP.xlsx')
-    df.to_excel(xlname)
-    df = pd.DataFrame(ttest_p[:,:,0], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Ttest_sexdiffs.xlsx')
-    df.to_excel(xlname)
-
-
-    print('\nMain effect of group:')
-    text_MeoG = write_Mconn_values(ancova_p[:,:,0], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-    print('\nMain effect of pain ratings:')
-    text_MeoP = write_Mconn_values(ancova_p[:,:,1], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-    print('\nInteraction group x pain:')
-    text_IntGP = write_Mconn_values(ancova_p[:,:,2], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-    print('\n\n')
-
-    print('\nT-test sex differences:')
-    text_T = write_Mconn_values(ttest_p[:,:,0], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-    print('\n\n')
+        p, f = os.path.split(SEMresultsname)
+        pd.options.display.float_format = '{:.2e}'.format
+        df = pd.DataFrame(ancova_p[:,:,0], columns=columns, index=rows)
+        xlname = os.path.join(p, 'Mancova_MeoG.xlsx')
+        df.to_excel(xlname)
+        df = pd.DataFrame(ancova_p[:,:,1], columns=columns, index=rows)
+        xlname = os.path.join(p, 'Mancova_MeoP.xlsx')
+        df.to_excel(xlname)
+        df = pd.DataFrame(ancova_p[:,:,2], columns=columns, index=rows)
+        xlname = os.path.join(p, 'Mancova_IntGP.xlsx')
+        df.to_excel(xlname)
+        df = pd.DataFrame(ttest_p[:,:,0], columns=columns, index=rows)
+        xlname = os.path.join(p, 'Ttest_sexdiffs.xlsx')
+        df.to_excel(xlname)
 
 
-    # compare groups with T-tests
+        print('\nMain effect of group:')
+        text_MeoG = write_Mconn_values(ancova_p[:,:,0], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
+        print('\nMain effect of pain ratings:')
+        text_MeoP = write_Mconn_values(ancova_p[:,:,1], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
+        print('\nInteraction group x pain:')
+        text_IntGP = write_Mconn_values(ancova_p[:,:,2], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
+        print('\n\n')
+
+        print('\nT-test sex differences:')
+        text_T = write_Mconn_values(ttest_p[:,:,0], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
+        print('\n\n')
+
+
+        # compare groups with T-tests
+
+        # set the group
+        g = list(range(NP))
+        gtag = '_' + group
+
+        if group.lower() == 'male':
+            g = g2
+            gtag = '_Male'
+
+        if group.lower() == 'female':
+            g = g1
+            gtag = '_Female'
+
+
 
     # set the group
     g = list(range(NP))
-    gtag = '_all'
+    gtag = '_'+group
+    Sinput_avg = np.mean(Sinput_total[:, :, g], axis=2)
+    Sinput_sem = np.std(Sinput_total[:, :, g], axis=2) / np.sqrt(len(g))
+    Sconn_avg = np.mean(Sconn_total[:, :, g], axis=2)
+    Sconn_sem = np.std(Sconn_total[:, :, g], axis=2) / np.sqrt(len(g))
+    fit_avg = np.mean(fit_total[:, :, g], axis=2)
+    fit_sem = np.std(fit_total[:, :, g], axis=2) / np.sqrt(len(g))
 
-    if group.lower() == 'male':
-        g = g2
-        gtag = '_Male'
+    if len(covariates2) > 1:
+        # regression based on pain ratings
+        p = covariates2[np.newaxis, g]
+        p -= np.mean(p)
+        pmax = np.max(np.abs(p))
+        p /= pmax
+        G = np.concatenate((np.ones((1, len(g))),p), axis=0) # put the intercept term first
+        Sinput_reg = np.zeros((nr,tsize,4))
+        fit_reg = np.zeros((nr,tsize,4))
+        Sconn_reg = np.zeros((nbeta,tsize,4))
+        # Sinput_R2 = np.zeros((nr,tsize,2))
+        # fit_R2 = np.zeros((nr,tsize,2))
+        # Sconn_R2 = np.zeros((nbeta,tsize,2))
+        for tt in range(tsize):
+            for nn in range(nr):
+                m = Sinput_total[nn,tt,g]
+                b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
+                Sinput_reg[nn,tt,:2] = b
+                Sinput_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
 
-    if group.lower() == 'female':
-        g = g1
-        gtag = '_Female'
+                m = fit_total[nn,tt,g]
+                b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
+                fit_reg[nn,tt,:2] = b
+                fit_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
 
-    Sinput_avg = np.mean(Sinput_total[:,:,g], axis = 2)
-    Sinput_sem = np.std(Sinput_total[:,:,g], axis = 2)/np.sqrt(len(g))
-    Sconn_avg = np.mean(Sconn_total[:,:,g], axis = 2)
-    Sconn_sem = np.std(Sconn_total[:,:,g], axis = 2)/np.sqrt(len(g))
-    fit_avg = np.mean(fit_total[:,:,g], axis = 2)
-    fit_sem = np.std(fit_total[:,:,g], axis = 2)/np.sqrt(len(g))
+            for nn in range(nbeta):
+                m = Sconn_total[nn,tt,g]
+                b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
+                Sconn_reg[nn,tt,:2] = b
+                Sconn_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
 
-    # regression based on pain ratings (separate by sex?)
-    p = covariates2[np.newaxis, g]
-    p -= np.mean(p)
-    pmax = np.max(np.abs(p))
-    p /= pmax
-    G = np.concatenate((np.ones((1, len(g))),p), axis=0) # put the intercept term first
-    Sinput_reg = np.zeros((nr,tsize,4))
-    fit_reg = np.zeros((nr,tsize,4))
-    Sconn_reg = np.zeros((nbeta,tsize,4))
-    # Sinput_R2 = np.zeros((nr,tsize,2))
-    # fit_R2 = np.zeros((nr,tsize,2))
-    # Sconn_R2 = np.zeros((nbeta,tsize,2))
-    for tt in range(tsize):
-        for nn in range(nr):
-            m = Sinput_total[nn,tt,g]
-            b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-            Sinput_reg[nn,tt,:2] = b
-            Sinput_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
+            # need to save Sinput_reg, Sinput_R2, etc., somewhere for later use....
 
-            m = fit_total[nn,tt,g]
-            b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-            fit_reg[nn,tt,:2] = b
-            fit_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
+            # regression of Mrecord with pain ratings
+            # glm_fit
+            Mregression = np.zeros((nbeta,nbeta,3))
+            # Mregression1 = np.zeros((nbeta,nbeta,3))
+            # Mregression2 = np.zeros((nbeta,nbeta,3))
+            p = covariates2[np.newaxis, g]
+            p -= np.mean(p)
+            pmax = np.max(np.abs(p))
+            p /= pmax
+            G = np.concatenate((np.ones((1, len(g))), p), axis=0)  # put the intercept term first
+            for aa in range(nbeta):
+                for bb in range(nbeta):
+                    m = Mrecord[aa,bb,g]
+                    if np.var(m) > 0:
+                        b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis,:], G)
+                        Mregression[aa,bb,:] = [b[0,0],b[0,1],R2]
 
-        for nn in range(nbeta):
-            m = Sconn_total[nn,tt,g]
-            b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-            Sconn_reg[nn,tt,:2] = b
-            Sconn_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
-
-    # need to save Sinput_reg, Sinput_R2, etc., somewhere for later use....
-
-    # regression of Mrecord with pain ratings
-    # glm_fit
-    Mregression = np.zeros((nbeta,nbeta,3))
-    # Mregression1 = np.zeros((nbeta,nbeta,3))
-    # Mregression2 = np.zeros((nbeta,nbeta,3))
-    p = covariates2[np.newaxis, g]
-    p -= np.mean(p)
-    pmax = np.max(np.abs(p))
-    p /= pmax
-    G = np.concatenate((np.ones((1, len(g))), p), axis=0)  # put the intercept term first
-    for aa in range(nbeta):
-        for bb in range(nbeta):
-            m = Mrecord[aa,bb,g]
-            if np.var(m) > 0:
-                b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis,:], G)
-                Mregression[aa,bb,:] = [b[0,0],b[0,1],R2]
-
-    print('\n\nMconn regression with pain ratings')
-    # rtext = write_Mconn_values(Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', minthresh=0.0001, maxthresh=0.0)
-    labeltext, valuetext, Rtext = write_Mreg_values(Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', Rthresh=0.1)
+            print('\n\nMconn regression with pain ratings')
+            # rtext = write_Mconn_values(Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', minthresh=0.0001, maxthresh=0.0)
+            labeltext, valuetext, Rtext = write_Mreg_values(Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', Rthresh=0.1)
 
     # average Mconn values
     Mconn_avg = np.mean(Mrecord[:,:,g],axis = 2)
@@ -2664,42 +2671,42 @@ def show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsnam
     plot_region_inputs_average(window12+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
                                Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
 
+    if len(covariates1) > 1 and len(covariates2) > 1:
+        # plot a specific connection
+        window6 = 29 + windownum_offset
+        target = 'C6RD-PAG'
+        source = 'NTS-C6RD'
 
-    # plot a specific connection
-    window6 = 29 + windownum_offset
-    target = 'C6RD-PAG'
-    source = 'NTS-C6RD'
+        target = 'NTS-PBN'
+        source = 'PBN-NTS'
 
-    target = 'NTS-PBN'
-    source = 'PBN-NTS'
+        c = target.index('-')
+        betaname_target = '{}_{}'.format(rnamelist.index(target[:c]),rnamelist.index(target[(c+1):]))
+        c = source.index('-')
+        betaname_source = '{}_{}'.format(rnamelist.index(source[:c]),rnamelist.index(source[(c+1):]))
 
-    c = target.index('-')
-    betaname_target = '{}_{}'.format(rnamelist.index(target[:c]),rnamelist.index(target[(c+1):]))
-    c = source.index('-')
-    betaname_source = '{}_{}'.format(rnamelist.index(source[:c]),rnamelist.index(source[(c+1):]))
+        rt = betanamelist.index(betaname_target)
+        rs = betanamelist.index(betaname_source)
+        m = Mrecord[rt,rs,:]
+        G = np.concatenate((covariates2[np.newaxis,g1],np.ones((1,len(g1)))), axis = 0)
+        b1, fit1, R21, total_var, res_var = pysem.general_glm(m[g1], G)
+        G = np.concatenate((covariates2[np.newaxis,g2],np.ones((1,len(g2)))), axis = 0)
+        b2, fit2, R22, total_var, res_var = pysem.general_glm(m[g2], G)
 
-    rt = betanamelist.index(betaname_target)
-    rs = betanamelist.index(betaname_source)
-    m = Mrecord[rt,rs,:]
-    G = np.concatenate((covariates2[np.newaxis,g1],np.ones((1,len(g1)))), axis = 0)
-    b1, fit1, R21, total_var, res_var = pysem.general_glm(m[g1], G)
-    G = np.concatenate((covariates2[np.newaxis,g2],np.ones((1,len(g2)))), axis = 0)
-    b2, fit2, R22, total_var, res_var = pysem.general_glm(m[g2], G)
+        plt.close(window6)
+        fig = plt.figure(window6)
+        ax = fig.add_axes([0.1,0.1,0.8,0.8])
+        plt.plot(covariates2[g1],m[g1], marker = 'o', linestyle = 'None', color = (0.1,0.9,0.1))
+        plt.plot(covariates2[g1],fit1, marker = 'None', linestyle = '-', color = (0.1,0.9,0.1))
+        plt.plot(covariates2[g2],m[g2], marker = 'o', linestyle = 'None', color = (1.0,0.5,0.))
+        plt.plot(covariates2[g2],fit2, marker = 'None', linestyle = '-', color = (1.0,0.5,0.))
 
-    plt.close(window6)
-    fig = plt.figure(window6)
-    ax = fig.add_axes([0.1,0.1,0.8,0.8])
-    plt.plot(covariates2[g1],m[g1], marker = 'o', linestyle = 'None', color = (0.1,0.9,0.1))
-    plt.plot(covariates2[g1],fit1, marker = 'None', linestyle = '-', color = (0.1,0.9,0.1))
-    plt.plot(covariates2[g2],m[g2], marker = 'o', linestyle = 'None', color = (1.0,0.5,0.))
-    plt.plot(covariates2[g2],fit2, marker = 'None', linestyle = '-', color = (1.0,0.5,0.))
-
-    ax.annotate('{} input to {}'.format(source,target), xy=(.025, .975), xycoords='axes  fraction', color = 'r',
-                        horizontalalignment='left', verticalalignment='top', fontsize=10)
-    ax.annotate('Female R2={:.3f}'.format(R21), xy=(.025, .025), xycoords='axes  fraction', color = (0.1,0.9,0.1),
-                        horizontalalignment='left', verticalalignment='bottom', fontsize=10)
-    ax.annotate('Male R2={:.3f}'.format(R22), xy=(.975, .025), xycoords='axes  fraction', color = (1.0,0.5,0.),
-                        horizontalalignment='right', verticalalignment='bottom', fontsize=10)
+        ax.annotate('{} input to {}'.format(source,target), xy=(.025, .975), xycoords='axes  fraction', color = 'r',
+                            horizontalalignment='left', verticalalignment='top', fontsize=10)
+        ax.annotate('Female R2={:.3f}'.format(R21), xy=(.025, .025), xycoords='axes  fraction', color = (0.1,0.9,0.1),
+                            horizontalalignment='left', verticalalignment='bottom', fontsize=10)
+        ax.annotate('Male R2={:.3f}'.format(R22), xy=(.975, .025), xycoords='axes  fraction', color = (1.0,0.5,0.),
+                            horizontalalignment='right', verticalalignment='bottom', fontsize=10)
 
     return Rtextlist, Rvallist
 
@@ -2860,7 +2867,7 @@ def show_SAPM_timecourses_covariates(discrete_covariate, continuous_covariate, S
 
     # set the group
     g = list(range(NP))
-    gtag = '_all'
+    gtag = '_'+group
 
     if group.lower() == c1groups[1]:
         g = g2
@@ -6543,6 +6550,116 @@ def loadings_gradients(beta, PCparams,PCloadings,paradigm_centered,SEMresultsnam
     print('calculating load gradients took {:.1f} seconds'.format(gradcalcend - gradcalcstart))
 
     return load_gradients, basecost
+
+
+
+# main program
+def SAPM_main(reload_existing = False):
+    # required inputs:
+    # cnums
+    # outputdir
+    # covariatesfile (?)
+    # SEMresultsname
+    # SEMparametersname
+    # networkfile
+    # DBname
+    # regiondataname
+    # clusterdataname
+    # excelfilename
+
+    cnums = [1,4,1,3,1,0,4,2,1,2]
+    outputdir = r'E:\FM2021data'
+    covariatesfile = r'E:\FM2021data\HCstim_covariates.npy'
+    SEMresultsname = os.path.join(outputdir, 'FMS2_SAPM_model5.npy')
+    SEMparametersname = os.path.join(outputdir, 'SAPMparameters_model5.npy')
+    networkfile = r'E:/network_model_5cluster_v5_w_3intrinsics.xlsx'
+    DBname = r'E:\FM2021data\FMS2_database_July27_2022b.xlsx'
+    regiondataname = r'E:\FM2021data\HCstim_region_data.npy'
+    clusterdataname = r'E:\FM2021data\FM2021_cluster_definition.npy'
+    excelfilename = os.path.join(outputdir, 'HCstim_results.xlsx')
+    group = 'HCstim'
+
+
+    if not os.path.exists(outputdir): os.mkdir(outputdir)
+
+    # load paradigm data--------------------------------------------------------------------
+    # DBname = r'D:/threat_safety_python/threat_safety_database.xlsx'
+    xls = pd.ExcelFile(DBname, engine='openpyxl')
+    df1 = pd.read_excel(xls, 'paradigm1_BOLD')
+    del df1['Unnamed: 0']  # get rid of the unwanted header column
+    fields = list(df1.keys())
+    paradigm = df1['paradigms_BOLD']
+    timevals = df1['time']
+    paradigm_centered = paradigm - np.mean(paradigm)
+    dparadigm = np.zeros(len(paradigm))
+    dparadigm[1:] = np.diff(paradigm_centered)
+
+    # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
+    #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
+
+    network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count = load_network_model_w_intrinsics(networkfile)
+    ncluster_list = np.array([nclusterlist[x]['nclusters'] for x in range(len(nclusterlist))])
+    cluster_name = [nclusterlist[x]['name'] for x in range(len(nclusterlist))]
+    not_latent = [x for x in range(len(cluster_name)) if 'intrinsic' not in cluster_name[x]]
+    ncluster_list = ncluster_list[not_latent]
+    full_rnum_base = [np.sum(ncluster_list[:x]) for x in range(len(ncluster_list))]
+    namelist = [cluster_name[x] for x in not_latent]
+    namelist += ['Rtotal']
+    namelist += ['R ' + cluster_name[x] for x in not_latent]
+
+    # full_rnum_base =  np.array([0,5,10,15,20,25,30,35,40,45])
+    #
+    # namelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC', 'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus',
+    #         'Rtotal', 'R C6RD',  'R DRt', 'R Hyp','R LC', 'R NGC', 'R NRM', 'R NTS', 'R PAG',
+    #         'R PBN', 'R Thal']
+
+    # starting values
+    cnums_original = copy.deepcopy(cnums)
+    excelsheetname = 'clusters'
+    # fname = 'fixed_C6RD{}.xlsx'.format(cord_cluster)
+    # excelfilename = os.path.join(outputdir, fname)
+
+    # run the analysis with SAPM
+    clusterlist = np.array(cnums) + full_rnum_base
+    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
+
+    if reload_existing:
+        output = SEMresultsname
+    else:
+        output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
+
+    SEMresults = np.load(output, allow_pickle=True).flat[0]
+
+    windowoffset = 0
+    yrange = []
+    yrange2 = []
+    Rtextlist, Rvallist = show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+                                    windowoffset, yrange, yrange2)
+
+    yrange = [-0.6, 0.6]
+    yrange2 = [1.6, 0.7, 0.8, 0.6, 0.9, 0.8, 0.5]   # for Feb2022C
+    windowoffset = 0
+
+    # group = 'all'
+    show_SEM_average_beta_for_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+                                     windowoffset=0)
+
+    # show a specific connection
+    connection_name = 'PBN-LC-DRt'
+
+    # settings = np.load(settingsfile, allow_pickle=True).flat[0]
+    # covariates = settings['GRPcharacteristicsvalues'][0].astype(float)  # painrating
+
+    covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
+    if 'painrating' in covariatesdata['GRPcharacteristicslist']:
+        x = covariatesdata['GRPcharacteristicslist'].index('painrating')
+        covariates = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
+    else:
+        covariates = []
+
+    plot_correlated_results(SEMresultsname, SEMparametersname, connection_name, covariates, figurenumber = 1)
+
+
 
 
 #
