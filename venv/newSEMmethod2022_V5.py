@@ -1071,10 +1071,6 @@ def sem_physio_model_PCAclusters(PCparams, PCloadings, fintrinsic_base, SEMresul
     pool = mp.Pool(nprocessors)
     SEMresults = pool.map(pf.gradient_descent_per_person, input_data)
 
-    # SEMresults = [pool.apply_async(pf.gradient_descent_per_person, args = (nperson, epochnum, fintrinsic_base,
-    #                         SEMparams, PCloadings,  PCparams, initial_alpha, initial_Lweight,
-    #                         initial_dval, alpha_limit, nitermax)).get() for nperson in range(subsample[1],NP,subsample[0])]
-
     pool.close()
     donepool = time.time()
     # print('time to run gradient-descent with {} processors:  {:.1f} sec'.format(nprocessors, donepool-startpool))
@@ -6597,6 +6593,110 @@ def SAPM_main(reload_existing = False):
     # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
     #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
 
+    network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count = load_network_model_w_intrinsics(networkfile)
+    ncluster_list = np.array([nclusterlist[x]['nclusters'] for x in range(len(nclusterlist))])
+    cluster_name = [nclusterlist[x]['name'] for x in range(len(nclusterlist))]
+    not_latent = [x for x in range(len(cluster_name)) if 'intrinsic' not in cluster_name[x]]
+    ncluster_list = ncluster_list[not_latent]
+    full_rnum_base = [np.sum(ncluster_list[:x]) for x in range(len(ncluster_list))]
+    namelist = [cluster_name[x] for x in not_latent]
+    namelist += ['Rtotal']
+    namelist += ['R ' + cluster_name[x] for x in not_latent]
+
+    # full_rnum_base =  np.array([0,5,10,15,20,25,30,35,40,45])
+    #
+    # namelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC', 'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus',
+    #         'Rtotal', 'R C6RD',  'R DRt', 'R Hyp','R LC', 'R NGC', 'R NRM', 'R NTS', 'R PAG',
+    #         'R PBN', 'R Thal']
+
+    # starting values
+    cnums_original = copy.deepcopy(cnums)
+    excelsheetname = 'clusters'
+    # fname = 'fixed_C6RD{}.xlsx'.format(cord_cluster)
+    # excelfilename = os.path.join(outputdir, fname)
+
+    # run the analysis with SAPM
+    clusterlist = np.array(cnums) + full_rnum_base
+    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
+
+    if reload_existing:
+        output = SEMresultsname
+    else:
+        output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
+
+    SEMresults = np.load(output, allow_pickle=True).flat[0]
+
+    windowoffset = 0
+    yrange = []
+    yrange2 = []
+    Rtextlist, Rvallist = show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+                                    windowoffset, yrange, yrange2)
+
+    yrange = [-0.6, 0.6]
+    yrange2 = [1.6, 0.7, 0.8, 0.6, 0.9, 0.8, 0.5]   # for Feb2022C
+    windowoffset = 0
+
+    # group = 'all'
+    show_SEM_average_beta_for_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+                                     windowoffset=0)
+
+    # show a specific connection
+    connection_name = 'PBN-LC-DRt'
+
+    # settings = np.load(settingsfile, allow_pickle=True).flat[0]
+    # covariates = settings['GRPcharacteristicsvalues'][0].astype(float)  # painrating
+
+    covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
+    if 'painrating' in covariatesdata['GRPcharacteristicslist']:
+        x = covariatesdata['GRPcharacteristicslist'].index('painrating')
+        covariates = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
+    else:
+        covariates = []
+
+    plot_correlated_results(SEMresultsname, SEMparametersname, connection_name, covariates, figurenumber = 1)
+
+
+# main program
+def SAPMrun(cnums, outputdir, outputnametag, regiondataname, clusterdataname, SEMresultsname, SEMparametersname, networkfile, DBname, reload_existing = False):
+    # required inputs:
+    # cnums
+    # outputdir
+    # covariatesfile (?)
+    # SEMresultsname
+    # SEMparametersname
+    # networkfile
+    # DBname
+    # regiondataname
+    # clusterdataname
+    # excelfilename
+
+    # cnums = [1,4,1,3,1,0,4,2,1,2]
+    # outputdir = r'E:\FM2021data'
+    # networkfile = r'E:/network_model_5cluster_v5_w_3intrinsics.xlsx'
+    # DBname = r'E:\FM2021data\FMS2_database_July27_2022b.xlsx'
+    # regiondataname = r'E:\FM2021data\HCstim_region_data.npy'
+    # clusterdataname = r'E:\FM2021data\FM2021_cluster_definition.npy'
+    # group = 'HCstim'
+    # covariatesfile = r'E:\FM2021data\HCstim_covariates.npy'
+
+    if not os.path.exists(outputdir): os.mkdir(outputdir)
+    SEMresultsname = os.path.join(outputdir, 'FMS2_SAPM_model5.npy')
+    SEMparametersname = os.path.join(outputdir, 'SAPMparameters_model5.npy')
+    excelfilename = os.path.join(outputdir, outputnametag+'_results.xlsx')
+
+    # load paradigm data--------------------------------------------------------------------
+    # DBname = r'D:/threat_safety_python/threat_safety_database.xlsx'
+    xls = pd.ExcelFile(DBname, engine='openpyxl')
+    df1 = pd.read_excel(xls, 'paradigm1_BOLD')
+    del df1['Unnamed: 0']  # get rid of the unwanted header column
+    fields = list(df1.keys())
+    paradigm = df1['paradigms_BOLD']
+    timevals = df1['time']
+    paradigm_centered = paradigm - np.mean(paradigm)
+    dparadigm = np.zeros(len(paradigm))
+    dparadigm[1:] = np.diff(paradigm_centered)
+
+    # load some data, setup some parameters...
     network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count = load_network_model_w_intrinsics(networkfile)
     ncluster_list = np.array([nclusterlist[x]['nclusters'] for x in range(len(nclusterlist))])
     cluster_name = [nclusterlist[x]['name'] for x in range(len(nclusterlist))]

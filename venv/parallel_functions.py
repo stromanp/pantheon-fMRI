@@ -4,8 +4,10 @@
 
 import numpy as np
 import copy
-import newSEMmethod2022_V5 as nsem
+import pysapm
 import pysem
+import multiprocessing as mp
+import time
 
 # import time
 # import os
@@ -28,7 +30,7 @@ import pysem
 #
 # gradient descent method per person
 def gradient_descent_per_person(data):
-
+    # print('running gradient_descent_per_person (in parallel_functions.py)')
     nperson = data['nperson']
     tsize = data['tsize']
     tplist_full = data['tplist_full']
@@ -158,7 +160,7 @@ def gradient_descent_per_person(data):
     # # starting point for optimizing intrinsics with given betavals----------------------------------------------------
     # fit, Sconn_full = network_eigenvalue_method(Sconn_full, Minput, Mconn, ncon)
 
-    fit, Mintrinsic, Meigv, err = nsem.network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count,
+    fit, Mintrinsic, Meigv, err = pysapm.network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count,
                                                              beta_int1, fintrinsic1)
     # cost = np.sum(np.abs(betavals**2)) # L2 regularization
     cost = np.sum(np.abs(betavals))  # L1 regularization
@@ -179,9 +181,9 @@ def gradient_descent_per_person(data):
         iter += 1
         # gradients in betavals and beta_int1
         Mconn[ctarget, csource] = betavals
-        fit, Mintrinsic, Meigv, err = nsem.network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
+        fit, Mintrinsic, Meigv, err = pysapm.network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
                                                                  vintrinsic_count, beta_int1, fintrinsic1)
-        dssq_db, ssqd, dssq_dbeta1 = nsem.gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval,
+        dssq_db, ssqd, dssq_dbeta1 = pysapm.gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval,
                                                             fintrinsic_count, vintrinsic_count, beta_int1,
                                                             fintrinsic1, Lweight)
         ssqd_record += [ssqd]
@@ -204,7 +206,7 @@ def gradient_descent_per_person(data):
         # betavals[betavals <= -betalimit] = -betalimit
 
         Mconn[ctarget, csource] = betavals
-        fit, Mintrinsic, Meigv, err = nsem.network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
+        fit, Mintrinsic, Meigv, err = pysapm.network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
                                                                  vintrinsic_count, beta_int1, fintrinsic1)
         # cost = np.sum(np.abs(betavals**2))  # L2 regularization
         cost = np.sum(np.abs(betavals))  # L1 regularization
@@ -254,7 +256,7 @@ def gradient_descent_per_person(data):
 
     # fit the results now to determine output signaling from each region
     Mconn[ctarget, csource] = betavals
-    fit, Mintrinsic, Meigv, err = nsem.network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count,
+    fit, Mintrinsic, Meigv, err = pysapm.network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count,
                                                              beta_int1, fintrinsic1)
     Sconn = Meigv @ Mintrinsic  # signalling over each connection
 
@@ -264,3 +266,16 @@ def gradient_descent_per_person(data):
 
     return entry
 
+
+def main(input_data, nprocessors):
+    startpool = time.time()
+    pool = mp.Pool(nprocessors)
+    print('runnning gradient_descent_per_person ... (with {} processors)'.format(nprocessors))
+    SEMresults = pool.map(gradient_descent_per_person, input_data)
+    pool.close()
+    donepool = time.time()
+    timeelapsed = donepool-startpool
+    return SEMresults, timeelapsed
+
+if __name__ == '__main__':
+    main()

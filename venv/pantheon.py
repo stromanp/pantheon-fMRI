@@ -53,6 +53,7 @@ from scipy import stats
 from scipy import ndimage
 import pydisplay
 import pysem
+import pysapm
 import py2ndlevelanalysis
 import copy
 import math
@@ -60,6 +61,7 @@ import pybrainregistration
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 matplotlib.use('TkAgg')   # explicitly set this - it might help with displaying figures in different environments
+enable_sapm = False
 
 # save some colors for consistent layout, and make them easy to change
 # colours for Windows
@@ -72,6 +74,7 @@ if os.name == 'nt':
     fgletter2 = 'black'
     fgletter3 = 'white'
     widgetfont = "none 9 bold"
+    widgetfont2 = "none 9 bold"
     labelfont = "none 10 bold"
     radiofont = "none 9"
 else:
@@ -84,6 +87,7 @@ else:
     fgletter2 = 'black'
     fgletter3 = 'black'
     widgetfont = "none 9 bold"
+    widgetfont2 = "none 9 bold"
     labelfont = "none 10 bold"
     radiofont = "none 9"
 
@@ -243,6 +247,12 @@ class mainspinalfmri_window:
         SEMFrame(SEMbase, self)
         page_name = SEMFrame.__name__
         self.frames[page_name] = SEMbase
+
+        SAPMbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
+        SAPMbase.grid(row=1, column=1, sticky="nsew")
+        SAPMFrame(SAPMbase, self)
+        page_name = SAPMFrame.__name__
+        self.frames[page_name] = SAPMbase
 
         GRPbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
         GRPbase.grid(row=1, column=1, sticky="nsew")
@@ -412,24 +422,30 @@ class OptionsFrame:
         self.buttons['sem'] = self.sem
 
         # button for selecting and running the group-level analysis steps
-        self.groupanalysis = tk.Button(self.parent, text = 'Group-level', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('GRPFrame', 'groupanalysis'), relief='raised', bd = 5)
+        self.groupanalysis = tk.Button(self.parent, text = 'Group-level', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont2, command = lambda: self.options_show_frame('GRPFrame', 'groupanalysis'), relief='raised', bd = 5)
         self.groupanalysis.grid(row = 7, column = 0)
         self.buttons['groupanalysis'] = self.groupanalysis
 
         # button for selecting and running the group-level analysis steps
-        self.display = tk.Button(self.parent, text = 'Display', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('DisplayFrame', 'display'), relief='raised', bd = 5)
+        self.display = tk.Button(self.parent, text = 'View GL', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont2, command = lambda: self.options_show_frame('DisplayFrame', 'display'), relief='raised', bd = 5)
         self.display.grid(row = 8, column = 0)
         self.buttons['display'] = self.display
 
         # button for selecting and running the group-level analysis steps
-        self.display2 = tk.Button(self.parent, text = 'Display2', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('DisplayFrame2', 'display2'), relief='raised', bd = 5)
+        self.display2 = tk.Button(self.parent, text = 'View GL 2', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont2, command = lambda: self.options_show_frame('DisplayFrame2', 'display2'), relief='raised', bd = 5)
         self.display2.grid(row = 9, column = 0)
         self.buttons['display2'] = self.display2
+
+        if enable_sapm:
+            # button for selecting and running the SEM analysis steps
+            self.sapm = tk.Button(self.parent, text = 'SAPM', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('SAPMFrame', 'sapm'), relief='raised', bd = 5)
+            self.sapm.grid(row = 10, column = 0)
+            self.buttons['sapm'] = self.sapm
 
         # define a button to exit the GUI
         # also, define the function for what to do when this button is pressed
         self.exit_button = tk.Button(self.parent, text = 'Exit', width = smallbuttonsize, bg = 'grey80', fg = fgletter2, font = widgetfont, command = self.close_window, relief='sunken', bd = 5)
-        self.exit_button.grid(row = 10, column = 0)
+        self.exit_button.grid(row = 11, column = 0)
 
 
     def choosenormframe(self):
@@ -944,9 +960,6 @@ class DBFrame:
         self.DBsearchtext.configure(text = self.searchterm_text.get())
 
         return self
-
-
-
 
 #--------------------NIFTI conversion FRAME---------------------------------------------------------------
 # Definition of the frame that will have inputs and options for converting DICOM images to NIfTI format
@@ -6175,6 +6188,625 @@ class DisplayFrame2:
         self.DISP2figsavebutton2 = tk.Button(self.parent, text="Save image", width=bigbigbuttonsize, bg=fgcol2,
                                        fg = fgletter2, font = widgetfont, command=self.DISP2saveclick2, relief='raised', bd=5)
         self.DISP2figsavebutton2.grid(row=1, column=1, sticky='S')
+
+
+
+
+#-----------SAPM FRAME--------------------------------------------------
+# Definition of the frame that has inputs for the database name, and entry numbers to use
+class SAPMFrame:
+
+    def SAPMcnumparse(self, entered_text):
+        # need to make sure we are working with numbers, not text
+        # first, replace any double spaces with single spaces, and then replace spaces with commas
+        entered_text = re.sub('\ +', ',', entered_text)
+        entered_text = re.sub('\,\,+', ',', entered_text)
+        # remove any leading or trailing commas
+        if entered_text[0] == ',': entered_text = entered_text[1:]
+        if entered_text[-1] == ',': entered_text = entered_text[:-1]
+
+        entered_values = list(np.fromstring(entered_text, dtype=int, sep=','))
+
+        return entered_values
+
+
+    # define functions before they are used in the database frame------------------------------------------
+    # action when the button to browse for a DB fie is pressed
+    def SAPMnetbrowseclick(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
+        filename =  tkf.askopenfilename(title = "Select file",filetypes = (("excel files","*.xlsx"),("all files","*.*")))
+        print('filename = ',filename)
+        # save the selected file name in the settings
+        settings['networkmodel'] = filename   # use the same network for SEM and SAPM, no need to specify two
+        self.networkmodel = filename
+
+        # write the result to the label box for display
+        npname, nfname = os.path.split(self.networkmodel)
+        self.SAPMnetnametext.set(nfname)
+        self.SAPMnetdirtext.set(npname)
+
+        network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count = pysapm.load_network_model_w_intrinsics(self.networkmodel)
+        # update cnums to have the correct number of entries for the selected network
+        nregions = len(network)
+        if 'SAPMcnums' in settings.keys():
+            SAPMcnums = settings['SAPMcnums']
+        else:
+            SAPMcnums = [0]
+
+        if len(SAPMcnums) < nregions:
+            temp = list(np.zeros(nregions).astype(int))
+            temp[:len(SAPMcnums)] = SAPMcnums
+            SAPMcnums = copy.deepcopy(temp)
+        if len(SAPMcnums) > nregions:
+            SAPMcnums = SAPMcnums[:nregions]
+
+        self.SAPMcnums = copy.deepcopy(SAPMcnums)
+        self.SAPMcnumsbox.delete(0, 'end')
+        self.SAPMcnumsbox.insert(0, self.SAPMcnums)
+        settings['SAPMcnums'] = self.SAPMcnums
+
+        np.save(settingsfile,settings)
+
+    def SAPMprefixsubmitaction(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        SAPMprefix = self.SAPMprefixbox.get()
+        settings['SAPMprefix'] = SAPMprefix
+        np.save(settingsfile,settings)
+        # update the text in the box, in case it has changed
+        self.SAPMprefix = SAPMprefix
+        print('prefix for SAPM analysis set to ',self.SAPMprefix)
+        return self
+
+    # define functions before they are used in the database frame------------------------------------------
+    # action when the button to browse for a DB fie is pressed
+    def SAPMclusternamebrowseaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
+        filechoice =  tkf.askopenfilename(title = "Select file",filetypes = (("npy files","*.npy"),("all files","*.*")))
+        print('cluster definition name = ',filechoice)
+        # save the selected file name in the settings
+        SAPMclustername = filechoice
+
+        npname, nfname = os.path.split(SAPMclustername)
+        nfname,ext = os.path.splitext(nfname)
+        settings['SAPMresultsdir'] = npname
+        self.SAPMresultsdir = npname
+        # write the result to the label box for display
+        self.SAPMresultsdirtext.set(settings['SAPMresultsdir'])
+
+        SAPMclustername = os.path.join(npname,nfname+'.npy')
+
+        settings['SAPMclustername'] = SAPMclustername
+        self.SAPMclustername = SAPMclustername
+
+        # write the result to the label box for display
+        self.SAPMclusternamebox.delete(0, 'end')
+        self.SAPMclusternamebox.insert(0,SAPMclustername)
+
+        np.save(settingsfile,settings)
+
+
+    def SAPMclusternamesubmitaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        SAPMclustername = self.SAPMclusternamebox.get()
+
+        # check if chosen name includes the full directory path, or the extension
+        npname, nfname = os.path.split(SAPMclustername)
+        nfname, ext = os.path.splitext(nfname)
+
+        if os.path.isdir(npname):
+            settings['SAPMresultsdir'] = npname
+            self.SAPMresultsdir = npname
+            # write the result to the label box for display
+            self.SAPMresultsdirtext.set(settings['SAPMresultsdir'])
+        else:
+            # select a directory
+            npname = settings['SAPMresultsdir']
+
+        # join up the name parts
+        SAPMclustername = os.path.join(npname,nfname+'.npy')
+
+        settings['SAPMclustername'] = SAPMclustername
+        self.SAPMclustername = SAPMclustername
+
+        # write the result to the label box for display
+        self.SAPMclusternamebox.delete(0, 'end')
+        self.SAPMclusternamebox.insert(0, self.SAPMclustername)
+
+        np.save(settingsfile, settings)
+
+
+    def SAPMresultsnamesubmitaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        SAPMresultsname = self.SAPMresultsnamebox.get()
+
+        # remove directory information if included, and make sure extension is .npy
+        p, f_full = os.path.split(SAPMresultsname)
+        f,e = os.path.splitext(f_full)
+        SAPMresultsname = f + '.npy'
+
+        settings['SAPMresultsname'] = SAPMresultsname
+        self.SAPMresultsname = SAPMresultsname
+
+        # write the result to the label box for display
+        self.SAPMresultsnamebox.delete(0, 'end')
+        self.SAPMresultsnamebox.insert(0, self.SAPMresultsname)
+
+        np.save(settingsfile, settings)
+
+
+    def SAPMparamsnamesubmitaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        SAPMparamsname = self.SAPMparamsnamebox.get()
+
+        # remove directory information if included, and make sure extension is .npy
+        p, f_full = os.path.split(SAPMparamsname)
+        f,e = os.path.splitext(f_full)
+        SAPMparamsname = f + '.npy'
+
+        settings['SAPMparamsname'] = SAPMparamsname
+        self.SAPMparamsname = SAPMparamsname
+
+        # write the result to the label box for display
+        self.SAPMparamsnamebox.delete(0, 'end')
+        self.SAPMparamsnamebox.insert(0, SAPMparamsname)
+
+        np.save(settingsfile, settings)
+
+    def SAPMsavetagsubmitaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        SAPMsavetag = self.SAPMsavetagbox.get()
+
+        # remove directory information if included, and make sure it has no extension
+        p, f_full = os.path.split(SAPMsavetag)
+        f,e = os.path.splitext(f_full)
+        SAPMsavetag = f
+
+        settings['SAPMsavetag'] = SAPMsavetag
+        self.SAPMsavetag = SAPMsavetag
+
+        # write the result to the label box for display
+        self.SAPMsavetagbox.delete(0, 'end')
+        self.SAPMsavetagbox.insert(0, SAPMsavetag)
+
+        np.save(settingsfile, settings)
+
+
+    # define functions before they are used in the database frame------------------------------------------
+    # action when the button to browse for a DB fie is pressed
+    def SAPMregionnamebrowseaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
+        filechoice =  tkf.askopenfilename(title = "Select file",filetypes = (("npy files","*.npy"),("all files","*.*")))
+        print('region/cluster data name = ',filechoice)
+        SAPMregionname = filechoice
+
+        npname, nfname = os.path.split(SAPMregionname)
+        fname, ext = os.path.splitext(nfname)
+        settings['SAPMresultsdir'] = npname
+        self.SAPMresultsdir = npname
+        # write the result to the label box for display
+        self.SAPMresultsdirtext.set(settings['SAPMresultsdir'])
+
+        SAPMregionname = os.path.join(npname,fname+'.npy')
+
+        # write the result to the label box for display
+        self.SAPMregionnamebox.delete(0, 'end')
+        self.SAPMregionnamebox.insert(0,SAPMregionname)
+
+        # save the selected file name in the settings
+        settings['SAPMregionname'] = SAPMregionname
+        self.SAPMregionname = SAPMregionname
+
+        np.save(settingsfile,settings)
+
+
+    def SAPMregionnamesubmitaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        SAPMregionname = self.SAPMregionnamebox.get()
+
+        # check if chosen name includes the full directory path, or the extension
+        npname, nfname = os.path.split(SAPMregionname)
+        nfname, ext = os.path.splitext(nfname)
+
+        if os.path.isdir(npname):
+            settings['SAPMresultsdir'] = npname
+            self.SAPMresultsdir = npname
+            # write the result to the label box for display
+            self.SAPMresultsdirtext.set(settings['SAPMresultsdir'])
+        else:
+            # select a directory
+            npname = settings['SAPMresultsdir']
+
+        # join up the name parts
+        SAPMregionname = os.path.join(npname,nfname+'.npy')
+
+        settings['SAPMregionname'] = SAPMregionname
+        self.SAPMregionname = SAPMregionname
+
+        # write the result to the label box for display
+        self.SAPMregionnamebox.delete(0, 'end')
+        self.SAPMregionnamebox.insert(0, self.SAPMregionname)
+
+        np.save(settingsfile, settings)
+
+
+    def SAPMcnumssubmitaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        SAPMcnums = self.SAPMcnumsbox.get()
+
+        # parse the entered values into a list
+        entered_values = self.SAPMcnumparse(SAPMcnums)
+        self.SAPMcnums = copy.deepcopy(list(entered_values))
+
+        network = []
+        try:
+            network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count = pysapm.load_network_model_w_intrinsics(self.networkmodel)
+            # update cnums to have the correct number of entries for the selected network
+            nregions = len(network)
+            if len(self.SAPMcnums) < nregions:
+                temp = list(np.zeros(nregions).astype(int))
+                temp[:len(self.SAPMcnums)] = self.SAPMcnums
+                self.SAPMcnums = copy.deepcopy(temp)
+            if len(self.SAPMcnums ) > nregions:
+                self.SAPMcnums = self.SAPMcnums[:nregions]
+
+            self.SAPMcnumsbox.delete(0, 'end')
+            self.SAPMcnumsbox.insert(0, self.SAPMcnums)
+
+        except:
+            print('valid network file not yet defined - cannot check if number of clusters entered matches the network')
+
+        settings['SAPMcnums'] = self.SAPMcnums
+
+        # write the result to the label box for display
+        self.SAPMcnumsbox.delete(0, 'end')
+        self.SAPMcnumsbox.insert(0, self.SAPMcnums)
+
+        np.save(settingsfile, settings)
+
+    def SAPMresultsdirbrowseaction(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.SAPMresultsdir = settings['SAPMresultsdir']
+        # browse for new name
+        dirname =  tkf.askdirectory(title = "Select folder")
+        print('SAPM results save directory name = ',dirname)
+        # save the selected file name in the settings
+        settings['SAPMresultsdir'] = dirname
+        self.SAPMresultsdir = dirname
+        # write the result to the label box for display
+        self.SAPMresultsdirtext.set(settings['SAPMresultsdir'])
+
+        # save the updated settings file again
+        np.save(settingsfile,settings)
+
+
+    # action when checkboxes are selected/deselected
+    def SAPMcheckboxes(self):
+        self.SAPMrandomclusterstart = self.varS1.get()
+        print('SAPMrandomclusterstart = {}'.format(self.SAPMrandomclusterstart))
+        return self
+
+    def SAPMbestclusters(self):
+        # do a gradient-descent search for the best clusters
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        self.SAPMcnums = settings['SAPMcnums']
+        self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
+        self.networkmodel = settings['networkmodel']
+        self.SAPMclustername = settings['SAPMclustername']
+        self.SAPMregionname = settings['SAPMregionname']
+        self.SAPMparamsname = settings['SAPMparamsname']
+        self.SAPMresultsname = settings['SAPMresultsname']
+        self.SAPMresultsdir = settings['SAPMresultsdir']
+        self.SAPMsavetag = settings['SAPMsavetag']
+
+        xls = pd.ExcelFile(self.DBname, engine='openpyxl')
+        df1 = pd.read_excel(xls, 'datarecord')
+
+        normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
+        resolution = 1
+        template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = \
+            load_templates.load_template_and_masks(normtemplatename, resolution)
+
+        region_data = np.load(self.SAPMregionname, allow_pickle=True).flat[0]
+        region_properties = region_data['region_properties']
+
+        cluster_data = np.load(self.SAPMclustername, allow_pickle=True).flat[0]
+        cluster_properties = cluster_data['cluster_properties']
+
+        excelfilename = os.path.join(self.SAPMresultsdir, self.SAPMsavetag + '_results.xlsx')
+        excelfilename = os.path.join(self.SAPMresultsdir, self.SAPMsavetag + '_results.xlsx')
+
+        print('running search for best clusters to use with SAPM ...')
+
+        SAPMresultsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
+        SAPMparamsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
+
+        SEMresultsname = os.path.join(self.SAPMresultsdir, self.SAPMsavetag + '_search.npy')
+
+        search_data_file = os.path.join(self.SAPMresultsdir,'SAPM_search_parameters.npy')
+
+        if self.SAPMrandomclusterstart > 0:
+            clusterstart = []
+        else:
+            clusterstart = self.SAPMcnums
+        print('SAPMrandomclusterstart = {}'.format(self.SAPMrandomclusterstart))
+        print('clusterstart set to {}'.format(clusterstart))
+        np.save(search_data_file, {'SAPMresultsdir':self.SAPMresultsdir, 'SEMresultsname':SEMresultsname, 'SAPMparamsname':SAPMparamsname,
+                                   'networkmodel':self.networkmodel, 'DBname':self.DBname, 'SAPMregionname':self.SAPMregionname,
+                                    'SAPMclustername':self.SAPMclustername, 'initial_clusters':clusterstart})
+
+        # print out command line to use parallel processing ...
+        print('A faster method is to run the cluster search from the python command line\nusing the following commands...')
+        print('  Note: if you get an error saying \'pantheon_command_line\' cannot be found, you need to add the folder containing '
+              'panthon_command_line.py to your path by entering the command sys.path.append( ...complete folder name... ) at the command line\n')
+        print('import pantheon_command_line as pp')
+        print('import multiprocessing as mp')
+        print('max_processors = mp.cpu_count()')
+        print('\'maximum number of processors is {}\'.format(max_processors)')
+        print('nprocessors = 8  # ...choose the number to use, using the max available is not always the fastest')
+        print('samplesplit = 2  # ...choose how to divide the sample, 2 for 1/2, 3 for 1/3 etc...')
+        print('pp.SAPM_cluster_search_commandline(r\'{}\',nprocessors, samplesplit)'.format(search_data_file))
+
+        nprocessors = 1
+        # best_clusters = pysapm.SAPM_cluster_search(self.SAPMresultsdir, SEMresultsname, SAPMparamsname, self.networkmodel, self.DBname, self.SAPMregionname,
+        #                     self.SAPMclustername, nprocessors, samplesplit, initial_clusters=self.SAPMcnums)
+        #
+        # self.SAPMcnums = copy.deepcopy(list(best_clusters))
+        # self.SAPMcnumsbox.delete(0, 'end')
+        # self.SAPMcnumsbox.insert(0, self.SAPMcnums)
+        # settings['SAPMcnums'] = self.SAPMcnums
+        # np.save(settingsfile,settings)
+
+    def SAPMrunnetwork(self):
+        # define the clusters and load the data
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
+        # self.SAPMprefix = settings['SAPMprefix']
+        self.networkmodel = settings['networkmodel']
+        self.SAPMclustername = settings['SAPMclustername']
+        self.SAPMregionname = settings['SAPMregionname']
+        self.SAPMparamsname = settings['SAPMparamsname']
+        self.SAPMresultsname = settings['SAPMresultsname']
+        self.SAPMresultsdir = settings['SAPMresultsdir']
+        self.SAPMsavetag = settings['SAPMsavetag']
+        # self.SEMtimepoints = settings['SEMtimepoints']
+        # self.SEMepoch = settings['SEMepoch']
+        # self.SEMresumerun = settings['SEMresumerun']
+
+        SAPMresultsname = os.path.join(self.SAPMresultsdir, )
+        xls = pd.ExcelFile(self.DBname, engine='openpyxl')
+        df1 = pd.read_excel(xls, 'datarecord')
+
+        normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
+        resolution = 1
+        template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = \
+            load_templates.load_template_and_masks(normtemplatename, resolution)
+
+        region_data = np.load(self.SAPMregionname, allow_pickle=True).flat[0]
+        region_properties = region_data['region_properties']
+
+        cluster_data = np.load(self.SAPMclustername, allow_pickle=True).flat[0]
+        cluster_properties = cluster_data['cluster_properties']
+
+        excelfilename = os.path.join(self.SAPMresultsdir, self.SAPMsavetag + '_results.xlsx')
+
+        print('running SAPM with selected clusters ...')
+
+        SAPMresultsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
+        SAPMparamsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
+
+        SEMresultsname = os.path.join(self.SAPMresultsdir, self.SAPMsavetag + '_results.npy')
+        pysapm.SAPMrun(self.SAPMcnums, self.SAPMsavetag, self.SAPMregionname, self.SAPMclustername,
+                       SEMresultsname, SAPMparamsname, self.networkmodel, self.DBname, reload_existing=False)
+
+        # ---- upddate this for SAPM-----------
+        # outputnamelist = pysem.pysem_network(cluster_properties, region_properties, self.networkmodel, self.SEMtimepoints, self.SEMepoch, self.SEMresultsdir, self.SEMsavetag, self.SEMresumerun)
+        #
+        # DBname = region_data['DBname']   # keep the values that were saved with the data
+        # DBnum = region_data['DBnum']
+        # # save the results somehow
+        # results = {'type':'network','resultsnames':outputnamelist, 'network':self.networkmodel, 'regionname':self.SEMregionname, 'clustername':self.SEMclustername, 'DBname':DBname, 'DBnum':DBnum}
+        # resultsrecordname = os.path.join(self.SEMresultsdir, 'SEMresults_network_record_' + self.SEMsavetag + '.npy')
+        # np.save(resultsrecordname, results)
+
+
+    # initialize the values, keeping track of the frame this definition works on (parent), and
+    # also the main window containing that frame (controller)
+    def __init__(self, parent, controller):
+        parent.configure(relief='raised', bd=5, highlightcolor=fgcol3)
+        self.parent = parent
+        self.controller = controller
+
+        # initialize some values
+        self.SAPMrandomclusterstart = 0
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        keylist = settings.keys()
+        if 'SAPMcnums' in keylist:
+            self.SAPMcnums = settings['SAPMcnums']
+            self.SAPMresultsdir = settings['SAPMresultsdir']
+            self.SAPMresultsname = settings['SAPMresultsname']
+            self.SAPMparamsname = settings['SAPMparamsname']
+            self.DBname = settings['DBname']
+            self.DBnum = settings['DBnum']
+            self.networkmodel = settings['networkmodel']
+            self.SAPMclustername = settings['SAPMclustername']
+            self.SAPMregionname = settings['SAPMregionname']
+            self.SAPMsavetag = settings['SAPMsavetag']
+        else:
+            self.DBname = settings['DBname']
+            self.DBnum = settings['DBnum']
+            self.SAPMcnums = [0,0,0,0,0,0,0,0,0,0]   # need a function to initialize this
+            self.SAPMresultsdir = ''
+            self.SAPMresultsname = ''
+            self.SAPMparamsname = ''
+            self.networkmodel = ''
+            self.SAPMclustername = ''
+            self.SAPMregionname = ''
+            self.SAPMsavetag = ''
+
+        # timetext = ''
+        # for val in self.SEMtimepoints: timetext += (str(val) + ',')
+        # timetext = timetext[:-1]
+        # self.SEMtimetext = timetext
+
+        # put some text as a place-holder
+        self.SAPMLabel1 = tk.Label(self.parent, text = "1) Select SAPM options...\n   network definition, cluster\n   definitions, region data ...", fg = 'gray', justify = 'left')
+        self.SAPMLabel1.grid(row=0,column=0, sticky='W')
+        self.SAPMLabel3 = tk.Label(self.parent, text = "2) Run selected SAPM", fg = 'gray', justify = 'left')
+        self.SAPMLabel3.grid(row=2,column=0, sticky='W')
+
+        # network file--------------------------------------------------
+        # create an entry box so that the user can specify the network file to use-----------------
+        # first make a title for the box, in row 3, column 1 of the grid for the main window
+        self.SAPML1 = tk.Label(self.parent, text="Network Model:", font = labelfont)
+        self.SAPML1.grid(row=0, column=1, sticky='SW')
+
+        # make a label to show the current setting of the network definition file name
+        npname, nfname = os.path.split(self.networkmodel)
+        self.SAPMnetnametext = tk.StringVar()
+        self.SAPMnetnametext.set(nfname)
+        self.SAPMfnamelabel = tk.Label(self.parent, textvariable=self.SAPMnetnametext, bg=bgcol, fg="#4B4B4B", font = labelfont,
+                                     wraplength=300, justify='left')
+        self.SAPMfnamelabel.grid(row=0, column=2, sticky='S')
+
+        # make a label to show the current setting of the network definition file directory name
+        self.SAPMnetdirtext = tk.StringVar()
+        self.SAPMnetdirtext.set(npname)
+        self.SAPMdnamelabel = tk.Label(self.parent, textvariable=self.SAPMnetdirtext, bg=bgcol, fg="#4B4B4B", font = labelfont,
+                                     wraplength=300, justify='left')
+        self.SAPMdnamelabel.grid(row=1, column=2, sticky='N')
+
+        # define a button to browse and select an existing network definition file, and write out the selected name
+        # also, define the function for what to do when this button is pressed
+        self.SAPMnetworkbrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont,
+                                  command=self.SAPMnetbrowseclick, relief='raised', bd=5)
+        self.SAPMnetworkbrowse.grid(row=0, column=3)
+
+        # cluster definition name ---------------------------------------------
+        # need an input for the cluster definition name - save to it, or read from it
+        self.SAPMclusternamelabel = tk.Label(self.parent, text = 'Cluster definition name:', font = labelfont)
+        self.SAPMclusternamelabel.grid(row=3, column=1, sticky='N')
+        self.SAPMclusternamebox = tk.Entry(self.parent, width = 30, bg="white",justify = 'right')
+        self.SAPMclusternamebox.grid(row=3, column=2, sticky='N')
+        self.SAPMclusternamebox.insert(0,self.SAPMclustername)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SAPMclusternamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMclusternamesubmitaction, relief='raised', bd = 5)
+        self.SAPMclusternamesubmit.grid(row=3, column=3, sticky='N')
+        # the entry boxes need a "browse" button to allow selection of existing cluster definition file
+        self.SAPMclusternamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMclusternamebrowseaction, relief='raised', bd = 5)
+        self.SAPMclusternamebrowse.grid(row=3, column=4, sticky='N')
+
+        # region data name ---------------------------------------------
+        # box etc for entering the name for saving the region data
+        self.SAPMregionnamelabel = tk.Label(self.parent, text = 'Region/cluster data name:', font = labelfont)
+        self.SAPMregionnamelabel.grid(row=4, column=1, sticky='N')
+        self.SAPMregionnamebox = tk.Entry(self.parent, width = 30, bg="white",justify = 'right')
+        self.SAPMregionnamebox.grid(row=4, column=2, sticky='N')
+        self.SAPMregionnamebox.insert(0,self.SAPMregionname)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SAPMregionnamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMregionnamesubmitaction, relief='raised', bd = 5)
+        self.SAPMregionnamesubmit.grid(row=4, column=3, sticky='N')
+        # the entry boxes need a "browse" button to allow selection of existing cluster definition file
+        self.SAPMregionnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMregionnamebrowseaction, relief='raised', bd = 5)
+        self.SAPMregionnamebrowse.grid(row=4, column=4, sticky='N')
+
+        # outputdir ----------------------------------------------------------------------
+        # box etc for entering the name of the directory for saving the results
+        # make a label to show the current setting of the network definition file directory name
+        rownum = 6
+        self.SAPMresultsdirlabel = tk.Label(self.parent, text = 'Results save folder:', font = labelfont)
+        self.SAPMresultsdirlabel.grid(row=rownum, column=1, sticky='N')
+        self.SAPMresultsdirtext = tk.StringVar()
+        self.SAPMresultsdirtext.set(self.SAPMresultsdir)
+        self.SAPMresultsdirdisplay = tk.Label(self.parent, textvariable=self.SAPMresultsdirtext, bg=bgcol, fg="#4B4B4B", font = labelfont,
+                                     wraplength=300, justify='left')
+        self.SAPMresultsdirdisplay.grid(row=rownum, column=2, sticky='N')
+        # the entry boxes need a "browse" button to allow selection of existing cluster definition file
+        self.SAPMresultsdirbrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMresultsdirbrowseaction, relief='raised', bd = 5)
+        self.SAPMresultsdirbrowse.grid(row=rownum, column=3, sticky='N')
+
+        rownum = 7
+        # cluster numbers ------------------------------------------------------------------------
+        self.SAPMcnumslabel = tk.Label(self.parent, text = 'cluster numbers:', font = labelfont)
+        self.SAPMcnumslabel.grid(row=rownum, column=1, sticky='N')
+        self.SAPMcnumsbox = tk.Entry(self.parent, width = 30, bg="white",justify = 'right')
+        self.SAPMcnumsbox.grid(row=rownum, column=2, sticky='N')
+        self.SAPMcnumsbox.insert(0,self.SAPMcnums)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SAPMcnumssubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMcnumssubmitaction, relief='raised', bd = 5)
+        self.SAPMcnumssubmit.grid(row=rownum, column=3, sticky='N')
+
+        # SAPM results name --------------------------------------------------------------
+        rownum = 8
+        # box etc for entering the name used in labeling the results files
+        self.SAPMresultsnamelabel = tk.Label(self.parent, text = 'name for SAPM results file:', font = labelfont)
+        self.SAPMresultsnamelabel.grid(row=rownum, column=1, sticky='N')
+        self.SAPMresultsnamebox = tk.Entry(self.parent, width = 30, bg="white",justify = 'right')
+        self.SAPMresultsnamebox.grid(row=rownum, column=2, sticky='N')
+        self.SAPMresultsnamebox.insert(0,self.SAPMresultsname)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SAPMresultsnamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMresultsnamesubmitaction, relief='raised', bd = 5)
+        self.SAPMresultsnamesubmit.grid(row=rownum, column=3, sticky='N')
+
+        # SAPM parameters name --------------------------------------------------------------
+        rownum = 9
+        # box etc for entering the name used in labeling the results files
+        self.SAPMparamsnamelabel = tk.Label(self.parent, text='name for SAPM parameters file:', font=labelfont)
+        self.SAPMparamsnamelabel.grid(row=rownum, column=1, sticky='N')
+        self.SAPMparamsnamebox = tk.Entry(self.parent, width=30, bg="white", justify='right')
+        self.SAPMparamsnamebox.grid(row=rownum, column=2, sticky='N')
+        self.SAPMparamsnamebox.insert(0, self.SAPMparamsname)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SAPMparamsnamesubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2,
+                                              fg=fgletter2, font=widgetfont, command=self.SAPMparamsnamesubmitaction,
+                                              relief='raised', bd=5)
+        self.SAPMparamsnamesubmit.grid(row=rownum, column=3, sticky='N')
+
+
+        # SAPM output file name tag (used for generating output names)----------------------------------------------
+        rownum = 10
+        # box etc for entering the name used in labeling the results files
+        self.SAPMsavetaglabel = tk.Label(self.parent, text='base name for SAPM output files:', font=labelfont)
+        self.SAPMsavetaglabel.grid(row=rownum, column=1, sticky='N')
+        self.SAPMsavetagbox = tk.Entry(self.parent, width=30, bg="white", justify='right')
+        self.SAPMsavetagbox.grid(row=rownum, column=2, sticky='N')
+        self.SAPMsavetagbox.insert(0, self.SAPMsavetag)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SAPMsavetagsubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2,
+                                              fg=fgletter2, font=widgetfont, command=self.SAPMsavetagsubmitaction,
+                                              relief='raised', bd=5)
+        self.SAPMsavetagsubmit.grid(row=rownum, column=3, sticky='N')
+
+
+        rownum = 11
+        self.varS1 = tk.IntVar()
+        self.SAPMrandomcluster = tk.Checkbutton(self.parent, text = 'Random start', width = bigbigbuttonsize, fg = fgletter2,
+                                          command = self.SAPMcheckboxes, variable = self.varS1)
+        self.SAPMrandomcluster.grid(row=rownum, column=1, columnspan = 1, sticky='E')
+
+        # label, button, for running the definition of clusters, and loading data
+        self.SAPMrunsearchbutton = tk.Button(self.parent, text="Best clusters?", width=bigbigbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
+                                        command=self.SAPMbestclusters, relief='raised', bd=5)
+        self.SAPMrunsearchbutton.grid(row=rownum, column=2, columnspan = 2, sticky='W')
+
+        rownum = 12
+        # label, button, for running the definition of clusters, and loading data
+        self.SAPMrunnetworkbutton = tk.Button(self.parent, text="Run SAPM", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
+                                        command=self.SAPMrunnetwork, relief='raised', bd=5)
+        self.SAPMrunnetworkbutton.grid(row=rownum, column=2, columnspan = 2, sticky='W')
 
 
 
