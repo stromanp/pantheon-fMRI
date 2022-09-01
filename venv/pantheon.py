@@ -437,7 +437,7 @@ class OptionsFrame:
         self.buttons['display2'] = self.display2
 
         if enable_sapm:
-            # button for selecting and running the SEM analysis steps
+            # button for selecting and running the SAPM analysis steps
             self.sapm = tk.Button(self.parent, text = 'SAPM', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('SAPMFrame', 'sapm'), relief='raised', bd = 5)
             self.sapm.grid(row = 10, column = 0)
             self.buttons['sapm'] = self.sapm
@@ -6359,24 +6359,24 @@ class SAPMFrame:
 
         np.save(settingsfile, settings)
 
-    def SAPMsavetagsubmitaction(self):
-        # first load the settings file so that values can be used later
-        settings = np.load(settingsfile, allow_pickle=True).flat[0]
-        SAPMsavetag = self.SAPMsavetagbox.get()
-
-        # remove directory information if included, and make sure it has no extension
-        p, f_full = os.path.split(SAPMsavetag)
-        f,e = os.path.splitext(f_full)
-        SAPMsavetag = f
-
-        settings['SAPMsavetag'] = SAPMsavetag
-        self.SAPMsavetag = SAPMsavetag
-
-        # write the result to the label box for display
-        self.SAPMsavetagbox.delete(0, 'end')
-        self.SAPMsavetagbox.insert(0, SAPMsavetag)
-
-        np.save(settingsfile, settings)
+    # def SAPMsavetagsubmitaction(self):
+    #     # first load the settings file so that values can be used later
+    #     settings = np.load(settingsfile, allow_pickle=True).flat[0]
+    #     SAPMsavetag = self.SAPMsavetagbox.get()
+    #
+    #     # remove directory information if included, and make sure it has no extension
+    #     p, f_full = os.path.split(SAPMsavetag)
+    #     f,e = os.path.splitext(f_full)
+    #     SAPMsavetag = f
+    #
+    #     settings['SAPMsavetag'] = SAPMsavetag
+    #     self.SAPMsavetag = SAPMsavetag
+    #
+    #     # write the result to the label box for display
+    #     self.SAPMsavetagbox.delete(0, 'end')
+    #     self.SAPMsavetagbox.insert(0, SAPMsavetag)
+    #
+    #     np.save(settingsfile, settings)
 
 
     # define functions before they are used in the database frame------------------------------------------
@@ -6509,7 +6509,7 @@ class SAPMFrame:
         self.SAPMparamsname = settings['SAPMparamsname']
         self.SAPMresultsname = settings['SAPMresultsname']
         self.SAPMresultsdir = settings['SAPMresultsdir']
-        self.SAPMsavetag = settings['SAPMsavetag']
+        # self.SAPMsavetag = settings['SAPMsavetag']
 
         xls = pd.ExcelFile(self.DBname, engine='openpyxl')
         df1 = pd.read_excel(xls, 'datarecord')
@@ -6525,15 +6525,12 @@ class SAPMFrame:
         cluster_data = np.load(self.SAPMclustername, allow_pickle=True).flat[0]
         cluster_properties = cluster_data['cluster_properties']
 
-        excelfilename = os.path.join(self.SAPMresultsdir, self.SAPMsavetag + '_results.xlsx')
-        excelfilename = os.path.join(self.SAPMresultsdir, self.SAPMsavetag + '_results.xlsx')
+        # excelfilename = os.path.join(self.SAPMresultsdir, self.SAPMsavetag + '_results.xlsx')
 
         print('running search for best clusters to use with SAPM ...')
 
         SAPMresultsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
-        SAPMparamsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
-
-        SEMresultsname = os.path.join(self.SAPMresultsdir, self.SAPMsavetag + '_search.npy')
+        SAPMparamsname = os.path.join(self.SAPMresultsdir, self.SAPMparamsname)
 
         search_data_file = os.path.join(self.SAPMresultsdir,'SAPM_search_parameters.npy')
 
@@ -6543,7 +6540,7 @@ class SAPMFrame:
             clusterstart = self.SAPMcnums
         print('SAPMrandomclusterstart = {}'.format(self.SAPMrandomclusterstart))
         print('clusterstart set to {}'.format(clusterstart))
-        np.save(search_data_file, {'SAPMresultsdir':self.SAPMresultsdir, 'SEMresultsname':SEMresultsname, 'SAPMparamsname':SAPMparamsname,
+        np.save(search_data_file, {'SAPMresultsdir':self.SAPMresultsdir, 'SAPMresultsname':SAPMresultsname, 'SAPMparamsname':SAPMparamsname,
                                    'networkmodel':self.networkmodel, 'DBname':self.DBname, 'SAPMregionname':self.SAPMregionname,
                                     'SAPMclustername':self.SAPMclustername, 'initial_clusters':clusterstart})
 
@@ -6560,7 +6557,7 @@ class SAPMFrame:
         print('pp.SAPM_cluster_search_commandline(r\'{}\',nprocessors, samplesplit)'.format(search_data_file))
 
         nprocessors = 1
-        # best_clusters = pysapm.SAPM_cluster_search(self.SAPMresultsdir, SEMresultsname, SAPMparamsname, self.networkmodel, self.DBname, self.SAPMregionname,
+        # best_clusters = pysapm.SAPM_cluster_search(self.SAPMresultsdir, SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, self.SAPMregionname,
         #                     self.SAPMclustername, nprocessors, samplesplit, initial_clusters=self.SAPMcnums)
         #
         # self.SAPMcnums = copy.deepcopy(list(best_clusters))
@@ -6581,7 +6578,7 @@ class SAPMFrame:
         self.SAPMparamsname = settings['SAPMparamsname']
         self.SAPMresultsname = settings['SAPMresultsname']
         self.SAPMresultsdir = settings['SAPMresultsdir']
-        self.SAPMsavetag = settings['SAPMsavetag']
+        # self.SAPMsavetag = settings['SAPMsavetag']
         # self.SEMtimepoints = settings['SEMtimepoints']
         # self.SEMepoch = settings['SEMepoch']
         # self.SEMresumerun = settings['SEMresumerun']
@@ -6601,26 +6598,15 @@ class SAPMFrame:
         cluster_data = np.load(self.SAPMclustername, allow_pickle=True).flat[0]
         cluster_properties = cluster_data['cluster_properties']
 
-        excelfilename = os.path.join(self.SAPMresultsdir, self.SAPMsavetag + '_results.xlsx')
+        # excelfilename = os.path.join(self.SAPMresultsdir, self.SAPMsavetag + '_results.xlsx')
 
         print('running SAPM with selected clusters ...')
 
         SAPMresultsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
         SAPMparamsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
 
-        SEMresultsname = os.path.join(self.SAPMresultsdir, self.SAPMsavetag + '_results.npy')
-        pysapm.SAPMrun(self.SAPMcnums, self.SAPMsavetag, self.SAPMregionname, self.SAPMclustername,
-                       SEMresultsname, SAPMparamsname, self.networkmodel, self.DBname, reload_existing=False)
-
-        # ---- upddate this for SAPM-----------
-        # outputnamelist = pysem.pysem_network(cluster_properties, region_properties, self.networkmodel, self.SEMtimepoints, self.SEMepoch, self.SEMresultsdir, self.SEMsavetag, self.SEMresumerun)
-        #
-        # DBname = region_data['DBname']   # keep the values that were saved with the data
-        # DBnum = region_data['DBnum']
-        # # save the results somehow
-        # results = {'type':'network','resultsnames':outputnamelist, 'network':self.networkmodel, 'regionname':self.SEMregionname, 'clustername':self.SEMclustername, 'DBname':DBname, 'DBnum':DBnum}
-        # resultsrecordname = os.path.join(self.SEMresultsdir, 'SEMresults_network_record_' + self.SEMsavetag + '.npy')
-        # np.save(resultsrecordname, results)
+        pysapm.SAPMrun(self.SAPMcnums, self.SAPMregionname, self.SAPMclustername,
+                       SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, reload_existing=False)
 
 
     # initialize the values, keeping track of the frame this definition works on (parent), and
@@ -6644,7 +6630,7 @@ class SAPMFrame:
             self.networkmodel = settings['networkmodel']
             self.SAPMclustername = settings['SAPMclustername']
             self.SAPMregionname = settings['SAPMregionname']
-            self.SAPMsavetag = settings['SAPMsavetag']
+            # self.SAPMsavetag = settings['SAPMsavetag']
         else:
             self.DBname = settings['DBname']
             self.DBnum = settings['DBnum']
@@ -6655,12 +6641,7 @@ class SAPMFrame:
             self.networkmodel = ''
             self.SAPMclustername = ''
             self.SAPMregionname = ''
-            self.SAPMsavetag = ''
-
-        # timetext = ''
-        # for val in self.SEMtimepoints: timetext += (str(val) + ',')
-        # timetext = timetext[:-1]
-        # self.SEMtimetext = timetext
+            # self.SAPMsavetag = ''
 
         # put some text as a place-holder
         self.SAPMLabel1 = tk.Label(self.parent, text = "1) Select SAPM options...\n   network definition, cluster\n   definitions, region data ...", fg = 'gray', justify = 'left')
@@ -6777,21 +6758,21 @@ class SAPMFrame:
 
 
         # SAPM output file name tag (used for generating output names)----------------------------------------------
-        rownum = 10
+        # rownum = 10
         # box etc for entering the name used in labeling the results files
-        self.SAPMsavetaglabel = tk.Label(self.parent, text='base name for SAPM output files:', font=labelfont)
-        self.SAPMsavetaglabel.grid(row=rownum, column=1, sticky='N')
-        self.SAPMsavetagbox = tk.Entry(self.parent, width=30, bg="white", justify='right')
-        self.SAPMsavetagbox.grid(row=rownum, column=2, sticky='N')
-        self.SAPMsavetagbox.insert(0, self.SAPMsavetag)
-        # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.SAPMsavetagsubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2,
-                                              fg=fgletter2, font=widgetfont, command=self.SAPMsavetagsubmitaction,
-                                              relief='raised', bd=5)
-        self.SAPMsavetagsubmit.grid(row=rownum, column=3, sticky='N')
+        # self.SAPMsavetaglabel = tk.Label(self.parent, text='base name for SAPM output files:', font=labelfont)
+        # self.SAPMsavetaglabel.grid(row=rownum, column=1, sticky='N')
+        # self.SAPMsavetagbox = tk.Entry(self.parent, width=30, bg="white", justify='right')
+        # self.SAPMsavetagbox.grid(row=rownum, column=2, sticky='N')
+        # self.SAPMsavetagbox.insert(0, self.SAPMsavetag)
+        # # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        # self.SAPMsavetagsubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2,
+        #                                       fg=fgletter2, font=widgetfont, command=self.SAPMsavetagsubmitaction,
+        #                                       relief='raised', bd=5)
+        # self.SAPMsavetagsubmit.grid(row=rownum, column=3, sticky='N')
 
 
-        rownum = 11
+        rownum = 10
         self.varS1 = tk.IntVar()
         self.SAPMrandomcluster = tk.Checkbutton(self.parent, text = 'Random start', width = bigbigbuttonsize, fg = fgletter2,
                                           command = self.SAPMcheckboxes, variable = self.varS1)
@@ -6802,7 +6783,7 @@ class SAPMFrame:
                                         command=self.SAPMbestclusters, relief='raised', bd=5)
         self.SAPMrunsearchbutton.grid(row=rownum, column=2, columnspan = 2, sticky='W')
 
-        rownum = 12
+        rownum = 11
         # label, button, for running the definition of clusters, and loading data
         self.SAPMrunnetworkbutton = tk.Button(self.parent, text="Run SAPM", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
                                         command=self.SAPMrunnetwork, relief='raised', bd=5)

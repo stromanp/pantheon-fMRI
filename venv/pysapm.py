@@ -6954,7 +6954,7 @@ def SAPM_cluster_search(outputdir, SEMresultsname, SEMparametersname, networkfil
 
 
 # main program
-def SAPMrun(cnums, outputnametag, regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkfile, DBname, reload_existing = False):
+def SAPMrun(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkfile, DBname, reload_existing = False):
     # required inputs:
     # cnums
     # outputdir
