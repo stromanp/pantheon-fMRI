@@ -61,7 +61,7 @@ import pybrainregistration
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 matplotlib.use('TkAgg')   # explicitly set this - it might help with displaying figures in different environments
-enable_sapm = False
+enable_sapm = True
 
 # save some colors for consistent layout, and make them easy to change
 # colours for Windows
@@ -254,6 +254,12 @@ class mainspinalfmri_window:
         page_name = SAPMFrame.__name__
         self.frames[page_name] = SAPMbase
 
+        SAPMResultsbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
+        SAPMResultsbase.grid(row=1, column=1, sticky="nsew")
+        SAPMResultsFrame(SAPMResultsbase, self)
+        page_name = SAPMResultsFrame.__name__
+        self.frames[page_name] = SAPMResultsbase
+
         GRPbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
         GRPbase.grid(row=1, column=1, sticky="nsew")
         GRPFrame(GRPbase, self)
@@ -361,8 +367,6 @@ class BaseFrame2:
         self.L1.grid(row=1, column=0, columnspan=2, sticky='W')
 
 
-
-
 #--------------------OPTIONS FRAME---------------------------------------------------------------
 # Definition of the frame that holds the buttons for choosing which frame to have visible
 class OptionsFrame:
@@ -442,10 +446,15 @@ class OptionsFrame:
             self.sapm.grid(row = 10, column = 0)
             self.buttons['sapm'] = self.sapm
 
+            # button for selecting and running the step to view/display SAPM results
+            self.sapmresults = tk.Button(self.parent, text = 'SAPM Results', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('SAPMResultsFrame', 'sapmresults'), relief='raised', bd = 5)
+            self.sapmresults.grid(row = 11, column = 0)
+            self.buttons['sapmresults'] = self.sapmresults
+
         # define a button to exit the GUI
         # also, define the function for what to do when this button is pressed
         self.exit_button = tk.Button(self.parent, text = 'Exit', width = smallbuttonsize, bg = 'grey80', fg = fgletter2, font = widgetfont, command = self.close_window, relief='sunken', bd = 5)
-        self.exit_button.grid(row = 11, column = 0)
+        self.exit_button.grid(row = 12, column = 0)
 
 
     def choosenormframe(self):
@@ -6603,7 +6612,7 @@ class SAPMFrame:
         print('running SAPM with selected clusters ...')
 
         SAPMresultsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
-        SAPMparamsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
+        SAPMparamsname = os.path.join(self.SAPMresultsdir, self.SAPMparamsname)
 
         pysapm.SAPMrun(self.SAPMcnums, self.SAPMregionname, self.SAPMclustername,
                        SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, reload_existing=False)
@@ -6756,22 +6765,6 @@ class SAPMFrame:
                                               relief='raised', bd=5)
         self.SAPMparamsnamesubmit.grid(row=rownum, column=3, sticky='N')
 
-
-        # SAPM output file name tag (used for generating output names)----------------------------------------------
-        # rownum = 10
-        # box etc for entering the name used in labeling the results files
-        # self.SAPMsavetaglabel = tk.Label(self.parent, text='base name for SAPM output files:', font=labelfont)
-        # self.SAPMsavetaglabel.grid(row=rownum, column=1, sticky='N')
-        # self.SAPMsavetagbox = tk.Entry(self.parent, width=30, bg="white", justify='right')
-        # self.SAPMsavetagbox.grid(row=rownum, column=2, sticky='N')
-        # self.SAPMsavetagbox.insert(0, self.SAPMsavetag)
-        # # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        # self.SAPMsavetagsubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2,
-        #                                       fg=fgletter2, font=widgetfont, command=self.SAPMsavetagsubmitaction,
-        #                                       relief='raised', bd=5)
-        # self.SAPMsavetagsubmit.grid(row=rownum, column=3, sticky='N')
-
-
         rownum = 10
         self.varS1 = tk.IntVar()
         self.SAPMrandomcluster = tk.Checkbutton(self.parent, text = 'Random start', width = bigbigbuttonsize, fg = fgletter2,
@@ -6788,6 +6781,428 @@ class SAPMFrame:
         self.SAPMrunnetworkbutton = tk.Button(self.parent, text="Run SAPM", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
                                         command=self.SAPMrunnetwork, relief='raised', bd=5)
         self.SAPMrunnetworkbutton.grid(row=rownum, column=2, columnspan = 2, sticky='W')
+
+
+
+#-----------SAPM Results FRAME--------------------------------------------------
+# Definition of the frame that has inputs for viewing the results of SAPM analysis
+class SAPMResultsFrame:
+
+    # define functions before they are used in the database frame------------------------------------------
+    # action when the button to browse for a DB fie is pressed
+    def SRupdatevaluesclick(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        # load required values from previous pages: networkmodel, SAPMresultsname, SAPMparamsname, DBname
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.SAPMcnums = settings['SAPMcnums']
+        self.SAPMresultsdir = copy.deepcopy(settings['SAPMresultsdir'])
+        self.SAPMresultsname = copy.deepcopy(settings['SAPMresultsname'])
+        self.SAPMparamsname = copy.deepcopy(settings['SAPMparamsname'])
+        self.DBname = copy.deepcopy(settings['DBname'])
+        self.networkmodel = settings['networkmodel']
+
+        # np.save(settingsfile,settings)
+        self.SRnetnametext.set(self.networkmodel)
+
+    def SRresultsdirbrowseaction(self):
+        # browse for new name
+        dirname = tkf.askdirectory(title="Select folder")
+        print('SAPM results output directory = ',dirname)
+        self.SRresultsdir = dirname
+        self.SRresultsdirtext.set(self.SRresultsdir)
+
+
+    def SRresultsnamebrowseaction(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.SRresultsname = copy.deepcopy(settings['SAPMresultsname'])
+        # browse for new name
+        filechoice =  tkf.askopenfilename(title = "Select file",filetypes = (("npy files","*.npy"),("all files","*.*")))
+        print('SAPM results name = ',filechoice)
+        self.SRresultsname = filechoice
+        self.SRresultsnametext.set(self.SRresultsname)
+
+    def SRparamsnamebrowseaction(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.SRparamsname = copy.deepcopy(settings['SAPMparamsname'])
+        # browse for new name
+        filechoice =  tkf.askopenfilename(title = "Select file",filetypes = (("npy files","*.npy"),("all files","*.*")))
+        print('SAPM parameters name = ',filechoice)
+        self.SRparamsname = filechoice
+        self.SRparamsnametext.set(self.SRparamsname)
+
+
+    def SRcovnamebrowseaction(self):
+        # browse for new name
+        filechoice =  tkf.askopenfilename(title = "Select file",filetypes = (("npy files","*.npy"),("all files","*.*")))
+        print('covariates data name = ',filechoice)
+        self.SRcovname = filechoice
+        self.SRcovnametext.set(self.SRcovname)
+
+        covariatesfile = self.SRcovnametext.get()
+        covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
+        self.covnamelist = covariatesdata['GRPcharacteristicslist']
+        self.allcovariatesvalues = covariatesdata['GRPcharacteristicsvalues']
+
+        # destroy the old pulldown menu and create a new one with the new choices
+        fieldvalues = copy.deepcopy(self.covnamelist)
+        self.SRcovfield_var = tk.StringVar()
+        self.SRcovfield_var.set('empty')
+        self.SRcovfieldvaluesearch_opt.destroy()  # remove it
+        SRcovfieldvalue_menu = tk.OptionMenu(self.parent, self.SRcovfield_var, *fieldvalues,
+                                        command=self.SRcovfieldvaluechoice)
+        SRcovfieldvalue_menu.grid(row=6, column=2, sticky='EW')
+        self.SRcovfieldvaluesearch_opt = SRcovfieldvalue_menu  # save this way so that values are not cleared
+
+        return self
+
+
+    # def SRcovsearchclear(self):
+    #     self.SRcovsearchkeys = {}
+    #     print('search values have been cleared ...')
+    #     searchtext = ''
+    #     self.SRcovsearchterm_text.set(searchtext)
+    #     self.SRcovsearchterm_text.configure(text = self.SRcovsearchterm.get())
+    #     return self
+
+    # def SRcovrunsearch(self):
+    #     covariatesfile = self.SRcovnametext
+    #     covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
+    #     self.SRsearchkeys = covariatesdata.keys()
+    #
+    #     settings = np.load(settingsfile, allow_pickle = True).flat[0]
+    #     last_folder  = settings['last_folder']
+    #
+    #     self.searchkeys
+    #     print('search values are: ',self.searchkeys)
+    #     dbnumlist = pydatabase.get_dbnumlists_by_keyword(self.DBname, self.searchkeys)
+    #     self.dbnumlist = dbnumlist
+    #
+    #     # write out the dbnumlist ....
+    #     print('dbnumlist = ',dbnumlist)
+    #
+    #     dbnumtext = ''
+    #     if len(dbnumlist) > 0:
+    #         dbnumtext = str(dbnumlist[0])
+    #         for value in dbnumlist[1:]:
+    #             termtext = ',{}'.format(value)
+    #             dbnumtext += termtext
+    #     print(dbnumtext)
+    #     dbnumtextshort = '{} values found'.format(len(dbnumlist))
+    #     self.searchresult_text.set(dbnumtextshort)
+    #     self.DBsearchresult.configure(text=self.searchresult_text.get())
+    #
+    #     # prompt for a name for saving the list
+    #     filechoice = tkf.asksaveasfilename(title = "Select file", initialdir = last_folder, filetypes = (("npy","*.npy"),("all files","*.*")))
+    #     list = {'dbnumlist':dbnumlist}
+    #     print('list = ',list)
+    #     print('saving database list saved to ',filechoice)
+    #     np.save(filechoice,list)
+    #     print('database number list saved to ',filechoice)
+    #
+    #     # save a record for convenience, for next time
+    #     save_folder = os.path.dirname(filechoice)
+    #     settings['last_folder'] = save_folder
+    #     np.save(settingsfile,settings)
+    #
+    #     return self
+
+
+    def SRcovfieldvaluechoice(self,value):
+        # get the field value choices for the selected field
+        self.SRcovfield = self.SRcovfield_var.get()
+        print('Selected covariate: {}'.format(self.SRcovfield))
+
+        # self.covnamelist = covariatesdata['GRPcharacteristicslist']
+        # self.allcovariatesvalues = covariatesdata['GRPcharacteristicsvalues']
+        c = np.where(np.array(self.covnamelist) == self.SRcovfield)
+        self.covariatesvalues = self.allcovariatesvalues[c[0],:][0]
+        uniquevals = np.unique(self.covariatesvalues)
+        uniquecheck = len(uniquevals)
+        if uniquecheck < len(self.covariatesvalues)/2:
+            self.SRcovcategorical = True
+            print('Selected covariate appears to be a categorical variable')
+            print('    values are:  {}'.format(uniquevals))
+        else:
+            self.SRcovcategorical = False
+            # expect continuous values to be numeric
+            self.covariatesvalues = self.covariatesvalues.astype(float)
+            print('Selected covariate appears to be a continuous variable')
+            print('    average value {} std dev:  {:.2f} {} {:.2f}'.format(chr(177),np.mean(self.covariatesvalues),chr(177),np.std(self.covariatesvalues)))
+            print('    median value {} std dev:  {:.2f} {} {:.2f}'.format(chr(177),np.median(self.covariatesvalues),chr(177),np.std(self.covariatesvalues)))
+            print('    value range  {:.2f} to {:.2f}'.format(np.min(self.covariatesvalues),np.max(self.covariatesvalues)))
+
+        # update value selection pull-down menu
+
+        # destroy the old pulldown menu and create a new one with the new choices
+        if self.SRcovcategorical:
+            fieldvalues = ['all'] + list(np.unique(self.covariatesvalues))
+        else:
+            avgcovvalue = np.median(self.covariatesvalues)
+            if np.abs(avgcovvalue) > 0.1:
+                fieldvalues = ['all', '> {:.2f}'.format(avgcovvalue), '<= {:.2f}'.format(avgcovvalue)]
+            else:
+                fieldvalues = ['all', '> {:.2e}'.format(avgcovvalue), '<= {:.2e}'.format(avgcovvalue)]
+
+        self.SRcovvalue_var = tk.StringVar()
+        self.SRcovvalue_var.set('empty')
+        self.SRcovvaluesearch_opt.destroy()  # remove it
+        SRcovvalue_menu = tk.OptionMenu(self.parent, self.SRcovvalue_var, *fieldvalues,
+                                        command=self.SRcovvaluechoice)
+        SRcovvalue_menu.grid(row=6, column=3, sticky='EW')
+        self.SRcovvaluesearch_opt = SRcovvalue_menu  # save this way so that values are not cleared
+
+        return self
+
+
+    def SRcovvaluechoice(self,value):
+        # get the field value choices for the selected field
+        self.SRcovvalue = self.SRcovvalue_var.get()
+        print('Selected covariate value: {}'.format(self.SRcovvalue))
+
+        # self.covnamelist = covariatesdata['GRPcharacteristicslist']
+        # self.allcovariatesvalues = covariatesdata['GRPcharacteristicsvalues']
+        if self.SRcovcategorical:
+            if self.SRcovvalue == 'all':
+                c = list(range(len(self.covariatesvalues)))
+            else:
+                c = np.where(np.array(self.covariatesvalues) == self.SRcovvalue)[0]
+            self.SRgroup = c
+        else:
+            # continuous covariate
+            if self.SRcovvalue == 'all':
+                c = list(range(len(self.covariatesvalues)))
+            else:
+                numericvalue = float(self.SRcovvalue[2:])
+                print('selecting group ... numeric value threshold is {:.2f}'.format(numericvalue))
+                if self.SRcovvalue[0] == '>':
+                    c = np.where(np.array(self.covariatesvalues) > numericvalue)[0]
+                else:
+                    c = np.where(np.array(self.covariatesvalues) <= numericvalue)[0]
+            self.SRgroup = c
+
+        print('selected {} sets of data in group {}'.format(len(self.SRgroup),self.SRcovvalue))
+        return self
+
+
+    # def SRcovfieldvaluechoice(self,value):
+    #     self.SRfieldvalue_var.set(value)
+    #     self.SRsearchkeys[self.SRfield_var.get()] = self.SRfieldvalue_var.get()
+    #
+    #     print('Search keys are: ', self.SRsearchkeys)
+    #     searchtext = ''
+    #     for keyname in self.searchkeys:
+    #         termtext = '{}:{}\n'.format(keyname,self.SRsearchkeys[keyname])
+    #         searchtext += termtext
+    #     print(searchtext)
+    #     self.SRsearchresult_text.set(searchtext)
+    #     self.SRsearchtext.configure(text = self.SRsearchresult_text.get())
+    #
+    #     return self
+
+
+
+    # initialize the values, keeping track of the frame this definition works on (parent), and
+    # also the main window containing that frame (controller)
+    def __init__(self, parent, controller):
+        parent.configure(relief='raised', bd=5, highlightcolor=fgcol3)
+        self.parent = parent
+        self.controller = controller
+
+        # initialize some values
+        self.SRcovname = 'not defined'
+
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.SAPMcnums = settings['SAPMcnums']
+        self.SAPMresultsdir = settings['SAPMresultsdir']
+        self.SAPMresultsname = settings['SAPMresultsname']
+        self.SAPMparamsname = settings['SAPMparamsname']
+        self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
+        self.networkmodel = settings['networkmodel']
+        self.SAPMclustername = settings['SAPMclustername']
+        self.SAPMregionname = settings['SAPMregionname']
+
+        self.SRresultsdir = copy.deepcopy(self.SAPMresultsdir)
+        self.SRresultsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
+        self.SRparamsname = os.path.join(self.SAPMresultsdir, self.SAPMparamsname)
+
+        # put some text as a place-holder
+        self.SRLabel1 = tk.Label(self.parent, text = "1) Select SAPM results files...\n   or use the Updata button to\n   load them from previous pages", fg = 'gray', justify = 'left')
+        self.SRLabel1.grid(row=0,column=0, sticky='W')
+        self.SRLabel3 = tk.Label(self.parent, text = "2) Select outputs to generate", fg = 'gray', justify = 'left')
+        self.SRLabel3.grid(row=1,column=0, sticky='W')
+
+        # define a button to browse and select an existing network definition file, and write out the selected name
+        # also, define the function for what to do when this button is pressed
+        self.SRupdatevalues = tk.Button(self.parent, text='Update', width=smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont,
+                                  command=self.SRupdatevaluesclick, relief='raised', bd=5)
+        self.SRupdatevalues.grid(row=0, column=2)
+
+        rownum = 1
+        # network file--------------------------------------------------
+        # create an entry box so that the user can specify the network file to use-----------------
+        # first make a title for the box, in row 3, column 1 of the grid for the main window
+        self.SRL1 = tk.Label(self.parent, text="Network Model:", font = labelfont)
+        self.SRL1.grid(row=rownum, column=1, sticky='E')
+        # make a label to show the current setting of the network definition file name
+        npname, nfname = os.path.split(self.networkmodel)
+        self.SRnetnametext = tk.StringVar()
+        self.SRnetnametext.set(nfname)
+        self.SRnetnametextbox = tk.Label(self.parent, textvariable=self.SRnetnametext, bg=bgcol, fg="#4B4B4B", font = labelfont,
+                                     wraplength=300, justify='left')
+        self.SRnetnametextbox.grid(row=rownum, column=2, columnspan=2, sticky='W')
+
+        # outputdir ----------------------------------------------------------------------
+        # box etc for entering the name of the directory for saving the results
+        # make a label to show the current setting of the network definition file directory name
+        rownum = 2
+        self.SRresultsdirlabel = tk.Label(self.parent, text = 'Results save folder:', font = labelfont)
+        self.SRresultsdirlabel.grid(row=rownum, column=1, sticky='E')
+        self.SRresultsdirtext = tk.StringVar()
+        self.SRresultsdirtext.set(self.SRresultsdir)
+        self.SRresultsdirbox = tk.Label(self.parent, textvariable=self.SRresultsdirtext, bg=bgcol, fg="#4B4B4B", font = labelfont,
+                                     wraplength=300, justify='left')
+        self.SRresultsdirbox.grid(row=rownum, column=2, columnspan=2, sticky='W')
+
+        # the entry boxes need a "browse" button to allow selection of existing cluster definition file
+        self.SRresultsdirbrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRresultsdirbrowseaction, relief='raised', bd = 5)
+        self.SRresultsdirbrowse.grid(row=rownum, column=4, sticky='N')
+
+        # SAPM results name --------------------------------------------------------------
+        rownum = 3
+        # box etc for entering the name used in labeling the results files
+        self.SRresultsnamelabel = tk.Label(self.parent, text = 'SAPM results file:', font = labelfont)
+        self.SRresultsnamelabel.grid(row=rownum, column=1, sticky='E')
+        self.SRresultsnametext = tk.StringVar()
+        self.SRresultsnametext.set(self.SRresultsname)
+        self.SRresultsnamebox = tk.Label(self.parent, textvariable=self.SRresultsnametext, bg=bgcol, fg="#4B4B4B", font = labelfont,
+                                     wraplength=300, justify='left')
+        self.SRresultsnamebox.grid(row=rownum, column=2, columnspan=2, sticky='W')
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SRresultsnamesubmit = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRresultsnamebrowseaction, relief='raised', bd = 5)
+        self.SRresultsnamesubmit.grid(row=rownum, column=4, sticky='N')
+
+
+        # SAPM parameters name --------------------------------------------------------------
+        rownum = 4
+        # box etc for entering the name used in labeling the parameters file
+        self.SRparamsnamelabel = tk.Label(self.parent, text = 'SAPM parameters file:', font = labelfont)
+        self.SRparamsnamelabel.grid(row=rownum, column=1, sticky='E')
+        self.SRparamsnametext = tk.StringVar()
+        self.SRparamsnametext.set(self.SRparamsname)
+        self.SRparamsnamebox = tk.Label(self.parent, textvariable=self.SRparamsnametext, bg=bgcol, fg="#4B4B4B", font = labelfont,
+                                     wraplength=300, justify='left')
+        self.SRparamsnamebox.grid(row=rownum, column=2, columnspan=2, sticky='W')
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SRparamsnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRparamsnamebrowseaction, relief='raised', bd = 5)
+        self.SRparamsnamebrowse.grid(row=rownum, column=4, sticky='N')
+
+        # covariates file name --------------------------------------------------------------
+        rownum = 5
+        # box etc for entering the file name that contains information about covariates ...
+        self.SRcovlabel = tk.Label(self.parent, text = 'Covariates file:', font = labelfont)
+        self.SRcovlabel.grid(row=rownum, column=1, sticky='E')
+        self.SRcovnametext = tk.StringVar()
+        self.SRcovnametext.set(self.SRcovname)
+        self.SRcovnamebox = tk.Label(self.parent, textvariable=self.SRcovnametext, bg=bgcol, fg="#4B4B4B", font = labelfont,
+                                     wraplength=300, justify='left')
+        self.SRcovnamebox.grid(row=rownum, column=2, columnspan=2, sticky='W')
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SRcovnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRcovnamebrowseaction, relief='raised', bd = 5)
+        self.SRcovnamebrowse.grid(row=rownum, column=4, sticky='N')
+
+        rownum = 6
+        # add label, and pull-down menu for selected covariate values for searching
+        self.SRL3 = tk.Label(self.parent, text = "Covariate term:", font = labelfont)
+        self.SRL3.grid(row=rownum,column=1, sticky='W')
+
+        # covariate pull-down menu
+        # fieldvalues = DBFrame.get_DB_field_values(self)
+        self.covnamelist = ['empty']
+        self.covariatesvalues = []
+        self.SRcovfield_var = tk.StringVar()
+        self.SRcovfield_var.set('empty')
+        fieldvalues = 'empty'
+        SRcovfieldvalue_menu = tk.OptionMenu(self.parent, self.SRcovfield_var, *fieldvalues, command = self.SRcovfieldvaluechoice)
+        SRcovfieldvalue_menu.grid(row=6, column=2, sticky='EW')
+        self.SRcovfieldvaluesearch_opt = SRcovfieldvalue_menu   # save this way so that values are not cleared
+
+        # covariate pull-down menu
+        # fieldvalues = DBFrame.get_DB_field_values(self)
+        self.SRcovvalue_var = tk.StringVar()
+        self.SRcovvalue_var.set('empty')
+        fieldvalues = 'empty'
+        SRcovvalue_menu = tk.OptionMenu(self.parent, self.SRcovvalue_var, *fieldvalues, command = self.SRcovvaluechoice)
+        SRcovvalue_menu.grid(row=6, column=3, sticky='EW')
+        self.SRcovvaluesearch_opt = SRcovvalue_menu   # save this way so that values are not cleared
+
+
+        #
+        #
+        # self.DBL4 = tk.Label(self.parent, text = "Keyword:", font = labelfont)
+        # self.DBL4.grid(row=4,column=0, sticky='W')
+        # # fields = DBFrame.get_DB_fields(self)
+        # field_menu = tk.OptionMenu(self.parent, self.field_var, *fields, command = self.DBfieldchoice)
+        # field_menu.grid(row=4, column=1, sticky='EW')
+        # self.fieldsearch_opt = field_menu   # save this way so that values are not cleared
+        #
+        #
+        #
+        #
+        #
+        #
+        # # add a button to clear the search values
+        # self.SRcovsearchclearbutton = tk.Button(self.parent, text = "Clear Search", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, command = self.SRcovsearchclear, relief='raised', bd = 5)
+        # self.SRcovsearchclearbutton.grid(row = rownum, column = 3)
+        #
+        #
+        # # add a button to run the search
+        # self.SRcovrunsearchbutton = tk.Button(self.parent, text = "Run Search", width = smallbuttonsize, bg = fgcol1, fg = fgletter1, command = self.DBrunsearch, relief='raised', bd = 5)
+        # self.SRcovrunsearchbutton.grid(row = 3, column = 2)
+        #
+        # self.DBL5 = tk.Label(self.parent, text = "Value:", font = labelfont)
+        # self.DBL5.grid(row=4,column=2, sticky='W')
+        #
+        # # fieldvalues = DBFrame.get_DB_field_values(self)
+        # fields = self.get_DB_fields()
+        # self.field_var = tk.StringVar()
+        # if len(fields) > 0:
+        #     self.field_var.set(fields[0])
+        # else:
+        #     self.field_var.set('empty')
+        # fieldvalues = self.get_DB_field_values()
+        # self.fieldvalue_var = tk.StringVar()
+        # if len(fieldvalues)>0:
+        #     self.fieldvalue_var.set(fieldvalues[0])
+        # else:
+        #     self.fieldvalue_var.set('empty')
+        # fieldvalue_menu = tk.OptionMenu(self.parent, self.fieldvalue_var, *fieldvalues, command = self.DBfieldvaluechoice)
+        # fieldvalue_menu.grid(row=4, column=3, sticky='EW')
+        # self.fieldvaluesearch_opt = fieldvalue_menu   # save this way so that values are not cleared
+        #
+        # self.DBL4 = tk.Label(self.parent, text = "Keyword:", font = labelfont)
+        # self.DBL4.grid(row=4,column=0, sticky='W')
+        # # fields = DBFrame.get_DB_fields(self)
+        # field_menu = tk.OptionMenu(self.parent, self.field_var, *fields, command = self.DBfieldchoice)
+        # field_menu.grid(row=4, column=1, sticky='EW')
+        # self.fieldsearch_opt = field_menu   # save this way so that values are not cleared
+        #
+        # rownum = 7
+        # # add information to show the current search terms
+        # self.SRsearchterm_text = tk.StringVar()
+        # self.SRsearchterm_text.set('Database search keys:  empty')
+        # self.SRsearchtext = tk.Label(self.parent, text = self.SRsearchterm_text.get(), font = labelfont)
+        # self.SRsearchtext.grid(row=rownum,column=1,columnspan = 2, sticky='W')
+        #
+        # rownum = 7
+        # # add information to show the current search terms
+        # self.SRsearchresult_text = tk.StringVar()
+        # self.SRsearchresult_text.set('Covariates search results:  empty')
+        # self.SRsearchresult = tk.Label(self.parent, text = self.SRsearchresult_text.get(), font = labelfont)
+        # self.SRsearchresult.grid(row=rownum,column=3,columnspan = 3, sticky='W')
+
+
 
 
 
