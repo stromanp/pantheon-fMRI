@@ -42,6 +42,11 @@ import draw_sapm_diagram2 as dsd2
 import copy
 import multiprocessing as mp
 # import parallel_functions as pf
+import matplotlib.patches as mpatches
+from matplotlib.collections import PatchCollection
+
+
+plt.rcParams.update({'font.size': 10})
 
 def sub2ind(vsize, indices):
     # give all the combinations for the values that are allowed to vary
@@ -406,7 +411,6 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAP
         tplist1.append({'tp': tpoints})
     tplist_full.append(tplist1)
 
-
     if fullgroup:
         # special case to fit the full group together
         # treat the whole group like one person
@@ -692,11 +696,7 @@ def sem_physio_model(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamete
             # limit the beta values related to intrinsic inputs to positive values
             for aa in range(len(betavals)):
                 if latent_flag[aa] > 0:
-                    # if betavals[aa] < 0:  betavals[aa] = 0.0
                     betavals[aa] = 1.0
-
-            # betavals[betavals >= betalimit] = betalimit
-            # betavals[betavals <= -betalimit] = -betalimit
 
             Mconn[ctarget, csource] = betavals
             fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
@@ -751,12 +751,6 @@ def sem_physio_model(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamete
         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
         Sconn = Meigv @ Mintrinsic    # signalling over each connection
 
-        # regionlist = [0, 7]
-        # if verbose:
-        #     results_text = display_SEM_results_1person(nperson, Sinput, fit, regionlist, nruns, epoch, windowlist=[24, 25])
-        # else:
-        #     results_text = ['silent mode','silent mode']
-
         entry = {'Sinput':Sinput, 'Sconn':Sconn, 'beta_int1':beta_int1, 'Mconn':Mconn, 'Minput':Minput,
                  'R2total':R2total, 'Mintrinsic':Mintrinsic,
                  'Meigv':Meigv, 'betavals':betavals, 'fintrinsic1':fintrinsic1, 'clusterlist':clusterlist,
@@ -810,28 +804,6 @@ def gradient_descent_per_person(data):
     nitermax = data['nitermax']
     fixed_beta_vals = data['fixed_beta_vals']
     verbose = data['verbose']
-
-    #
-    # tsize = SAPMparams['tsize']
-    # tplist_full = SAPMparams['tplist_full']
-    # nruns_per_person = SAPMparams['nruns_per_person']
-    # nclusterlist = SAPMparams['nclusterlist']
-    # Minput = SAPMparams['Minput']
-    # fintrinsic_count = SAPMparams['fintrinsic_count']
-    # fintrinsic_region = SAPMparams['fintrinsic_region']
-    # vintrinsic_count = SAPMparams['vintrinsic_count']
-    # epoch = SAPMparams['epoch']
-    # timepoint = SAPMparams['timepoint']
-    # tcdata_centered = SAPMparams['tcdata_centered']
-    # ctarget = SAPMparams['ctarget']
-    # csource = SAPMparams['csource']
-    # latent_flag = SAPMparams['latent_flag']
-    # Mconn = SAPMparams['Mconn']
-    #
-    # ntime, NP = np.shape(tplist_full)
-
-    # component_data = PCparams['components']
-    # average_data = PCparams['average']
 
     # if verbose: print('starting person {} at {}'.format(nperson, time.ctime()))
     tp = tplist_full[epochnum][nperson]['tp']
@@ -891,8 +863,6 @@ def gradient_descent_per_person(data):
             # if beta_initial[aa] < 0:  beta_initial[aa] = 0.0
             beta_initial[aa] = 1.0
 
-    # beta_init_record.append({'beta_initial': beta_initial})
-
     # initalize Sconn
     betavals = copy.deepcopy(beta_initial)  # initialize beta values at zero
     lastgood_betavals = copy.deepcopy(betavals)
@@ -917,11 +887,7 @@ def gradient_descent_per_person(data):
     ssqd_starting = ssqd
     ssqd_record += [ssqd]
 
-    # nitermax = 100
-    # alpha_limit = 1.0e-4
-
     iter = 0
-    # vintrinsics_record = []
     converging = True
     dssq_record = np.ones(3)
     dssq_count = 0
@@ -950,9 +916,6 @@ def gradient_descent_per_person(data):
             if latent_flag[aa] > 0:
                 # if betavals[aa] < 0:  betavals[aa] = 0.0
                 betavals[aa] = 1.0
-
-        # betavals[betavals >= betalimit] = betalimit
-        # betavals[betavals <= -betalimit] = -betalimit
 
         Mconn[ctarget, csource] = betavals
         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
@@ -1137,6 +1100,7 @@ def sem_physio_model_PCAclusters(PCparams, PCloadings, fintrinsic_base, SAPMresu
 
     return SAPMresults, search_data_name
 
+
 def mod_tplist_for_bootstrap(tplist_full, epoch, modtype, percent_replace = 0, tsize =40):
     # modtype can be 'random', 'allodds', 'allevens', 'firsthalf', 'lasthalf'
     tplist = copy.deepcopy(tplist_full[epoch])
@@ -1270,20 +1234,9 @@ def loadings_gradients(beta, PCparams,PCloadings,paradigm_centered,SAPMresultsna
 # gradient descent method to find best clusters------------------------------------
 def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkfile, DBname, regiondataname, clusterdataname, nprocessors, samplesplit, initial_clusters = []):
 
-    # need inputs:
-    # outputdir, SAPMresultsname, SAPMparametersname, networkfile
-    # DBname, regiondataname, clusterdataname
-
-    # basedir = r'E:\FM2021data'
     if not os.path.exists(outputdir): os.mkdir(outputdir)
 
-    # outputdir = basedir
-    # SAPMresultsname = os.path.join(outputdir, 'SEMphysio_model5.npy')
-    # SAPMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
-    # networkfile = r'E:/network_model_5cluster_v5_w_3intrinsics.xlsx'
-
     # load paradigm data--------------------------------------------------------------------
-    # DBname = r'E:\FM2021data\FMS2_database_July27_2022b.xlsx'
     xls = pd.ExcelFile(DBname, engine='openpyxl')
     df1 = pd.read_excel(xls, 'paradigm1_BOLD')
     del df1['Unnamed: 0']  # get rid of the unwanted header column
@@ -1293,9 +1246,6 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
     paradigm_centered = paradigm - np.mean(paradigm)
     dparadigm = np.zeros(len(paradigm))
     dparadigm[1:] = np.diff(paradigm_centered)
-
-    # regiondataname = r'E:\FM2021data\HCstim_region_data.npy'
-    # clusterdataname = r'E:\FM2021data\FM2021_cluster_definition.npy'
 
     # get cluster info and setup for saving information later
     cluster_data = np.load(clusterdataname, allow_pickle=True).flat[0]
@@ -1472,51 +1422,11 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
     print('\nbest cluster set is : {}'.format(best_clusters))
 
     return best_clusters
-    #
-    # # test result
-    # full_rnum_base =  np.array([0,5,10,15,20,25,30,35,40,45])
-    # clusterlist = best_clusters + full_rnum_base
-    # prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAPMparametersname)
-    # output = sem_physio_model(clusterlist, paradigm_centered, SAPMresultsname, SAPMparametersname)
-    #
-    # SAPMresults = np.load(output, allow_pickle=True)
-    # R2list3 = [SAPMresults[aa]['R2total'] for aa in range(len(SAPMresults))]
-    #
-    # # compare with previous results
-    # cnums = [1, 4, 1, 3, 1, 0, 4, 2, 1, 2]  # FMstim, from the last TWO GD attempts
-    # cnums = [1, 0, 4, 0, 0, 0, 4, 4, 2, 2]  # HCstim, last GD attempt
-    # clusterlist = cnums + full_rnum_base
-    # prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAPMparametersname)
-    # output = sem_physio_model(clusterlist, paradigm_centered, SAPMresultsname, SAPMparametersname)
-    #
-    # SAPMresults2 = np.load(output, allow_pickle=True)
-    # R2list2 = [SAPMresults2[aa]['R2total'] for aa in range(len(SAPMresults2))]
-    #
-    # print('current results:  best cluster set: {}'.format(best_clusters))
-    # print('previous results:  best cluster set: {}'.format(cnums))
-    # print('compare R2 values: ')
-    # print('new R2:     old R2:')
-    # for aa in range(len(R2list3)):
-    #     print('{:.3f}     {:.3f}'.format(R2list3[aa],R2list2[aa]))
-
 
 
 # main program
 def SAPMrun(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkfile, DBname, reload_existing = False):
-    # required inputs:
-    # cnums
-    # outputdir
-    # covariatesfile (?)
-    # SAPMresultsname
-    # SAPMparametersname
-    # networkfile
-    # DBname
-    # regiondataname
-    # clusterdataname
-    # excelfilename
-
     # load paradigm data--------------------------------------------------------------------
-    # DBname = r'D:/threat_safety_python/threat_safety_database.xlsx'
     xls = pd.ExcelFile(DBname, engine='openpyxl')
     df1 = pd.read_excel(xls, 'paradigm1_BOLD')
     del df1['Unnamed: 0']  # get rid of the unwanted header column
@@ -1547,8 +1457,6 @@ def SAPMrun(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMparamet
     # starting values
     cnums_original = copy.deepcopy(cnums)
     excelsheetname = 'clusters'
-    # fname = 'fixed_C6RD{}.xlsx'.format(cord_cluster)
-    # excelfilename = os.path.join(outputdir, fname)
 
     # run the analysis with SAPM
     clusterlist = np.array(cnums) + full_rnum_base
@@ -1565,1880 +1473,20 @@ def SAPMrun(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMparamet
     print('R2 values ranged from {:.3f} to {:.3f}'.format(np.min(R2list),np.max(R2list)))
 
 
-
-    # the rest of this should be in a separate function for displaying selected results-------------
-    #
-    # if reload_existing:
-    #     output = SAPMresultsname
-    # else:
-    #     output = sem_physio_model(clusterlist, paradigm_centered, SAPMresultsname, SAPMparametersname)
-    #
-    # SAPMresults = np.load(output, allow_pickle=True).flat[0]
-    #
-    # windowoffset = 0
-    # yrange = []
-    # yrange2 = []
-    # Rtextlist, Rvallist = show_SEM_timecourse_results(covariatesfile, SAPMparametersname, SAPMresultsname, paradigm_centered, group,
-    #                                 windowoffset, yrange, yrange2)
-    #
-    # yrange = [-0.6, 0.6]
-    # yrange2 = [1.6, 0.7, 0.8, 0.6, 0.9, 0.8, 0.5]   # for Feb2022C
-    # windowoffset = 0
-    #
-    # # group = 'all'
-    # show_SEM_average_beta_for_groups(covariatesfile, SAPMparametersname, SAPMresultsname, paradigm_centered, group,
-    #                                  windowoffset=0)
-    #
-    # # show a specific connection
-    # connection_name = 'PBN-LC-DRt'
-    #
-    # # settings = np.load(settingsfile, allow_pickle=True).flat[0]
-    # # covariates = settings['GRPcharacteristicsvalues'][0].astype(float)  # painrating
-    #
-    # covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
-    # if 'painrating' in covariatesdata['GRPcharacteristicslist']:
-    #     x = covariatesdata['GRPcharacteristicslist'].index('painrating')
-    #     covariates = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
-    # else:
-    #     covariates = []
-    #
-    # plot_correlated_results(SAPMresultsname, SAPMparametersname, connection_name, covariates, figurenumber = 1)
-    #
-
-
-
 #----------------------------------------------------------------------------------------
 #
 #    FUNCTIONS FOR DISPLAYING RESULTS IN VARIOUS FORMATS
 #
 #----------------------------------------------------------------------------------------
 
-#----------------------------------------------------------------------------------
-#----------------------------------------------------------------------------------
-def display_SAPM_results(covariatesfile, SAPMparametersname, SAPMresultsname, person_list = [41, 48, 32, 21, 10]):
-    # reload parameters if needed--------------------------------------------------------
-    # settings = np.load(settingsfile, allow_pickle=True).flat[0]
-    # covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
-    # covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
+def plot_region_inputs_average(window, target, nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
+                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrange = [], TargetCanvas = 'none'):
 
-    covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
-    if 'gender' in covariatesdata['GRPcharacteristicslist']:
-        x = covariatesdata['GRPcharacteristicslist'].index('gender')
-        covariates1 = covariatesdata['GRPcharacteristicsvalues'][x]
+    if isinstance(TargetCanvas,str):
+        display_in_GUI = False
     else:
-        covariates1 = []
-    if 'painrating' in covariatesdata['GRPcharacteristicslist']:
-        x = covariatesdata['GRPcharacteristicslist'].index('painrating')
-        covariates2 = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
-    else:
-        covariates2 = []
+        display_in_GUI = True
 
-
-    SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
-    # SAPMparams = {'betanamelist': betanamelist, 'beta_list':beta_list, 'nruns_per_person': nruns_per_person,
-    #              'nclusterstotal':nclusterstotal, 'rnamelist':rnamelist, 'nregions':nregions,
-    #             'cluster_properties':cluster_properties, 'cluster_data':cluster_data,
-    #              'network':network, 'fintrinsic_count':fintrinsic_count, 'vintrinsic_count':vintrinsic_count,
-    #              'sem_region_list':sem_region_list, 'nclusterlist':nclusterlist, 'tsize':tsize}
-
-    network = SAPMparams['network']
-    beta_list = SAPMparams['beta_list']
-    betanamelist = SAPMparams['betanamelist']
-    nruns_per_person = SAPMparams['nruns_per_person']
-    rnamelist = SAPMparams['rnamelist']
-    fintrinsic_count = SAPMparams['fintrinsic_count']
-    vintrinsic_count = SAPMparams['vintrinsic_count']
-    nclusterlist = SAPMparams['nclusterlist']
-    tplist_full = SAPMparams['tplist_full']
-    tcdata_centered = SAPMparams['tcdata_centered']
-    Nintrinsic = fintrinsic_count + vintrinsic_count
-    timepoint = SAPMparams['timepoint']
-    epoch = SAPMparams['epoch']
-
-    # end of reloading parameters if needed--------------------------------------------------------
-
-    # load the SAPM results
-    SAPMresults_load = np.load(SAPMresultsname, allow_pickle=True)
-
-    # for nperson in range(NP)
-    NP = len(SAPMresults_load)
-    resultscheck = np.zeros((NP,4))
-    nbeta,tsize_full = np.shape(SAPMresults_load[0]['Sconn'])
-    ncon = nbeta-Nintrinsic
-
-    for nperson in person_list:
-        nruns = nruns_per_person[nperson]
-        Sinput = SAPMresults_load[nperson]['Sinput']
-        Sconn= SAPMresults_load[nperson]['Sconn']
-        Minput = SAPMresults_load[nperson]['Minput']
-        Mconn = SAPMresults_load[nperson]['Mconn']
-        Mintrinsic = SAPMresults_load[nperson]['Mintrinsic']
-        Meigv = SAPMresults_load[nperson]['Meigv']
-        beta_int1 = SAPMresults_load[nperson]['beta_int1']
-        betavals = SAPMresults_load[nperson]['betavals']
-        R2total = SAPMresults_load[nperson]['R2total']
-        fintrinsic1 = SAPMresults_load[nperson]['fintrinsic1']
-
-        # Mconn[ctarget, csource] = betavals
-        fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
-                                                                 vintrinsic_count, beta_int1, fintrinsic1)
-        # Sconn = Meigv @ Mintrinsic  # signalling over each connection
-
-        tsize = (tsize_total/nruns).astype(int)
-
-        region1 = 0
-        region2 = 5
-        region3 = 7
-        nametag2 = r'_cord_NRM_PAG'
-
-        target = 'NRM'
-        nametag1 = r'NRMinput'
-        rtarget = rnamelist.index(target)
-        m = Minput[rtarget,:]
-        sources = np.where(m == 1)[0]
-        rsources = [beta_list[ss]['pair'][0] for ss in sources]
-
-        target2 = 'NGC'
-        rtarget2 = rnamelist.index(target2)
-
-        window1 = 24
-        window2 = 25
-
-        # inputs to NRM as example
-        plt.close(window1)
-        # fig1 = plt.figure(window1, figsize=(12, 9), dpi=100)
-        fig1, ((ax1,ax2), (ax3,ax4),(ax5,ax6)) = plt.subplots(3,2,sharey=True, figsize=(12, 9), dpi=100, num = window1)
-        # ax1 = fig.add_subplot(3,2,4, sharey = True)
-
-        tc = Sinput[rtarget, :]
-        tc1 = np.mean(np.reshape(tc, (nruns, tsize)),axis=0)
-        tc = fit[rtarget, :]
-        tcf = np.mean(np.reshape(tc, (nruns, tsize)),axis=0)
-
-        ax4.plot(tc1, '-ob')
-        ax4.plot(tcf, '-xr')
-        ax4.set_title('target input {}'.format(rnamelist[rtarget]))
-
-        tc = Sinput[rtarget2, :]
-        tc2 = np.mean(np.reshape(tc, (nruns, tsize)),axis=0)
-        tc = fit[rtarget2, :]
-        tc2f = np.mean(np.reshape(tc, (nruns, tsize)),axis=0)
-
-        ax2.plot(tc2, '-ob')
-        ax2.plot(tc2f, '-xr')
-        ax2.set_title('target input {}'.format(rnamelist[rtarget2]))
-
-
-        tc = Sconn[sources[0], :]
-        tc1 = np.mean(np.reshape(tc, (nruns, tsize)),axis=0)
-        tc = Sconn[sources[1], :]
-        tc2 = np.mean(np.reshape(tc, (nruns, tsize)),axis=0)
-        tc = Sconn[sources[2], :]
-        tc3 = np.mean(np.reshape(tc, (nruns, tsize)),axis=0)
-
-        ax1.plot(tc1, '-xr')
-        ax1.set_title('source output {} {}'.format(betanamelist[sources[0]], rnamelist[rsources[0]]))
-        ax3.plot(tc2, '-xr')
-        ax3.set_title('source output {} {}'.format(betanamelist[sources[1]], rnamelist[rsources[1]]))
-        ax5.plot(tc3, '-xr')
-        ax5.set_title('source output {} {}'.format(betanamelist[sources[2]], rnamelist[rsources[2]]))
-
-        p,f = os.path.split(SAPMresultsname)
-        svgname = os.path.join(p,'Person{}_'.format(nperson) + nametag1 + '.svg')
-        plt.savefig(svgname)
-
-        # show C6RD, NRM, and PAG as examples (inputs real and fit)
-        plt.close(window2)
-        # fig2 = plt.figure(window2, figsize=(12, 6), dpi=100)
-        fig2, (ax1b,ax2b,ax3b) = plt.subplots(3,sharey=False, figsize=(12, 6), dpi=100, num = window2)
-        # ax1 = fig.add_subplot(3,2,4, sharey = True)
-
-        tc = Sinput[region1, :]
-        tc1 = np.mean(np.reshape(tc, (nruns, tsize)),axis=0)
-        tc = fit[region1, :]
-        tcf1 = np.mean(np.reshape(tc, (nruns, tsize)),axis=0)
-        tc = Sinput[region2, :]
-        tc2 = np.mean(np.reshape(tc, (nruns, tsize)),axis=0)
-        tc = fit[region2, :]
-        tcf2 = np.mean(np.reshape(tc, (nruns, tsize)),axis=0)
-        tc = Sinput[region3, :]
-        tc3 = np.mean(np.reshape(tc, (nruns, tsize)),axis=0)
-        tc = fit[region3, :]
-        tcf3 = np.mean(np.reshape(tc, (nruns, tsize)),axis=0)
-
-        ax1b.plot(tc1, '-ob')
-        ax1b.plot(tcf1, '-xr')
-        ax1b.set_title('target {}'.format(rnamelist[region1]))
-        ax2b.plot(tc2, '-ob')
-        ax2b.plot(tcf2, '-xr')
-        ax2b.set_title('target {}'.format(rnamelist[region2]))
-        ax3b.plot(tc3, '-ob')
-        ax3b.plot(tcf3, '-xr')
-        ax3b.set_title('target {}'.format(rnamelist[region3]))
-
-        p,f = os.path.split(SAPMresultsname)
-        svgname = os.path.join(p,'Person{}_'.format(nperson) + nametag2 + '.svg')
-        plt.savefig(svgname)
-
-
-        R1 = np.corrcoef(Sinput[region1, :], fit[region1, :])
-        Z1 = np.arctanh(R1[0,1]) * np.sqrt(tsize_total-3)
-        print('person {} region {}   R = {:.3f}  Z = {:.2f}'.format(nperson, region1,R1[0,1],Z1))
-        resultscheck[nperson,0] = R1[0,1]
-        resultscheck[nperson,1] = Z1
-
-        R2 = np.corrcoef(Sinput[region2, :], fit[region2, :])
-        Z2 = np.arctanh(R2[0,1]) * np.sqrt(tsize_total-3)
-        print('person {} region {}   R = {:.3f}  Z = {:.2f}'.format(nperson, region2,R2[0,1],Z2))
-        resultscheck[nperson,2] = R2[0,1]
-        resultscheck[nperson,3] = Z2
-
-        # intrinsics
-        tc = Mintrinsic[0,:]
-        tc0 = np.mean(np.reshape(tc, (nruns, tsize)),axis=0)
-        tc = Mintrinsic[fintrinsic_count,:]
-        tc1 = np.mean(np.reshape(tc, (nruns, tsize)),axis=0)
-        tc = Mintrinsic[fintrinsic_count+1,:]
-        tc2 = np.mean(np.reshape(tc, (nruns, tsize)),axis=0)
-
-        plt.close(4)
-        fig = plt.figure(4, figsize=(12.5, 3.5), dpi=100)
-        plt.subplot(3,1,1)
-        plt.plot(tc0, '-og')
-        plt.subplot(3,1,2)
-        plt.plot(tc1, '-og')
-        plt.subplot(3,1,3)
-        plt.plot(tc2, '-og')
-
-        #
-        columns = [name[:3] + ' in' for name in betanamelist]
-        rows = [name[:3] for name in betanamelist]
-
-        df = pd.DataFrame(Mconn, columns=columns, index=rows)
-        pd.set_option('display.max_rows', None)
-        pd.set_option('display.max_columns', None)
-        pd.set_option('display.width', None)
-        pd.set_option('display.max_colwidth', None)
-
-        pd.options.display.float_format = '{:.2f}'.format
-        print(df)
-
-        p,f = os.path.split(SAPMresultsname)
-        xlname = os.path.join(p,'Person{}_Moutput_v3.xlsx'.format(nperson))
-        df.to_excel(xlname)
-
-    Mrecord = np.zeros((nbeta,nbeta,NP))
-    R2totalrecord = np.zeros(NP)
-    for nperson in range(NP):
-        Sinput = SAPMresults_load[nperson]['Sinput']
-        Sconn = SAPMresults_load[nperson]['Sconn']
-        Minput = SAPMresults_load[nperson]['Minput']
-        Mconn = SAPMresults_load[nperson]['Mconn']
-        R2total = SAPMresults_load[nperson]['R2total']
-        Mrecord[:,:,nperson] = Mconn
-        R2totalrecord[nperson] = R2total
-
-    Mrecord_mean = np.mean(Mrecord,axis=2)
-    M_T = np.mean(Mrecord,axis=2)/(np.std(Mrecord,axis=2)/np.sqrt(NP)  + 1e-20)
-    M_T[np.abs(M_T) > 1e10] = 0
-
-    mpos = np.zeros((nbeta,nbeta,NP))
-    mneg = np.zeros((nbeta,nbeta,NP))
-    mpos[Mrecord > 0] = 1
-    mneg[Mrecord < 0] = 1
-    mpos = np.sum(mpos, axis = 2)
-    mneg= np.sum(mneg, axis = 2)
-    Mcount = mpos - mneg
-    x = np.argmax(np.abs(Mcount[:ncon,:ncon]))
-    aa,bb = np.unravel_index(x,np.shape(Mcount[:ncon,:ncon]))
-
-    # separate by sex
-    g1 = np.where(covariates1 == 'Female')[0]
-    g2 = np.where(covariates1 == 'Male')[0]
-
-    M1 = Mrecord[:,:,g1]
-    M2 = Mrecord[:,:,g2]
-    Tsexdiff = np.zeros((ncon,ncon))
-    psexdiff = np.zeros((ncon,ncon))
-    for aa in range(ncon):
-        for bb in range(ncon):
-            a = M1[aa,bb,:]
-            b = M2[aa,bb,:]
-            if (np.var(a) > 0)  &  (np.var(b) > 0):
-                t, p = stats.ttest_ind(a, b, equal_var=False)
-                Tsexdiff[aa,bb] = t
-                psexdiff[aa,bb] = p
-
-    aa,bb = np.where(np.abs(Tsexdiff) > 2.0)
-    for xx in range(len(aa)):
-        c1 = betanamelist[aa[xx]]
-        c2 = betanamelist[bb[xx]]
-        conn1 = beta_list[aa[xx]]['pair']
-        conn2 = beta_list[bb[xx]]['pair']
-        T = Tsexdiff[aa[xx],bb[xx]]
-        print('difference in {}-{} effect on {}-{}   T = {:.2f}'.format(rnamelist[conn2[0]],rnamelist[conn2[1]],rnamelist[conn1[0]], rnamelist[conn1[1]],T))
-
-    Rrecord = np.zeros((ncon,ncon))
-    R2record = np.zeros((ncon,ncon))
-    for aa in range(ncon):
-        for bb in range(ncon):
-            m = Mrecord[aa,bb,:]
-            if np.var(m) > 0:
-                R = np.corrcoef(covariates2, m)
-                Rrecord[aa,bb] = R[0,1]
-                b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis, :], covariates2[np.newaxis, :])
-                R2record[aa,bb] = R2
-
-    x = np.argmax(np.abs(R2record))
-    aa,bb = np.unravel_index(x, np.shape(R2record))
-    # aa,bb = (6,7)
-    m = Mrecord[aa,bb,:]
-    plt.close(35)
-    fig = plt.figure(35), plt.plot(covariates2, m, 'ob')
-    b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis, :], covariates2[np.newaxis, :])
-    plt.plot(covariates2, fit[0, :], '-b')
-
-    plt.close(36)
-    fig = plt.figure(36), plt.plot(covariates2[g1], m[g1], 'or')
-    bf, fitf, R2f, total_var, res_var = pysem.general_glm(m[np.newaxis, g1], covariates2[np.newaxis, g1])
-    plt.plot(covariates2[g1], fitf[0, :], '-r')
-
-    plt.plot(covariates2[g2], m[g2], 'ob')
-    bm, fitm, R2m, total_var, res_var = pysem.general_glm(m[np.newaxis, g2], covariates2[np.newaxis, g2])
-    plt.plot(covariates2[g2], fitm[0, :], '-b')
-
-
-#--------------------------------------------------------------------------------------
-# ----------------------------------------------------------------------------------
-def show_Mconn_properties(covariatesfile, SAPMparametersname, SAPMresultsname):
-    # settings = np.load(settingsfile, allow_pickle=True).flat[0]
-    # covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
-    # covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
-
-    covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
-    if 'gender' in covariatesdata['GRPcharacteristicslist']:
-        x = covariatesdata['GRPcharacteristicslist'].index('gender')
-        covariates1 = covariatesdata['GRPcharacteristicsvalues'][x]
-    else:
-        covariates1 = []
-    if 'painrating' in covariatesdata['GRPcharacteristicslist']:
-        x = covariatesdata['GRPcharacteristicslist'].index('painrating')
-        covariates2 = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
-    else:
-        covariates2 = []
-
-    SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
-    network = SAPMparams['network']
-    beta_list = SAPMparams['beta_list']
-    betanamelist = SAPMparams['betanamelist']
-    nruns_per_person = SAPMparams['nruns_per_person']
-    rnamelist = SAPMparams['rnamelist']
-    fintrinsic_count = SAPMparams['fintrinsic_count']
-    vintrinsic_count = SAPMparams['vintrinsic_count']
-    nclusterlist = SAPMparams['nclusterlist']
-    tplist_full = SAPMparams['tplist_full']
-    tcdata_centered = SAPMparams['tcdata_centered']
-    Nintrinsic = fintrinsic_count + vintrinsic_count
-    # end of reloading parameters-------------------------------------------------------
-
-    # load the SAPM results
-    SAPMresults_load = np.load(SAPMresultsname, allow_pickle=True)
-
-    # for nperson in range(NP)
-    NP = len(SAPMresults_load)
-    resultscheck = np.zeros((NP, 4))
-    nbeta, tsize_full = np.shape(SAPMresults_load[0]['Sconn'])
-    ncon = nbeta - Nintrinsic
-
-    Mrecord = np.zeros((nbeta, nbeta, NP))
-    R2totalrecord = np.zeros(NP)
-    for nperson in range(NP):
-        Sinput = SAPMresults_load[nperson]['Sinput']
-        Sconn = SAPMresults_load[nperson]['Sconn']
-        Minput = SAPMresults_load[nperson]['Minput']
-        Mconn = SAPMresults_load[nperson]['Mconn']
-        R2total = SAPMresults_load[nperson]['R2total']
-        fintrinsic1 = SAPMresults_load[nperson]['fintrinsic1']
-        Mrecord[:, :, nperson] = Mconn
-        R2totalrecord[nperson] = R2total
-
-    Mrecord_mean = np.mean(Mrecord, axis=2)
-    Mrecord_sem = np.std(Mrecord, axis=2) / np.sqrt(NP)
-    M_T = np.mean(Mrecord, axis=2) / (Mrecord_sem + 1e-20)
-    M_T[np.abs(M_T) > 1e10] = 0
-
-    mpos = np.zeros((nbeta, nbeta, NP))
-    mneg = np.zeros((nbeta, nbeta, NP))
-    mpos[Mrecord > 0] = 1
-    mneg[Mrecord < 0] = 1
-    mpos = np.sum(mpos, axis=2)
-    mneg = np.sum(mneg, axis=2)
-    Mcount = mpos - mneg
-    x = np.argmax(np.abs(Mcount[:ncon, :ncon]))
-    aa, bb = np.unravel_index(x, np.shape(Mcount[:ncon, :ncon]))
-
-    # separate by sex
-    g1 = np.where(covariates1 == 'Female')[0]
-    g2 = np.where(covariates1 == 'Male')[0]
-
-    M1 = Mrecord[:, :, g1]
-    M2 = Mrecord[:, :, g2]
-    Tsexdiff = np.zeros((nbeta, nbeta))
-    psexdiff = np.zeros((nbeta, nbeta))
-    for aa in range(ncon):
-        for bb in range(ncon):
-            a = M1[aa, bb, :]
-            b = M2[aa, bb, :]
-            if (np.var(a) > 0) & (np.var(b) > 0):
-                t, p = stats.ttest_ind(a, b, equal_var=False)
-                Tsexdiff[aa, bb] = t
-                psexdiff[aa, bb] = p
-
-    aa, bb = np.where(np.abs(Tsexdiff) > 2.0)
-    for xx in range(len(aa)):
-        c1 = betanamelist[aa[xx]]
-        c2 = betanamelist[bb[xx]]
-        conn1 = beta_list[aa[xx]]['pair']
-        conn2 = beta_list[bb[xx]]['pair']
-        T = Tsexdiff[aa[xx], bb[xx]]
-        print('difference in {}-{} effect on {}-{}   T = {:.2f}'.format(rnamelist[conn2[0]], rnamelist[conn2[1]],
-                                                                        rnamelist[conn1[0]], rnamelist[conn1[1]],
-                                                                        T))
-    Rrecord = np.zeros((nbeta, nbeta))
-    R2record = np.zeros((nbeta, nbeta))
-    for aa in range(ncon):
-        for bb in range(ncon):
-            m = Mrecord[aa, bb, :]
-            if np.var(m) > 0:
-                R = np.corrcoef(covariates2[g1], m[g1])
-                Rrecord[aa, bb] = R[0, 1]
-                G = np.concatenate((covariates2[np.newaxis, g1], np.ones((1,len(g1)))), axis = 0)
-                b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis, g1], G)
-                R2record[aa, bb] = R2
-
-    x = np.argsort(-np.abs(Rrecord.flatten()))
-    number = 0
-    aa, bb = np.unravel_index(x[number], np.shape(Rrecord))
-    # aa,bb = (6,7)
-    m = Mrecord[aa, bb, :]
-    plt.close(35)
-    fig = plt.figure(35), plt.plot(covariates2, m, 'ob')
-    G = np.concatenate((covariates2[np.newaxis, :], np.ones((1,NP))), axis = 0)
-    b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis, :], G)
-    plt.plot(covariates2, fit[0, :], '-b')
-
-    plt.close(36)
-    fig = plt.figure(36), plt.plot(covariates2[g1], m[g1], 'or')
-    G = np.concatenate((covariates2[np.newaxis, g1], np.ones((1,len(g1)))), axis = 0)
-    bf, fitf, R2f, total_var, res_var = pysem.general_glm(m[np.newaxis, g1], G)
-    plt.plot(covariates2[g1], fitf[0, :], '-r')
-
-    plt.plot(covariates2[g2], m[g2], 'ob')
-    G = np.concatenate((covariates2[np.newaxis, g2], np.ones((1,len(g2)))), axis = 0)
-    bm, fitm, R2m, total_var, res_var = pysem.general_glm(m[np.newaxis, g2], G)
-    plt.plot(covariates2[g2], fitm[0, :], '-b')
-
-    columns = [name + ' in' for name in betanamelist]
-    rows = [name for name in betanamelist]
-    pd.set_option('display.max_rows', None)
-    pd.set_option('display.max_columns', None)
-    pd.set_option('display.width', None)
-    pd.set_option('display.max_colwidth', None)
-    pd.options.display.float_format = '{:.2f}'.format
-
-    # write out Mrecord_mean, Mrecord_sem, M_T, Tsexdiff, R2record
-    # text_mean = write_Mconn_values(Mrecord_mean, Mrecord_sem, betanamelist, rnamelist, beta_list)
-
-    labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(Mrecord_mean, Mrecord_sem, NP, betanamelist, rnamelist, beta_list, format='f', pthresh=0.05)
-
-    text_T = write_Mconn_values(M_T, [], betanamelist, rnamelist, beta_list)
-    text_SD = write_Mconn_values(Tsexdiff, [], betanamelist, rnamelist, beta_list)
-    text_R2pain = write_Mconn_values(R2record, [], betanamelist, rnamelist, beta_list)
-
-    p, f = os.path.split(SAPMresultsname)
-
-    df = pd.DataFrame(Mrecord_mean, columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mrecord_mean.xlsx')
-    df.to_excel(xlname)
-
-    df = pd.DataFrame(Mrecord_sem, columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mrecord_sem.xlsx')
-    df.to_excel(xlname)
-
-    df = pd.DataFrame(M_T, columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mrecord_T.xlsx')
-    df.to_excel(xlname)
-
-    df = pd.DataFrame(Tsexdiff, columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mrecord_Tsexdiffs.xlsx')
-    df.to_excel(xlname)
-
-    df = pd.DataFrame(R2record, columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mrecord_R2pain.xlsx')
-    df.to_excel(xlname)
-
-    # ANCOVA group vs pain rating
-    statstype = 'ANCOVA'
-    formula_key1 = 'C(Group)'
-    formula_key2 = 'pain'
-    formula_key3 = 'C(Group):' + 'pain'
-    atype = 2
-
-    cov1 = covariates2[g1]
-    cov2 = covariates2[g2]
-    ancova_p = np.ones((nbeta,nbeta,3))
-    for aa in range(ncon):
-        for bb in range(ncon):
-            m = Mrecord[aa, bb, :]
-            if np.var(m) > 0:
-                b1 = m[g1]
-                b2 = m[g2]
-                anova_table, p_MeoG, p_MeoC, p_intGC = py2ndlevelanalysis.run_ANOVA_or_ANCOVA2(b1, b2, cov1, cov2, 'pain', formula_key1,
-                                                                            formula_key2, formula_key3, atype)
-                ancova_p[aa,bb, :] = np.array([p_MeoG, p_MeoC, p_intGC])
-
-
-    pd.options.display.float_format = '{:.2e}'.format
-    df = pd.DataFrame(ancova_p[:,:,0], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mancova_MeoG.xlsx')
-    df.to_excel(xlname)
-    df = pd.DataFrame(ancova_p[:,:,1], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mancova_MeoP.xlsx')
-    df.to_excel(xlname)
-    df = pd.DataFrame(ancova_p[:,:,2], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mancova_IntGP.xlsx')
-    df.to_excel(xlname)
-
-    text_MeoG = write_Mconn_values(ancova_p[:,:,0], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-    text_MeoP = write_Mconn_values(ancova_p[:,:,1], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-    text_IntGP = write_Mconn_values(ancova_p[:,:,2], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-
-
-
-def show_SAPM_timecourse_results(covariatesfile, SAPMparametersname, SAPMresultsname, paradigm_centered, group='all', windowoffset = 0, yrange = [], yrange2 = []):
-    # if len(yrange) > 0:
-    #     setylim = True
-    #     ymin = yrange[0]
-    #     ymax = yrange[1]
-    # else:
-    #     setylim = False
-
-    # settings = np.load(settingsfile, allow_pickle=True).flat[0]
-    # covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
-    # covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
-
-    covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
-    if 'gender' in covariatesdata['GRPcharacteristicslist']:
-        x = covariatesdata['GRPcharacteristicslist'].index('gender')
-        covariates1 = covariatesdata['GRPcharacteristicsvalues'][x]
-    else:
-        covariates1 = []
-    if 'painrating' in covariatesdata['GRPcharacteristicslist']:
-        x = covariatesdata['GRPcharacteristicslist'].index('painrating')
-        covariates2 = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
-    else:
-        covariates2 = []
-
-
-    SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
-    network = SAPMparams['network']
-    beta_list = SAPMparams['beta_list']
-    betanamelist = SAPMparams['betanamelist']
-    nruns_per_person = SAPMparams['nruns_per_person']
-    rnamelist = SAPMparams['rnamelist']
-    fintrinsic_count = SAPMparams['fintrinsic_count']
-    fintrinsic_region = SAPMparams['fintrinsic_region']
-    vintrinsic_count = SAPMparams['vintrinsic_count']
-    nclusterlist = SAPMparams['nclusterlist']
-    tplist_full = SAPMparams['tplist_full']
-    tcdata_centered = SAPMparams['tcdata_centered']
-    ctarget = SAPMparams['ctarget']
-    csource = SAPMparams['csource']
-    tsize = SAPMparams['tsize']
-    timepoint = SAPMparams['timepoint']
-    epoch = SAPMparams['epoch']
-    Nintrinsic = fintrinsic_count + vintrinsic_count
-    # end of reloading parameters-------------------------------------------------------
-
-    # load the SAPM results
-    SAPMresults_load = np.load(SAPMresultsname, allow_pickle=True)
-
-    # for nperson in range(NP)
-    NP = len(SAPMresults_load)
-    resultscheck = np.zeros((NP, 4))
-    nbeta, tsize_full = np.shape(SAPMresults_load[0]['Sconn'])
-    ncon = nbeta - Nintrinsic
-
-    if epoch >= tsize:
-        et1 = 0
-        et2 = tsize
-    else:
-        et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
-        et2 = (timepoint + np.floor(epoch / 2)).astype(int)
-    ftemp = paradigm_centered[et1:et2]
-
-    Mrecord = np.zeros((nbeta, nbeta, NP))
-    R2totalrecord = np.zeros(NP)
-    for nperson in range(NP):
-        Sinput = SAPMresults_load[nperson]['Sinput']
-        Sconn = SAPMresults_load[nperson]['Sconn']
-        Minput = SAPMresults_load[nperson]['Minput']
-        Mconn = SAPMresults_load[nperson]['Mconn']
-        beta_int1 = SAPMresults_load[nperson]['beta_int1']
-        R2total = SAPMresults_load[nperson]['R2total']
-        Meigv = SAPMresults_load[nperson]['Meigv']
-        betavals = SAPMresults_load[nperson]['betavals']
-        # fintrinsic1 = SAPMresults_load[nperson]['fintrinsic1']
-
-        nruns = nruns_per_person[nperson]
-        fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
-
-        # ---------------------------------------------------
-        fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
-                                                                 vintrinsic_count, beta_int1, fintrinsic1)
-
-        nr, tsize_total = np.shape(Sinput)
-        tsize = (tsize_total / nruns).astype(int)
-        nbeta,tsize2 = np.shape(Sconn)
-
-        if nperson == 0:
-            Sinput_total = np.zeros((nr,tsize, NP))
-            Sconn_total = np.zeros((nbeta,tsize, NP))
-            fit_total = np.zeros((nr,tsize, NP))
-
-        tc = Sinput
-        tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
-        Sinput_total[:,:,nperson] = tc1
-
-        tc = Sconn
-        tc1 = np.mean(np.reshape(tc, (nbeta, nruns, tsize)), axis=1)
-        Sconn_total[:,:,nperson] = tc1
-
-        tc = fit
-        tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
-        fit_total[:,:,nperson] = tc1
-
-        Mrecord[:, :, nperson] = Mconn
-        R2totalrecord[nperson] = R2total
-
-
-    if len(covariates1) > 1 and len(covariates2) > 1:
-        # ancova sex x pain rating---------------------------------------
-        # ANCOVA group vs pain rating
-        statstype = 'ANCOVA'
-        formula_key1 = 'C(Group)'
-        formula_key2 = 'pain'
-        formula_key3 = 'C(Group):' + 'pain'
-        atype = 2
-
-        # separate by sex
-        g1 = np.where(covariates1 == 'Female')[0]
-        g2 = np.where(covariates1 == 'Male')[0]
-
-        cov1 = covariates2[g1]
-        cov2 = covariates2[g2]
-        ancova_p = np.ones((nbeta,nbeta,3))
-        ttest_p = np.ones((nbeta,nbeta,2))
-        for aa in range(ncon):
-            for bb in range(ncon):
-                m = Mrecord[aa, bb, :]
-                if np.var(m) > 0:
-                    b1 = m[g1]
-                    b2 = m[g2]
-                    anova_table, p_MeoG, p_MeoC, p_intGC = py2ndlevelanalysis.run_ANOVA_or_ANCOVA2(b1, b2, cov1, cov2, 'pain', formula_key1,
-                                                                                formula_key2, formula_key3, atype)
-                    ancova_p[aa,bb, :] = np.array([p_MeoG, p_MeoC, p_intGC])
-
-                    if (np.var(b1) > 0) & (np.var(b2) > 0):
-                        t, p = stats.ttest_ind(b1, b2, equal_var=False)
-                        ttest_p[aa,bb,:] = np.array([p,t])
-
-        columns = [name[:3] + ' in' for name in betanamelist]
-        rows = [name[:3] for name in betanamelist]
-
-        p, f = os.path.split(SAPMresultsname)
-        pd.options.display.float_format = '{:.2e}'.format
-        df = pd.DataFrame(ancova_p[:,:,0], columns=columns, index=rows)
-        xlname = os.path.join(p, 'Mancova_MeoG.xlsx')
-        df.to_excel(xlname)
-        df = pd.DataFrame(ancova_p[:,:,1], columns=columns, index=rows)
-        xlname = os.path.join(p, 'Mancova_MeoP.xlsx')
-        df.to_excel(xlname)
-        df = pd.DataFrame(ancova_p[:,:,2], columns=columns, index=rows)
-        xlname = os.path.join(p, 'Mancova_IntGP.xlsx')
-        df.to_excel(xlname)
-        df = pd.DataFrame(ttest_p[:,:,0], columns=columns, index=rows)
-        xlname = os.path.join(p, 'Ttest_sexdiffs.xlsx')
-        df.to_excel(xlname)
-
-
-        print('\nMain effect of group:')
-        text_MeoG = write_Mconn_values(ancova_p[:,:,0], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-        print('\nMain effect of pain ratings:')
-        text_MeoP = write_Mconn_values(ancova_p[:,:,1], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-        print('\nInteraction group x pain:')
-        text_IntGP = write_Mconn_values(ancova_p[:,:,2], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-        print('\n\n')
-
-        print('\nT-test sex differences:')
-        text_T = write_Mconn_values(ttest_p[:,:,0], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-        print('\n\n')
-
-
-        # compare groups with T-tests
-
-        # set the group
-        g = list(range(NP))
-        gtag = '_' + group
-
-        if group.lower() == 'male':
-            g = g2
-            gtag = '_Male'
-
-        if group.lower() == 'female':
-            g = g1
-            gtag = '_Female'
-
-
-
-    # set the group
-    g = list(range(NP))
-    gtag = '_'+group
-    Sinput_avg = np.mean(Sinput_total[:, :, g], axis=2)
-    Sinput_sem = np.std(Sinput_total[:, :, g], axis=2) / np.sqrt(len(g))
-    Sconn_avg = np.mean(Sconn_total[:, :, g], axis=2)
-    Sconn_sem = np.std(Sconn_total[:, :, g], axis=2) / np.sqrt(len(g))
-    fit_avg = np.mean(fit_total[:, :, g], axis=2)
-    fit_sem = np.std(fit_total[:, :, g], axis=2) / np.sqrt(len(g))
-
-    if len(covariates2) > 1:
-        # regression based on pain ratings
-        p = covariates2[np.newaxis, g]
-        p -= np.mean(p)
-        pmax = np.max(np.abs(p))
-        p /= pmax
-        G = np.concatenate((np.ones((1, len(g))),p), axis=0) # put the intercept term first
-        Sinput_reg = np.zeros((nr,tsize,4))
-        fit_reg = np.zeros((nr,tsize,4))
-        Sconn_reg = np.zeros((nbeta,tsize,4))
-        # Sinput_R2 = np.zeros((nr,tsize,2))
-        # fit_R2 = np.zeros((nr,tsize,2))
-        # Sconn_R2 = np.zeros((nbeta,tsize,2))
-        for tt in range(tsize):
-            for nn in range(nr):
-                m = Sinput_total[nn,tt,g]
-                b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-                Sinput_reg[nn,tt,:2] = b
-                Sinput_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
-
-                m = fit_total[nn,tt,g]
-                b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-                fit_reg[nn,tt,:2] = b
-                fit_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
-
-            for nn in range(nbeta):
-                m = Sconn_total[nn,tt,g]
-                b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-                Sconn_reg[nn,tt,:2] = b
-                Sconn_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
-
-            # need to save Sinput_reg, Sinput_R2, etc., somewhere for later use....
-
-            # regression of Mrecord with pain ratings
-            # glm_fit
-            Mregression = np.zeros((nbeta,nbeta,3))
-            # Mregression1 = np.zeros((nbeta,nbeta,3))
-            # Mregression2 = np.zeros((nbeta,nbeta,3))
-            p = covariates2[np.newaxis, g]
-            p -= np.mean(p)
-            pmax = np.max(np.abs(p))
-            p /= pmax
-            G = np.concatenate((np.ones((1, len(g))), p), axis=0)  # put the intercept term first
-            for aa in range(nbeta):
-                for bb in range(nbeta):
-                    m = Mrecord[aa,bb,g]
-                    if np.var(m) > 0:
-                        b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis,:], G)
-                        Mregression[aa,bb,:] = [b[0,0],b[0,1],R2]
-
-            print('\n\nMconn regression with pain ratings')
-            # rtext = write_Mconn_values(Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', minthresh=0.0001, maxthresh=0.0)
-            labeltext, inttext, slopetext, R2text, R2, R2thresh = write_Mreg_values(Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', Rthresh=0.1)
-
-    # average Mconn values
-    Mconn_avg = np.mean(Mrecord[:,:,g],axis = 2)
-    Mconn_sem = np.std(Mrecord[:,:,g],axis = 2)/np.sqrt(len(g))
-    # rtext = write_Mconn_values(Mconn_avg, Mconn_sem, betanamelist, rnamelist, beta_list,
-    #                            format='f', minthresh=0.0001, maxthresh=0.0)
-
-    pthresh = 0.05
-    Tthresh = stats.t.ppf(1 - pthresh, NP - 1)
-
-    print('\n\nAverage Mconn values')
-    labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(Mconn_avg, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format='f', pthresh=0.05)
-
-    Rtextlist = [' ']*10
-    Rvallist = [0]*10
-
-    windownum_offset = windowoffset
-    outputdir, f = os.path.split(SAPMresultsname)
-    # only show 3 regions in each plot for consistency in sizing
-    # show some regions
-    window2 = 25 + windownum_offset
-    regionlist = [3,6,8]
-    nametag = r'LC_NTS_PBN' + gtag
-    svgname, Rtext, Rvals = plot_region_fits(window2, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange)
-    for n,x in enumerate(regionlist):
-        print('Rtext = {}  Rvals = {}'.format(Rtext[n],Rvals[n]))
-        Rtextlist[x] = Rtext[n]
-        Rvallist[x] = Rvals[n]
-
-    # show some regions
-    window2 = 33 + windownum_offset
-    regionlist = [0,5,1]
-    nametag = r'cord_NRM_DRt' + gtag
-    svgname, Rtext, Rvals = plot_region_fits(window2, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange)
-    for n,x in enumerate(regionlist):
-        Rtextlist[x] = Rtext[n]
-        Rvallist[x] = Rvals[n]
-
-    window2b = 35 + windownum_offset
-    regionlist = [0,5,4]
-    nametag = r'cord_NRM_NGC' + gtag
-    svgname, Rtext, Rvals = plot_region_fits(window2b, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange)
-    for n,x in enumerate(regionlist):
-        Rtextlist[x] = Rtext[n]
-        Rvallist[x] = Rvals[n]
-
-    window2c = 36 + windownum_offset
-    regionlist = [7,2,9]
-    nametag = r'PAG_Hyp_Thal' + gtag
-    svgname, Rtext, Rvals = plot_region_fits(window2c, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange)
-    for n,x in enumerate(regionlist):
-        Rtextlist[x] = Rtext[n]
-        Rvallist[x] = Rvals[n]
-
-
-    # figure 0--------------------------------------------
-    # inputs to C6RD
-    window3 = 0 + windownum_offset
-    target = 'C6RD'
-    nametag1 = r'C6RDinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[0]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window3, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    plot_region_inputs_average(window3+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    # yrange = [-1.5,1.5]
-    # yrange = []
-    # yrange2 = [-1.5,1.5]
-    # yrange2 = []
-
-    # show results
-    # figure 1   -  inputs to NRM
-    window1 = 1 + windownum_offset
-    target = 'NRM'
-    nametag1 = r'NRMinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[1]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window1, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    plot_region_inputs_average(window1+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    # figure 2--------------------------------------------
-    # inputs to NTS
-    window4 = 2 + windownum_offset
-    target = 'NTS'
-    nametag1 = r'NTSinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[2]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window4, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    plot_region_inputs_average(window4+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    # figure 3--------------------------------------------
-    # inputs to NGC
-    window7 = 3 + windownum_offset
-    target = 'NGC'
-    nametag1 = r'NGCinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[3]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window7, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    plot_region_inputs_average(window7+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    # figure 4--------------------------------------------
-    # inputs to PAG
-    window5 = 4 + windownum_offset
-    target = 'PAG'
-    nametag1 = r'PAGinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[4]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window5, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    plot_region_inputs_average(window5+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    # figure 5   -  inputs to PBN
-    window11 = 5 + windownum_offset
-    target = 'PBN'
-    nametag1 = r'PBNinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[5]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window11, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    plot_region_inputs_average(window11+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    # figure 6   -  inputs to LC
-    window12 = 6 + windownum_offset
-    target = 'LC'
-    nametag1 = r'LCinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[6]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window12, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    plot_region_inputs_average(window12+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    if len(covariates1) > 1 and len(covariates2) > 1:
-        # plot a specific connection
-        window6 = 29 + windownum_offset
-        target = 'C6RD-PAG'
-        source = 'NTS-C6RD'
-
-        target = 'NTS-PBN'
-        source = 'PBN-NTS'
-
-        c = target.index('-')
-        betaname_target = '{}_{}'.format(rnamelist.index(target[:c]),rnamelist.index(target[(c+1):]))
-        c = source.index('-')
-        betaname_source = '{}_{}'.format(rnamelist.index(source[:c]),rnamelist.index(source[(c+1):]))
-
-        rt = betanamelist.index(betaname_target)
-        rs = betanamelist.index(betaname_source)
-        m = Mrecord[rt,rs,:]
-        G = np.concatenate((covariates2[np.newaxis,g1],np.ones((1,len(g1)))), axis = 0)
-        b1, fit1, R21, total_var, res_var = pysem.general_glm(m[g1], G)
-        G = np.concatenate((covariates2[np.newaxis,g2],np.ones((1,len(g2)))), axis = 0)
-        b2, fit2, R22, total_var, res_var = pysem.general_glm(m[g2], G)
-
-        plt.close(window6)
-        fig = plt.figure(window6)
-        ax = fig.add_axes([0.1,0.1,0.8,0.8])
-        plt.plot(covariates2[g1],m[g1], marker = 'o', linestyle = 'None', color = (0.1,0.9,0.1))
-        plt.plot(covariates2[g1],fit1, marker = 'None', linestyle = '-', color = (0.1,0.9,0.1))
-        plt.plot(covariates2[g2],m[g2], marker = 'o', linestyle = 'None', color = (1.0,0.5,0.))
-        plt.plot(covariates2[g2],fit2, marker = 'None', linestyle = '-', color = (1.0,0.5,0.))
-
-        ax.annotate('{} input to {}'.format(source,target), xy=(.025, .975), xycoords='axes  fraction', color = 'r',
-                            horizontalalignment='left', verticalalignment='top', fontsize=10)
-        ax.annotate('Female R2={:.3f}'.format(R21), xy=(.025, .025), xycoords='axes  fraction', color = (0.1,0.9,0.1),
-                            horizontalalignment='left', verticalalignment='bottom', fontsize=10)
-        ax.annotate('Male R2={:.3f}'.format(R22), xy=(.975, .025), xycoords='axes  fraction', color = (1.0,0.5,0.),
-                            horizontalalignment='right', verticalalignment='bottom', fontsize=10)
-
-    return Rtextlist, Rvallist
-
-
-
-def show_SAPM_timecourses_covariates(discrete_covariate, continuous_covariate, SAPMparametersname, SAPMresultsname, paradigm_centered, regionlists_for_display, inputs_to_display, group='all', windowoffset = 0, yrange = [], yrange2 = []):
-    covariates1 = discrete_covariate
-    covariates2 = continuous_covariate
-
-    SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
-    network = SAPMparams['network']
-    beta_list = SAPMparams['beta_list']
-    betanamelist = SAPMparams['betanamelist']
-    nruns_per_person = SAPMparams['nruns_per_person']
-    rnamelist = SAPMparams['rnamelist']
-    fintrinsic_count = SAPMparams['fintrinsic_count']
-    fintrinsic_region = SAPMparams['fintrinsic_region']
-    vintrinsic_count = SAPMparams['vintrinsic_count']
-    nclusterlist = SAPMparams['nclusterlist']
-    tplist_full = SAPMparams['tplist_full']
-    tcdata_centered = SAPMparams['tcdata_centered']
-    ctarget = SAPMparams['ctarget']
-    csource = SAPMparams['csource']
-    tsize = SAPMparams['tsize']
-    timepoint = SAPMparams['timepoint']
-    epoch = SAPMparams['epoch']
-    Nintrinsic = fintrinsic_count + vintrinsic_count
-    # end of reloading parameters-------------------------------------------------------
-
-    # load the SAPM results
-    SAPMresults_load = np.load(SAPMresultsname, allow_pickle=True)
-
-    # for nperson in range(NP)
-    NP = len(SAPMresults_load)
-    resultscheck = np.zeros((NP, 4))
-    nbeta, tsize_full = np.shape(SAPMresults_load[0]['Sconn'])
-    ncon = nbeta - Nintrinsic
-
-    if epoch >= tsize:
-        et1 = 0
-        et2 = tsize
-    else:
-        et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
-        et2 = (timepoint + np.floor(epoch / 2)).astype(int)
-    ftemp = paradigm_centered[et1:et2]
-
-    Mrecord = np.zeros((nbeta, nbeta, NP))
-    R2totalrecord = np.zeros(NP)
-    for nperson in range(NP):
-        Sinput = SAPMresults_load[nperson]['Sinput']
-        Sconn = SAPMresults_load[nperson]['Sconn']
-        Minput = SAPMresults_load[nperson]['Minput']
-        Mconn = SAPMresults_load[nperson]['Mconn']
-        beta_int1 = SAPMresults_load[nperson]['beta_int1']
-        R2total = SAPMresults_load[nperson]['R2total']
-        Meigv = SAPMresults_load[nperson]['Meigv']
-        betavals = SAPMresults_load[nperson]['betavals']
-        # fintrinsic1 = SAPMresults_load[nperson]['fintrinsic1']
-
-        nruns = nruns_per_person[nperson]
-        fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
-
-        # ---------------------------------------------------
-        fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
-                                                                 vintrinsic_count, beta_int1, fintrinsic1)
-
-        nr, tsize_total = np.shape(Sinput)
-        tsize = (tsize_total / nruns).astype(int)
-        nbeta,tsize2 = np.shape(Sconn)
-
-        if nperson == 0:
-            Sinput_total = np.zeros((nr,tsize, NP))
-            Sconn_total = np.zeros((nbeta,tsize, NP))
-            fit_total = np.zeros((nr,tsize, NP))
-
-        tc = Sinput
-        tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
-        Sinput_total[:,:,nperson] = tc1
-
-        tc = Sconn
-        tc1 = np.mean(np.reshape(tc, (nbeta, nruns, tsize)), axis=1)
-        Sconn_total[:,:,nperson] = tc1
-
-        tc = fit
-        tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
-        fit_total[:,:,nperson] = tc1
-
-        Mrecord[:, :, nperson] = Mconn
-        R2totalrecord[nperson] = R2total
-
-
-
-    # ancova sex x pain rating---------------------------------------
-    # ANCOVA group vs pain rating
-    statstype = 'ANCOVA'
-    formula_key1 = 'C(COV1)'
-    formula_key2 = 'COV2'
-    formula_key3 = 'C(COV1):' + 'COV2'
-    atype = 2
-
-    c1groups = np.unique(covariates1)
-    # separate by category
-    g1 = np.where(covariates1 == c1groups[0])[0]
-    g2 = np.where(covariates1 == c1groups[1])[0]
-
-    cov1 = covariates2[g1]
-    cov2 = covariates2[g2]
-    ancova_p = np.ones((nbeta,nbeta,3))
-    ttest_p = np.ones((nbeta,nbeta,2))
-    for aa in range(ncon):
-        for bb in range(ncon):
-            m = Mrecord[aa, bb, :]
-            if np.var(m) > 0:
-                b1 = m[g1]
-                b2 = m[g2]
-                anova_table, p_MeoG, p_MeoC, p_intGC = py2ndlevelanalysis.run_ANOVA_or_ANCOVA2(b1, b2, cov1, cov2, 'pain', formula_key1,
-                                                                            formula_key2, formula_key3, atype)
-                ancova_p[aa,bb, :] = np.array([p_MeoG, p_MeoC, p_intGC])
-
-                if (np.var(b1) > 0) & (np.var(b2) > 0):
-                    t, p = stats.ttest_ind(b1, b2, equal_var=False)
-                    ttest_p[aa,bb,:] = np.array([p,t])
-
-    columns = [name[:3] + ' in' for name in betanamelist]
-    rows = [name[:3] for name in betanamelist]
-
-    p, f = os.path.split(SAPMresultsname)
-    pd.options.display.float_format = '{:.2e}'.format
-    df = pd.DataFrame(ancova_p[:,:,0], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mancova_MeoG.xlsx')
-    df.to_excel(xlname)
-    df = pd.DataFrame(ancova_p[:,:,1], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mancova_MeoP.xlsx')
-    df.to_excel(xlname)
-    df = pd.DataFrame(ancova_p[:,:,2], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mancova_IntGP.xlsx')
-    df.to_excel(xlname)
-    df = pd.DataFrame(ttest_p[:,:,0], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Ttest_groupdiffs.xlsx')
-    df.to_excel(xlname)
-
-
-    print('\nMain effect of COV1:')
-    text_MeoG = write_Mconn_values(ancova_p[:,:,0], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-    print('\nMain effect of COV2:')
-    text_MeoP = write_Mconn_values(ancova_p[:,:,1], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-    print('\nInteraction COV1 x COV2:')
-    text_IntGP = write_Mconn_values(ancova_p[:,:,2], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-    print('\n\n')
-
-    print('\nT-test group differences:')
-    text_T = write_Mconn_values(ttest_p[:,:,0], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-    print('\n\n')
-
-
-    # compare groups with T-tests
-
-    # set the group
-    g = list(range(NP))
-    gtag = '_'+group
-
-    if group.lower() == c1groups[1]:
-        g = g2
-        gtag = '_' + c1groups[1]
-
-    if group.lower() == c1groups[0]:
-        g = g1
-        gtag = '_' + c1groups[0]
-
-    Sinput_avg = np.mean(Sinput_total[:,:,g], axis = 2)
-    Sinput_sem = np.std(Sinput_total[:,:,g], axis = 2)/np.sqrt(len(g))
-    Sconn_avg = np.mean(Sconn_total[:,:,g], axis = 2)
-    Sconn_sem = np.std(Sconn_total[:,:,g], axis = 2)/np.sqrt(len(g))
-    fit_avg = np.mean(fit_total[:,:,g], axis = 2)
-    fit_sem = np.std(fit_total[:,:,g], axis = 2)/np.sqrt(len(g))
-
-    # regression based on COV2 (separate by group?)
-    p = covariates2[np.newaxis, g]
-    p -= np.mean(p)
-    pmax = np.max(np.abs(p))
-    p /= pmax
-    G = np.concatenate((np.ones((1, len(g))),p), axis=0) # put the intercept term first
-    Sinput_reg = np.zeros((nr,tsize,4))
-    fit_reg = np.zeros((nr,tsize,4))
-    Sconn_reg = np.zeros((nbeta,tsize,4))
-    # Sinput_R2 = np.zeros((nr,tsize,2))
-    # fit_R2 = np.zeros((nr,tsize,2))
-    # Sconn_R2 = np.zeros((nbeta,tsize,2))
-    for tt in range(tsize):
-        for nn in range(nr):
-            m = Sinput_total[nn,tt,g]
-            b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-            Sinput_reg[nn,tt,:2] = b
-            Sinput_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
-
-            m = fit_total[nn,tt,g]
-            b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-            fit_reg[nn,tt,:2] = b
-            fit_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
-
-        for nn in range(nbeta):
-            m = Sconn_total[nn,tt,g]
-            b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-            Sconn_reg[nn,tt,:2] = b
-            Sconn_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
-
-    # need to save Sinput_reg, Sinput_R2, etc., somewhere for later use....
-
-    # regression of Mrecord with pain ratings
-    # glm_fit
-    Mregression = np.zeros((nbeta,nbeta,3))
-    # Mregression1 = np.zeros((nbeta,nbeta,3))
-    # Mregression2 = np.zeros((nbeta,nbeta,3))
-    p = covariates2[np.newaxis, g]
-    p -= np.mean(p)
-    pmax = np.max(np.abs(p))
-    p /= pmax
-    G = np.concatenate((np.ones((1, len(g))), p), axis=0)  # put the intercept term first
-    for aa in range(nbeta):
-        for bb in range(nbeta):
-            m = Mrecord[aa,bb,g]
-            if np.var(m) > 0:
-                b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis,:], G)
-                Mregression[aa,bb,:] = [b[0,0],b[0,1],R2]
-
-    print('\n\nMconn regression with COV2')
-    # rtext = write_Mconn_values(Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', minthresh=0.0001, maxthresh=0.0)
-    labeltext, inttext, slopetext, R2text, R2, R2thresh = write_Mreg_values(Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', Rthresh=0.1)
-
-    # average Mconn values
-    Mconn_avg = np.mean(Mrecord[:,:,g],axis = 2)
-    Mconn_sem = np.std(Mrecord[:,:,g],axis = 2)/np.sqrt(len(g))
-    # rtext = write_Mconn_values(Mconn_avg, Mconn_sem, betanamelist, rnamelist, beta_list,
-    #                            format='f', minthresh=0.0001, maxthresh=0.0)
-
-
-    pthresh = 0.05
-    Tthresh = stats.t.ppf(1 - pthresh, NP - 1)
-
-    print('\n\nAverage Mconn values')
-    labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(Mconn_avg, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format='f', pthresh=0.05)
-
-    Rtextlist = [' ']*10
-    Rvallist = [0]*10
-
-    # plot timecourses for selected regions
-    n_to_display = len(regionlists_for_display)
-    Nplots = np.ceil(n_to_display/3).astype(int)
-    RL = np.concatenate((regionlists_for_display,regionlists_for_display))
-
-    for np in range(Nplots):
-        outputdir, f = os.path.split(SAPMresultsname)
-        # only show 3 regions in each plot for consistency in sizing
-        # show some regions
-        window1 = windowoffset + np
-        regionlist = RL[np*3:(np+1)*3]
-        nametag = rnamelist[regionlist[0]] + '_' + rnamelist[regionlist[1]]  + '_' + rnamelist[regionlist[2]]
-        nametag += gtag
-        svgname, Rtext, Rvals = plot_region_fits(window1, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange)
-        for n,x in enumerate(regionlist):
-            print('Rtext = {}  Rvals = {}'.format(Rtext[n],Rvals[n]))
-            Rtextlist[x] = Rtext[n]
-            Rvallist[x] = Rvals[n]
-
-    # plot inputs to selected regions
-    n_to_display = len(inputs_to_display)
-    for np in range(n_to_display):
-        window1 = windowoffset + np + 50
-        target = inputs_to_display[np]
-        nametag1 = target + 'input' + gtag
-
-        if len(yrange2) > 0:
-            ylim = yrange2[0]
-            yrangethis = [-ylim,ylim]
-        else:
-            yrangethis = []
-        plot_region_inputs_regression(window1, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-        plot_region_inputs_average(window1+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                                   Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    return Rtextlist, Rvallist
-
-
-def show_SAPM_timecourses(SAPMparametersname, SAPMresultsname, paradigm_centered, regionlists_for_display, inputs_to_display, windowoffset = 0, yrange = [], yrange2 = []):
-    import numpy as np
-
-    print('testing  sqrt of 5 is {}'.format(np.sqrt(5)))
-
-    # show the results
-    SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
-    network = SAPMparams['network']
-    beta_list = SAPMparams['beta_list']
-    betanamelist = SAPMparams['betanamelist']
-    nruns_per_person = SAPMparams['nruns_per_person']
-    rnamelist = SAPMparams['rnamelist']
-    fintrinsic_count = SAPMparams['fintrinsic_count']
-    fintrinsic_region = SAPMparams['fintrinsic_region']
-    vintrinsic_count = SAPMparams['vintrinsic_count']
-    nclusterlist = SAPMparams['nclusterlist']
-    tplist_full = SAPMparams['tplist_full']
-    tcdata_centered = SAPMparams['tcdata_centered']
-    ctarget = SAPMparams['ctarget']
-    csource = SAPMparams['csource']
-    tsize = SAPMparams['tsize']
-    timepoint = SAPMparams['timepoint']
-    epoch = SAPMparams['epoch']
-    Nintrinsic = fintrinsic_count + vintrinsic_count
-    # end of reloading parameters-------------------------------------------------------
-
-    # load the SAPM results
-    SAPMresults_load = np.load(SAPMresultsname, allow_pickle=True)
-
-    # for nperson in range(NP)
-    NP = len(SAPMresults_load)
-    resultscheck = np.zeros((NP, 4))
-    nbeta, tsize_full = np.shape(SAPMresults_load[0]['Sconn'])
-    ncon = nbeta - Nintrinsic
-
-    if epoch >= tsize:
-        et1 = 0
-        et2 = tsize
-    else:
-        et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
-        et2 = (timepoint + np.floor(epoch / 2)).astype(int)
-    ftemp = paradigm_centered[et1:et2]
-
-    Mrecord = np.zeros((nbeta, nbeta, NP))
-    R2totalrecord = np.zeros(NP)
-    for nperson in range(NP):
-        Sinput = SAPMresults_load[nperson]['Sinput']
-        Sconn = SAPMresults_load[nperson]['Sconn']
-        Minput = SAPMresults_load[nperson]['Minput']
-        Mconn = SAPMresults_load[nperson]['Mconn']
-        beta_int1 = SAPMresults_load[nperson]['beta_int1']
-        R2total = SAPMresults_load[nperson]['R2total']
-        Meigv = SAPMresults_load[nperson]['Meigv']
-        betavals = SAPMresults_load[nperson]['betavals']
-        # fintrinsic1 = SAPMresults_load[nperson]['fintrinsic1']
-
-        nruns = nruns_per_person[nperson]
-        fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
-
-        # ---------------------------------------------------
-        fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
-                                                                 vintrinsic_count, beta_int1, fintrinsic1)
-
-        nr, tsize_total = np.shape(Sinput)
-        tsize = (tsize_total / nruns).astype(int)
-        nbeta,tsize2 = np.shape(Sconn)
-
-        if nperson == 0:
-            Sinput_total = np.zeros((nr,tsize, NP))
-            Sconn_total = np.zeros((nbeta,tsize, NP))
-            fit_total = np.zeros((nr,tsize, NP))
-
-        tc = Sinput
-        tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
-        Sinput_total[:,:,nperson] = tc1
-
-        tc = Sconn
-        tc1 = np.mean(np.reshape(tc, (nbeta, nruns, tsize)), axis=1)
-        Sconn_total[:,:,nperson] = tc1
-
-        tc = fit
-        tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
-        fit_total[:,:,nperson] = tc1
-
-        Mrecord[:, :, nperson] = Mconn
-        R2totalrecord[nperson] = R2total
-
-    Sinput_avg = np.mean(Sinput_total,axis=2)
-    Sinput_sem = np.std(Sinput_total,axis=2)/np.sqrt(NP)
-
-    Sconn_avg = np.mean(Sconn_total,axis=2)
-    Sconn_sem = np.std(Sconn_total,axis=2)/np.sqrt(NP)
-
-    fit_avg = np.mean(fit_total,axis=2)
-    fit_sem = np.std(fit_total,axis=2)/np.sqrt(NP)
-
-    Mconn_avg = np.mean(Mrecord,axis=2)
-    Mconn_sem = np.std(Mrecord,axis=2)/np.sqrt(NP)
-
-    pthresh = 0.05
-    Tthresh = stats.t.ppf(1 - pthresh, NP - 1)
-
-    print('\n\nAverage Mconn values')
-    labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(Mconn_avg, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format='f', pthresh=0.05)
-
-    Rtextlist = [' ']*len(rnamelist)
-    Rvallist = [0]*len(rnamelist)
-
-    # plot timecourses for selected regions
-    n_to_display = len(regionlists_for_display)
-    Nplots = np.ceil(n_to_display/3).astype(int)
-    RL = np.concatenate((regionlists_for_display,regionlists_for_display))
-
-    for np in range(Nplots):
-        outputdir, f = os.path.split(SAPMresultsname)
-        # only show 3 regions in each plot for consistency in sizing
-        # show some regions
-        window1 = windowoffset + np
-        regionlist = RL[np*3:(np+1)*3]
-        nametag = rnamelist[regionlist[0]] + '_' + rnamelist[regionlist[1]]  + '_' + rnamelist[regionlist[2]]
-        svgname, Rtext, Rvals = plot_region_fits(window1, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange)
-        for n,x in enumerate(regionlist):
-            print('Rtext = {}  Rvals = {}'.format(Rtext[n],Rvals[n]))
-            Rtextlist[x] = Rtext[n]
-            Rvallist[x] = Rvals[n]
-
-    # plot inputs to selected regions
-    n_to_display = len(inputs_to_display)
-    for np in range(n_to_display):
-        window1 = windowoffset + np + 50
-        target = inputs_to_display[np]
-        nametag1 = rnamelist[target] + 'input'
-
-        if len(yrange2) > 0:
-            ylim = yrange2[0]
-            yrangethis = [-ylim,ylim]
-        else:
-            yrangethis = []
-
-        plot_region_inputs_average(window1, rnamelist[target],nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                                   Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    return Rtextlist, Rvallist
-
-
-#-------------compare groups----------------------------------
-
-# def show_SAPM_timecourse_results_compare_groups(covariatesfile, SAPMparametersname, SAPMresultsname, paradigm_centered, group='all',
-#                                 windowoffset=0, yrange = []):
-#     if len(yrange) > 0:
-#         setylim = True
-#         ymin = yrange[0]
-#         ymax = yrange[1]
-#     else:
-#         setylim = False
-#
-#     # settings = np.load(settingsfile, allow_pickle=True).flat[0]
-#     # covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
-#     # covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
-#
-#     covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
-#     if 'gender' in covariatesdata['GRPcharacteristicslist']:
-#         x = covariatesdata['GRPcharacteristicslist'].index('gender')
-#         covariates1 = covariatesdata['GRPcharacteristicsvalues'][x]
-#     else:
-#         covariates1 = []
-#     if 'painrating' in covariatesdata['GRPcharacteristicslist']:
-#         x = covariatesdata['GRPcharacteristicslist'].index('painrating')
-#         covariates2 = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
-#     else:
-#         covariates2 = []
-#
-#
-#     SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
-#     network = SAPMparams['network']
-#     beta_list = SAPMparams['beta_list']
-#     betanamelist = SAPMparams['betanamelist']
-#     nruns_per_person = SAPMparams['nruns_per_person']
-#     rnamelist = SAPMparams['rnamelist']
-#     fintrinsic_count = SAPMparams['fintrinsic_count']
-#     fintrinsic_region = SAPMparams['fintrinsic_region']
-#     vintrinsic_count = SAPMparams['vintrinsic_count']
-#     nclusterlist = SAPMparams['nclusterlist']
-#     tplist_full = SAPMparams['tplist_full']
-#     tcdata_centered = SAPMparams['tcdata_centered']
-#     ctarget = SAPMparams['ctarget']
-#     csource = SAPMparams['csource']
-#     tsize = SAPMparams['tsize']
-#     timepoint = SAPMparams['timepoint']
-#     epoch = SAPMparams['epoch']
-#     Nintrinsic = fintrinsic_count + vintrinsic_count
-#     # end of reloading parameters-------------------------------------------------------
-#
-#     # load the SAPM results
-#     SAPMresults_load = np.load(SAPMresultsname, allow_pickle=True)
-#
-#     # for nperson in range(NP)
-#     NP = len(SAPMresults_load)
-#     resultscheck = np.zeros((NP, 4))
-#     nbeta, tsize_full = np.shape(SAPMresults_load[0]['Sconn'])
-#     ncon = nbeta - Nintrinsic
-#
-#     if epoch >= tsize:
-#         et1 = 0
-#         et2 = tsize
-#     else:
-#         et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
-#         et2 = (timepoint + np.floor(epoch / 2)).astype(int)
-#     ftemp = paradigm_centered[et1:et2]
-#
-#     Mrecord = np.zeros((nbeta, nbeta, NP))
-#     R2totalrecord = np.zeros(NP)
-#     for nperson in range(NP):
-#         Sinput = SAPMresults_load[nperson]['Sinput']
-#         Sconn = SAPMresults_load[nperson]['Sconn']
-#         Minput = SAPMresults_load[nperson]['Minput']
-#         Mconn = SAPMresults_load[nperson]['Mconn']
-#         beta_int1 = SAPMresults_load[nperson]['beta_int1']
-#         R2total = SAPMresults_load[nperson]['R2total']
-#         Meigv = SAPMresults_load[nperson]['Meigv']
-#         betavals = SAPMresults_load[nperson]['betavals']
-#         # fintrinsic1 = SAPMresults_load[nperson]['fintrinsic1']
-#
-#         nruns = nruns_per_person[nperson]
-#         fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
-#
-#         # ---------------------------------------------------
-#         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
-#                                                                  vintrinsic_count, beta_int1, fintrinsic1)
-#
-#         nr, tsize_total = np.shape(Sinput)
-#         tsize = (tsize_total / nruns).astype(int)
-#         nbeta, tsize2 = np.shape(Sconn)
-#
-#         if nperson == 0:
-#             Sinput_total = np.zeros((nr, tsize, NP))
-#             Sconn_total = np.zeros((nbeta, tsize, NP))
-#             fit_total = np.zeros((nr, tsize, NP))
-#
-#         tc = Sinput
-#         tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
-#         Sinput_total[:, :, nperson] = tc1
-#
-#         tc = Sconn
-#         tc1 = np.mean(np.reshape(tc, (nbeta, nruns, tsize)), axis=1)
-#         Sconn_total[:, :, nperson] = tc1
-#
-#         tc = fit
-#         tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
-#         fit_total[:, :, nperson] = tc1
-#
-#         Mrecord[:, :, nperson] = Mconn
-#         R2totalrecord[nperson] = R2total
-#
-#     # ancova sex x pain rating---------------------------------------
-#     # ANCOVA group vs pain rating
-#     statstype = 'ANCOVA'
-#     formula_key1 = 'C(Group)'
-#     formula_key2 = 'pain'
-#     formula_key3 = 'C(Group):' + 'pain'
-#     atype = 2
-#
-#     # separate by sex
-#     g1 = np.where(covariates1 == 'Female')[0]
-#     g2 = np.where(covariates1 == 'Male')[0]
-#
-#     cov1 = covariates2[g1]
-#     cov2 = covariates2[g2]
-#     ancova_p = np.ones((nbeta, nbeta, 3))
-#     for aa in range(ncon):
-#         for bb in range(ncon):
-#             m = Mrecord[aa, bb, :]
-#             if np.var(m) > 0:
-#                 b1 = m[g1]
-#                 b2 = m[g2]
-#                 anova_table, p_MeoG, p_MeoC, p_intGC = py2ndlevelanalysis.run_ANOVA_or_ANCOVA2(b1, b2, cov1, cov2,
-#                                                                                                'pain', formula_key1,
-#                                                                                                formula_key2,
-#                                                                                                formula_key3, atype)
-#                 ancova_p[aa, bb, :] = np.array([p_MeoG, p_MeoC, p_intGC])
-#
-#     columns = [name[:3] + ' in' for name in betanamelist]
-#     rows = [name[:3] for name in betanamelist]
-#
-#     p, f = os.path.split(SAPMresultsname)
-#     pd.options.display.float_format = '{:.2e}'.format
-#     df = pd.DataFrame(ancova_p[:, :, 0], columns=columns, index=rows)
-#     xlname = os.path.join(p, 'Mancova_MeoG.xlsx')
-#     df.to_excel(xlname)
-#     df = pd.DataFrame(ancova_p[:, :, 1], columns=columns, index=rows)
-#     xlname = os.path.join(p, 'Mancova_MeoP.xlsx')
-#     df.to_excel(xlname)
-#     df = pd.DataFrame(ancova_p[:, :, 2], columns=columns, index=rows)
-#     xlname = os.path.join(p, 'Mancova_IntGP.xlsx')
-#     df.to_excel(xlname)
-#
-#     print('\nMain effect of group:')
-#     text_MeoG = write_Mconn_values(ancova_p[:, :, 0], [], betanamelist, rnamelist, beta_list, format='e', minthresh=0.0,
-#                                    maxthresh=0.05)
-#     print('\nMain effect of pain ratings:')
-#     text_MeoP = write_Mconn_values(ancova_p[:, :, 1], [], betanamelist, rnamelist, beta_list, format='e', minthresh=0.0,
-#                                    maxthresh=0.05)
-#     print('\nInteraction group x pain:')
-#     text_IntGP = write_Mconn_values(ancova_p[:, :, 2], [], betanamelist, rnamelist, beta_list, format='e',
-#                                     minthresh=0.0, maxthresh=0.05)
-#     print('\n\n')
-#
-#     # set the group
-#     g = list(range(NP))
-#     gtag = '_all'
-#     g2tag = '_Male'
-#     g1tag = '_Female'
-#     Mdata = []
-#
-#     for gnum in range(3):
-#         if gnum == 0:  gg = g
-#         if gnum == 1:  gg = g1
-#         if gnum == 2:  gg = g2
-#         # do this for each group---------------------------
-#         # regression of Mrecord with pain ratings
-#         # glm_fit
-#         Mregression = np.zeros((nbeta, nbeta, 3))
-#         p = covariates2[np.newaxis, gg]
-#         p -= np.mean(p)
-#         pmax = np.max(np.abs(p))
-#         p /= pmax
-#         G = np.concatenate((np.ones((1, len(gg))), p), axis=0)  # put the intercept term first
-#         for aa in range(nbeta):
-#             for bb in range(nbeta):
-#                 m = Mrecord[aa, bb, gg]
-#                 if np.var(m) > 0:
-#                     b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis, :], G)
-#                     Mregression[aa, bb, :] = [b[0, 0], b[0, 1], R2]
-#
-#         # average Mconn values
-#         Mconn_avg = np.mean(Mrecord[:, :, gg], axis=2)
-#         Mconn_sem = np.std(Mrecord[:, :, gg], axis=2) / np.sqrt(len(gg))
-#         # rtext = write_Mconn_values(Mconn_avg, Mconn_sem, betanamelist, rnamelist, beta_list,
-#         #                            format='f', minthresh=0.0001, maxthresh=0.0)
-#         Tvals = Mconn_avg/(Mconn_sem + 1.0e-10)
-#         entry = {'Mreg':Mregression, 'Mconn_avg':Mconn_avg, 'Mconn_sem':Mconn_sem, 'Tvals':Tvals}
-#
-#         pthresh = 0.05
-#         Tthresh = stats.t.ppf(1 - pthresh, NP - 1)
-#         if gnum == 0:
-#             Ttemp = np.abs(Tvals) > Tthresh
-#             Tsigflag = copy.deepcopy(Ttemp)
-#             Rtemp = np.abs(Mregression[:,:,2]) > 0.1
-#             Rsigflag = copy.deepcopy(Rtemp)
-#         else:
-#             Ttemp = np.abs(Tvals) > Tthresh
-#             Rtemp = np.abs(Mregression[:,:,2]) > 0.1
-#             Tsigflag += Ttemp
-#             Rsigflag += Rtemp
-#
-#         Mdata.append(entry)
-#
-#
-#     for gnum in range(3):
-#         if gnum == 0:  tag = gtag
-#         if gnum == 1:  tag = g1tag
-#         if gnum == 2:  tag = g2tag
-#
-#         Mregression = Mdata[gnum]['Mreg']
-#         Mconn_avg = Mdata[gnum]['Mconn_avg']
-#         Mconn_sem = Mdata[gnum]['Mconn_sem']
-#
-#         descriptor = '{} Mconn regression with pain ratings'.format(tag)
-#         print('\n\n{}'.format(descriptor))
-#         # rtext = write_Mconn_values(Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', minthresh=0.0001, maxthresh=0.0)
-#
-#         reg_pthresh = 0.0001
-#         Zthresh = stats.norm.ppf(1 - reg_pthresh)
-#         Rthresh = np.tanh(Zthresh/np.sqrt(NP-3))
-#         R2thresh = Rthresh**2
-#         print('for p = {:.2e}  Z = {:.2f}   R = {:.3f}  R2 = {:.3f} NP = {}'.format(reg_pthresh, Zthresh,Rthresh,R2thresh, NP))
-#
-#         R2thresh = 0.1
-#         format = 'f'
-#         labeltext, inttext, slopetext, R2text, R2, R2thresh = write_Mreg_values(Mregression[:, :, 1], Mregression[:, :, 2], betanamelist, rnamelist, beta_list,
-#                                   format, R2thresh, Rsigflag > 0)
-#         textoutputs = {'regions': labeltext, 'beta': valuetext, 'R2': Rtext}
-#         p, f = os.path.split(SAPMresultsname)
-#         df = pd.DataFrame(textoutputs)
-#         xlname = os.path.join(p, descriptor + '.xlsx')
-#         df.to_excel(xlname)
-#
-#         descriptor = '{} Average Mconn values'.format(tag)
-#         print('\n\n{}'.format(descriptor))
-#         format = 'f'
-#         pthresh = 0.05
-#         labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(Mconn_avg, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format, pthresh, Tsigflag > 0)
-#         textoutputs = {'regions':labeltext, 'beta':valuetext, 'T':Ttext}
-#
-#         p, f = os.path.split(SAPMresultsname)
-#         df = pd.DataFrame(textoutputs)
-#         xlname = os.path.join(p, descriptor + '.xlsx')
-#         df.to_excel(xlname)
-
-
-
-
-#-------------------------------------------------------------
-#---------------show all average values for each group--------
-# def show_SAPM_average_beta_for_groups(covariatesfile, SAPMparametersname, SAPMresultsname, paradigm_centered, group='all',
-#                                 windowoffset=0):
-#     # settings = np.load(settingsfile, allow_pickle=True).flat[0]
-#     # covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
-#     # covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
-#
-#     covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
-#     if 'gender' in covariatesdata['GRPcharacteristicslist']:
-#         x = covariatesdata['GRPcharacteristicslist'].index('gender')
-#         covariates1 = covariatesdata['GRPcharacteristicsvalues'][x]
-#     else:
-#         covariates1 = []
-#     if 'painrating' in covariatesdata['GRPcharacteristicslist']:
-#         x = covariatesdata['GRPcharacteristicslist'].index('painrating')
-#         covariates2 = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
-#     else:
-#         covariates2 = []
-#
-#     painrating = covariates2
-#
-#     SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
-#     network = SAPMparams['network']
-#     beta_list = SAPMparams['beta_list']
-#     betanamelist = SAPMparams['betanamelist']
-#     nruns_per_person = SAPMparams['nruns_per_person']
-#     rnamelist = SAPMparams['rnamelist']
-#     fintrinsic_count = SAPMparams['fintrinsic_count']
-#     fintrinsic_region = SAPMparams['fintrinsic_region']
-#     vintrinsic_count = SAPMparams['vintrinsic_count']
-#     nclusterlist = SAPMparams['nclusterlist']
-#     tplist_full = SAPMparams['tplist_full']
-#     tcdata_centered = SAPMparams['tcdata_centered']
-#     ctarget = SAPMparams['ctarget']
-#     csource = SAPMparams['csource']
-#     tsize = SAPMparams['tsize']
-#     timepoint = SAPMparams['timepoint']
-#     epoch = SAPMparams['epoch']
-#     Nintrinsic = fintrinsic_count + vintrinsic_count
-#     # end of reloading parameters-------------------------------------------------------
-#
-#     # load the SAPM results
-#     SAPMresults_load = np.load(SAPMresultsname, allow_pickle=True)
-#
-#     # for nperson in range(NP)
-#     NP = len(SAPMresults_load)
-#     resultscheck = np.zeros((NP, 4))
-#     nbeta, tsize_full = np.shape(SAPMresults_load[0]['Sconn'])
-#     ncon = nbeta - Nintrinsic
-#
-#     if epoch >= tsize:
-#         et1 = 0
-#         et2 = tsize
-#     else:
-#         et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
-#         et2 = (timepoint + np.floor(epoch / 2)).astype(int)
-#     ftemp = paradigm_centered[et1:et2]
-#
-#     #-------------compile all the results---------------------------
-#     Mrecord = np.zeros((nbeta, nbeta, NP))
-#     R2totalrecord = np.zeros(NP)
-#     for nperson in range(NP):
-#         Sinput = SAPMresults_load[nperson]['Sinput']
-#         Sconn = SAPMresults_load[nperson]['Sconn']
-#         Minput = SAPMresults_load[nperson]['Minput']
-#         Mconn = SAPMresults_load[nperson]['Mconn']
-#         beta_int1 = SAPMresults_load[nperson]['beta_int1']
-#         R2total = SAPMresults_load[nperson]['R2total']
-#         Meigv = SAPMresults_load[nperson]['Meigv']
-#         betavals = SAPMresults_load[nperson]['betavals']
-#         # fintrinsic1 = SAPMresults_load[nperson]['fintrinsic1']
-#
-#         nruns = nruns_per_person[nperson]
-#         fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
-#
-#         # ---------------------------------------------------
-#         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
-#                                                                  vintrinsic_count, beta_int1, fintrinsic1)
-#
-#         nr, tsize_total = np.shape(Sinput)
-#         tsize = (tsize_total / nruns).astype(int)
-#         nbeta, tsize2 = np.shape(Sconn)
-#
-#         if nperson == 0:
-#             Sinput_total = np.zeros((nr, tsize, NP))
-#             Sconn_total = np.zeros((nbeta, tsize, NP))
-#             fit_total = np.zeros((nr, tsize, NP))
-#
-#         tc = Sinput
-#         tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
-#         Sinput_total[:, :, nperson] = tc1
-#
-#         tc = Sconn
-#         tc1 = np.mean(np.reshape(tc, (nbeta, nruns, tsize)), axis=1)
-#         Sconn_total[:, :, nperson] = tc1
-#
-#         tc = fit
-#         tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
-#         fit_total[:, :, nperson] = tc1
-#
-#         Mrecord[:, :, nperson] = Mconn
-#         R2totalrecord[nperson] = R2total
-#
-#     # separate by sex
-#     g = list(range(NP))
-#     if group == 'Female':
-#         g = np.where(covariates1 == 'Female')[0]
-#     if group == 'Male':
-#         g = np.where(covariates1 == 'Male')[0]
-#
-#     cov = covariates2[g]
-#
-#     columns = [name[:3] + ' in' for name in betanamelist]
-#     rows = [name[:3] for name in betanamelist]
-#
-#
-#     # set the group
-#     # g = list(range(NP))
-#     # gtag = '_all'
-#     # g2tag = '_Male'
-#     # g1tag = '_Female'
-#     Mdata = []
-#
-#     # for gnum in range(3):
-#     #     if gnum == 0:  gg = g
-#     #     if gnum == 1:  gg = g1
-#     #     if gnum == 2:  gg = g2
-#
-#         # do this for each group---------------------------
-#         # average Mconn values
-#     Mconn_avg = np.mean(Mrecord[:, :, g], axis=2)
-#     Mconn_sem = np.std(Mrecord[:, :, g], axis=2) / np.sqrt(len(g))
-#     # rtext = write_Mconn_values(Mconn_avg, Mconn_sem, betanamelist, rnamelist, beta_list,
-#     #                            format='f', minthresh=0.0001, maxthresh=0.0)
-#     Tvals = Mconn_avg/(Mconn_sem + 1.0e-10)
-#
-#         # entry = {'Mconn_avg':Mconn_avg, 'Mconn_sem':Mconn_sem}
-#         #
-#         # Mdata.append(entry)
-#
-#     # correlation between beta and pain ratings
-#     p = painrating[g] - np.mean(painrating[g])
-#     Rvals = np.zeros(np.shape(Tvals))
-#     Zvals = np.zeros(np.shape(Tvals))
-#     for nn in range(len(csource)):
-#         b = Mrecord[ctarget[nn],csource[nn],g]
-#         R = np.corrcoef(b,p)
-#         Rvals[ctarget[nn],csource[nn]] = R[0,1]
-#         Zvals[ctarget[nn],csource[nn]] = np.arctanh(R[0,1])*np.sqrt(len(g)-3)
-#
-#
-#     # for gnum in range(3):
-#     #     if gnum == 0:  tag = gtag
-#     #     if gnum == 1:  tag = g1tag
-#     #     if gnum == 2:  tag = g2tag
-#
-#         # Mconn_avg = Mdata[gnum]['Mconn_avg']
-#         # Mconn_sem = Mdata[gnum]['Mconn_sem']
-#
-#     descriptor = '{} All Average Mconn values'.format(group)
-#     print('\n\n{}'.format(descriptor))
-#     format = 'f'
-#     pthresh = 0.05
-#     sigflag = []
-#     labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(Mconn_avg, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format, pthresh, sigflag)
-#     textoutputs = {'regions':labeltext, 'beta':valuetext, 'T':Ttext}
-#
-#     sigflag = []
-#     labeltext, valuetext, Ztext, Rtext = write_Mcorr_values(Mconn_avg, Mconn_sem, Rvals, Zvals, NP, betanamelist, rnamelist, beta_list, format, pthresh, sigflag)
-#     textoutputsR = {'regions':labeltext, 'beta':valuetext, 'Z':Ztext, 'R':Rtext}
-#
-#     p, f = os.path.split(SAPMresultsname)
-#     df = pd.DataFrame(textoutputs)
-#     dfR = pd.DataFrame(textoutputsR)
-#     xlname = os.path.join(p, descriptor + '.xlsx')
-#     xlnameR = os.path.join(p, descriptor + '_corr.xlsx')
-#     print(xlname)
-#
-#     df.to_excel(xlname, sheet_name = 'average')
-#     dfR.to_excel(xlnameR, sheet_name = 'correlation')
-#
-#     # write out info about R2 distribution
-#     print('R2 average = {:.3f} {} {:.3f}'.format(np.mean(R2totalrecord),chr(177),np.std(R2totalrecord)))
-#     print('R2 max/min = {:.3f} {:.3f}'.format(np.max(R2totalrecord),np.min(R2totalrecord)))
-#--------------------------------------------------------------
-#--------------------------------------------------------------
-
-def plot_region_inputs_average(windownum, target, nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrange = []):
     Zthresh = stats.norm.ppf(1-np.array([1.0, 0.05,0.01,0.001]))
     symbollist = [' ','*', chr(8868),chr(8903)]
 
@@ -3472,8 +1520,20 @@ def plot_region_inputs_average(windownum, target, nametag1, Minput, Sinput_avg, 
             text += text1 + ', '
         textlist += [text[:-1]]
 
-    plt.close(windownum)
-    fig1, axs = plt.subplots(nsources, 2, sharey=True, figsize=(12, 9), dpi=100, num=windownum)
+    fig1 = plt.figure(window)   # for plotting in GUI, expect "window" to refer to a figure
+    if display_in_GUI:
+        print('Displaying output in GUI window ...')
+        plt.clf()
+        axs = []
+        for n1 in range(nsources):
+            axrow = []
+            for n2 in range(2):
+                axrow += [fig1.add_subplot(nsources,2,n1*2+n2+1)]
+            axs += [axrow]
+        axs = np.array(axs)
+    else:
+        plt.close(window)
+        fig1, axs = plt.subplots(nsources, 2, sharey=True, figsize=(12, 9), dpi=100, num=window)
 
     x = list(range(tsize))
     xx = x + x[::-1]
@@ -3482,46 +1542,24 @@ def plot_region_inputs_average(windownum, target, nametag1, Minput, Sinput_avg, 
     tc1f = fit_avg[rtarget,:]
     tc1fp = fit_sem[rtarget,:]
 
-    # Z1 = Sinput_reg[rtarget,:,3]
-    # Z1f = fit_reg[rtarget,:,3]
-    #
-    # S = np.zeros(len(Z1)).astype(int)
-    # for n in range(len(Z1)): c = np.where(Zthresh < Z1[n])[0];  S[n] = np.max(c)
-    # Sf = np.zeros(len(Z1f)).astype(int)
-    # for n in range(len(Z1f)): c = np.where(Zthresh < Z1f[n])[0];  Sf[n] = np.max(c)
-
     y1 = list(tc1f+tc1fp)
     y2 = list(tc1f-tc1fp)
     yy = y1 + y2[::-1]
     axs[1,1].plot(x, tc1, '-ob', linewidth=1, markersize=4)
-    # axs[1,1].plot(tc1+tc1p, '-b')
-    # axs[1,1].plot(tc1-tc1p, '--b')
     axs[1,1].plot(x, tc1f, '-xr', linewidth=1, markersize=4)
     axs[1,1].fill(xx,yy, facecolor=(1,0,0), edgecolor='None', alpha = 0.2)
     axs[1,1].plot(x, tc1f+tc1fp, color = (1,0,0), linestyle = '-', linewidth = 0.5)
-    # axs[1,1].plot(x, tc1f-tc1fp, '--r')
     axs[1,1].set_title('target input {}'.format(rnamelist[rtarget]))
-
-    # add marks for significant slope wrt pain
     ymax = np.max(np.abs(yy))
-    # for n,s in enumerate(S):
-    #     if s > 0: axs[1,1].annotate(symbollist[s], xy = (x[n]-0.25, ymax), fontsize=8)
 
     for ss in range(nsources):
         tc1 = Sconn_avg[sources[ss], :]
         tc1p = Sconn_sem[sources[ss], :]
-
-        # Z1 = Sconn_reg[sources[ss], :, 3]
-        # S = np.zeros(len(Z1)).astype(int)
-        # for n in range(len(Z1)): c = np.where(Zthresh < Z1[n])[0];  S[n] = np.max(c)
-
         y1 = list(tc1 + tc1p)
         y2 = list(tc1 - tc1p)
         yy = y1 + y2[::-1]
         axs[ss,0].plot(x, tc1, '-xr')
         axs[ss,0].fill(xx,yy, facecolor=(1,0,0), edgecolor='None', alpha = 0.2)
-        # axs[ss,0].plot(x, tc1+tc1p, '-r')
-        # axs[ss,0].plot(x, tc1-tc1p, '--r')
         axs[ss,0].plot(x, tc1+tc1p, color = (1,0,0), linestyle = '-', linewidth = 0.5)
         if rsources[ss] >= nregions:
             axs[ss, 0].set_title('source output {} {}'.format(betanamelist[sources[ss]], 'int'))
@@ -3530,21 +1568,26 @@ def plot_region_inputs_average(windownum, target, nametag1, Minput, Sinput_avg, 
         axs[ss,0].annotate(textlist[ss], xy=(.025, .025), xycoords='axes  fraction',
                 horizontalalignment='left', verticalalignment='bottom', fontsize=10)
 
-        # add marks for significant slope wrt pain
-        # ymax = np.max(np.abs(yy))
-        # for n, s in enumerate(S):
-        #     if s > 0: axs[ss,0].annotate(symbollist[s], xy = (x[n]-0.25, ymax), fontsize=8)
-
         if setylim:
             axs[ss,0].set_ylim((ymin,ymax))
-    # p, f = os.path.split(SAPMresultsname)
-    svgname = os.path.join(outputdir, 'Avg_' + nametag1 + '.svg')
-    plt.savefig(svgname)
+
+    if display_in_GUI:
+        svgname = 'output figure displayed in GUI ... not saved'
+        TargetCanvas.draw()
+    else:
+        svgname = os.path.join(outputdir, 'Avg_' + nametag1 + '.svg')
+        plt.savefig(svgname)
 
     return svgname
 
 
-def plot_region_inputs_regression(windownum, target, nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrange = []):
+def plot_region_inputs_regression(window, target, nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrange = [], TargetCanvas = 'none'):
+
+    if isinstance(TargetCanvas,str):
+        display_in_GUI = False
+    else:
+        display_in_GUI = True
+
     Zthresh = stats.norm.ppf(1-np.array([1.0, 0.05,0.01,0.001]))
     symbollist = [' ','*', chr(8868),chr(8903)]
 
@@ -3573,19 +1616,26 @@ def plot_region_inputs_regression(windownum, target, nametag1, Minput, Sinput_re
         text = betanamelist[ss] + ': '
         beta = Mconn_avg[targets2ndlevel_list,ss]
         for ss2 in range(len(beta)):
-            # signtext = 'none '
-            # if beta[ss2] > 0:
-            #     signtext = 'Excit '
-            # if beta[ss2] < 0:
-            #     signtext = 'Inhib '
-
             valtext = '{:.2f} '.format(beta[ss2])
             text1 = '{}{}'.format(valtext,betanamelist[targets2ndlevel_list[ss2]])
             text += text1 + ', '
         textlist += [text[:-1]]
 
-    plt.close(windownum)
-    fig1, axs = plt.subplots(nsources, 2, sharey=True, figsize=(12, 9), dpi=100, num=windownum)
+    fig1 = plt.figure(window)
+    if display_in_GUI:
+        print('Displaying output in GUI window ...')
+
+        plt.clf()
+        axs = []
+        for n1 in range(nsources):
+            axrow = []
+            for n2 in range(2):
+                axrow += [fig1.add_subplot(nsources,2,n1*2+n2+1)]
+            axs += [axrow]
+        axs = np.array(axs)
+    else:
+        plt.close(window)
+        fig1, axs = plt.subplots(nsources, 2, sharey=True, figsize=(12, 9), dpi=100, num=window)
 
     x = list(range(tsize))
     xx = x + x[::-1]
@@ -3606,8 +1656,7 @@ def plot_region_inputs_regression(windownum, target, nametag1, Minput, Sinput_re
     y2 = list(tc1f-tc1fp)
     yy = y1 + y2[::-1]
     axs[1,1].plot(x, tc1, '-ob', linewidth=1, markersize=4)
-    # axs[1,1].plot(tc1+tc1p, '-b')
-    # axs[1,1].plot(tc1-tc1p, '--b')
+
     axs[1,1].plot(x, tc1f, '-xr', linewidth=1, markersize=4)
     axs[1,1].fill(xx,yy, facecolor=(1,0,0), edgecolor='None', alpha = 0.2)
     axs[1,1].plot(x, tc1f+tc1fp, color = (1,0,0), linestyle = '-', linewidth = 0.5)
@@ -3650,13 +1699,24 @@ def plot_region_inputs_regression(windownum, target, nametag1, Minput, Sinput_re
         if setylim:
             axs[ss,0].set_ylim((ymin,ymax))
     # p, f = os.path.split(SAPMresultsname)
-    svgname = os.path.join(outputdir, 'Reg_' + nametag1 + '.svg')
-    plt.savefig(svgname)
+
+    if display_in_GUI:
+        svgname = 'output figure written to GUI ... not saved'
+        TargetCanvas.draw()
+    else:
+        svgname = os.path.join(outputdir, 'Reg_' + nametag1 + '.svg')
+        plt.savefig(svgname)
 
     return svgname
 
 
-def plot_region_fits(window, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange = []):
+def plot_region_fits(window, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange = [], TargetCanvas = 'none'):  # display_in_GUI = False
+
+    if isinstance(TargetCanvas,str):
+        display_in_GUI = False
+    else:
+        display_in_GUI = True
+
     if len(yrange) > 0:
         setylim = True
         ymin = yrange[0]
@@ -3666,13 +1726,28 @@ def plot_region_fits(window, regionlist, nametag, Sinput_avg, Sinput_sem, fit_av
 
     ndisplay = len(regionlist)
 
-    # show regions (inputs real and fit)
-    plt.close(window)
-    fig2, axs = plt.subplots(ndisplay, sharey=False, figsize=(12, 6), dpi=100, num=window)
+    fig2 = plt.figure(window)  # for plotting in GUI, expect "window" to refer to a figure
+    if display_in_GUI:  # fix this up to have only integer window numbers as the input (not figures)
+        print('Displaying output in GUI window ...')
+
+        plt.clf()
+        axs = []
+        for nn in range(ndisplay):
+            print('plot_region_fits:  creating axes in figure window ...')
+            axs += [fig2.add_subplot(ndisplay,1,nn+1)]
+        axs = np.array(axs)
+    else:
+        plt.close(window)
+        if ndisplay > 1:
+            fig2, axs = plt.subplots(ndisplay, sharey=False, figsize=(12, 6), dpi=100, num=window)
+        else:
+            fig2, axtemp = plt.subplots(ndisplay, sharey=False, figsize=(12, 6), dpi=100, num=window)
+            axs = [axtemp]
 
     Rtext_record = []
     Rval_record = []
     for nn in range(ndisplay):
+        print('plot_region_fits: plotting values ...')
         tc1 = Sinput_avg[regionlist[nn], :]
         tcf1 = fit_avg[regionlist[nn], :]
         t = np.array(range(len(tc1)))
@@ -3706,68 +1781,15 @@ def plot_region_fits(window, regionlist, nametag, Sinput_avg, Sinput_sem, fit_av
         Rval_record.append([Rval])
 
     # p, f = os.path.split(SAPMresultsname)
-    svgname = os.path.join(outputdir, 'Avg_' + nametag + '.svg')
-    plt.savefig(svgname)
+    if display_in_GUI:
+        svgname = 'output figure written to GUI ... not saved'
+        print(svgname)
+        TargetCanvas.draw()
+    else:
+        svgname = os.path.join(outputdir, 'Avg_' + nametag + '.svg')
+        plt.savefig(svgname)
 
     return svgname, Rtext_record, Rval_record
-
-
-# def write_Mconn_values(Mconn, Mconn_sem, betanamelist, rnamelist, beta_list, format = 'f', minthresh = 0.0, maxthresh = 0.0):
-#     if maxthresh > minthresh:
-#         maxlim = True
-#     else:
-#         maxlim = False
-#     nregions = len(rnamelist)
-#     nr1, nr2 = np.shape(Mconn)
-#     if len(Mconn_sem) > 0:
-#         write_sem = True
-#     else:
-#         write_sem = False
-#     text_record = []
-#     for n1 in range(nr1):
-#         tname = betanamelist[n1]
-#         tpair = beta_list[n1]['pair']
-#         if tpair[0] >= nregions:
-#             ts = 'int{}'.format(tpair[0]-nregions)
-#         else:
-#             ts = rnamelist[tpair[0]]
-#             if len(ts) > 4:  ts = ts[:4]
-#         tt = rnamelist[tpair[1]]
-#         if len(tt) > 4:  tt = tt[:4]
-#         text1 = '{}-{} input from '.format(ts,tt)
-#         showval = False
-#         for n2 in range(nr2):
-#             if maxlim:
-#                 check = np.abs(Mconn[n1,n2]) < maxthresh
-#             else:
-#                 check = np.abs(Mconn[n1,n2]) > minthresh
-#             if check:
-#                 showval = True
-#                 sname = betanamelist[n2]
-#                 spair = beta_list[n2]['pair']
-#                 if spair[0] >= nregions:
-#                     ss = 'int{}'.format(spair[0]-nregions)
-#                 else:
-#                     ss = rnamelist[spair[0]]
-#                     if len(ss) > 4:  ss = ss[:4]
-#                 st = rnamelist[spair[1]]
-#                 if len(st) > 4:  st = st[:4]
-#                 if format == 'f':
-#                     if write_sem:
-#                         texts = '{}-{} {:.3f} {} {:.3f} '.format(ss,st, Mconn[n1,n2],chr(177), Mconn_sem[n1,n2])
-#                     else:
-#                         texts = '{}-{} {:.3f}  '.format(ss,st, Mconn[n1,n2])
-#                 else:
-#                     if write_sem:
-#                         texts = '{}-{} {:.3e} {} {:.3e} '.format(ss,st, Mconn[n1,n2],chr(177), Mconn_sem[n1,n2])
-#                     else:
-#                         texts = '{}-{} {:.3e}  '.format(ss,st, Mconn[n1,n2])
-#                 text1 += texts
-#         if showval:
-#             print(text1)
-#             text_record += [text1]
-#     return text_record
-
 
 
 def write_Mconn_values2(Mconn, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format = 'f', pthresh = 0.05, sigflag = []):
@@ -3831,66 +1853,6 @@ def write_Mconn_values2(Mconn, Mconn_sem, NP, betanamelist, rnamelist, beta_list
     return labeltext_record, valuetext_record, Ttext_record, T_record, Tthresh
 
 
-# def write_Mcorr_values(Mconn, Mconn_sem, Rvals, Zvals, NP, betanamelist, rnamelist, beta_list, format = 'f', pthresh = 0.05, sigflag = []):
-#
-#     nregions = len(rnamelist)
-#     nr1, nr2 = np.shape(Mconn)
-#
-#     if np.size(sigflag) == 0:
-#         sigflag = np.zeros(np.shape(Mconn))
-#
-#     Zthresh = stats.norm.ppf(1 - pthresh)
-#
-#     labeltext_record = []
-#     valuetext_record = []
-#     Ztext_record = []
-#     Rtext_record = []
-#     for n1 in range(nr1):
-#         tname = betanamelist[n1]
-#         tpair = beta_list[n1]['pair']
-#         if tpair[0] >= nregions:
-#             ts = 'int{}'.format(tpair[0]-nregions)
-#         else:
-#             ts = rnamelist[tpair[0]]
-#             if len(ts) > 4:  ts = ts[:4]
-#         tt = rnamelist[tpair[1]]
-#         if len(tt) > 4:  tt = tt[:4]
-#         # text1 = '{}-{} input from '.format(ts,tt)
-#         showval = False
-#         for n2 in range(nr2):
-#             if (np.abs(Zvals[n1,n2]) > Zthresh)  or (sigflag[n1,n2]):
-#                 showval = True
-#                 sname = betanamelist[n2]
-#                 spair = beta_list[n2]['pair']
-#                 if spair[0] >= nregions:
-#                     ss = 'int{}'.format(spair[0]-nregions)
-#                 else:
-#                     ss = rnamelist[spair[0]]
-#                     if len(ss) > 4:  ss = ss[:4]
-#                 st = rnamelist[spair[1]]
-#                 if len(st) > 4:  st = st[:4]
-#
-#                 labeltext = '{}-{}-{}'.format(ss, st, tt)
-#                 if format == 'f':
-#                     valuetext = '{:.3f} {} {:.3f} '.format(Mconn[n1, n2], chr(177), Mconn_sem[n1, n2])
-#                     Ztext = 'Z = {:.2f} '.format(Zvals[n1,n2])
-#                     Rtext = 'R = {:.3f} '.format(Rvals[n1,n2])
-#                 else:
-#                     valuetext = '{:.3e} {} {:.3e} '.format(Mconn[n1, n2], chr(177), Mconn_sem[n1, n2])
-#                     Ztext = 'Z = {:.2e} '.format(Zvals[n1,n2])
-#                     Rtext = 'R = {:.3e} '.format(Rvals[n1,n2])
-#
-#                 labeltext_record += [labeltext]
-#                 valuetext_record += [valuetext]
-#                 Ztext_record += [Ztext]
-#                 Rtext_record += [Rtext]
-#                 if showval:
-#                     print(labeltext)
-#                     print(valuetext)
-#                     print(Ztext)
-#                     print(Rtext)
-#     return labeltext_record, valuetext_record, Ztext_record, Rtext_record
-
 
 def write_Mreg_values(Mint, Mslope, R2, betanamelist, rnamelist, beta_list, format = 'f', R2thresh = 0.1, sigflag = []):
 
@@ -3951,120 +1913,44 @@ def write_Mreg_values(Mint, Mslope, R2, betanamelist, rnamelist, beta_list, form
                     print(R2text)
     return labeltext_record, inttext_record, slopetext_record, R2text_record, R2_record, R2thresh
 
-
-# def display_Mconn_properties(SAPMresultsname, rnamelist, betanamelist):
+#
+# def plot_correlated_results(SAPMresultsname, SAPMparametersname, connection_name, covariates, figurenumber = 1):
+#     outputdir = r'D:\threat_safety_python\individual_differences\fixed_C6RD0'
+#     # SAPMresultsname = os.path.join(outputdir, 'SEMphysio_model.npy')
 #     SAPMresults_load = np.load(SAPMresultsname, allow_pickle=True)
+#
+#     # SAPMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
+#     SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
+#     ctarget = SAPMparams['ctarget']
+#     csource = SAPMparams['csource']
+#     rnamelist = SAPMparams['rnamelist']
+#     betanamelist = SAPMparams['betanamelist']
+#     beta_list = SAPMparams['beta_list']
+#     Mconn = SAPMparams['Mconn']
+#
+#     # for nperson in range(NP)
 #     NP = len(SAPMresults_load)
-#     Mconn = SAPMresults_load[0]['Mconn']
-#     nr1, nr2 = np.shape(Mconn)
-#     Mrecord = np.zeros((nr1,nr2,NP))
-#     for nperson in range(NP):
-#         Sinput = SAPMresults_load[nperson]['Sinput']
-#         Sconn= SAPMresults_load[nperson]['Sconn']
-#         Minput = SAPMresults_load[nperson]['Minput']
-#         Mconn = SAPMresults_load[nperson]['Mconn']
-#         Mrecord[:,:,nperson] = Mconn
+#     nconn, tsize_full = np.shape(SAPMresults_load[0]['Sconn'])
+#     nbeta = np.shape(SAPMresults_load[0]['betavals'])[0]
+#     beta_record = np.zeros((NP,nbeta))
+#     for nn in range(NP):
+#         beta_record[nn,:] = SAPMresults_load[nn]['betavals']
 #
-#     Mpos = np.zeros(np.shape(Mrecord))
-#     Mpos[Mrecord > 0] = 1
-#     Mneg = np.zeros(np.shape(Mrecord))
-#     Mneg[Mrecord < 0] = 1
-#     Mposneg = np.sum(Mpos, axis = 2) - np.sum(Mneg, axis = 2)
+#     labeltext_record, sources_per_target, intrinsic_flag = betavalue_labels(csource, ctarget, rnamelist, betanamelist, beta_list, Mconn)
 #
-#     columns = [name[:3] + ' in' for name in rnamelist]
-#     columns += ['int1 in', 'int2 in']
-#     rows = [name[:3] for name in rnamelist]
-#     rows += ['int1', 'int2']
+#     x = labeltext_record.index(connection_name)
+#     beta = beta_record[:,x]
 #
-#     df = pd.DataFrame(Mposneg, columns=columns, index=rows)
-#     pd.set_option('display.max_rows', None)
-#     pd.set_option('display.max_columns', None)
-#     pd.set_option('display.width', None)
-#     pd.set_option('display.max_colwidth', None)
+#     # prep regression lines
+#     b, fit, R2 = pydisplay.simple_GLMfit(covariates, beta)
 #
-#     pd.options.display.float_format = '{:.0f}'.format
-#     print(df)
-#
-#     p, f = os.path.split(SAPMresultsname)
-#     xlname = os.path.join(p, 'Moutput_pos_neg_counts.xlsx')
-#     df.to_excel(xlname)
-
-
-# def display_SAPM_results_1person(nperson, Sinput, fit, regionlist, nruns, tsize, windowlist = [24]):
-#     # show results
-#     err = Sinput - fit
-#     Smean = np.mean(Sinput)
-#     errmean = np.mean(err)
-#     R2total = 1 - np.sum((err-errmean)**2)/np.sum((Sinput-Smean)**2)
-#     tsize_total = nruns*tsize
-#
-#     show_nregions = len(regionlist)
-#     if len(windowlist) < show_nregions:
-#         w = windowlist[0]
-#         windowlist = [w+a for a in range(show_nregions)]
-#
-#     results_text_output = []
-#     for rr in range(show_nregions):
-#         regionnum = regionlist[rr]
-#         windownum = windowlist[rr]
-#
-#         tc = Sinput[regionnum,:]
-#         tc1 = np.mean(np.reshape(tc, (nruns, tsize)), axis=0)
-#         tc = fit[regionnum,:]
-#         tcf1 = np.mean(np.reshape(tc, (nruns, tsize)), axis=0)
-#
-#         plt.close(windownum)
-#         fig = plt.figure(windownum, figsize=(12.5, 3.5), dpi=100)
-#         plt.plot(range(tsize),tc1,'-ob')
-#         plt.plot(range(tsize),tcf1,'-xr')
-#
-#         R1 = np.corrcoef(Sinput[regionnum, :], fit[regionnum, :])
-#         Z1 = np.arctanh(R1[0, 1]) * np.sqrt(tsize_total - 3)
-#         results_text = 'person {} region {}   R = {:.3f}  Z = {:.2f}'.format(nperson, regionnum, R1[0, 1], Z1)
-#         print(results_text)
-#
-#         results_text_output += [results_text]
-#
-#     return results_text_output
-
-
-def plot_correlated_results(SAPMresultsname, SAPMparametersname, connection_name, covariates, figurenumber = 1):
-    outputdir = r'D:\threat_safety_python\individual_differences\fixed_C6RD0'
-    # SAPMresultsname = os.path.join(outputdir, 'SEMphysio_model.npy')
-    SAPMresults_load = np.load(SAPMresultsname, allow_pickle=True)
-
-    # SAPMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
-    SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
-    ctarget = SAPMparams['ctarget']
-    csource = SAPMparams['csource']
-    rnamelist = SAPMparams['rnamelist']
-    betanamelist = SAPMparams['betanamelist']
-    beta_list = SAPMparams['beta_list']
-    Mconn = SAPMparams['Mconn']
-
-    # for nperson in range(NP)
-    NP = len(SAPMresults_load)
-    nconn, tsize_full = np.shape(SAPMresults_load[0]['Sconn'])
-    nbeta = np.shape(SAPMresults_load[0]['betavals'])[0]
-    beta_record = np.zeros((NP,nbeta))
-    for nn in range(NP):
-        beta_record[nn,:] = SAPMresults_load[nn]['betavals']
-
-    labeltext_record, sources_per_target, intrinsic_flag = betavalue_labels(csource, ctarget, rnamelist, betanamelist, beta_list, Mconn)
-
-    x = labeltext_record.index(connection_name)
-    beta = beta_record[:,x]
-
-    # prep regression lines
-    b, fit, R2 = pydisplay.simple_GLMfit(covariates, beta)
-
-    plt.close(figurenumber)
-    fig = plt.figure(figurenumber)
-    plt.plot(covariates, beta, color=(0, 0, 0), linestyle='None', marker='o', markerfacecolor=(0, 0, 0),
-                    markersize=4)
-    plt.plot(covariates, fit, color=(0, 0, 0), linestyle='solid', marker='None')
-    textlabel = '{}'.format(connection_name)
-    plt.title(textlabel)
+#     plt.close(figurenumber)
+#     fig = plt.figure(figurenumber)
+#     plt.plot(covariates, beta, color=(0, 0, 0), linestyle='None', marker='o', markerfacecolor=(0, 0, 0),
+#                     markersize=4)
+#     plt.plot(covariates, fit, color=(0, 0, 0), linestyle='solid', marker='None')
+#     textlabel = '{}'.format(connection_name)
+#     plt.title(textlabel)
 
 
 def display_matrix(M,columntitles,rowtitles):
@@ -4143,454 +2029,14 @@ def betavalue_labels(csource, ctarget, rnamelist, betanamelist, beta_list, Mconn
 
 
 
-def show_SAPM_timecourse_results(covariatesfile, SAPMparametersname, SAPMresultsname, group='all', windowoffset = 0, yrange = [], yrange2 = []):
-    # settings = np.load(settingsfile, allow_pickle=True).flat[0]
-    # covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
-    # covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
-
-    covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
-    if 'gender' in covariatesdata['GRPcharacteristicslist']:
-        x = covariatesdata['GRPcharacteristicslist'].index('gender')
-        covariates1 = covariatesdata['GRPcharacteristicsvalues'][x]
-    else:
-        covariates1 = []
-    if 'painrating' in covariatesdata['GRPcharacteristicslist']:
-        x = covariatesdata['GRPcharacteristicslist'].index('painrating')
-        covariates2 = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
-    else:
-        covariates2 = []
-
-    SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
-    network = SAPMparams['network']
-    beta_list = SAPMparams['beta_list']
-    betanamelist = SAPMparams['betanamelist']
-    nruns_per_person = SAPMparams['nruns_per_person']
-    rnamelist = SAPMparams['rnamelist']
-    fintrinsic_count = SAPMparams['fintrinsic_count']
-    fintrinsic_region = SAPMparams['fintrinsic_region']
-    vintrinsic_count = SAPMparams['vintrinsic_count']
-    nclusterlist = SAPMparams['nclusterlist']
-    tplist_full = SAPMparams['tplist_full']
-    tcdata_centered = SAPMparams['tcdata_centered']
-    ctarget = SAPMparams['ctarget']
-    csource = SAPMparams['csource']
-    tsize = SAPMparams['tsize']
-    timepoint = SAPMparams['timepoint']
-    epoch = SAPMparams['epoch']
-    Nintrinsic = fintrinsic_count + vintrinsic_count
-    # end of reloading parameters-------------------------------------------------------
-
-    # load the SEM results
-    SAPMresults_load = np.load(SAPMresultsname, allow_pickle=True)
-
-    # for nperson in range(NP)
-    NP = len(SAPMresults_load)
-    resultscheck = np.zeros((NP, 4))
-    nbeta, tsize_full = np.shape(SAPMresults_load[0]['Sconn'])
-    ncon = nbeta - Nintrinsic
-
-    if epoch >= tsize:
-        et1 = 0
-        et2 = tsize
-    else:
-        et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
-        et2 = (timepoint + np.floor(epoch / 2)).astype(int)
-    ftemp = paradigm_centered[et1:et2]
-
-    Mrecord = np.zeros((nbeta, nbeta, NP))
-    R2totalrecord = np.zeros(NP)
-    for nperson in range(NP):
-        Sinput = SAPMresults_load[nperson]['Sinput']
-        Sconn = SAPMresults_load[nperson]['Sconn']
-        Minput = SAPMresults_load[nperson]['Minput']
-        Mconn = SAPMresults_load[nperson]['Mconn']
-        beta_int1 = SAPMresults_load[nperson]['beta_int1']
-        R2total = SAPMresults_load[nperson]['R2total']
-        Meigv = SAPMresults_load[nperson]['Meigv']
-        betavals = SAPMresults_load[nperson]['betavals']
-
-        nruns = nruns_per_person[nperson]
-        fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
-
-        # ---------------------------------------------------
-        fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
-                                                                 vintrinsic_count, beta_int1, fintrinsic1)
-
-        nr, tsize_total = np.shape(Sinput)
-        tsize = (tsize_total / nruns).astype(int)
-        nbeta,tsize2 = np.shape(Sconn)
-
-        if nperson == 0:
-            Sinput_total = np.zeros((nr,tsize, NP))
-            Sconn_total = np.zeros((nbeta,tsize, NP))
-            fit_total = np.zeros((nr,tsize, NP))
-
-        tc = Sinput
-        tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
-        Sinput_total[:,:,nperson] = tc1
-
-        tc = Sconn
-        tc1 = np.mean(np.reshape(tc, (nbeta, nruns, tsize)), axis=1)
-        Sconn_total[:,:,nperson] = tc1
-
-        tc = fit
-        tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
-        fit_total[:,:,nperson] = tc1
-
-        Mrecord[:, :, nperson] = Mconn
-        R2totalrecord[nperson] = R2total
-
-    if len(covariates1) > 1 and len(covariates2) > 1:
-        # ancova sex x pain rating---------------------------------------
-        # ANCOVA group vs pain rating
-        statstype = 'ANCOVA'
-        formula_key1 = 'C(Group)'
-        formula_key2 = 'pain'
-        formula_key3 = 'C(Group):' + 'pain'
-        atype = 2
-
-        # separate by sex
-        g1 = np.where(covariates1 == 'Female')[0]
-        g2 = np.where(covariates1 == 'Male')[0]
-
-        cov1 = covariates2[g1]
-        cov2 = covariates2[g2]
-        ancova_p = np.ones((nbeta,nbeta,3))
-        ttest_p = np.ones((nbeta,nbeta,2))
-        for aa in range(ncon):
-            for bb in range(ncon):
-                m = Mrecord[aa, bb, :]
-                if np.var(m) > 0:
-                    b1 = m[g1]
-                    b2 = m[g2]
-                    anova_table, p_MeoG, p_MeoC, p_intGC = py2ndlevelanalysis.run_ANOVA_or_ANCOVA2(b1, b2, cov1, cov2, 'pain', formula_key1,
-                                                                                formula_key2, formula_key3, atype)
-                    ancova_p[aa,bb, :] = np.array([p_MeoG, p_MeoC, p_intGC])
-
-                    if (np.var(b1) > 0) & (np.var(b2) > 0):
-                        t, p = stats.ttest_ind(b1, b2, equal_var=False)
-                        ttest_p[aa,bb,:] = np.array([p,t])
-
-        columns = [name[:3] + ' in' for name in betanamelist]
-        rows = [name[:3] for name in betanamelist]
-
-        p, f = os.path.split(SEMresultsname)
-        pd.options.display.float_format = '{:.2e}'.format
-        df = pd.DataFrame(ancova_p[:,:,0], columns=columns, index=rows)
-        xlname = os.path.join(p, 'Mancova_MeoG.xlsx')
-        df.to_excel(xlname)
-        df = pd.DataFrame(ancova_p[:,:,1], columns=columns, index=rows)
-        xlname = os.path.join(p, 'Mancova_MeoP.xlsx')
-        df.to_excel(xlname)
-        df = pd.DataFrame(ancova_p[:,:,2], columns=columns, index=rows)
-        xlname = os.path.join(p, 'Mancova_IntGP.xlsx')
-        df.to_excel(xlname)
-        df = pd.DataFrame(ttest_p[:,:,0], columns=columns, index=rows)
-        xlname = os.path.join(p, 'Ttest_sexdiffs.xlsx')
-        df.to_excel(xlname)
-
-
-        print('\nMain effect of group:')
-        text_MeoG = write_Mconn_values(ancova_p[:,:,0], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-        print('\nMain effect of pain ratings:')
-        text_MeoP = write_Mconn_values(ancova_p[:,:,1], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-        print('\nInteraction group x pain:')
-        text_IntGP = write_Mconn_values(ancova_p[:,:,2], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-        print('\n\n')
-
-        print('\nT-test sex differences:')
-        text_T = write_Mconn_values(ttest_p[:,:,0], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-        print('\n\n')
-
-
-        # compare groups with T-tests
-
-        # set the group
-        g = list(range(NP))
-        gtag = '_' + group
-
-        if group.lower() == 'male':
-            g = g2
-            gtag = '_Male'
-
-        if group.lower() == 'female':
-            g = g1
-            gtag = '_Female'
-
-
-    # set the group
-    g = list(range(NP))
-    gtag = '_'+group
-    Sinput_avg = np.mean(Sinput_total[:, :, g], axis=2)
-    Sinput_sem = np.std(Sinput_total[:, :, g], axis=2) / np.sqrt(len(g))
-    Sconn_avg = np.mean(Sconn_total[:, :, g], axis=2)
-    Sconn_sem = np.std(Sconn_total[:, :, g], axis=2) / np.sqrt(len(g))
-    fit_avg = np.mean(fit_total[:, :, g], axis=2)
-    fit_sem = np.std(fit_total[:, :, g], axis=2) / np.sqrt(len(g))
-
-    if len(covariates2) > 1:
-        # regression based on pain ratings
-        p = covariates2[np.newaxis, g]
-        p -= np.mean(p)
-        pmax = np.max(np.abs(p))
-        p /= pmax
-        G = np.concatenate((np.ones((1, len(g))),p), axis=0) # put the intercept term first
-        Sinput_reg = np.zeros((nr,tsize,4))
-        fit_reg = np.zeros((nr,tsize,4))
-        Sconn_reg = np.zeros((nbeta,tsize,4))
-        # Sinput_R2 = np.zeros((nr,tsize,2))
-        # fit_R2 = np.zeros((nr,tsize,2))
-        # Sconn_R2 = np.zeros((nbeta,tsize,2))
-        for tt in range(tsize):
-            for nn in range(nr):
-                m = Sinput_total[nn,tt,g]
-                b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-                Sinput_reg[nn,tt,:2] = b
-                Sinput_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
-
-                m = fit_total[nn,tt,g]
-                b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-                fit_reg[nn,tt,:2] = b
-                fit_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
-
-            for nn in range(nbeta):
-                m = Sconn_total[nn,tt,g]
-                b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-                Sconn_reg[nn,tt,:2] = b
-                Sconn_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
-
-            # need to save Sinput_reg, Sinput_R2, etc., somewhere for later use....
-
-            # regression of Mrecord with pain ratings
-            # glm_fit
-            Mregression = np.zeros((nbeta,nbeta,3))
-            # Mregression1 = np.zeros((nbeta,nbeta,3))
-            # Mregression2 = np.zeros((nbeta,nbeta,3))
-            p = covariates2[np.newaxis, g]
-            p -= np.mean(p)
-            pmax = np.max(np.abs(p))
-            p /= pmax
-            G = np.concatenate((np.ones((1, len(g))), p), axis=0)  # put the intercept term first
-            for aa in range(nbeta):
-                for bb in range(nbeta):
-                    m = Mrecord[aa,bb,g]
-                    if np.var(m) > 0:
-                        b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis,:], G)
-                        Mregression[aa,bb,:] = [b[0,0],b[0,1],R2]
-
-            print('\n\nMconn regression with pain ratings')
-            # rtext = write_Mconn_values(Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', minthresh=0.0001, maxthresh=0.0)
-            labeltext, inttext, slopetext, R2text, R2, R2thresh = write_Mreg_values(Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', Rthresh=0.1)
-
-    # average Mconn values
-    Mconn_avg = np.mean(Mrecord[:,:,g],axis = 2)
-    Mconn_sem = np.std(Mrecord[:,:,g],axis = 2)/np.sqrt(len(g))
-    # rtext = write_Mconn_values(Mconn_avg, Mconn_sem, betanamelist, rnamelist, beta_list,
-    #                            format='f', minthresh=0.0001, maxthresh=0.0)
-
-    pthresh = 0.05
-    Tthresh = stats.t.ppf(1 - pthresh, NP - 1)
-
-    print('\n\nAverage Mconn values')
-    labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(Mconn_avg, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format='f', pthresh=0.05)
-
-    Rtextlist = [' ']*10
-    Rvallist = [0]*10
-
-    windownum_offset = windowoffset
-    outputdir, f = os.path.split(SEMresultsname)
-    # only show 3 regions in each plot for consistency in sizing
-    # show some regions
-    window2 = 25 + windownum_offset
-    regionlist = [3,6,8]
-    nametag = r'LC_NTS_PBN' + gtag
-    svgname, Rtext, Rvals = plot_region_fits(window2, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange)
-    for n,x in enumerate(regionlist):
-        print('Rtext = {}  Rvals = {}'.format(Rtext[n],Rvals[n]))
-        Rtextlist[x] = Rtext[n]
-        Rvallist[x] = Rvals[n]
-
-    # show some regions
-    window2 = 33 + windownum_offset
-    regionlist = [0,5,1]
-    nametag = r'cord_NRM_DRt' + gtag
-    svgname, Rtext, Rvals = plot_region_fits(window2, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange)
-    for n,x in enumerate(regionlist):
-        Rtextlist[x] = Rtext[n]
-        Rvallist[x] = Rvals[n]
-
-    window2b = 35 + windownum_offset
-    regionlist = [0,5,4]
-    nametag = r'cord_NRM_NGC' + gtag
-    svgname, Rtext, Rvals = plot_region_fits(window2b, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange)
-    for n,x in enumerate(regionlist):
-        Rtextlist[x] = Rtext[n]
-        Rvallist[x] = Rvals[n]
-
-    window2c = 36 + windownum_offset
-    regionlist = [7,2,9]
-    nametag = r'PAG_Hyp_Thal' + gtag
-    svgname, Rtext, Rvals = plot_region_fits(window2c, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange)
-    for n,x in enumerate(regionlist):
-        Rtextlist[x] = Rtext[n]
-        Rvallist[x] = Rvals[n]
-
-
-    # figure 0--------------------------------------------
-    # inputs to C6RD
-    window3 = 0 + windownum_offset
-    target = 'C6RD'
-    nametag1 = r'C6RDinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[0]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window3, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    plot_region_inputs_average(window3+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    # yrange = [-1.5,1.5]
-    # yrange = []
-    # yrange2 = [-1.5,1.5]
-    # yrange2 = []
-
-    # show results
-    # figure 1   -  inputs to NRM
-    window1 = 1 + windownum_offset
-    target = 'NRM'
-    nametag1 = r'NRMinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[1]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window1, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    plot_region_inputs_average(window1+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    # figure 2--------------------------------------------
-    # inputs to NTS
-    window4 = 2 + windownum_offset
-    target = 'NTS'
-    nametag1 = r'NTSinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[2]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window4, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    plot_region_inputs_average(window4+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    # figure 3--------------------------------------------
-    # inputs to NGC
-    window7 = 3 + windownum_offset
-    target = 'NGC'
-    nametag1 = r'NGCinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[3]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window7, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    plot_region_inputs_average(window7+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    # figure 4--------------------------------------------
-    # inputs to PAG
-    window5 = 4 + windownum_offset
-    target = 'PAG'
-    nametag1 = r'PAGinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[4]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window5, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    plot_region_inputs_average(window5+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    # figure 5   -  inputs to PBN
-    window11 = 5 + windownum_offset
-    target = 'PBN'
-    nametag1 = r'PBNinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[5]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window11, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    plot_region_inputs_average(window11+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    # figure 6   -  inputs to LC
-    window12 = 6 + windownum_offset
-    target = 'LC'
-    nametag1 = r'LCinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[6]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window12, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    plot_region_inputs_average(window12+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    if len(covariates1) > 1 and len(covariates2) > 1:
-        # plot a specific connection
-        window6 = 29 + windownum_offset
-        target = 'C6RD-PAG'
-        source = 'NTS-C6RD'
-
-        target = 'NTS-PBN'
-        source = 'PBN-NTS'
-
-        c = target.index('-')
-        betaname_target = '{}_{}'.format(rnamelist.index(target[:c]),rnamelist.index(target[(c+1):]))
-        c = source.index('-')
-        betaname_source = '{}_{}'.format(rnamelist.index(source[:c]),rnamelist.index(source[(c+1):]))
-
-        rt = betanamelist.index(betaname_target)
-        rs = betanamelist.index(betaname_source)
-        m = Mrecord[rt,rs,:]
-        G = np.concatenate((covariates2[np.newaxis,g1],np.ones((1,len(g1)))), axis = 0)
-        b1, fit1, R21, total_var, res_var = pysem.general_glm(m[g1], G)
-        G = np.concatenate((covariates2[np.newaxis,g2],np.ones((1,len(g2)))), axis = 0)
-        b2, fit2, R22, total_var, res_var = pysem.general_glm(m[g2], G)
-
-        plt.close(window6)
-        fig = plt.figure(window6)
-        ax = fig.add_axes([0.1,0.1,0.8,0.8])
-        plt.plot(covariates2[g1],m[g1], marker = 'o', linestyle = 'None', color = (0.1,0.9,0.1))
-        plt.plot(covariates2[g1],fit1, marker = 'None', linestyle = '-', color = (0.1,0.9,0.1))
-        plt.plot(covariates2[g2],m[g2], marker = 'o', linestyle = 'None', color = (1.0,0.5,0.))
-        plt.plot(covariates2[g2],fit2, marker = 'None', linestyle = '-', color = (1.0,0.5,0.))
-
-        ax.annotate('{} input to {}'.format(source,target), xy=(.025, .975), xycoords='axes  fraction', color = 'r',
-                            horizontalalignment='left', verticalalignment='top', fontsize=10)
-        ax.annotate('Female R2={:.3f}'.format(R21), xy=(.025, .025), xycoords='axes  fraction', color = (0.1,0.9,0.1),
-                            horizontalalignment='left', verticalalignment='bottom', fontsize=10)
-        ax.annotate('Male R2={:.3f}'.format(R22), xy=(.975, .025), xycoords='axes  fraction', color = (1.0,0.5,0.),
-                            horizontalalignment='right', verticalalignment='bottom', fontsize=10)
-
-    return Rtextlist, Rvallist
-
-
-
-def display_SAPM_results(covariates, outputtype, outputdir, SAPMparametersname, SAPMresultsname, group, pthresh, descriptor, setylimits = []):
+def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdir, SAPMparametersname, SAPMresultsname,
+                         group, target = '', pthresh = 0.05, setylimits = [], TargetCanvas = [], display_in_GUI = False):
     # options of results to display:
     # 1) average input time-courses compared with model input
     # 2) modelled input signaling with corresponding source time-courses (outputs from source regions)
     # 3) t-test comparisons between groups, or w.r.t. zero (outputs to excel files)
     # 4) regression with continuous covariate
+    # outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel', 'Plot_SourceModel', 'DrawSAPMdiagram']
 
     # load SAPM parameters
     SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
@@ -4679,13 +2125,15 @@ def display_SAPM_results(covariates, outputtype, outputdir, SAPMparametersname, 
     # set the group
     # the input 'group' is a list of array indices for which data to use
     g = list(range(NP))
-    if len(group) == NP:    # all values were selected for the group
+    if (len(group) == NP) or (len(group) == 0):    # all values were selected for the group
         g1 = g
         g2 = []
     else:
         g1 = group
         g2 = [x for x in g if x not in g1]
 
+    print('g1:  {} values'.format(len(g1)))
+    print('g2:  {} values'.format(len(g2)))
 
     #-------------------------------------------------------------------------------
     #-------------prep for regression with continuous covariate------------------------------
@@ -4699,11 +2147,11 @@ def display_SAPM_results(covariates, outputtype, outputdir, SAPMparametersname, 
 
     #-------------------------------------------------------------------------------------
     # significance of average Mconn values -----------------------------------------------
-    if outputtype == 'sig_Bvalues':
-        Mconn_avg = np.mean(Mrecord[:,:,g1],axis = 2)
-        Mconn_sem = np.std(Mrecord[:,:,g1],axis = 2)/np.sqrt(len(g1))
-        # rtext = write_Mconn_values(Mconn_avg, Mconn_sem, betanamelist, rnamelist, beta_list,
-        #                            format='f', minthresh=0.0001, maxthresh=0.0)
+    # outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel', 'Plot_SourceModel', 'DrawSAPMdiagram']
+    Mconn_avg = np.mean(Mrecord[:, :, g1], axis=2)
+    Mconn_sem = np.std(Mrecord[:, :, g1], axis=2) / np.sqrt(len(g1))
+    if outputtype == 'B_Significance':
+        descriptor = outputnametag + '_Bsig'
         # pthresh = 0.05
         # Tthresh = stats.t.ppf(1 - pthresh, NP - 1)
         print('\n\nAverage B values')
@@ -4725,13 +2173,17 @@ def display_SAPM_results(covariates, outputtype, outputdir, SAPMparametersname, 
         df = pd.DataFrame(textoutputs)
         xlname = os.path.join(outputdir, descriptor + '.xlsx')
         df.to_excel(xlname)
-
+        outputname = xlname
+        return outputname
 
     #-------------------------------------------------------------------------------
     #-------------B-value regression with continuous covariate------------------------------
     # regression of Mrecord with continuous covariate
     # glm_fit
-    if outputtype == 'Bvalue_regression':
+    # outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel', 'Plot_SourceModel', 'DrawSAPMdiagram']
+    if outputtype == 'B_Regression':
+        print('generating results for B_Regression...')
+        descriptor = outputnametag + '_Breg'
         Mregression = np.zeros((nbeta,nbeta,3))
         for aa in range(nbeta):
             for bb in range(nbeta):
@@ -4746,7 +2198,6 @@ def display_SAPM_results(covariates, outputtype, outputdir, SAPMparametersname, 
         R2thresh = Rthresh**2
 
         print('\n\nMconn regression with continuous covariate values')
-        # rtext = write_Mconn_values(Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', minthresh=0.0001, maxthresh=0.0)
         labeltext, inttext, slopetext, R2text, R2, R2thresh = write_Mreg_values(Mregression[:,:,0], Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', R2thresh=R2thresh)
 
         if len(labeltext) > 0:
@@ -4764,11 +2215,16 @@ def display_SAPM_results(covariates, outputtype, outputdir, SAPMparametersname, 
             xlname = os.path.join(outputdir, descriptor + '.xlsx')
             df.to_excel(xlname)
         else:
+            xlname = 'NA'
             print('Regression of B values with covariate ... no significant values found at p < {}'.format(pthresh))
+        outputname = xlname
 
+        print('finished generating results for B_Regression...')
+        return outputname
 
     #-------------------------------------------------------------------------------
     # get the group averages etc-----------------------------------------------------
+    print('calculating group average values...')
     Sinput_avg = np.mean(Sinput_total[:, :, g1], axis=2)
     Sinput_sem = np.std(Sinput_total[:, :, g1], axis=2) / np.sqrt(len(g1))
     Sconn_avg = np.mean(Sconn_total[:, :, g1], axis=2)
@@ -4781,198 +2237,332 @@ def display_SAPM_results(covariates, outputtype, outputdir, SAPMparametersname, 
     # need to specify which region to display ***
     # include options to display more than one region? ***
     # need to specify where to display it ***
-    windownum_offset = windowoffset
+
     # show some regions
-    window2 = 25 + windownum_offset
-    regionlist = [3,6,8]
-    nametag = r'LC_NTS_PBN' + gtag
-    svgname, Rtext, Rvals = plot_region_fits(window2, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange)
+    # outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel', 'Plot_SourceModel', 'DrawSAPMdiagram']
+    if outputtype == 'Plot_BOLDModel':
+        print('generating results for Plot_BOLDModel...')
+        descriptor = outputnametag + '_BOLDmodel'
 
-    for n,x in enumerate(regionlist):
-        print('Rtext = {}  Rvals = {}'.format(Rtext[n],Rvals[n]))
-        Rtextlist[x] = Rtext[n]
-        Rvallist[x] = Rvals[n]
+        regionnum = [rnamelist.index(target) ]   # input a region
+        nametag = rnamelist[regionnum[0]] + '_' + outputnametag   # create name for saving figure
 
+        if len(setylimits) > 0:
+            ylim = setylimits[0]
+            yrangethis = [-ylim,ylim]
+        else:
+            yrangethis = []
+        svgname, Rtext, Rvals = plot_region_fits(window, regionnum, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrangethis, TargetCanvas) # display_in_GUI
+        outputname = svgname
+
+        print('finished generating results for Plot_BOLDModel...')
+        return outputname
 
     #-------------------------------------------------------------------------------
     #-------------time-course regression with continuous covariate------------------------------
     # prepare time-course values to plot
-    Sinput_reg = np.zeros((nr,tsize,4))
-    fit_reg = np.zeros((nr,tsize,4))
-    Sconn_reg = np.zeros((nbeta,tsize,4))
-    for tt in range(tsize):
-        for nn in range(nr):
-            m = Sinput_total[nn,tt,g1]
-            b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-            Sinput_reg[nn,tt,:2] = b
-            Sinput_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
+    if continuouscov:
+        print('generating regression values ...')
+        Sinput_reg = np.zeros((nr,tsize,4))
+        fit_reg = np.zeros((nr,tsize,4))
+        Sconn_reg = np.zeros((nbeta,tsize,4))
+        for tt in range(tsize):
+            for nn in range(nr):
+                m = Sinput_total[nn,tt,g1]
+                b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
+                Sinput_reg[nn,tt,:2] = b
+                Sinput_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
 
-            m = fit_total[nn,tt,g1]
-            b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-            fit_reg[nn,tt,:2] = b
-            fit_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g1)-3)]
+                m = fit_total[nn,tt,g1]
+                b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
+                fit_reg[nn,tt,:2] = b
+                fit_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g1)-3)]
 
-        for nn in range(nbeta):
-            m = Sconn_total[nn,tt,g1]
-            b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-            Sconn_reg[nn,tt,:2] = b
-            Sconn_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g1)-3)]
+            for nn in range(nbeta):
+                m = Sconn_total[nn,tt,g1]
+                b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
+                Sconn_reg[nn,tt,:2] = b
+                Sconn_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g1)-3)]
 
-        # need to save Sinput_reg, Sinput_R2, etc., somewhere for later use....
+            # need to save Sinput_reg, Sinput_R2, etc., somewhere for later use....
 
-
+        print('finished generating regression values ...')
 
     #-------------------------------------------------------------------------------
     # plot region input time-courses averages and fits with continuous covariate----
     # inputs to C6RD
-    window3 = 0 + windownum_offset
-    target = 'C6RD'
-    nametag1 = r'C6RDinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[0]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window3, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+    # outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel', 'Plot_SourceModel', 'DrawSAPMdiagram']
+    if (outputtype == 'Plot_SourceModel') & continuouscov:
+        print('generating outputs for Plot_SourceModel...')
+        descriptor = outputnametag + '_SourceModel'
 
-    plot_region_inputs_average(window3+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+        nametag1 = target + descriptor
 
-    # yrange = [-1.5,1.5]
-    # yrange = []
-    # yrange2 = [-1.5,1.5]
-    # yrange2 = []
+        if len(setylimits) > 0:
+            ylim = setylimits[0]
+            yrangethis = [-ylim,ylim]
+        else:
+            yrangethis = []
+
+        if continuouscov:
+            outputname = plot_region_inputs_regression(window, target, nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis, TargetCanvas)
+
+        outputname = plot_region_inputs_average(window, target, nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
+                                   Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis, TargetCanvas)
+
+        print('finished generating outputs for Plot_SourceModel...')
+        return outputname
 
 
+    # Draw SAPM Diagram -----------------------------
+    # outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel', 'Plot_SourceModel', 'DrawSAPMdiagram']
+    if outputtype == 'DrawSAPMdiagram':
+        print('getting ready to draw the SAPM network diagram ...')
+        outputname = 'NA'
+
+    return outputname
+
+#-----------------------------------------------------------------------------------
+#   Functions for plotting SAPM network results
+#-----------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------
+
+def define_drawing_regions_from_file(regionfilename):
+    # setup region labels and positions
+    xls = pd.ExcelFile(regionfilename, engine='openpyxl')
+    df1 = pd.read_excel(xls, 'regions')
+    names = df1['name']
+    posx = df1['posx']
+    posy = df1['posy']
+    offset_x = df1['labeloffset_x']
+    offset_y = df1['labeloffset_y']
+
+    regions = []
+    for nn in range(len(names)):
+        entry = {'name': names[nn], 'pos':[posx[nn],posy[nn]], 'labeloffset':np.array([offset_x[nn],offset_y[nn]])}
+        regions.append(entry)
+
+    return regions
 
 
-    # show results
-    # figure 1   -  inputs to NRM
-    window1 = 1 + windownum_offset
-    target = 'NRM'
-    nametag1 = r'NRMinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[1]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window1, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+def display_anatomical_slices(clusterdataname, regionname, clusternum, templatename):
+    orientation = 'axial'
+    regioncolor = [1,1,0]
 
-    plot_region_inputs_average(window1+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+    # get the connection and region information
+    clusterdata = np.load(clusterdataname, allow_pickle=True).flat[0]
+    cluster_properties = clusterdata['cluster_properties']
+    template_img = clusterdata['template_img']
+    rnamelist = [cluster_properties[x]['rname'] for x in range(len(cluster_properties))]
+    targetnum = rnamelist.index(regionname)
 
-    # figure 2--------------------------------------------
-    # inputs to NTS
-    window4 = 2 + windownum_offset
-    target = 'NTS'
-    nametag1 = r'NTSinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[2]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window4, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+    # get the voxel coordinates for the target region
+    IDX = clusterdata['cluster_properties'][targetnum]['IDX']
+    idxx = np.where(IDX == clusternum)
+    cx = clusterdata['cluster_properties'][targetnum]['cx'][idxx]
+    cy = clusterdata['cluster_properties'][targetnum]['cy'][idxx]
+    cz = clusterdata['cluster_properties'][targetnum]['cz'][idxx]
 
-    plot_region_inputs_average(window4+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+    #-------------------------------------------------------------------------------------
+    # display one slice of an anatomical region in the selected target figure
+    outputimg = pydisplay.pydisplayvoxelregionslice(templatename, template_img, cx, cy, cz, orientation, displayslice = [], colorlist = regioncolor)
+    return outputimg
 
-    # figure 3--------------------------------------------
-    # inputs to NGC
-    window7 = 3 + windownum_offset
-    target = 'NGC'
-    nametag1 = r'NGCinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[3]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window7, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
 
-    plot_region_inputs_average(window7+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+def points_on_ellipses2(pos0, pos1, pos2, ovalsize):
+    # point on ellipse 0 on line from region 0 to region 1
+    ovd = np.array(ovalsize)/2.0
 
-    # figure 4--------------------------------------------
-    # inputs to PAG
-    window5 = 4 + windownum_offset
-    target = 'PAG'
-    nametag1 = r'PAGinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[4]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window5, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+    v01 = np.array(pos1)-np.array(pos0)
+    d01 = np.sqrt(1/((v01[0]/ovd[0])**2 + (v01[1]/ovd[1])**2))
+    pe0 = pos0 + d01*v01
 
-    plot_region_inputs_average(window5+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+    # point on ellipse 1 on line from region 1 to region 0
+    v10 = np.array(pos0)-np.array(pos1)
+    d10 = np.sqrt(1/((v10[0]/ovd[0])**2 + (v10[1]/ovd[1])**2))
+    pe1a = pos1 + d10*v10
 
-    # figure 5   -  inputs to PBN
-    window11 = 5 + windownum_offset
-    target = 'PBN'
-    nametag1 = r'PBNinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[5]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window11, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+    v12 = np.array(pos2)-np.array(pos1)
+    d12 = np.sqrt(1/((v12[0]/ovd[0])**2 + (v12[1]/ovd[1])**2))
+    pe1b = pos1 + d12*v12
 
-    plot_region_inputs_average(window11+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+    # point on ellipse 1 on line from region 1 to region 0
+    v21 = np.array(pos1)-np.array(pos2)
+    d21 = np.sqrt(1/((v21[0]/ovd[0])**2 + (v21[1]/ovd[1])**2))
+    pe2 = pos2 + d21*v21
 
-    # figure 6   -  inputs to LC
-    window12 = 6 + windownum_offset
-    target = 'LC'
-    nametag1 = r'LCinput' + gtag
-    if len(yrange2) > 0:
-        ylim = yrange2[6]
-        yrangethis = [-ylim,ylim]
-    else:
-        yrangethis = []
-    plot_region_inputs_regression(window12, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+    # smooth arc line in region 1, betwen arrows for pos0-->pos1 and pos1-->pos2
+    # line starts along vector v01 at point pe1a
+    # line ends along vector v12 at point pe1b
 
-    plot_region_inputs_average(window12+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+    # angle of line along vector v01, wrt x axis
+    angleA = (180/np.pi)*np.arctan2(v01[1],v01[0])
+    angleA = np.round(angleA).astype(int)
 
-    if len(covariates1) > 1 and len(covariates2) > 1:
-        # plot a specific connection
-        window6 = 29 + windownum_offset
-        target = 'C6RD-PAG'
-        source = 'NTS-C6RD'
+    # angle of line along vector v12, wrt x axis
+    angleB = (180/np.pi)*np.arctan2(v12[1],v12[0])
+    angleB = np.round(angleB).astype(int)
+    anglediff = np.abs(angleB-angleA)
 
-        target = 'NTS-PBN'
-        source = 'PBN-NTS'
+    pe1ab_connectionstyle = "angle3,angleA={},angleB={}".format(angleA,angleB)
 
-        c = target.index('-')
-        betaname_target = '{}_{}'.format(rnamelist.index(target[:c]),rnamelist.index(target[(c+1):]))
-        c = source.index('-')
-        betaname_source = '{}_{}'.format(rnamelist.index(source[:c]),rnamelist.index(source[(c+1):]))
+    # special case
+    specialcase = False
+    if np.abs(anglediff-180.0) < 1.0:
+        specialcase = True
+        pe1ab_connectionstyle = "arc3,rad=0"
+        pe1ab_connectionstyle = "bar,fraction=0"
 
-        rt = betanamelist.index(betaname_target)
-        rs = betanamelist.index(betaname_source)
-        m = Mrecord[rt,rs,:]
-        G = np.concatenate((covariates2[np.newaxis,g1],np.ones((1,len(g1)))), axis = 0)
-        b1, fit1, R21, total_var, res_var = pysem.general_glm(m[g1], G)
-        G = np.concatenate((covariates2[np.newaxis,g2],np.ones((1,len(g2)))), axis = 0)
-        b2, fit2, R22, total_var, res_var = pysem.general_glm(m[g2], G)
+    if np.abs(anglediff) < 1.0:
+        specialcase = False
+        pe1ab_connectionstyle = "arc3,rad=0"
 
-        plt.close(window6)
-        fig = plt.figure(window6)
-        ax = fig.add_axes([0.1,0.1,0.8,0.8])
-        plt.plot(covariates2[g1],m[g1], marker = 'o', linestyle = 'None', color = (0.1,0.9,0.1))
-        plt.plot(covariates2[g1],fit1, marker = 'None', linestyle = '-', color = (0.1,0.9,0.1))
-        plt.plot(covariates2[g2],m[g2], marker = 'o', linestyle = 'None', color = (1.0,0.5,0.))
-        plt.plot(covariates2[g2],fit2, marker = 'None', linestyle = '-', color = (1.0,0.5,0.))
+    # shift lines slightly to allow for reciprocal connections
+    offset = 0.007
+    dpos1 = np.array([offset*np.sin(angleA*np.pi/180.0), offset*np.cos(angleA*np.pi/180.0)])
+    dpos2 = np.array([offset*np.sin(angleB*np.pi/180.0), offset*np.cos(angleB*np.pi/180.0)])
 
-        ax.annotate('{} input to {}'.format(source,target), xy=(.025, .975), xycoords='axes  fraction', color = 'r',
-                            horizontalalignment='left', verticalalignment='top', fontsize=10)
-        ax.annotate('Female R2={:.3f}'.format(R21), xy=(.025, .025), xycoords='axes  fraction', color = (0.1,0.9,0.1),
-                            horizontalalignment='left', verticalalignment='bottom', fontsize=10)
-        ax.annotate('Male R2={:.3f}'.format(R22), xy=(.975, .025), xycoords='axes  fraction', color = (1.0,0.5,0.),
-                            horizontalalignment='right', verticalalignment='bottom', fontsize=10)
+    pe0 += dpos1
+    pe1a += dpos1
+    pe1b += dpos2
+    pe2 += dpos2
 
-    return Rtextlist, Rvallist
+    return pe0, pe1a, pe1b, pe2, pe1ab_connectionstyle, specialcase
 
+
+def parse_connection_name(connection, regionlist):
+    h1 = connection.index('-')
+    h2 = connection[(h1+2):].index('-') + h1 + 2
+    r1 = connection[:h1]
+    r2 = connection[(h1+1):h2]
+    r3 = connection[(h2+1):]
+
+    i1 = regionlist.index(r1)
+    i2 = regionlist.index(r2)
+    i3 = regionlist.index(r3)
+
+    return (r1,r2,r3),(i1,i2,i3)
+
+
+def draw_sapm_plot(results_file, sheetname, regionnames, regions,statnames,figurenumber, scalefactor, cnums, threshold = 0.0, writefigure = False):
+    # templatename, clusterdataname = []
+    #
+    xls = pd.ExcelFile(results_file, engine='openpyxl')
+    df1 = pd.read_excel(xls, sheetname)
+    connections = df1[regionnames]
+    statvals = df1[statnames]
+
+    plt.close(figurenumber)
+
+    regionlist = [regions[x]['name'] for x in range(len(regions))]
+    regionlist_trunc = [regions[x]['name'][:4] for x in range(len(regions))]
+
+    # set some drawing parameters
+    ovalsize = (0.1,0.05)
+    width = 0.001
+    ovalcolor = [0,0,0]
+
+    # start drawing
+    fig = plt.figure(figurenumber)
+    ax = fig.add_axes([0,0,1,1])
+
+    # # show axial slices?
+    # if len(clusterdataname) > 0:
+    #     for rr, regionname in enumerate(regionlist):
+    #         clusternum = cnums[rr]
+    #         outputimg = display_anatomical_slices(clusterdataname, regionname, clusternum, templatename)
+    #         # display it somewhere...
+
+    # add ellipses and labels
+    for nn in range(len(regions)):
+        ellipse = mpatches.Ellipse(regions[nn]['pos'],ovalsize[0],ovalsize[1], alpha = 0.3)
+        ax.add_patch(ellipse)
+        if nn < len(cnums):
+            ax.annotate('{}{}'.format(regions[nn]['name'],cnums[nn]),regions[nn]['pos']+regions[nn]['labeloffset'])
+        else:
+            ax.annotate(regions[nn]['name'],regions[nn]['pos']+regions[nn]['labeloffset'])
+
+    an_list = []
+    connection_list = []
+    acount = 0
+    for nn in range(len(connections)):
+        # plot lines for connections
+        c1 = connections[nn]
+        val1 = statvals[nn]
+        m,s = parse_statval(val1)
+        if np.abs(m) > threshold:
+            linethick = np.min([5.0, np.abs(m)*scalefactor])
+            if m > 0:
+                linecolor = 'k'
+            else:
+                linecolor = 'r'
+            rlist,ilist = parse_connection_name(c1,regionlist_trunc)
+
+            # get positions of ends of lines,arrows, etc... for one connection
+            p0 = regions[ilist[0]]['pos']
+            p1 = regions[ilist[1]]['pos']
+            p2 = regions[ilist[2]]['pos']
+
+            if p0 != p1  and  p1 != p2:
+                pe0, pe1a, pe1b, pe2, pe1ab_connectionstyle, specialcase = points_on_ellipses2(p0,p1,p2,ovalsize)
+                print('{}  {}'.format(c1,pe1ab_connectionstyle))
+
+                connection_type1 = {'con':'{}-{}'.format(rlist[0],rlist[1]), 'type':'input'}
+                connection_type2 = {'con':'{}-{}'.format(rlist[1],rlist[2]), 'type':'output'}
+                connection_joiner = {'con':'{}-{}'.format(rlist[1],rlist[1]), 'type':'joiner'}
+
+                if specialcase:
+                    print('special case...')
+                    an1 = ax.annotate('',xy=pe1a,xytext = pe0, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
+                    acount+= 1
+                    an_list.append(an1)
+                    connection_list.append(connection_type1)
+                    an1 = ax.annotate('',xy=pe2,xytext = pe1b, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
+                    acount+= 1
+                    an_list.append(an1)
+                    connection_list.append(connection_type2)
+                else:
+                    an1 = ax.annotate('',xy=pe1a,xytext = pe0, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
+                    acount+= 1
+                    an_list.append(an1)
+                    connection_list.append(connection_type1)
+                    an1 = ax.annotate('',xy=pe2,xytext = pe1b, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
+                    acount+= 1
+                    an_list.append(an1)
+                    connection_list.append(connection_type2)
+                    an1 = ax.annotate('',xy=pe1b,xytext = pe1a, arrowprops=dict(arrowstyle="->", connectionstyle=pe1ab_connectionstyle, linewidth = linethick/2.0, color = linecolor, shrinkA = 0.0, shrinkB = 0.0))
+                    acount+= 1
+                    an_list.append(an1)
+                    connection_list.append(connection_joiner)
+            else:
+                print('ambiguous connection not drawn:  {}'.format(c1))
+
+    # look for inputs and outputs drawn for the same connection.  Only show the input if both exist
+    conlist = [connection_list[x]['con'] for x in range(len(connection_list))]
+    typelist = [connection_list[x]['type'] for x in range(len(connection_list))]
+    for nn in range(len(connection_list)):
+        con = conlist[nn]
+        c = np.where([conlist[x] == con for x in range(len(conlist))])[0]
+        if len(c) > 1:
+            t = [typelist[x] for x in c]
+            if 'input' in t:   # if some of the connections are inputs, do not draw outputs at the same place
+                c2 = np.where([typelist[x] == 'output' for x in c])[0]
+                if len(c2) > 0:
+                    redundant_c = c[c2]
+                    # remove the redundant connections
+                    for c3 in redundant_c:
+                        a = an_list[c3]
+                        a.remove()
+                        typelist[c3] = 'removed'
+                        connection_list[c3]['type'] = 'removed'
+
+    if writefigure:
+        p,f1 = os.path.split(results_file)
+        f,e = os.path.splitext(f1)
+        svgname = os.path.join(p,f+sheetname+'.svg')
+        plt.figure(figurenumber)
+        plt.savefig(svgname, format='svg')
+        print('saved figure as {}'.format(svgname))
 
 
 #
