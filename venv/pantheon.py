@@ -75,8 +75,9 @@ if os.name == 'nt':
     fgletter3 = 'white'
     widgetfont = "none 9 bold"
     widgetfont2 = "none 9 bold"
-    labelfont = "none 10 bold"
+    labelfont = "none 9 bold"
     radiofont = "none 9"
+    infofont = "none 8"
 else:
     # colours for Mac/Linux
     fgcol1 = 'navy'
@@ -88,7 +89,7 @@ else:
     fgletter3 = 'black'
     widgetfont = "none 9 bold"
     widgetfont2 = "none 9 bold"
-    labelfont = "none 10 bold"
+    labelfont = "none 9 bold"
     radiofont = "none 9"
 
 bigbigbuttonsize = 21
@@ -256,15 +257,14 @@ class mainspinalfmri_window:
 
         SAPMResultsbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
         SAPMResultsbase.grid(row=1, column=1, sticky="nsew")
-        SAPMResultsFrame(SAPMResultsbase, self)
+        # SAPMResultsFrame(SAPMResultsbase, self)
         framerefSR = SAPMResultsFrame(SAPMResultsbase, self)
         page_name = SAPMResultsFrame.__name__
         self.frames[page_name] = SAPMResultsbase
 
-        # self.SRPlotFigure = framerefSR.SRPlotFigure
-        # self.SRPlotAx = framerefSR.SRPlotAx
-        # self.SRCanvas = framerefSR.SRCanvas
-
+        self.SRPlotFigure = framerefSR.SRPlotFigure
+        self.SRPlotAx = framerefSR.SRPlotAx
+        self.SRCanvas = framerefSR.SRCanvas
 
         GRPbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
         GRPbase.grid(row=1, column=1, sticky="nsew")
@@ -316,21 +316,21 @@ class BaseFrame:
         
         # make objects in the base frame
         # load in a picture, for no good reason, and display it in the window to look nice :)
-        photo1 = tk.PhotoImage(file = os.path.join(basedir,'queens_flag2.gif'))
+        photo1 = tk.PhotoImage(file = os.path.join(basedir,'queens_flag_small.gif')) # 'queens_flag2.gif'
         controller.photo1 = photo1   # need to keep a copy so it is not cleared from memory
         # put this figure, in the 1st row, 1st column, of a grid layout for the window
         # and make the background black
         self.P1=tk.Label(self.parent, image = photo1, bg='grey94', font = labelfont).grid(row=0, column=0, sticky = 'W')
 
         # load in another picture, because if one picture is good, two is better
-        photo2 = tk.PhotoImage(file = os.path.join(basedir,'pantheon_logo2.gif'))
+        photo2 = tk.PhotoImage(file = os.path.join(basedir,'pantheon_logo_small.gif'))  # 'pantheon_logo2.gif'
         controller.photo2 = photo2   # need to keep a copy so it is not cleared from memory
         # put in another figure, for pure artistic value, in the 1st row, 2nd column, of a grid layout for the window
         # and make the background black
         self.P2=tk.Label(self.parent, image = photo2, bg='grey94').grid(row=0, column=1, sticky = 'W')
 
         # load in another picture, because if one picture is good, two is better, etc.
-        photo3 = tk.PhotoImage(file = os.path.join(basedir,'lablogo.gif'))
+        photo3 = tk.PhotoImage(file = os.path.join(basedir,'lablogo_small.gif'))  # 'lablogo.gif'
         controller.photo3 = photo3   # need to keep a copy so it is not cleared from memory
         # put in another figure, for pure artistic value, in the 1st row, 2nd column, of a grid layout for the window
         # and make the background black
@@ -338,39 +338,39 @@ class BaseFrame:
 
         # create a label under the pictures (row 2), spanning two columns, to tell the user what they are running
         # specify a black background and white letters, with 12 point bold font
-        self.L0 = tk.Label(self.parent, text = "PANTHEON: whole CNS fMRI Analysis", bg = bgcol, fg = fgcol1, font = "none 14 bold")
+        self.L0 = tk.Label(self.parent, text = "PANTHEON: whole CNS fMRI Analysis", bg = bgcol, fg = fgcol1, font = "none 12 bold")
         self.L0.grid(row=1, column = 0, columnspan = 3, sticky = 'W')
 
 
 # --------------------BASE FRAME2---------------------------------------------------------------
 # Definition of the frame that holds pictures, labels, etc.
-class BaseFrame2:
-    # initialize the values, keeping track of the frame this definition works on (parent), and
-    # also the main window containing that frame (controller)
-    def __init__(self, parent, controller):
-        parent.configure(relief='raised', bd=5, highlightcolor=fgcol2)  # just defining some visual features
-        self.parent = parent
-        self.controller = controller
-
-        # make objects in the base frame
-        # load in a picture, for no good reason, and display it in the window to look nice :)
-        photo1 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
-        controller.photob1 = photo1  # need to keep a copy so it is not cleared from memory
-        # put this figure, in the 1st row, 1st column, of a grid layout for the window
-        # and make the background black
-        self.B1 = tk.Label(self.parent, image=photo1, bg='grey94').grid(row=0, column=0, sticky='W')
-
-        # load in another picture, because if one picture is good, two is better
-        photo2 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
-        controller.photob2 = photo2  # need to keep a copy so it is not cleared from memory
-        # put in another figure, for pure artistic value, in the 1st row, 2nd column, of a grid layout for the window
-        # and make the background black
-        self.B2 = tk.Label(self.parent, image=photo2, bg='grey94').grid(row=0, column=1, sticky='W')
-
-        # create a label under the pictures (row 2), spanning two columns, to tell the user what they are running
-        # specify a black background and white letters, with 12 point bold font
-        self.L1 = tk.Label(self.parent, text="SC/BS fMRI Analysis", bg=bgcol, fg=fgcol1, font="none 16 bold")
-        self.L1.grid(row=1, column=0, columnspan=2, sticky='W')
+# class BaseFrame2:
+#     # initialize the values, keeping track of the frame this definition works on (parent), and
+#     # also the main window containing that frame (controller)
+#     def __init__(self, parent, controller):
+#         parent.configure(relief='raised', bd=5, highlightcolor=fgcol2)  # just defining some visual features
+#         self.parent = parent
+#         self.controller = controller
+#
+#         # make objects in the base frame
+#         # load in a picture, for no good reason, and display it in the window to look nice :)
+#         photo1 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
+#         controller.photob1 = photo1  # need to keep a copy so it is not cleared from memory
+#         # put this figure, in the 1st row, 1st column, of a grid layout for the window
+#         # and make the background black
+#         self.B1 = tk.Label(self.parent, image=photo1, bg='grey94').grid(row=0, column=0, sticky='W')
+#
+#         # load in another picture, because if one picture is good, two is better
+#         photo2 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
+#         controller.photob2 = photo2  # need to keep a copy so it is not cleared from memory
+#         # put in another figure, for pure artistic value, in the 1st row, 2nd column, of a grid layout for the window
+#         # and make the background black
+#         self.B2 = tk.Label(self.parent, image=photo2, bg='grey94').grid(row=0, column=1, sticky='W')
+#
+#         # create a label under the pictures (row 2), spanning two columns, to tell the user what they are running
+#         # specify a black background and white letters, with 12 point bold font
+#         self.L1 = tk.Label(self.parent, text="SC/BS fMRI Analysis", bg=bgcol, fg=fgcol1, font="none 16 bold")
+#         self.L1.grid(row=1, column=0, columnspan=2, sticky='W')
 
 
 #--------------------OPTIONS FRAME---------------------------------------------------------------
@@ -7037,26 +7037,124 @@ class SAPMResultsFrame:
                                 self.SRresultsdir, self.SRparamsname, self.SRresultsname,
                                 self.SRgroup, self.SRtargetregion, self.SRpvalue, [], 'none', False)
 
-        if self.SRoutputvalue == 'DrawSAPMdiagram':
+        if self.SRoptionvalue == 'DrawSAPMdiagram':
             print('not ready to run DrawSAPMdiagram yet ...')
             # need:
             #  drawregionsfile ==> file defining how to draw network region
-            # resultsfile ==> file with Mconn values (.xlsx) for example
+            # resultsfile ==> file with Mconn values (.xlsx) for example - SAPM_Bfile
             # sheetname ==> sheet in resultsfile with values to plot
             # regionname ==> column in sheetname, containing names of connections:  regionnames = 'regions'
             # statname ==> another column in sheetname, containing values to plot:  statname = 'beta'
             # scalefactor ==> how to scale statvalue to a linewidth in the display
-            # threshold ==> lower threshold of value to plot, could be 0.0
+            # threshold ==> lower threshold of value to plot, could be 0.0 - submitted as threshold_text
             # cnums ==> list of cluster numbers for regions to display
             # outputname ==> name of svg file to write for output
             # writefigure ==> write the result to disk, or not:  writefigure = True
             # figurenumber ==> value number for figure to write to ...
 
-            # regions = define_drawing_regions_from_file(drawregionsfile)
-            # draw_sapm_plot(results_file, sheetname, regionnames, regions, statnames, figurenumber, scalefactor, cnums,
-            #                threshold, writefigure)
+            drawregionsfile = self.SRdrawfile
+            results_file = self.SAPMBfile
+            sheetname = self.SAPMBsheet
+            regionnames = 'regions'
+            statname = self.SAPMBcolumn
+            figurenumber = 200
+            scalefactor = 'auto'
+            cnums = self.SAPMcnums
+            threshold_text = self.SRthresholdtext
+            writefigure = True
+
+            regions = pysapm.define_drawing_regions_from_file(drawregionsfile)
+            outputname = pysapm.draw_sapm_plot(results_file, sheetname, regionnames, regions, statname, figurenumber, scalefactor, cnums,
+                           threshold_text, writefigure)
+            #
 
         print('output results to {}'.format(outputname))
+
+
+    def SRdrawfilebrowseaction(self):
+        # browse for new name
+        filechoice =  tkf.askopenfilename(title = "Select file",filetypes = (("xlsx files","*.xlsx"),("all files","*.*")))
+        print('file containing information about plotting SAPM results = ',filechoice)
+        self.SRdrawfile = filechoice
+        self.SRdrawfiletext.set(self.SRdrawfile[-30:])
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        settings['SRdrawfile'] = self.SRdrawfile
+        np.save(settingsfile, settings)
+        return self
+
+    def SAPMBfilebrowseaction(self):
+        # browse for new name
+        filechoice =  tkf.askopenfilename(title = "Select file",filetypes = (("xlsx files","*.xlsx"),("all files","*.*")))
+        print('file containing B values etc from SAPM results = ',filechoice)
+        self.SAPMBfile = filechoice
+        self.SAPMBfiletext.set(self.SAPMBfile[-30:])
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        settings['SAPMBfile'] = self.SAPMBfile
+        np.save(settingsfile, settings)
+
+        xls = pd.ExcelFile(self.SAPMBfile, engine='openpyxl') # get the sheetnames
+        self.SRsheetnames = xls.sheet_names
+
+        # destroy the old pulldown menu and create a new one with the new choices
+        rownum = 12
+        columnum = 4
+        fieldvalues = copy.deepcopy(self.SRsheetnames)
+        self.SAPMBsheetfield_var = tk.StringVar()
+        self.SAPMBsheetfield_var.set(fieldvalues[0])
+        self.SAPMBsheetfield_search_opt.destroy()  # remove it
+        SAPMBsheet_menu = tk.OptionMenu(self.parent, self.SAPMBsheetfield_var, *fieldvalues,
+                                        command=self.SAPMBsheetfieldvaluechoice)
+        SAPMBsheet_menu.grid(row=rownum, column=columnum, sticky='EW')
+        self.SAPMBsheetfield_search_opt = SAPMBsheet_menu  # save this way so that values are not cleared
+
+        return self
+
+    def SRthresholdsubmit(self):
+        self.SRthresholdtext = self.SRthresholdbox.get()
+        print('threshold for plotting SAPM values ',self.SRthresholdtext)
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        settings['SRthresholdtext'] = self.SRthresholdtext
+        np.save(settingsfile, settings)
+        print('Threshold text set to {}'.format(self.SRthresholdtext))
+        return self
+
+
+    def SAPMBsheetfieldvaluechoice(self,value):
+        # get the field value choices for the selected field
+        self.SAPMBsheet = self.SAPMBsheetfield_var.get()
+        print('Selected sheet: {}'.format(self.SAPMBsheet))
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        settings['SAPMBsheet'] = self.SAPMBsheet
+        np.save(settingsfile, settings)
+
+        xls = pd.ExcelFile(self.SAPMBfile, engine='openpyxl') # get the sheetnames
+        df1 = pd.read_excel(xls, self.SAPMBsheet)
+        del df1['Unnamed: 0']  # get rid of the unwanted header column
+        columnnames = list(df1.keys())
+        self.SRcolumnnames = [x for x in columnnames if 'Unnamed' not in x]
+
+        # destroy the old pulldown menu and create a new one with the new choices
+        rownum = 12
+        columnum = 5
+        fieldvalues = copy.deepcopy(self.SRcolumnnames)
+        self.SAPMBcolumnfield_var = tk.StringVar()
+        self.SAPMBcolumnfield_var.set(fieldvalues[0])
+        self.SAPMBcolumnfield_search_opt.destroy()  # remove it
+        SAPMBcolumn_menu = tk.OptionMenu(self.parent, self.SAPMBcolumnfield_var, *fieldvalues,
+                                        command=self.SAPMBcolumnfieldvaluechoice)
+        SAPMBcolumn_menu.grid(row=rownum, column=columnum, sticky='EW')
+        self.SAPMBcolumnfield_search_opt = SAPMBcolumn_menu  # save this way so that values are not cleared
+        return self
+
+
+    def SAPMBcolumnfieldvaluechoice(self, value):
+        # get the field value choices for the selected field
+        self.SAPMBcolumn = self.SAPMBcolumnfield_var.get()
+        print('Selected column: {}'.format(self.SAPMBcolumn))
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        settings['SAPMBcolumn'] = self.SAPMBcolumn
+        np.save(settingsfile, settings)
+        return self
 
 
     # initialize the values, keeping track of the frame this definition works on (parent), and
@@ -7090,6 +7188,9 @@ class SAPMResultsFrame:
             self.SRgroup = settings['SRgroup']
             self.SRtargetregion = settings['SRtargetregion']
             self.SRnametag = settings['SRnametag']
+            self.SRdrawfile = settings['SRdrawfile']
+            self.SRthresholdtext = settings['SRthresholdtext']
+            self.SAPMBfile = settings['SAPMBfile']
         else:
             self.SRoptionvalue = 'not defined'
             self.SRcovname = 'not defined'
@@ -7097,6 +7198,11 @@ class SAPMResultsFrame:
             self.SRgroup = []
             self.SRtargetregion = []
             self.SRnametag = ''
+            self.SRdrawfile = ''
+            self.SRthresholdtext = 'abs>0'
+            self.SAPMBfile = ''
+            self.SAPMBsheet = 'sheet'
+            self.SRcolumnnames = 'stat'
 
             settings['SRoptionvalue'] = self.SRoptionvalue
             settings['SRcovname'] = self.SRcovname
@@ -7105,37 +7211,98 @@ class SAPMResultsFrame:
             settings['SRtargetregion'] = self.SRtargetregion
             settings['SRnametag'] = self.SRnametag
 
+        # if 'SRdrawfile' in settings.keys():
+        #     self.SRdrawfile = settings['SRdrawfile']
+        # else:
+        #     self.SRdrawfile = ''
+
+        # if 'SRthresholdtext' in settings.keys():
+        #     self.SRthresholdtext = settings['SRthresholdtext']
+        # else:
+        #     self.SRthresholdtext = '>0'
+
+        # initialize sheet and column names, if possible
+        try:
+            xls = pd.ExcelFile(self.SAPMBfile, engine='openpyxl')  # get the sheetnames
+            self.SRsheetnames = xls.sheet_names
+            self.SAPMBsheet = self.SRsheetnames[0]
+            df1 = pd.read_excel(xls, self.SAPMBsheet)
+            columnnames = list(df1.keys())
+            self.SRcolumnnames = [x for x in columnnames if 'Unnamed' not in x]
+            self.SAPMBcolumn = self.SRcolumnnames[0]
+        except:
+            self.SAPMBfile = ''
+            self.SAPMBsheet = 'sheet'
+            self.SRcolumnnames = 'stat'
+
+        # if 'SAPMBfile' in settings.keys():
+        #     self.SAPMBfile = settings['SAPMBfile']
+        #     try:
+        #         xls = pd.ExcelFile(self.SAPMBfile, engine='openpyxl')  # get the sheetnames
+        #         self.SRsheetnames = xls.sheet_names
+        #         self.SAPMBsheet = self.SRsheetnames[0]
+        #         df1 = pd.read_excel(xls, self.SAPMBsheet)
+        #         columnnames = list(df1.keys())
+        #         self.SRcolumnnames = [x for x in columnnames if 'Unnamed' not in x]
+        #         self.SAPMBcolumn = self.SRcolumnnames[0]
+        #     except:
+        #         self.SAPMBfile = ''
+        #         self.SAPMBsheet = 'sheet'
+        #         self.SRcolumnnames = 'stat'
+        #
+        # else:
+        #     self.SAPMBfile = ''
+        #     self.SAPMBsheet = 'sheet'
+        #     self.SRcolumnnames = 'stat'
+        #     self.SRthresholdtext = '>0'
+
         self.SRresultsdir = copy.deepcopy(self.SAPMresultsdir)
         self.SRresultsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
         self.SRparamsname = os.path.join(self.SAPMresultsdir, self.SAPMparamsname)
         settings['SRresultsdir'] = self.SRresultsdir
         settings['SRresultsname'] = self.SRresultsname
         settings['SRparamsname'] = self.SRparamsname
+        settings['SRdrawfile'] = self.SRdrawfile
         np.save(settingsfile, settings)
 
         # put some text as a place-holder
-        self.SRLabel1 = tk.Label(self.parent, text = "1) Select SAPM results files...\n   or use the Updata button to\n   load them from previous pages", fg = 'gray', justify = 'left')
+        self.SRLabel1 = tk.Label(self.parent, text = "1) Select SAPM results files...\n   or use the Update button to\n   load them from previous pages", fg = 'gray', justify = 'left', font = infofont)
         self.SRLabel1.grid(row=0,column=0, sticky='W')
-        self.SRLabel3 = tk.Label(self.parent, text = "2) Select outputs to generate", fg = 'gray', justify = 'left')
+        self.SRLabel3 = tk.Label(self.parent, text = "2) Select covariates file if \noutputs are to show correlations etc\n with covariates", fg = 'gray', justify = 'left', font = infofont)
+        self.SRLabel3.grid(row=1,column=0, sticky='W')
+        self.SRLabel3 = tk.Label(self.parent, text = "3) If DrawSAPMdiagram is chosen for output\n an xlsx file defining plot parameters must be chosen \nand .xlsx files with results to plot\n must be selected", fg = 'gray', justify = 'left', font = infofont)
         self.SRLabel3.grid(row=1,column=0, sticky='W')
 
+        rownum = 0
         # define a button to browse and select an existing network definition file, and write out the selected name
         # also, define the function for what to do when this button is pressed
-        self.SRupdatevalues = tk.Button(self.parent, text='Update', width=smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont,
+        self.SRupdatevalues = tk.Button(self.parent, text='Update', width=smallbuttonsize, bg = fgcol1, fg = fgletter1, font = widgetfont,
                                   command=self.SRupdatevaluesclick, relief='raised', bd=5)
-        self.SRupdatevalues.grid(row=0, column=2)
+        self.SRupdatevalues.grid(row = rownum, column=4, rowspan = 2)
+
+
+        # cnums--------------------------------------------------
+        # display the cluster numbers from the SAPM analysis page
+        self.SRL0 = tk.Label(self.parent, text="Cluster numbers:", font = labelfont)
+        self.SRL0.grid(row=rownum, column=1, sticky='E')
+        # make a label to show the current setting of the network definition file name
+        self.SRcnumtext = tk.StringVar()
+        self.SRcnumtext.set(self.SAPMcnums)
+        self.SRcnumtextbox = tk.Label(self.parent, textvariable=self.SRcnumtext, bg=bgcol, fg="#4B4B4B", font = infofont,
+                                     wraplength=300, justify='left')
+        self.SRcnumtextbox.grid(row=rownum, column=2, columnspan=2, sticky='W')
+
 
         rownum = 1
         # network file--------------------------------------------------
-        # create an entry box so that the user can specify the network file to use-----------------
-        # first make a title for the box, in row 3, column 1 of the grid for the main window
+        # display the network file from the SAPM analysis page
         self.SRL1 = tk.Label(self.parent, text="Network Model:", font = labelfont)
         self.SRL1.grid(row=rownum, column=1, sticky='E')
         # make a label to show the current setting of the network definition file name
         npname, nfname = os.path.split(self.networkmodel)
         self.SRnetnametext = tk.StringVar()
         self.SRnetnametext.set(nfname)
-        self.SRnetnametextbox = tk.Label(self.parent, textvariable=self.SRnetnametext, bg=bgcol, fg="#4B4B4B", font = labelfont,
+        self.SRnetnametextbox = tk.Label(self.parent, textvariable=self.SRnetnametext, bg=bgcol, fg="#4B4B4B", font = infofont,
                                      wraplength=300, justify='left')
         self.SRnetnametextbox.grid(row=rownum, column=2, columnspan=2, sticky='W')
 
@@ -7147,7 +7314,7 @@ class SAPMResultsFrame:
         self.SRresultsdirlabel.grid(row=rownum, column=1, sticky='E')
         self.SRresultsdirtext = tk.StringVar()
         self.SRresultsdirtext.set(self.SRresultsdir)
-        self.SRresultsdirbox = tk.Label(self.parent, textvariable=self.SRresultsdirtext, bg=bgcol, fg="#4B4B4B", font = labelfont,
+        self.SRresultsdirbox = tk.Label(self.parent, textvariable=self.SRresultsdirtext, bg=bgcol, fg="#4B4B4B", font = infofont,
                                      wraplength=300, justify='left')
         self.SRresultsdirbox.grid(row=rownum, column=2, columnspan=2, sticky='W')
 
@@ -7174,7 +7341,7 @@ class SAPMResultsFrame:
         self.SRresultsnamelabel.grid(row=rownum, column=1, sticky='E')
         self.SRresultsnametext = tk.StringVar()
         self.SRresultsnametext.set(self.SRresultsname)
-        self.SRresultsnamebox = tk.Label(self.parent, textvariable=self.SRresultsnametext, bg=bgcol, fg="#4B4B4B", font = labelfont,
+        self.SRresultsnamebox = tk.Label(self.parent, textvariable=self.SRresultsnametext, bg=bgcol, fg="#4B4B4B", font = infofont,
                                      wraplength=300, justify='left')
         self.SRresultsnamebox.grid(row=rownum, column=2, columnspan=2, sticky='W')
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
@@ -7189,7 +7356,7 @@ class SAPMResultsFrame:
         self.SRparamsnamelabel.grid(row=rownum, column=1, sticky='E')
         self.SRparamsnametext = tk.StringVar()
         self.SRparamsnametext.set(self.SRparamsname)
-        self.SRparamsnamebox = tk.Label(self.parent, textvariable=self.SRparamsnametext, bg=bgcol, fg="#4B4B4B", font = labelfont,
+        self.SRparamsnamebox = tk.Label(self.parent, textvariable=self.SRparamsnametext, bg=bgcol, fg="#4B4B4B", font = infofont,
                                      wraplength=300, justify='left')
         self.SRparamsnamebox.grid(row=rownum, column=2, columnspan=2, sticky='W')
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
@@ -7203,7 +7370,7 @@ class SAPMResultsFrame:
         self.SRcovlabel.grid(row=rownum, column=1, sticky='E')
         self.SRcovnametext = tk.StringVar()
         self.SRcovnametext.set(self.SRcovname)
-        self.SRcovnamebox = tk.Label(self.parent, textvariable=self.SRcovnametext, bg=bgcol, fg="#4B4B4B", font = labelfont,
+        self.SRcovnamebox = tk.Label(self.parent, textvariable=self.SRcovnametext, bg=bgcol, fg="#4B4B4B", font = infofont,
                                      wraplength=300, justify='left')
         self.SRcovnamebox.grid(row=rownum, column=2, columnspan=2, sticky='W')
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
@@ -7286,8 +7453,75 @@ class SAPMResultsFrame:
         self.SRPlotFigure = plt.figure(123, figsize=(3, 1.5), dpi=100)
         self.SRPlotAx = self.SRPlotFigure.add_subplot(111)
         self.SRCanvas = FigureCanvasTkAgg(self.SRPlotFigure, self.parent)
-        self.SRCanvas.get_tk_widget().grid(row=rownum, column=1,rowspan = 2, columnspan = 4, sticky='NW')
+        self.SRCanvas.get_tk_widget().grid(row=rownum, column=1,rowspan = 6, columnspan = 4, sticky='NW')
         self.SRPlotAx.set_title('SAPM results to be shown here')
+
+        #
+        # inputs and info for displaying the SAPM network diagram
+        # outputdir ----------------------------------------------------------------------
+        # box etc for entering the name of the directory for saving the results
+        # make a label to show the current setting of the network definition file directory name
+
+        rownum = 10
+        columnum = 4
+        self.SRdrawfilelabel = tk.Label(self.parent, text = 'Draw params:', font = labelfont)
+        self.SRdrawfilelabel.grid(row=rownum, column=columnum, sticky='E')
+        self.SRdrawfiletext = tk.StringVar()
+        self.SRdrawfiletext.set(self.SRdrawfile[-30:])
+        self.SRdrawfilebox = tk.Label(self.parent, textvariable=self.SRdrawfiletext, bg=bgcol, fg="#4B4B4B", font = infofont,
+                                     wraplength=150, justify='left')
+        self.SRdrawfilebox.grid(row=rownum, column=columnum+1, sticky='W')
+        # the entry boxes need a "browse" button to allow selection of existing cluster definition file
+        self.SRdrawfilebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRdrawfilebrowseaction, relief='raised', bd = 5)
+        self.SRdrawfilebrowse.grid(row=rownum, column=columnum+2, sticky='W')
+
+        rownum = 11
+        # SAPMBfile
+        columnum = 4
+        self.SAPMBfilelabel = tk.Label(self.parent, text = 'SAPM B file:', font = labelfont)
+        self.SAPMBfilelabel.grid(row=rownum, column=columnum, sticky='E')
+        self.SAPMBfiletext = tk.StringVar()
+        self.SAPMBfiletext.set(self.SAPMBfile[-30:])
+        self.SAPMBfilebox = tk.Label(self.parent, textvariable=self.SAPMBfiletext, bg=bgcol, fg="#4B4B4B", font = infofont,
+                                     wraplength=150, justify='left')
+        self.SAPMBfilebox.grid(row=rownum, column=columnum+1, sticky='W')
+        # the entry boxes need a "browse" button to allow selection of existing cluster definition file
+        self.SAPMBfilebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMBfilebrowseaction, relief='raised', bd = 5)
+        self.SAPMBfilebrowse.grid(row=rownum, column=columnum+2, sticky='W')
+
+        rownum = 12
+        columnum = 4
+        # option pull-down menu
+        # initialchoice = 'sheet'
+        self.SAPMBsheetfield_var = tk.StringVar()
+        self.SAPMBsheetfield_var.set('sheet')
+        SAPMBsheet_menu = tk.OptionMenu(self.parent, self.SAPMBsheetfield_var, *self.SRsheetnames, command = self.SAPMBsheetfieldvaluechoice)
+        SAPMBsheet_menu.grid(row=rownum, column=columnum, sticky='EW')
+        self.SAPMBsheetfield_search_opt = SAPMBsheet_menu   # save this way so that values are not cleared
+
+        rownum = 12
+        columnum = 5
+        # option pull-down menu
+        # initialchoice = 'stat'
+        self.SAPMBcolumnfield_var = tk.StringVar()
+        self.SAPMBcolumnfield_var.set('stat')
+        SAPMBcolumn_menu = tk.OptionMenu(self.parent, self.SAPMBcolumnfield_var, *self.SRcolumnnames, command = self.SAPMBcolumnfieldvaluechoice)
+        SAPMBcolumn_menu.grid(row=rownum, column=columnum, sticky='EW')
+        self.SAPMBcolumnfield_search_opt = SAPMBcolumn_menu   # save this way so that values are not cleared
+
+
+        rownum = 13
+        columnum = 4
+        # put in base name for output files
+        self.SRL11 = tk.Label(self.parent, text = 'Threshold:', font = labelfont).grid(row=rownum, column=columnum, sticky='NSEW')
+        self.SRthresholdbox = tk.Entry(self.parent, width = 20, bg="white")
+        self.SRthresholdbox.grid(row=rownum, column=columnum+1, columnspan = 1, sticky = "W")
+        self.SRthresholdbox.insert(0,self.SRthresholdtext)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SRthresholdsubmitbutton = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2,
+                                font = widgetfont, command = self.SRthresholdsubmit, relief='raised', bd = 5)
+        self.SRthresholdsubmitbutton.grid(row=rownum, column=columnum+2)
+
 
 
 #----------MAIN calling function----------------------------------------------------

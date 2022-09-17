@@ -2430,6 +2430,53 @@ def points_on_ellipses2(pos0, pos1, pos2, ovalsize):
     return pe0, pe1a, pe1b, pe2, pe1ab_connectionstyle, specialcase
 
 
+def parse_statval(val):
+    foundpattern = False
+    t = chr(177)   # check for +/- sign
+    if t in val:
+        x = val.index(t)
+        m = float(val[:x])
+        s = float(val[(x+1):])
+        foundpattern = True
+
+    if '=' in val:
+        x = val.index('=')
+        m = float(val[(x+1):])
+        s = []
+        foundpattern = True
+
+    if not foundpattern:
+        m = float(val)
+        s = 0
+
+    return m,s
+
+
+def parse_threshold_text(thresholdtext):
+    # parse thresholdtext
+    if '<' in thresholdtext:
+        c = thresholdtext.index('<')
+        comparisontext = '<'
+    else:
+        c = thresholdtext.index('>')
+        comparisontext = '>'
+    threshold = float(thresholdtext[(c+1):])
+
+    if c > 0:
+        if 'mag' in thresholdtext[:c]:
+            absval = False
+        if 'abs' in thresholdtext[:c]:
+            absval = True
+    else:
+        absval = False
+
+    if absval:
+        print('threshold is set to absolute value {} {}'.format(comparisontext, threshold))
+    else:
+        print('threshold is set to {} {}'.format(comparisontext, threshold))
+    return comparisontext, absval, threshold
+
+
 def parse_connection_name(connection, regionlist):
     h1 = connection.index('-')
     h2 = connection[(h1+2):].index('-') + h1 + 2
@@ -2444,13 +2491,31 @@ def parse_connection_name(connection, regionlist):
     return (r1,r2,r3),(i1,i2,i3)
 
 
-def draw_sapm_plot(results_file, sheetname, regionnames, regions,statnames,figurenumber, scalefactor, cnums, threshold = 0.0, writefigure = False):
-    # templatename, clusterdataname = []
+def draw_sapm_plot(results_file, sheetname, regionnames, regions, statname, figurenumber, scalefactor, cnums, thresholdtext = 'abs>0', writefigure = False):
+    # plot diagram is written to a figure window and saved
+
+   # templatename, clusterdataname = []
     #
     xls = pd.ExcelFile(results_file, engine='openpyxl')
     df1 = pd.read_excel(xls, sheetname)
     connections = df1[regionnames]
-    statvals = df1[statnames]
+    statvals = df1[statname]
+
+    statval_values = []
+    for nn in range(len(statvals)):
+        val1 = statvals[nn]
+        m, s = parse_statval(val1)
+        statval_values += [m]
+    statval_values = np.array(statval_values)
+
+    # set scale factor if it is set to 'auto'
+    if isinstance(scalefactor,str):
+        maxval = 5.0
+        maxstat = np.max(np.abs(statval_values))
+        scalefactor = maxval/maxstat
+
+    # parse thresholdtext
+    comparisontext, absval, threshold = parse_threshold_text(thresholdtext)
 
     plt.close(figurenumber)
 
@@ -2463,6 +2528,7 @@ def draw_sapm_plot(results_file, sheetname, regionnames, regions,statnames,figur
     ovalcolor = [0,0,0]
 
     # start drawing
+    plt.close(figurenumber)
     fig = plt.figure(figurenumber)
     ax = fig.add_axes([0,0,1,1])
 
@@ -2488,10 +2554,28 @@ def draw_sapm_plot(results_file, sheetname, regionnames, regions,statnames,figur
     for nn in range(len(connections)):
         # plot lines for connections
         c1 = connections[nn]
-        val1 = statvals[nn]
-        m,s = parse_statval(val1)
-        if np.abs(m) > threshold:
-            linethick = np.min([5.0, np.abs(m)*scalefactor])
+        m = statval_values[nn]
+        # val1 = statvals[nn]
+        # m,s = parse_statval(val1)
+        if comparisontext == '>':
+            if absval:
+                statcondition = np.abs(m) > threshold
+                linethick = np.min([5.0, np.abs(m)*scalefactor])
+            else:
+                statcondition = m > threshold
+                linethick = np.min([5.0, np.abs(m)*scalefactor])
+                if threshold < 0:
+                    linethick = np.max([0.5, linethick])
+        else:
+            if absval:
+                statcondition = np.abs(m) < threshold
+                linethick = np.min([5.0, np.abs(m)*scalefactor])
+                linethick = np.max([0.5, linethick])
+            else:
+                statcondition = m < threshold
+                linethick = np.min([5.0, np.abs(m)*scalefactor])
+
+        if statcondition:
             if m > 0:
                 linecolor = 'k'
             else:
@@ -2556,14 +2640,15 @@ def draw_sapm_plot(results_file, sheetname, regionnames, regions,statnames,figur
                         typelist[c3] = 'removed'
                         connection_list[c3]['type'] = 'removed'
 
+    svgname = 'none'
     if writefigure:
         p,f1 = os.path.split(results_file)
         f,e = os.path.splitext(f1)
-        svgname = os.path.join(p,f+sheetname+'.svg')
+        svgname = os.path.join(p,f+'_'+statname+'.svg')
         plt.figure(figurenumber)
         plt.savefig(svgname, format='svg')
-        print('saved figure as {}'.format(svgname))
 
+    return svgname
 
 #
 #
