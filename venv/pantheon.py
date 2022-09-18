@@ -6980,6 +6980,20 @@ class SAPMResultsFrame:
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
         settings['SRoptionvalue'] = self.SRoptionvalue
         np.save(settingsfile, settings)
+
+        if self.SRoptionvalue == 'DrawSAPMdiagram':
+            self.SRdrawfilebox['state'] = tk.NORMAL
+            self.SAPMBfilebox['state'] = tk.NORMAL
+            self.SAPMBsheetfield_search_opt['state'] = tk.NORMAL
+            self.SAPMBcolumnfield_search_opt['state'] = tk.NORMAL
+            self.SRthresholdbox['state'] = tk.NORMAL
+        else:
+            self.SRdrawfilebox['state'] = tk.DISABLED
+            self.SAPMBfilebox['state'] = tk.DISABLED
+            self.SAPMBsheetfield_search_opt.config(state = tk.DISABLED)
+            self.SAPMBcolumnfield_search_opt.config(state = tk.DISABLED)
+            self.SRthresholdbox['state'] = tk.DISABLED
+
         return self
 
     def SRtargetregionvalue_choice(self,value):
@@ -7271,7 +7285,7 @@ class SAPMResultsFrame:
         self.SRLabel3 = tk.Label(self.parent, text = "2) Select covariates file if \noutputs are to show correlations etc\n with covariates", fg = 'gray', justify = 'left', font = infofont)
         self.SRLabel3.grid(row=1,column=0, sticky='W')
         self.SRLabel3 = tk.Label(self.parent, text = "3) If DrawSAPMdiagram is chosen for output\n an xlsx file defining plot parameters must be chosen \nand .xlsx files with results to plot\n must be selected", fg = 'gray', justify = 'left', font = infofont)
-        self.SRLabel3.grid(row=1,column=0, sticky='W')
+        self.SRLabel3.grid(row=2,column=0, sticky='W')
 
         rownum = 0
         # define a button to browse and select an existing network definition file, and write out the selected name
@@ -7469,7 +7483,7 @@ class SAPMResultsFrame:
         self.SRdrawfiletext = tk.StringVar()
         self.SRdrawfiletext.set(self.SRdrawfile[-30:])
         self.SRdrawfilebox = tk.Label(self.parent, textvariable=self.SRdrawfiletext, bg=bgcol, fg="#4B4B4B", font = infofont,
-                                     wraplength=150, justify='left')
+                                     wraplength=150, justify='left', state = tk.DISABLED)
         self.SRdrawfilebox.grid(row=rownum, column=columnum+1, sticky='W')
         # the entry boxes need a "browse" button to allow selection of existing cluster definition file
         self.SRdrawfilebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRdrawfilebrowseaction, relief='raised', bd = 5)
@@ -7483,7 +7497,7 @@ class SAPMResultsFrame:
         self.SAPMBfiletext = tk.StringVar()
         self.SAPMBfiletext.set(self.SAPMBfile[-30:])
         self.SAPMBfilebox = tk.Label(self.parent, textvariable=self.SAPMBfiletext, bg=bgcol, fg="#4B4B4B", font = infofont,
-                                     wraplength=150, justify='left')
+                                     wraplength=150, justify='left', state = tk.DISABLED)
         self.SAPMBfilebox.grid(row=rownum, column=columnum+1, sticky='W')
         # the entry boxes need a "browse" button to allow selection of existing cluster definition file
         self.SAPMBfilebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMBfilebrowseaction, relief='raised', bd = 5)
@@ -7497,6 +7511,7 @@ class SAPMResultsFrame:
         self.SAPMBsheetfield_var.set('sheet')
         SAPMBsheet_menu = tk.OptionMenu(self.parent, self.SAPMBsheetfield_var, *self.SRsheetnames, command = self.SAPMBsheetfieldvaluechoice)
         SAPMBsheet_menu.grid(row=rownum, column=columnum, sticky='EW')
+        SAPMBsheet_menu.config(state = tk.DISABLED)
         self.SAPMBsheetfield_search_opt = SAPMBsheet_menu   # save this way so that values are not cleared
 
         rownum = 12
@@ -7507,22 +7522,20 @@ class SAPMResultsFrame:
         self.SAPMBcolumnfield_var.set('stat')
         SAPMBcolumn_menu = tk.OptionMenu(self.parent, self.SAPMBcolumnfield_var, *self.SRcolumnnames, command = self.SAPMBcolumnfieldvaluechoice)
         SAPMBcolumn_menu.grid(row=rownum, column=columnum, sticky='EW')
+        SAPMBcolumn_menu.config(state = tk.DISABLED)
         self.SAPMBcolumnfield_search_opt = SAPMBcolumn_menu   # save this way so that values are not cleared
-
 
         rownum = 13
         columnum = 4
         # put in base name for output files
         self.SRL11 = tk.Label(self.parent, text = 'Threshold:', font = labelfont).grid(row=rownum, column=columnum, sticky='NSEW')
-        self.SRthresholdbox = tk.Entry(self.parent, width = 20, bg="white")
+        self.SRthresholdbox = tk.Entry(self.parent, width = 20, bg="white", state = tk.DISABLED)
         self.SRthresholdbox.grid(row=rownum, column=columnum+1, columnspan = 1, sticky = "W")
         self.SRthresholdbox.insert(0,self.SRthresholdtext)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
         self.SRthresholdsubmitbutton = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2,
                                 font = widgetfont, command = self.SRthresholdsubmit, relief='raised', bd = 5)
         self.SRthresholdsubmitbutton.grid(row=rownum, column=columnum+2)
-
-
 
 #----------MAIN calling function----------------------------------------------------
 # the main function that starts everything running

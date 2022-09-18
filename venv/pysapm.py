@@ -2644,7 +2644,7 @@ def draw_sapm_plot(results_file, sheetname, regionnames, regions, statname, figu
     if writefigure:
         p,f1 = os.path.split(results_file)
         f,e = os.path.splitext(f1)
-        svgname = os.path.join(p,f+'_'+statname+'.svg')
+        svgname = os.path.join(p,f+'_'+statname+'_SAPMnetwork.svg')
         plt.figure(figurenumber)
         plt.savefig(svgname, format='svg')
 
