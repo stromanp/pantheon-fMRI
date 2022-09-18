@@ -6984,8 +6984,8 @@ class SAPMResultsFrame:
         if self.SRoptionvalue == 'DrawSAPMdiagram':
             self.SRdrawfilebox['state'] = tk.NORMAL
             self.SAPMBfilebox['state'] = tk.NORMAL
-            self.SAPMBsheetfield_search_opt['state'] = tk.NORMAL
-            self.SAPMBcolumnfield_search_opt['state'] = tk.NORMAL
+            self.SAPMBsheetfield_search_opt.config(state = tk.NORMAL)
+            self.SAPMBcolumnfield_search_opt.config(state = tk.NORMAL)
             self.SRthresholdbox['state'] = tk.NORMAL
         else:
             self.SRdrawfilebox['state'] = tk.DISABLED
