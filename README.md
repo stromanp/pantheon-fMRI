@@ -47,12 +47,12 @@ Create a new project
 	- do NOT choose to inherit global site packages (will configure these)
 
 STEP 4:
-Get pyspinalfmri3 from GitHub
+Get pantheon-fmri from GitHub
 - copy the python files and “template” directory into the “venv” folder that was created for the project
 
 
 STEP 5
-Setup the environment in PyCharm for pyspinalfmri3
+Setup the environment in PyCharm for Pantheon
 	- go into “Settings” for the project
 	-install packages:
 		dicom2nifti
@@ -69,5 +69,5 @@ Setup the environment in PyCharm for pyspinalfmri3
 
 
 STEP 6
-run pyspinalfmri.py in Pycharm
+run pantheon.py in Pycharm
 
