@@ -37,13 +37,13 @@ import pysapm
 
 # matplotlib.use('TkAgg')   # explicitly set this - it might help with displaying figures in different environments
 
-def SAPM_cluster_search_commandline(search_data_file, nprocessors, samplesplit):
+def SAPM_cluster_search_commandline(search_data_file, nprocessors, samplesplit,samplestart, timepoint = 'all', epoch = 'all'):
     # this is meant to be run from the command line - to make use of parallel processing
     print('Running SAPM_cluster_search with parallel processing')
     search_data = np.load(search_data_file, allow_pickle=True).flat[0]
 
     outputdir = search_data['SAPMresultsdir']
-    SEMresultsname = search_data['SEMresultsname']
+    SEMresultsname = search_data['SAPMresultsname']
     SEMparametersname = search_data['SAPMparamsname']
     networkfile = search_data['networkmodel']
     DBname = search_data['DBname']
@@ -51,10 +51,10 @@ def SAPM_cluster_search_commandline(search_data_file, nprocessors, samplesplit):
     clusterdataname = search_data['SAPMclustername']
     initial_clusters = search_data['initial_clusters']
 
-    best_clusters = pysapm.SAPM_cluster_search(search_data['SAPMresultsdir'], search_data['SEMresultsname'],
+    best_clusters = pysapm.SAPM_cluster_search(search_data['SAPMresultsdir'], search_data['SAPMresultsname'],
                                                search_data['SAPMparamsname'],
                                                search_data['networkmodel'], search_data['DBname'],
                                                search_data['SAPMregionname'],
-                                               search_data['SAPMclustername'], nprocessors, samplesplit,
-                                               search_data['initial_clusters'])
+                                               search_data['SAPMclustername'], nprocessors, samplesplit,samplestart,
+                                               search_data['initial_clusters'], timepoint, epoch)
     print('best clusters appear to be: {}'.format(best_clusters))

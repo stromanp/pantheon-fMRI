@@ -6262,6 +6262,7 @@ class SAPMFrame:
         self.SAPMcnumsbox.insert(0, self.SAPMcnums)
         settings['SAPMcnums'] = self.SAPMcnums
 
+        self.SAPMkeyinfo1.config(text=' ', fg='gray')
         np.save(settingsfile,settings)
 
     def SAPMprefixsubmitaction(self):
@@ -6271,6 +6272,7 @@ class SAPMFrame:
         np.save(settingsfile,settings)
         # update the text in the box, in case it has changed
         self.SAPMprefix = SAPMprefix
+        self.SAPMkeyinfo1.config(text=' ', fg='gray')
         print('prefix for SAPM analysis set to ',self.SAPMprefix)
         return self
 
@@ -6301,6 +6303,7 @@ class SAPMFrame:
         self.SAPMclusternamebox.delete(0, 'end')
         self.SAPMclusternamebox.insert(0,SAPMclustername)
 
+        self.SAPMkeyinfo1.config(text=' ', fg='gray')
         np.save(settingsfile,settings)
 
 
@@ -6332,6 +6335,7 @@ class SAPMFrame:
         self.SAPMclusternamebox.delete(0, 'end')
         self.SAPMclusternamebox.insert(0, self.SAPMclustername)
 
+        self.SAPMkeyinfo1.config(text=' ', fg='gray')
         np.save(settingsfile, settings)
 
 
@@ -6352,6 +6356,7 @@ class SAPMFrame:
         self.SAPMresultsnamebox.delete(0, 'end')
         self.SAPMresultsnamebox.insert(0, self.SAPMresultsname)
 
+        self.SAPMkeyinfo1.config(text=' ', fg='gray')
         np.save(settingsfile, settings)
 
 
@@ -6372,6 +6377,7 @@ class SAPMFrame:
         self.SAPMparamsnamebox.delete(0, 'end')
         self.SAPMparamsnamebox.insert(0, SAPMparamsname)
 
+        self.SAPMkeyinfo1.config(text=' ', fg='gray')
         np.save(settingsfile, settings)
 
     # def SAPMsavetagsubmitaction(self):
@@ -6421,6 +6427,7 @@ class SAPMFrame:
         settings['SAPMregionname'] = SAPMregionname
         self.SAPMregionname = SAPMregionname
 
+        self.SAPMkeyinfo1.config(text=' ', fg='gray')
         np.save(settingsfile,settings)
 
 
@@ -6452,6 +6459,7 @@ class SAPMFrame:
         self.SAPMregionnamebox.delete(0, 'end')
         self.SAPMregionnamebox.insert(0, self.SAPMregionname)
 
+        self.SAPMkeyinfo1.config(text=' ', fg='gray')
         np.save(settingsfile, settings)
 
 
@@ -6488,7 +6496,56 @@ class SAPMFrame:
         self.SAPMcnumsbox.delete(0, 'end')
         self.SAPMcnumsbox.insert(0, self.SAPMcnums)
 
+        self.SAPMkeyinfo1.config(text=' ', fg='gray')
         np.save(settingsfile, settings)
+
+
+    def SAPMtimesubmitclick(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        # SAPMtimepoint = settings['SAPMtimepoint']
+        # SAPMepoch = settings['SAPMepoch']
+
+        entered_text = self.SAPMtimeenter.get()  # collect the text from the text entry box
+
+        if entered_text[:3] == 'all':
+            # set time and epoch to span all data
+            self.SAPMtimetext = 'all'
+            settings['SAPMtimepoint'] = 'all'
+
+            self.SAPMtimeenter.delete(0, 'end')
+            self.SAPMtimeenter.insert(0, self.SAPMtimetext)
+
+            settings['SAPMepoch'] = 'all'
+            self.SAPMtimepoint = 'all'
+            self.SAPMepoch = 'all'
+            # self.SAPMepochenter.delete(0, 'end')
+            # self.SAPMepochenter.insert(0, 'all')
+        else:
+            # first, replace any double spaces with single spaces, and then replace spaces with commas
+            entered_text = re.sub('\ +', ',', entered_text)
+            entered_text = re.sub('\,\,+', ',', entered_text)
+            timevals = np.fromstring(entered_text, dtype=int, sep=',')
+            SAPMtimepoint = timevals[0]
+            SAPMepoch = timevals[1]
+
+            print('timepoint {} and epoch {}'.format(SAPMtimepoint, SAPMepoch))
+
+            timetext = '{},{}'.format(SAPMtimepoint, SAPMepoch)
+            self.SAPMtimetext = timetext
+            self.SAPMtimepoint = SAPMtimepoint
+            self.SAPMepoch = SAPMepoch
+
+            settings['SAPMtimepoint'] = SAPMtimepoint
+            settings['SAPMepoch'] = SAPMepoch
+
+            self.SAPMtimeenter.delete(0, 'end')
+            self.SAPMtimeenter.insert(0, self.SAPMtimetext)
+
+        # save the updated settings file again
+        np.save(settingsfile, settings)
+        return self
+
 
     def SAPMresultsdirbrowseaction(self):
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
@@ -6502,6 +6559,7 @@ class SAPMFrame:
         # write the result to the label box for display
         self.SAPMresultsdirtext.set(settings['SAPMresultsdir'])
 
+        self.SAPMkeyinfo1.config(text=' ', fg='gray')
         # save the updated settings file again
         np.save(settingsfile,settings)
 
@@ -6510,6 +6568,7 @@ class SAPMFrame:
     def SAPMcheckboxes(self):
         self.SAPMrandomclusterstart = self.varS1.get()
         print('SAPMrandomclusterstart = {}'.format(self.SAPMrandomclusterstart))
+        self.SAPMkeyinfo1.config(text=' ', fg='gray')
         return self
 
     def SAPMbestclusters(self):
@@ -6559,17 +6618,25 @@ class SAPMFrame:
                                    'networkmodel':self.networkmodel, 'DBname':self.DBname, 'SAPMregionname':self.SAPMregionname,
                                     'SAPMclustername':self.SAPMclustername, 'initial_clusters':clusterstart})
 
+        message_text = 'Run the cluster search method from the \ncommand line. Follow the instructions \nwritten to the command window.'
+        self.SAPMkeyinfo1.config(text = message_text, fg = 'red')
+
         # print out command line to use parallel processing ...
-        print('A faster method is to run the cluster search from the python command line\nusing the following commands...')
+        print('\n\nIt is much faster to run the cluster search from the python command line\nusing the following commands...')
         print('  Note: if you get an error saying \'pantheon_command_line\' cannot be found, you need to add the folder containing '
               'panthon_command_line.py to your path by entering the command sys.path.append( ...complete folder name... ) at the command line\n')
+        print('Enter the following commands at the command line. Change the values of nprocessors, samplesplit, and samplestart if needed:  ')
         print('import pantheon_command_line as pp')
         print('import multiprocessing as mp')
         print('max_processors = mp.cpu_count()')
         print('\'maximum number of processors is {}\'.format(max_processors)')
         print('nprocessors = 8  # ...choose the number to use, using the max available is not always the fastest')
         print('samplesplit = 2  # ...choose how to divide the sample, 2 for 1/2, 3 for 1/3 etc...')
-        print('pp.SAPM_cluster_search_commandline(r\'{}\',nprocessors, samplesplit)'.format(search_data_file))
+        print('samplestart = 0  # ...if the sample is split, which number to start with, i.e. for 1/2 use 0,2,4... or 1,3,5...')
+        print('# ...optional inputs that can be added after "samplestart" are: ,timepoint, epoch')
+        print('#    timepoint is the volume number at the center of the range of data you want to use (default is "all")')
+        print('#    epoch is the volume span of the range of data you want to use (default is "all")')
+        print('pp.SAPM_cluster_search_commandline(r\'{}\',nprocessors, samplesplit,samplestart)'.format(search_data_file))
 
         nprocessors = 1
         # best_clusters = pysapm.SAPM_cluster_search(self.SAPMresultsdir, SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, self.SAPMregionname,
@@ -6594,9 +6661,10 @@ class SAPMFrame:
         self.SAPMresultsname = settings['SAPMresultsname']
         self.SAPMresultsdir = settings['SAPMresultsdir']
         # self.SAPMsavetag = settings['SAPMsavetag']
-        # self.SEMtimepoints = settings['SEMtimepoints']
-        # self.SEMepoch = settings['SEMepoch']
+        self.SAPMtimepoint = settings['SAPMtimepoint']
+        self.SAPMepoch = settings['SAPMepoch']
         # self.SEMresumerun = settings['SEMresumerun']
+        self.SAPMkeyinfo1.config(text=' ', fg='gray')
 
         SAPMresultsname = os.path.join(self.SAPMresultsdir, )
         xls = pd.ExcelFile(self.DBname, engine='openpyxl')
@@ -6621,7 +6689,7 @@ class SAPMFrame:
         SAPMparamsname = os.path.join(self.SAPMresultsdir, self.SAPMparamsname)
 
         pysapm.SAPMrun(self.SAPMcnums, self.SAPMregionname, self.SAPMclustername,
-                       SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, reload_existing=False)
+                       SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, self.SAPMtimepoint, self.SAPMepoch, reload_existing=False)
 
 
     # initialize the values, keeping track of the frame this definition works on (parent), and
@@ -6657,6 +6725,12 @@ class SAPMFrame:
             self.SAPMclustername = ''
             self.SAPMregionname = ''
             # self.SAPMsavetag = ''
+
+        self.SAPMtimepoint = 'all'
+        self.SAPMepoch = 'all'
+        settings['SAPMtimepoint'] = self.SAPMtimepoint
+        settings['SAPMepoch'] = self.SAPMepoch
+        self.SAPMtimetext = str(self.SAPMtimepoint)
 
         # put some text as a place-holder
         self.SAPMLabel1 = tk.Label(self.parent, text = "1) Select SAPM options...\n   network definition, cluster\n   definitions, region data ...", fg = 'gray', justify = 'left')
@@ -6745,8 +6819,29 @@ class SAPMFrame:
         self.SAPMcnumssubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMcnumssubmitaction, relief='raised', bd = 5)
         self.SAPMcnumssubmit.grid(row=rownum, column=3, sticky='N')
 
-        # SAPM results name --------------------------------------------------------------
         rownum = 8
+        # create the SAPM timepoint and epoch entry box
+        self.SAPMtimelabel = tk.Label(self.parent, text = 'Epoch center,span:', font = labelfont)
+        self.SAPMtimelabel.grid(row=rownum, column=1, sticky='N')
+        self.SAPMtimeenter = tk.Entry(self.parent, width=20, bg="white")
+        self.SAPMtimeenter.grid(row=rownum, column=2, sticky="W")
+        self.SAPMtimeenter.insert(0, self.SAPMtimetext)
+
+        # # create the SEM epoch entry box
+        # self.SAPMepochenter = tk.Entry(self.parent, width=20, bg="white")
+        # self.SAPMepochenter.grid(row=rownum, column=3, sticky="W")
+        # self.SAPMepochenter.insert(0, self.SAPMepoch)
+        # # the entry box needs a "submit" button so that the program knows when to take the entered values
+
+        # the entry box needs a "submit" button so that the program knows when to take the entered values
+        self.SAPMtimesubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont,
+                                     command=self.SAPMtimesubmitclick, relief='raised', bd=5)
+        self.SAPMtimesubmit.grid(row=rownum, column=3)
+
+
+
+        # SAPM results name --------------------------------------------------------------
+        rownum = 9
         # box etc for entering the name used in labeling the results files
         self.SAPMresultsnamelabel = tk.Label(self.parent, text = 'name for SAPM results file:', font = labelfont)
         self.SAPMresultsnamelabel.grid(row=rownum, column=1, sticky='N')
@@ -6758,7 +6853,7 @@ class SAPMFrame:
         self.SAPMresultsnamesubmit.grid(row=rownum, column=3, sticky='N')
 
         # SAPM parameters name --------------------------------------------------------------
-        rownum = 9
+        rownum = 10
         # box etc for entering the name used in labeling the results files
         self.SAPMparamsnamelabel = tk.Label(self.parent, text='name for SAPM parameters file:', font=labelfont)
         self.SAPMparamsnamelabel.grid(row=rownum, column=1, sticky='N')
@@ -6771,7 +6866,7 @@ class SAPMFrame:
                                               relief='raised', bd=5)
         self.SAPMparamsnamesubmit.grid(row=rownum, column=3, sticky='N')
 
-        rownum = 10
+        rownum = 11
         self.varS1 = tk.IntVar()
         self.SAPMrandomcluster = tk.Checkbutton(self.parent, text = 'Random start', width = bigbigbuttonsize, fg = fgletter2,
                                           command = self.SAPMcheckboxes, variable = self.varS1)
@@ -6782,7 +6877,11 @@ class SAPMFrame:
                                         command=self.SAPMbestclusters, relief='raised', bd=5)
         self.SAPMrunsearchbutton.grid(row=rownum, column=2, columnspan = 2, sticky='W')
 
-        rownum = 11
+        self.SAPMkeyinfo1 = tk.Label(self.parent, text = " ", fg = 'gray', justify = 'left')
+        self.SAPMkeyinfo1.grid(row=rownum,column=3, sticky='W')
+
+
+        rownum = 12
         # label, button, for running the definition of clusters, and loading data
         self.SAPMrunnetworkbutton = tk.Button(self.parent, text="Run SAPM", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
                                         command=self.SAPMrunnetwork, relief='raised', bd=5)
@@ -6810,6 +6909,10 @@ class SAPMResultsFrame:
 
         # np.save(settingsfile,settings)
         self.SRnetnametext.set(self.networkmodel)
+        self.SRcnumtext.set(self.SAPMcnums)
+        self.SRresultsdirtext.set(self.SRresultsdir)
+        self.SRresultsnametext.set(self.SRresultsname)
+        self.SRparamsnametext.set(self.SRparamsname)
 
         # update network
         self.SRtargetregion_opt.destroy()  # remove it
@@ -6903,7 +7006,7 @@ class SAPMResultsFrame:
         self.covariatesvalues = self.allcovariatesvalues[c[0],:][0]
         uniquevals = np.unique(self.covariatesvalues)
         uniquecheck = len(uniquevals)
-        if uniquecheck < len(self.covariatesvalues)/2:
+        if uniquecheck < len(self.covariatesvalues)/4:
             self.SRcovcategorical = True
             print('Selected covariate appears to be a categorical variable')
             print('    values are:  {}'.format(uniquevals))
@@ -7034,17 +7137,17 @@ class SAPMResultsFrame:
         print('SRpvalue:  {}'.format(self.SRpvalue))
         print('SRnametag:  {}'.format(self.SRnametag))
 
-        print('running pysapm.display_SAPM_results ...')
-        print('SRCanvas = {}'.format(self.SRCanvas))
-        print('  SRCanvas is a string:  {}'.format(isinstance(self.SRCanvas,str)))
-        print('  SRCanvas type:  {}'.format(type(self.SRCanvas)))
+        # print('running pysapm.display_SAPM_results ...')
+        # print('SRCanvas = {}'.format(self.SRCanvas))
+        # print('  SRCanvas is a string:  {}'.format(isinstance(self.SRCanvas,str)))
+        # print('  SRCanvas type:  {}'.format(type(self.SRCanvas)))
 
         # self.SRPlotFigure = 123
         outputname = pysapm.display_SAPM_results(123, self.SRnametag, self.covariatesvalues, self.SRoptionvalue,
                             self.SRresultsdir, self.SRparamsname, self.SRresultsname,
                             self.SRgroup, self.SRtargetregion, self.SRpvalue, [], self.SRCanvas, True)
 
-        if ('Plot' in self.SRoptionvalue) or ('Draw' in self.SRoptionvalue):
+        if ('Plot' in self.SRoptionvalue):     # or ('Draw' in self.SRoptionvalue)
             print('generating figures to save as svg files ...')
             # self.SRwindownum2 = 124
             outputname = pysapm.display_SAPM_results(124, self.SRnametag, self.covariatesvalues, self.SRoptionvalue,
@@ -7052,7 +7155,6 @@ class SAPMResultsFrame:
                                 self.SRgroup, self.SRtargetregion, self.SRpvalue, [], 'none', False)
 
         if self.SRoptionvalue == 'DrawSAPMdiagram':
-            print('not ready to run DrawSAPMdiagram yet ...')
             # need:
             #  drawregionsfile ==> file defining how to draw network region
             # resultsfile ==> file with Mconn values (.xlsx) for example - SAPM_Bfile
@@ -7080,7 +7182,6 @@ class SAPMResultsFrame:
             regions = pysapm.define_drawing_regions_from_file(drawregionsfile)
             outputname = pysapm.draw_sapm_plot(results_file, sheetname, regionnames, regions, statname, figurenumber, scalefactor, cnums,
                            threshold_text, writefigure)
-            #
 
         print('output results to {}'.format(outputname))
 
