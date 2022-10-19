@@ -61,7 +61,7 @@ import pybrainregistration
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 matplotlib.use('TkAgg')   # explicitly set this - it might help with displaying figures in different environments
-enable_sapm = False
+enable_sapm = True
 
 # save some colors for consistent layout, and make them easy to change
 # colours for Windows
@@ -3361,8 +3361,10 @@ class GLMFrame:
 
         # some run modes need to be run person-by-person
         if runmode in per_person_modes:
+            if np.ndim(dataset) == 3:  dataset = dataset[:,:,:,np.newaxis]
             if np.ndim(dataset) == 4:  dataset = dataset[:,:,:,:,np.newaxis]
             xs, ys, zs, ts, NP = np.shape(dataset)
+            if NP == 1: basisset = basisset[:,:,np.newaxis]
             for nn in range(NP):
                 persondata = dataset[:,:,:,:,nn]
                 personbasis = basisset[:,:,nn]
@@ -3386,12 +3388,6 @@ class GLMFrame:
             print(' size of dataset ',np.shape(dataset),' size of basisset ',np.shape(basisset), 'contrast = ',contrast)
             B, sem, T = GLMfit.GLMfit(dataset, basisset, contrast, add_constant=True, ndrop=0)
 
-        # now do something with B, sem, and T
-        # prompt for a filename for saving the data
-        results = {'B':B,'sem':sem,'T':T}
-        filechoice = tkf.asksaveasfilename(title="Save results as:",
-                        filetypes=(("npy files", "*.npy"), ("all files", "*.*")))
-        np.save(filechoice,results)
 
         # write out information about the results
         # bshape = np.shape(B)
@@ -3418,6 +3414,7 @@ class GLMFrame:
         print('normtemplatename = {}'.format(normtemplatename))
         print('size of template_img is {}'.format(np.shape(template_img)))
 
+
         #
         # p_corr = 0.05   # corrected p-value threshold
         # # correct using gaussian random field theory
@@ -3443,6 +3440,8 @@ class GLMFrame:
         # fig = plt.figure(77), plt.imshow(outputimg)
 
         # save the image for later use
+        filechoice = tkf.asksaveasfilename(title="Save results as:",
+                        filetypes=(("npy files", "*.npy"), ("all files", "*.*")))
         pname,fname = os.path.split(filechoice)
         fname,ext = os.path.splitext(fname)
         outputname = os.path.join(pname,fname+'.png')
@@ -3450,12 +3449,13 @@ class GLMFrame:
         print('size of output image: ',outputimg.shape)
         print('image output name: ',outputname)
 
-        # im = Image.fromarray(outputimg)
-        # im.save(outputname)
-
         # scipy.misc.imsave(outputname, outputimg)   # alternative way of writing image to file
-
         matplotlib.image.imsave(outputname, outputimg)
+
+        # now save the results B, sem, and T, and information to go with them
+        # prompt for a filename for saving the data
+        results = {'type':'GLM','B':B,'sem':sem,'T':T, 'template':template_img, 'regionmap':regionmap_img, 'roi_map':roi_map, 'Tthresh':Tthresh, 'normtemplatename':normtemplatename, 'DBname':self.DBname, 'DBnum':self.DBnum}
+        np.save(filechoice,results)
 
         return self
 
@@ -4525,7 +4525,11 @@ class GRPFrame:
             data = np.load(filechoice, allow_pickle = True).flat[0]
             keylist = data.keys()
             datafiletype = 0
-            if 'type' in keylist: datafiletype = 1
+            if 'type' in keylist:
+                if data['type'] == 'GLM':
+                    datafiletype = 3
+                else:
+                    datafiletype = 1
             if 'region_properties' in keylist: datafiletype = 2
         except:
             print('Error reading selected data file - unexpected contents or format')
@@ -4534,6 +4538,7 @@ class GRPFrame:
         if datafiletype == 0:  print('selected data file does not have the required format')
         if datafiletype == 1:  print('found SEM results: for group comparisons be sure to select 2 results files')
         if datafiletype == 2:  print('found time-course data: select correlation as the analysis type in order to do Bayesian regression')
+        if datafiletype == 3:  print('found GLM results')
 
         settings['GRPdatafiletype1'] = datafiletype
         settings['DBname'] = data['DBname']
@@ -4541,6 +4546,14 @@ class GRPFrame:
         self.DBname = settings['DBname']
         self.DBnum = settings['DBnum']
         np.save(settingsfile, settings)
+
+        # update Database information
+        # DBFrame.DBhandle.DBnametext.set(self.DBname)
+        # value_list_for_display = DBFrame.DBdisplaynumlist(self.DBnum)
+        # DBFrame.DBhandle.DBnumsave_text = value_list_for_display
+        # settings['DBnum'] = entered_values
+        # settings['DBnumstring'] = DBFrame.DBhandle.DBnumsave_text
+        # DBFrame.DBhandle.DBnumenter.insert(0,settings['DBnumstring'])
 
         # clear the characteristics list
         self.GRPcharacteristicslistclear()
@@ -4600,7 +4613,11 @@ class GRPFrame:
             data = np.load(filechoice, allow_pickle = True).flat[0]
             keylist = data.keys()
             datafiletype = 0
-            if 'type' in keylist: datafiletype = 1
+            if 'type' in keylist:
+                if data['type'] == 'GLM':
+                    datafiletype = 3
+                else:
+                    datafiletype = 1
             if 'region_properties' in keylist: datafiletype = 2
         except:
             print('Error reading selected data file - unexpected contents or format')
@@ -4609,6 +4626,7 @@ class GRPFrame:
         if datafiletype == 0:  print('selected data file does not have the required format')
         if datafiletype == 1:  print('found SEM results: for group comparisons be sure to select 2 results files')
         if datafiletype == 2:  print('found time-course data: select correlation as the analysis type in order to do Bayesian regression')
+        if datafiletype == 3:  print('found GLM results')
 
         settings['GRPdatafiletype2'] = datafiletype
         settings['DBname2'] = data['DBname']
@@ -5449,6 +5467,9 @@ class DisplayFrame:
                     fields = ['beta1','beta2','CCrecord','Zgrid1_1','Zgrid1_2','Zgrid2']
                 if data['type'] == 'network':
                     fields = ['b','R2']
+                if data['type'] == 'GLM':
+                    fields = ['B','sem','T']
+                    # ['B', 'sem', 'T', 'template','regionmap', 'roi_map', 'Tthresh','normtemplatename', 'DBname', 'DBnum']
             else:
                 self.DISPdatatype = 'unknown'
                 fields = 'empty'
@@ -6663,6 +6684,7 @@ class SAPMFrame:
         # self.SAPMsavetag = settings['SAPMsavetag']
         self.SAPMtimepoint = settings['SAPMtimepoint']
         self.SAPMepoch = settings['SAPMepoch']
+        self.SAPMcnums = settings['SAPMcnums']
         # self.SEMresumerun = settings['SEMresumerun']
         self.SAPMkeyinfo1.config(text=' ', fg='gray')
 
@@ -6925,7 +6947,7 @@ class SAPMResultsFrame:
         self.SRtargetregion_var = tk.StringVar()
         self.SRtargetregion_var.set('empty')
         SRtargetregion_menu = tk.OptionMenu(self.parent, self.SRtargetregion_var, *region_list, command = self.SRtargetregionvalue_choice)
-        SRtargetregion_menu.grid(row=7, column=4, sticky='EW')
+        SRtargetregion_menu.grid(row=8, column=4, sticky='EW')
         self.SRtargetregion_opt = SRtargetregion_menu   # save this way so that values are not cleared
 
         return self

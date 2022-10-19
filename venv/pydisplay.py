@@ -67,10 +67,11 @@ def pydisplaystatmap(Tmap, Tthreshold, template, mask,templatename):
 
     # find voxels that meet the statistical threshold
     cx, cy, cz = np.where(np.abs(Tmap*mask) > Tthreshold)
-    rmap, gmap, bmap = colormap(Tmap[cx,cy,cz])
-    red[cx,cy,cz] = rmap
-    green[cx,cy,cz] = gmap
-    blue[cx,cy,cz] = bmap
+    if len(cx) > 0:
+        rmap, gmap, bmap = colormap(Tmap[cx,cy,cz])
+        red[cx,cy,cz] = rmap
+        green[cx,cy,cz] = gmap
+        blue[cx,cy,cz] = bmap
 
     # slice results and put them into a mosaic format image
     xs,ys,zs = np.shape(Tmap)

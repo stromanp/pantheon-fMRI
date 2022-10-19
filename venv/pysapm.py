@@ -545,6 +545,210 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAP
     np.save(SAPMparametersname, SAPMparams)
 
 
+
+#---------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+def prep_null_data_sem_physio_model(nsamples, networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint = 'all', epoch = 'all', fullgroup = False):
+    outputdir, f = os.path.split(SAPMparametersname)
+    network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count = load_network_model_w_intrinsics(networkfile)
+
+    fintrinsic_region = []
+    if fintrinsic_count > 0:  # find which regions have fixed intrinsic input
+        for nn in range(len(network)):
+            sources = network[nn]['sources']
+            if 'fintrinsic1' in sources:
+                fintrinsic_region = network[nn]['targetnum']  # only one region should have this input
+
+    region_data1 = np.load(regiondataname, allow_pickle=True).flat[0]
+    region_properties = region_data1['region_properties']
+
+    cluster_data = np.load(clusterdataname, allow_pickle=True).flat[0]
+    cluster_properties = cluster_data['cluster_properties']
+
+    nregions = len(cluster_properties)
+    nclusterlist = [cluster_properties[i]['nclusters'] for i in range(nregions)]
+    rnamelist = [cluster_properties[i]['rname'] for i in range(nregions)]
+    nclusterstotal = np.sum(nclusterlist)
+
+    tsize = region_properties[0]['tsize']
+    nruns_per_person = region_properties[0]['nruns_per_person']
+    nruns_total = np.sum(nruns_per_person)
+    # NP = len(nruns_per_person)  # number of people in the data set
+
+    # for null data sets, replace NP with nsamples--------------------------------
+    NP = nsamples
+    nruns = nruns_per_person[0]
+    nruns_per_person = (nruns*np.ones(nsamples)).astype(int)
+    nruns_total = np.sum(nruns_per_person)
+    tcdata = np.random.randn(nclusterstotal, (tsize*nruns_total).astype(int))   # make a new tcdata set out of random values
+    #-----------------------------------------------------------------------------
+
+    # original method:
+    # tcdata = []
+    # for i in range(nregions):
+    #     tc = region_properties[i]['tc']
+    #     if i == 0:
+    #         tcdata = tc
+    #     else:
+    #         tcdata = np.append(tcdata, tc, axis=0)
+
+    # setup index lists---------------------------------------------------------------------------
+    # timepoints for full runs----------------------------------------------
+    if timepoint == 'all':
+        epoch = tsize
+        timepoint = np.floor(tsize/2)
+
+    tplist_full = []
+    if epoch >= tsize:
+        et1 = 0
+        et2 = tsize
+    else:
+        if np.floor(epoch/2).astype(int) == np.ceil(epoch/2).astype(int):   # even numbered epoch
+            et1 = (timepoint - np.floor(epoch / 2)).astype(int)
+            et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+        else:
+            et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
+            et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+    if et1 < 0: et1 = 0
+    if et2 > tsize: et2 = tsize
+    epoch = et2-et1
+
+    dtsize = tsize - 1  # for using deriviation of tc wrt time
+    tplist1 = []
+    nclusterstotal, tsizetotal = np.shape(tcdata)
+    tcdata_centered = copy.deepcopy(tcdata)
+    for nn in range(NP):
+        r1 = sum(nruns_per_person[:nn])
+        r2 = sum(nruns_per_person[:(nn + 1)])
+        tp = []  # initialize list
+        tpoints = []
+        for ee2 in range(r1, r2):
+            # tp = list(range((ee2 * tsize), (ee2 * tsize + tsize)))
+            tp = list(range((ee2*tsize+et1),(ee2*tsize+et2)))
+            tpoints = tpoints + tp  # concatenate lists
+            temp = np.mean(tcdata[:, tp], axis=1)
+            temp_mean = np.repeat(temp[:, np.newaxis], epoch, axis=1)
+            tcdata_centered[:, tp] = tcdata[:, tp] - temp_mean  # center each epoch, in each person
+        tplist1.append({'tp': tpoints})
+    tplist_full.append(tplist1)
+
+    if fullgroup:
+        # special case to fit the full group together
+        # treat the whole group like one person
+        tpgroup_full = []
+        tpgroup = []
+        tp = []
+        for nn in range(NP):
+            tp += tplist_full[0][nn]['tp']   # concatenate timepoint lists
+        tpgroup.append({'tp': tp})
+        tpgroup_full.append(tpgroup)
+        tplist_full = copy.deepcopy(tpgroup_full)
+        nruns_per_person = [np.sum(nruns_per_person)]
+
+    Nintrinsic = fintrinsic_count + vintrinsic_count
+    nregions = len(rnamelist)
+
+    beta_list = []
+    nbeta = 0
+    targetnumlist = []
+    beta_id = []
+    sourcelist = []
+    for nn in range(len(network)):
+        target = network[nn]['targetnum']
+        sources = network[nn]['sourcenums']
+        targetnumlist += [target]
+        for mm in range(len(sources)):
+            source = sources[mm]
+            sourcelist += [source]
+            betaname = '{}_{}'.format(source, target)
+            entry = {'name': betaname, 'number': nbeta, 'pair': [source, target]}
+            beta_list.append(entry)
+            beta_id += [1000 * source + target]
+            nbeta += 1
+
+    ncon = nbeta - Nintrinsic
+
+    # reorder to put intrinsic inputs at the end-------------
+    beta_list2 = []
+    beta_id2 = []
+    x = np.where(np.array(sourcelist) < nregions)[0]
+    for xx in x:
+        beta_list2.append(beta_list[xx])
+        beta_id2 += [beta_id[xx]]
+    for sn in range(nregions, nregions + Nintrinsic):
+        x = np.where(np.array(sourcelist) == sn)[0]
+        for xx in x:
+            beta_list2.append(beta_list[xx])
+            beta_id2 += [beta_id[xx]]
+
+    for nn in range(len(beta_list2)):
+        beta_list2[nn]['number'] = nn
+
+    beta_list = beta_list2
+    beta_id = beta_id2
+
+    beta_pair = []
+    Mconn = np.zeros((nbeta, nbeta))
+    count = 0
+    for nn in range(len(network)):
+        target = network[nn]['targetnum']
+        sources = network[nn]['sourcenums']
+        for mm in range(len(sources)):
+            source = sources[mm]
+            conn1 = beta_id.index(source * 1000 + target)
+            if source >= nregions:  # intrinsic input
+                conn2 = conn1
+                Mconn[conn1, conn2] = 1  # set the intrinsic beta values
+            else:
+                x = targetnumlist.index(source)
+                source_sources = network[x]['sourcenums']
+                for nn in range(len(source_sources)):
+                    ss1 = source_sources[nn]
+                    conn2 = beta_id.index(ss1 * 1000 + source)
+                    beta_pair.append([conn1, conn2])
+                    count += 1
+                    Mconn[conn1, conn2] = count
+
+    # prep to index Mconn for updating beta values
+    beta_pair = np.array(beta_pair)
+    ctarget = beta_pair[:, 0]
+    csource = beta_pair[:, 1]
+
+    latent_flag = np.zeros(len(ctarget))
+    found_latent_list = []
+    for nn in range(len(ctarget)):
+        if csource[nn] >= ncon:
+            if not csource[nn] in found_latent_list:
+                latent_flag[nn] = 1
+                found_latent_list += [csource[nn]]
+
+    # setup Minput matrix--------------------------------------------------------------
+    # Sconn = Mconn @ Sconn    # propagate the intrinsic inputs through the network
+    # Sinput = Minput @ Mconn
+    Minput = np.zeros((nregions, nbeta))  # mixing of connections to model the inputs to each region
+    betanamelist = [beta_list[a]['name'] for a in range(nbeta)]
+    for nn in range(len(network)):
+        target = network[nn]['targetnum']
+        sources = network[nn]['sourcenums']
+        for mm in range(len(sources)):
+            source = sources[mm]
+            betaname = '{}_{}'.format(source, target)
+            x = betanamelist.index(betaname)
+            Minput[target, x] = 1
+
+    # save parameters for looking at results later
+    SAPMparams = {'betanamelist': betanamelist, 'beta_list': beta_list, 'nruns_per_person': nruns_per_person,
+                 'nclusterstotal': nclusterstotal, 'rnamelist': rnamelist, 'nregions': nregions,
+                 'cluster_properties': cluster_properties, 'cluster_data': cluster_data,
+                 'network': network, 'fintrinsic_count': fintrinsic_count, 'vintrinsic_count': vintrinsic_count,
+                 'fintrinsic_region':fintrinsic_region, 'sem_region_list': sem_region_list,
+                 'nclusterlist': nclusterlist, 'tsize': tsize, 'tplist_full': tplist_full,
+                 'tcdata_centered': tcdata_centered, 'ctarget':ctarget ,'csource':csource,
+                 'Mconn':Mconn, 'Minput':Minput, 'timepoint':timepoint, 'epoch':epoch, 'latent_flag':latent_flag}
+    print('saving SAPM parameters to file: {}'.format(SAPMparametersname))
+    np.save(SAPMparametersname, SAPMparams)
+
+
 #----------------------------------------------------------------------------------
 # primary function--------------------------------------------------------------------
 def sem_physio_model(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparametersname, fixed_beta_vals = [], verbose = True):
