@@ -3324,10 +3324,6 @@ class GLMFrame:
         # select the method for GLM analysis
         # GLMoptions = {'concatenate_group', 'group_concatenate_by_person_avg', 'avg_by_person',
         #               'concatenate_by_person', 'group_average'}
-
-        # dataset = self.dataset
-        # basisset = self.basisset
-
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         DBname = settings['DBname']
         DBnum = settings['DBnum']
@@ -3347,7 +3343,6 @@ class GLMFrame:
             datainfo += infotext
         self.GLMdatainfo.configure(text=datainfo)
         print('Finished loading  data from ',filename)
-
 
         # for consistency with other program components - update these
         self.DBname = DBname
