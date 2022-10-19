@@ -66,6 +66,7 @@ def pydisplaystatmap(Tmap, Tthreshold, template, mask,templatename):
     # fig = plt.figure(21), plt.imshow(tcimg)
 
     # find voxels that meet the statistical threshold
+
     cx, cy, cz = np.where(np.abs(Tmap*mask) > Tthreshold)
     if len(cx) > 0:
         rmap, gmap, bmap = colormap(Tmap[cx,cy,cz])
