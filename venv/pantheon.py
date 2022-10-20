@@ -61,7 +61,7 @@ import pybrainregistration
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 matplotlib.use('TkAgg')   # explicitly set this - it might help with displaying figures in different environments
-enable_sapm = True
+enable_sapm = False
 
 # save some colors for consistent layout, and make them easy to change
 # colours for Windows
@@ -159,7 +159,17 @@ else:
             'GRPdatafiletype2':0,
             'GRPpvalue':0.05,
             'NCBparameters':[(10000, 1000, 100),(3.0, 1.0, 0.0),(4, 2, 1)],
-            'braintemplate':'avg152T2.nii'}
+            'braintemplate':'avg152T2.nii',
+            'SAPMcnums': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            'SAPMresultsdir': '',
+            'SAPMresultsname': '',
+            'SAPMparamsname': '',
+            'networkmodel': '',
+            'SAPMclustername': '',
+            'SAPMregionname': '',
+            'SAPMtimepoint': 'all',
+            'SAPMepoch': 'all'}
+
 np.save(settingsfile,settings)
 
 # ------Create the Base Window that will hold everything, widgets, etc.---------------------
@@ -6395,26 +6405,6 @@ class SAPMFrame:
 
         self.SAPMkeyinfo1.config(text=' ', fg='gray')
         np.save(settingsfile, settings)
-
-    # def SAPMsavetagsubmitaction(self):
-    #     # first load the settings file so that values can be used later
-    #     settings = np.load(settingsfile, allow_pickle=True).flat[0]
-    #     SAPMsavetag = self.SAPMsavetagbox.get()
-    #
-    #     # remove directory information if included, and make sure it has no extension
-    #     p, f_full = os.path.split(SAPMsavetag)
-    #     f,e = os.path.splitext(f_full)
-    #     SAPMsavetag = f
-    #
-    #     settings['SAPMsavetag'] = SAPMsavetag
-    #     self.SAPMsavetag = SAPMsavetag
-    #
-    #     # write the result to the label box for display
-    #     self.SAPMsavetagbox.delete(0, 'end')
-    #     self.SAPMsavetagbox.insert(0, SAPMsavetag)
-    #
-    #     np.save(settingsfile, settings)
-
 
     # define functions before they are used in the database frame------------------------------------------
     # action when the button to browse for a DB fie is pressed

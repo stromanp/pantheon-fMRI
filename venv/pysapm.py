@@ -548,7 +548,7 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAP
 
 #---------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
-def prep_null_data_sem_physio_model(nsamples, networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint = 'all', epoch = 'all', fullgroup = False):
+def prep_null_data_sem_physio_model(nsamples, networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint = 'all', epoch = 'all', fullgroup = False, addglobalbias = False):
     outputdir, f = os.path.split(SAPMparametersname)
     network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count = load_network_model_w_intrinsics(networkfile)
 
@@ -581,6 +581,11 @@ def prep_null_data_sem_physio_model(nsamples, networkfile, regiondataname, clust
     nruns_per_person = (nruns*np.ones(nsamples)).astype(int)
     nruns_total = np.sum(nruns_per_person)
     tcdata = np.random.randn(nclusterstotal, (tsize*nruns_total).astype(int))   # make a new tcdata set out of random values
+
+    if addglobalbias:
+        globalbias = np.random.randn(1, (tsize*nruns_total).astype(int))
+        globalbias = np.repeat(globalbias,nclusterstotal,axis=0)
+        tcdata += globalbias
     #-----------------------------------------------------------------------------
 
     # original method:
