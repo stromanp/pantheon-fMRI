@@ -7370,26 +7370,6 @@ class SAPMResultsFrame:
             self.SRcolumnnames = 'stat'
             self.SRsheetnames = ['not set']
 
-            # if 'SAPMBfile' in settings.keys():
-        #     self.SAPMBfile = settings['SAPMBfile']
-        #     try:
-        #         xls = pd.ExcelFile(self.SAPMBfile, engine='openpyxl')  # get the sheetnames
-        #         self.SRsheetnames = xls.sheet_names
-        #         self.SAPMBsheet = self.SRsheetnames[0]
-        #         df1 = pd.read_excel(xls, self.SAPMBsheet)
-        #         columnnames = list(df1.keys())
-        #         self.SRcolumnnames = [x for x in columnnames if 'Unnamed' not in x]
-        #         self.SAPMBcolumn = self.SRcolumnnames[0]
-        #     except:
-        #         self.SAPMBfile = ''
-        #         self.SAPMBsheet = 'sheet'
-        #         self.SRcolumnnames = 'stat'
-        #
-        # else:
-        #     self.SAPMBfile = ''
-        #     self.SAPMBsheet = 'sheet'
-        #     self.SRcolumnnames = 'stat'
-        #     self.SRthresholdtext = '>0'
 
         self.SRresultsdir = copy.deepcopy(self.SAPMresultsdir)
         self.SRresultsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
