@@ -91,6 +91,7 @@ else:
     widgetfont2 = "none 9 bold"
     labelfont = "none 9 bold"
     radiofont = "none 9"
+    infofont = "none 9"
 
 bigbigbuttonsize = 21
 bigbuttonsize = 14
@@ -148,6 +149,7 @@ else:
             'SEMtimepoints':[11,18],
             'SEMepoch':7,
             'SEMresumerun':False,
+            'SRthresholdtext': '',
             'GRPresultsname':'notdefined',
             'GRPresultsname2':'notdefined',
             'GRPcharacteristicscount':0,
