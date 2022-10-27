@@ -61,7 +61,7 @@ import pybrainregistration
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 matplotlib.use('TkAgg')   # explicitly set this - it might help with displaying figures in different environments
-enable_sapm = False
+enable_sapm = True
 
 # save some colors for consistent layout, and make them easy to change
 # colours for Windows
@@ -81,9 +81,9 @@ if os.name == 'nt':
     widgetbg = 'SystemButtonFace'
 else:
     # colours for Mac/Linux
-    fgcol1 = 'navy'
-    fgcol2 = 'navy'
-    fgcol3 = 'navy'
+    fgcol1 = 'red'
+    fgcol2 = 'red'
+    fgcol3 = 'red'
     bgcol = 'grey94'
     fgletter1 = 'black'
     fgletter2 = 'black'
