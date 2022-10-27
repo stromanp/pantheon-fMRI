@@ -78,6 +78,7 @@ if os.name == 'nt':
     labelfont = "none 9 bold"
     radiofont = "none 9"
     infofont = "none 8"
+    widgetbg = 'SystemButtonFace'
 else:
     # colours for Mac/Linux
     fgcol1 = 'navy'
@@ -92,6 +93,7 @@ else:
     labelfont = "none 9 bold"
     radiofont = "none 9"
     infofont = "none 9"
+    widgetbg = '#3E4149'
 
 bigbigbuttonsize = 21
 bigbuttonsize = 14
@@ -419,69 +421,74 @@ class OptionsFrame:
         self.buttons = {}  # to keep track of button handles
 
         # button for running the conversion to NIfTI format step
-        self.setdb = tk.Button(self.parent, text = 'Database', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('DBFrame', 'setdb'), relief='raised', bd = 5)
+        self.setdb = tk.Button(self.parent, text = 'Database', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('DBFrame', 'setdb'), relief='raised', bd = 5, highlightbackground = widgetbg)
         self.setdb.grid(row = 0, column = 0)
         self.buttons['setdb'] = self.setdb
 
+        colors = {attr: self.setdb.cget(attr) for attr in (
+            "background", "foreground", "disabledforeground",
+            "highlightbackground", "highlightcolor")}
+        print('button colors are {}'.format(colors))
+
         # button for running the conversion to NIfTI format step
-        self.writenifti = tk.Button(self.parent, text = 'Write NIfTI', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('NIFrame', 'writenifti'), relief='raised', bd = 5)
+        self.writenifti = tk.Button(self.parent, text = 'Write NIfTI', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('NIFrame', 'writenifti'), relief='raised', bd = 5, highlightbackground = widgetbg)
         self.writenifti.grid(row = 1, column = 0)
         self.buttons['writenifti'] = self.writenifti
 
         # button for calculating the normalization parameters for each data set
-        self.normalizationcalc = tk.Button(self.parent, text = 'Norm. Calc.', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.choosenormframe, relief='raised', bd = 5)
+        self.normalizationcalc = tk.Button(self.parent, text = 'Norm. Calc.', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.choosenormframe, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.normalizationcalc.grid(row = 2, column = 0)
         self.buttons['normalizationcalc'] = self.normalizationcalc
 
         # button for selecting and running the pre-processing steps
-        self.preprocess = tk.Button(self.parent, text = 'Pre-Process', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('PPFrame', 'preprocess'), relief='raised', bd = 5)
+        self.preprocess = tk.Button(self.parent, text = 'Pre-Process', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('PPFrame', 'preprocess'), relief='raised', bd = 5, highlightbackground = widgetbg)
         self.preprocess.grid(row = 3, column = 0)
         self.buttons['preprocess'] = self.preprocess
 
         # button for selecting and running the GLM analysis steps
-        self.glmanalysis = tk.Button(self.parent, text = 'GLM fit', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('GLMFrame', 'glmanalysis'), relief='raised', bd = 5)
+        self.glmanalysis = tk.Button(self.parent, text = 'GLM fit', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('GLMFrame', 'glmanalysis'), relief='raised', bd = 5, highlightbackground = widgetbg)
         self.glmanalysis.grid(row = 4, column = 0)
         self.buttons['glmanalysis'] = self.glmanalysis
 
         # button for selecting and running the data clustering steps
-        self.clustering = tk.Button(self.parent, text = 'Cluster', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('CLFrame', 'clustering'), relief='raised', bd = 5)
+        self.clustering = tk.Button(self.parent, text = 'Cluster', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('CLFrame', 'clustering'), relief='raised', bd = 5, highlightbackground = widgetbg)
         self.clustering.grid(row = 5, column = 0)
         self.buttons['clustering'] = self.clustering
 
         # button for selecting and running the SEM analysis steps
-        self.sem = tk.Button(self.parent, text = 'SEM', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('SEMFrame', 'sem'), relief='raised', bd = 5)
+        self.sem = tk.Button(self.parent, text = 'SEM', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('SEMFrame', 'sem'), relief='raised', bd = 5, highlightbackground = widgetbg)
         self.sem.grid(row = 6, column = 0)
         self.buttons['sem'] = self.sem
 
         # button for selecting and running the group-level analysis steps
-        self.groupanalysis = tk.Button(self.parent, text = 'Group-level', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont2, command = lambda: self.options_show_frame('GRPFrame', 'groupanalysis'), relief='raised', bd = 5)
+        self.groupanalysis = tk.Button(self.parent, text = 'Group-level', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont2, command = lambda: self.options_show_frame('GRPFrame', 'groupanalysis'), relief='raised', bd = 5, highlightbackground = widgetbg)
         self.groupanalysis.grid(row = 7, column = 0)
         self.buttons['groupanalysis'] = self.groupanalysis
 
         # button for selecting and running the group-level analysis steps
-        self.display = tk.Button(self.parent, text = 'View GL', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont2, command = lambda: self.options_show_frame('DisplayFrame', 'display'), relief='raised', bd = 5)
+        self.display = tk.Button(self.parent, text = 'View GL', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont2, command = lambda: self.options_show_frame('DisplayFrame', 'display'), relief='raised', bd = 5, highlightbackground = widgetbg)
         self.display.grid(row = 8, column = 0)
         self.buttons['display'] = self.display
 
         # button for selecting and running the group-level analysis steps
-        self.display2 = tk.Button(self.parent, text = 'View GL 2', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont2, command = lambda: self.options_show_frame('DisplayFrame2', 'display2'), relief='raised', bd = 5)
+        self.display2 = tk.Button(self.parent, text = 'View GL 2', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont2, command = lambda: self.options_show_frame('DisplayFrame2', 'display2'), relief='raised', bd = 5, highlightbackground = widgetbg)
         self.display2.grid(row = 9, column = 0)
         self.buttons['display2'] = self.display2
 
         if enable_sapm:
             # button for selecting and running the SAPM analysis steps
-            self.sapm = tk.Button(self.parent, text = 'SAPM', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('SAPMFrame', 'sapm'), relief='raised', bd = 5)
+            self.sapm = tk.Button(self.parent, text = 'SAPM', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('SAPMFrame', 'sapm'), relief='raised', bd = 5, highlightbackground = widgetbg)
             self.sapm.grid(row = 10, column = 0)
             self.buttons['sapm'] = self.sapm
 
             # button for selecting and running the step to view/display SAPM results
-            self.sapmresults = tk.Button(self.parent, text = 'SAPM Results', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('SAPMResultsFrame', 'sapmresults'), relief='raised', bd = 5)
+            self.sapmresults = tk.Button(self.parent, text = 'SAPM Results', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = lambda: self.options_show_frame('SAPMResultsFrame', 'sapmresults'), relief='raised', bd = 5, highlightbackground = widgetbg)
             self.sapmresults.grid(row = 11, column = 0)
             self.buttons['sapmresults'] = self.sapmresults
 
         # define a button to exit the GUI
         # also, define the function for what to do when this button is pressed
-        self.exit_button = tk.Button(self.parent, text = 'Exit', width = smallbuttonsize, bg = 'grey80', fg = fgletter2, font = widgetfont, command = self.close_window, relief='sunken', bd = 5)
+        self.exit_button = tk.Button(self.parent, text = 'Exit', width = smallbuttonsize, bg = 'grey80', fg = fgletter2, font = widgetfont, command = self.close_window, relief='sunken', bd = 5, highlightbackground = widgetbg)
         self.exit_button.grid(row = 12, column = 0)
 
 
@@ -559,12 +566,12 @@ class DBFrame:
 
         # define a button to browse and select an existing database file, and write out the selected name
         # also, define the function for what to do when this button is pressed
-        self.DBsubmit = tk.Button(self.parent, text = 'Browse', width = smallbuttonsize, bg = fgcol1, fg = fgletter1, command = self.DBbrowseclick, relief='raised', bd = 5)
+        self.DBsubmit = tk.Button(self.parent, text = 'Browse', width = smallbuttonsize, bg = fgcol1, fg = fgletter1, command = self.DBbrowseclick, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.DBsubmit.grid(row = 0, column = 2)
 
         # define a button to select a new database file
         # also, define the function for what to do when this button is pressed
-        self.DBnew = tk.Button(self.parent, text = 'New', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, command = self.DBnewclick, relief='raised', bd = 5)
+        self.DBnew = tk.Button(self.parent, text = 'New', width = smallbuttonsize, bg = fgcol2, fg = fgletter2, command = self.DBnewclick, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.DBnew.grid(row = 0, column = 3)
 
         # now define an Entry box so that the user can enter database numbers
@@ -573,42 +580,42 @@ class DBFrame:
         self.DBL2.grid(row=1,column=0, sticky='W')
 
         # create the Entry box
-        self.DBnumenter = tk.Entry(self.parent, width = 20, bg="white")
+        self.DBnumenter = tk.Entry(self.parent, width = 20, bg="white", highlightbackground = widgetbg)
         self.DBnumenter.grid(row=1, column = 1, sticky = "W")
         self.DBnumenter.insert(0,settings['DBnumstring'])
 
         # the entry box needs a "submit" button so that the program knows when to take the entered values
-        self.DBnumsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol1, fg = fgletter1, command = self.DBnumsubmitclick, relief='raised', bd = 5)
+        self.DBnumsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol1, fg = fgletter1, command = self.DBnumsubmitclick, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.DBnumsubmit.grid(row = 1, column = 2)
 
         # the entry box needs a "submit" button so that the program knows when to take the entered values
-        self.DBnumload = tk.Button(self.parent, text = "Load", width = smallbuttonsize, bg = fgcol1, fg = fgletter1, command = self.DBnumlistload, relief='raised', bd = 5)
+        self.DBnumload = tk.Button(self.parent, text = "Load", width = smallbuttonsize, bg = fgcol1, fg = fgletter1, command = self.DBnumlistload, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.DBnumload.grid(row = 1, column = 3)
 
         # the entry box needs a "submit" button so that the program knows when to take the entered values
-        self.DBnumsavebutton = tk.Button(self.parent, text = "Save", width = smallbuttonsize, bg = fgcol1, fg = fgletter1, command = self.DBnumlistsave, relief='raised', bd = 5)
+        self.DBnumsavebutton = tk.Button(self.parent, text = "Save", width = smallbuttonsize, bg = fgcol1, fg = fgletter1, command = self.DBnumlistsave, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.DBnumsavebutton.grid(row = 1, column = 4)
 
         # add a button to clear the entered values
-        self.DBnumclearbutton = tk.Button(self.parent, text = "Clear", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, command = self.DBnumclear, relief='raised', bd = 5)
+        self.DBnumclearbutton = tk.Button(self.parent, text = "Clear", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, command = self.DBnumclear, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.DBnumclearbutton.grid(row = 1, column = 5)
 
         # put a separator for readability
         ttk.Separator(self.parent).grid(row=2, column=1, columnspan=6, sticky="nswe", padx=2, pady=5)
 
         # add label, and pull-down menu for selected database values for searching
-        self.DBL3 = tk.Label(self.parent, text = "Database search:", font = labelfont)
+        self.DBL3 = tk.Label(self.parent, text = "Database search:", font = labelfont, highlightbackground = widgetbg)
         self.DBL3.grid(row=3,column=0,columnspan = 2, sticky='W')
 
         # add a button to clear the search values
-        self.DBsearchclear = tk.Button(self.parent, text = "Clear Search", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, command = self.DBsearchclear, relief='raised', bd = 5)
+        self.DBsearchclear = tk.Button(self.parent, text = "Clear Search", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, command = self.DBsearchclear, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.DBsearchclear.grid(row = 3, column = 3)
 
         # add a button to run the search
-        self.DBrunsearch = tk.Button(self.parent, text = "Run Search", width = smallbuttonsize, bg = fgcol1, fg = fgletter1, command = self.DBrunsearch, relief='raised', bd = 5)
+        self.DBrunsearch = tk.Button(self.parent, text = "Run Search", width = smallbuttonsize, bg = fgcol1, fg = fgletter1, command = self.DBrunsearch, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.DBrunsearch.grid(row = 3, column = 2)
 
-        self.DBL5 = tk.Label(self.parent, text = "Value:", font = labelfont)
+        self.DBL5 = tk.Label(self.parent, text = "Value:", font = labelfont, highlightbackground = widgetbg)
         self.DBL5.grid(row=4,column=2, sticky='W')
         # fieldvalues = DBFrame.get_DB_field_values(self)
         fields = self.get_DB_fields()
@@ -627,7 +634,7 @@ class DBFrame:
         fieldvalue_menu.grid(row=4, column=3, sticky='EW')
         self.fieldvaluesearch_opt = fieldvalue_menu   # save this way so that values are not cleared
 
-        self.DBL4 = tk.Label(self.parent, text = "Keyword:", font = labelfont)
+        self.DBL4 = tk.Label(self.parent, text = "Keyword:", font = labelfont, highlightbackground = widgetbg)
         self.DBL4.grid(row=4,column=0, sticky='W')
         # fields = DBFrame.get_DB_fields(self)
         field_menu = tk.OptionMenu(self.parent, self.field_var, *fields, command = self.DBfieldchoice)
@@ -637,13 +644,13 @@ class DBFrame:
         # add information to show the current search terms
         self.searchterm_text = tk.StringVar()
         self.searchterm_text.set('Database search keys:  empty')
-        self.DBsearchtext = tk.Label(self.parent, text = self.searchterm_text.get(), font = labelfont)
+        self.DBsearchtext = tk.Label(self.parent, text = self.searchterm_text.get(), font = labelfont, highlightbackground = widgetbg)
         self.DBsearchtext.grid(row=5,column=1,columnspan = 2, sticky='W')
 
         # add information to show the current search terms
         self.searchresult_text = tk.StringVar()
         self.searchresult_text.set('Database search results:  empty')
-        self.DBsearchresult = tk.Label(self.parent, text = self.searchresult_text.get(), font = labelfont)
+        self.DBsearchresult = tk.Label(self.parent, text = self.searchresult_text.get(), font = labelfont, highlightbackground = widgetbg)
         self.DBsearchresult.grid(row=5,column=3,columnspan = 3, sticky='W')
 
 
@@ -1033,15 +1040,15 @@ class NIFrame:
         self.NInameenter.insert(0,settings['NIbasename'])
 
         # the entry box needs a "submit" button so that the program knows when to take the entered values
-        self.NInamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, command = self.NInamesubmitclick, relief='raised', bd = 5)
+        self.NInamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, command = self.NInamesubmitclick, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.NInamesubmit.grid(row = 0, column = 3)
 
         # for now, just put a button that will eventually call the NIfTI conversion program
-        self.NIorganizedata = tk.Button(self.parent, text = 'Organize Data', width = bigbuttonsize, bg = fgcol1, fg = fgletter1, command = self.NIorganizeclick, font = widgetfont, relief='raised', bd = 5)
+        self.NIorganizedata = tk.Button(self.parent, text = 'Organize Data', width = bigbuttonsize, bg = fgcol1, fg = fgletter1, command = self.NIorganizeclick, font = widgetfont, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.NIorganizedata.grid(row = 1, column = 1, columnspan = 2)
 
         # butotn to call the NIfTI conversion program
-        self.NIrunconvert = tk.Button(self.parent, text = 'Convert', width = bigbuttonsize, bg = fgcol1, fg = fgletter1, command = self.NIconversionclick, font = widgetfont, relief='raised', bd = 5)
+        self.NIrunconvert = tk.Button(self.parent, text = 'Convert', width = bigbuttonsize, bg = fgcol1, fg = fgletter1, command = self.NIconversionclick, font = widgetfont, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.NIrunconvert.grid(row = 2, column = 1, columnspan = 2)
 
 
@@ -1165,7 +1172,7 @@ class NCFrame:
         self.NCsavename.insert(1,self.normdatasavename)
 
         # the entry box needs a "submit" button so that the program knows when to take the entered values
-        self.NCsavenamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, command = self.NCsavenamesubmit, relief='raised', bd = 5)
+        self.NCsavenamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, command = self.NCsavenamesubmit, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.NCsavenamesubmit.grid(row = 1, column = 3)
 
         # need entry boxes for "fit_parameters"
@@ -1220,7 +1227,7 @@ class NCFrame:
 
         # the entry box needs a "submit" button so that the program knows when to take the entered values
         self.NCfitparamsubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
-                                          command=self.NCfitparamsubmit, relief='raised', bd=5)
+                                          command=self.NCfitparamsubmit, relief='raised', bd=5, highlightbackground = widgetbg)
         self.NCfitparamsubmit.grid(row=3, column=4, rowspan=3)
 
         # checkboxes to indicate 1) do rough normalization, 2) do fine-tuning normalization
@@ -1234,15 +1241,15 @@ class NCFrame:
         self.NCfinetune.grid(row = 5, column = 0, sticky="E")
 
         # button to call the normalization program
-        self.NCrun = tk.Button(self.parent, text = 'Calculate Normalization', width = bigbigbuttonsize, bg = fgcol1, fg = fgletter1, command = self.NCrunclick, font = widgetfont, relief='raised', bd = 5)
+        self.NCrun = tk.Button(self.parent, text = 'Calculate Normalization', width = bigbigbuttonsize, bg = fgcol1, fg = fgletter1, command = self.NCrunclick, font = widgetfont, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.NCrun.grid(row = 6, column = 1)
 
         # button to run program to manually adjust rough normalization sections
-        self.NCmano = tk.Button(self.parent, text = 'Manual Over-ride', width = bigbuttonsize, bg = fgcol3, fg = fgletter3, command = self.NCmanoclick, font = widgetfont, relief='raised', bd = 5)
+        self.NCmano = tk.Button(self.parent, text = 'Manual Over-ride', width = bigbuttonsize, bg = fgcol3, fg = fgletter3, command = self.NCmanoclick, font = widgetfont, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.NCmano.grid(row = 6, column = 2)
 
         # button to recalculate normalization after manual over-ride
-        self.NCrun = tk.Button(self.parent, text = 'Recalculate', width = bigbigbuttonsize, bg = fgcol3, fg = fgletter3, command = self.NCrecalculate_after_override, font = widgetfont, relief='raised', bd = 5)
+        self.NCrun = tk.Button(self.parent, text = 'Recalculate', width = bigbigbuttonsize, bg = fgcol3, fg = fgletter3, command = self.NCrecalculate_after_override, font = widgetfont, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.NCrun.grid(row = 7, column = 4)
 
 
@@ -1256,7 +1263,7 @@ class NCFrame:
         self.NCcopyentry.grid(row=9, column=5, sticky="W")
         self.NCcopyentry.insert(0, self.copydbnumber)
         # the entry box needs a "submit" button so that the program knows when to take the entered values
-        self.NCcopysubmit = tk.Button(self.parent, text = "Copy", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.NCcopyroughnorm, relief='raised', bd = 5)
+        self.NCcopysubmit = tk.Button(self.parent, text = "Copy", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.NCcopyroughnorm, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.NCcopysubmit.grid(row = 9, column = 6)
 
         img1 = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
@@ -2135,7 +2142,7 @@ class NCbrainFrame:
         self.NCsavename.insert(1, self.normdatasavename)
 
         # the entry box needs a "submit" button so that the program knows when to take the entered values
-        self.NCsavenamesubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg='black', command=self.NCsavenamesubmit, relief='raised', bd=5, font = widgetfont)
+        self.NCsavenamesubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg='black', command=self.NCsavenamesubmit, relief='raised', bd=5, font = widgetfont, highlightbackground = widgetbg)
         self.NCsavenamesubmit.grid(row=1, column=3)
 
         # for brain normalization, need parameters ...
@@ -2149,11 +2156,11 @@ class NCbrainFrame:
         self.NCBtemplate.insert(1, self.braintemplatename)
 
         # the entry box needs a "submit" button so that the program knows when to take the entered values
-        self.NCBtemplatename = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg=fgletter2, font = widgetfont, command=self.NCBtemplatenamesubmit, relief='raised', bd=5)
+        self.NCBtemplatename = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg=fgletter2, font = widgetfont, command=self.NCBtemplatenamesubmit, relief='raised', bd=5, highlightbackground = widgetbg)
         self.NCBtemplatename.grid(row=2, column=3)
 
         # the entry box needs a "browse" button
-        self.NCBtemplatebrowse = tk.Button(self.parent, text="Browse", width=smallbuttonsize, bg=fgcol2, fg=fgletter2, font = widgetfont, command=self.NCBtemplatenamebrowse, relief='raised', bd=5)
+        self.NCBtemplatebrowse = tk.Button(self.parent, text="Browse", width=smallbuttonsize, bg=fgcol2, fg=fgletter2, font = widgetfont, command=self.NCBtemplatenamebrowse, relief='raised', bd=5, highlightbackground = widgetbg)
         self.NCBtemplatebrowse.grid(row=2, column=4)
 
         # for brain normalization, need parameters ...
@@ -2168,10 +2175,10 @@ class NCbrainFrame:
         self.NCBiters.grid(row=3, column=2, sticky="W")
         self.NCBiters.insert(1, self.iters)
         # the entry box needs a "submit" button so that the program knows when to take the entered values
-        self.NCBitersubmitbutton = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg=fgletter2, font = widgetfont, command=self.NCBitersubmit, relief='raised', bd=5)
+        self.NCBitersubmitbutton = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg=fgletter2, font = widgetfont, command=self.NCBitersubmit, relief='raised', bd=5, highlightbackground = widgetbg)
         self.NCBitersubmitbutton.grid(row=3, column=3)
         # need an option to restore default values
-        self.NCBiterdefaults = tk.Button(self.parent, text="Restore", width=smallbuttonsize, bg=fgcol2, fg=fgletter2, font = widgetfont, command=self.NCBiterrestoredefault, relief='raised', bd=5)
+        self.NCBiterdefaults = tk.Button(self.parent, text="Restore", width=smallbuttonsize, bg=fgcol2, fg=fgletter2, font = widgetfont, command=self.NCBiterrestoredefault, relief='raised', bd=5, highlightbackground = widgetbg)
         self.NCBiterdefaults.grid(row=3, column=4)
 
 
@@ -2182,10 +2189,10 @@ class NCbrainFrame:
         self.NCBsigmas.grid(row=4, column=2, sticky="W")
         self.NCBsigmas.insert(1, self.sigmas)
         # the entry box needs a "submit" button so that the program knows when to take the entered values
-        self.NCBsigmasubmitbutton = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg=fgletter2, font = widgetfont, command=self.NCBsigmassubmit, relief='raised', bd=5)
+        self.NCBsigmasubmitbutton = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg=fgletter2, font = widgetfont, command=self.NCBsigmassubmit, relief='raised', bd=5, highlightbackground = widgetbg)
         self.NCBsigmasubmitbutton.grid(row=4, column=3)
         # need an option to restore default values
-        self.NCBsigmadefaults = tk.Button(self.parent, text="Restore", width=smallbuttonsize, bg=fgcol2, fg=fgletter2, font = widgetfont, command=self.NCBsigmarestoredefault, relief='raised', bd=5)
+        self.NCBsigmadefaults = tk.Button(self.parent, text="Restore", width=smallbuttonsize, bg=fgcol2, fg=fgletter2, font = widgetfont, command=self.NCBsigmarestoredefault, relief='raised', bd=5, highlightbackground = widgetbg)
         self.NCBsigmadefaults.grid(row=4, column=4)
 
         self.NCinfo5 = tk.Label(self.parent, text="divide per level:", font = labelfont)
@@ -2195,14 +2202,14 @@ class NCbrainFrame:
         self.NCBfactors.grid(row=5, column=2, sticky="W")
         self.NCBfactors.insert(1, self.factors)
         # the entry box needs a "submit" button so that the program knows when to take the entered values
-        self.NCBfactorssubmitbutton = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg=fgletter2, font = widgetfont, command=self.NCBfactorssubmit, relief='raised', bd=5)
+        self.NCBfactorssubmitbutton = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg=fgletter2, font = widgetfont, command=self.NCBfactorssubmit, relief='raised', bd=5, highlightbackground = widgetbg)
         self.NCBfactorssubmitbutton.grid(row=5, column=3)
         # need an option to restore default values
-        self.NCBfactordefaults = tk.Button(self.parent, text="Restore", width=smallbuttonsize, bg=fgcol2, fg=fgletter2, font = widgetfont, command=self.NCBfactorrestoredefault, relief='raised', bd=5)
+        self.NCBfactordefaults = tk.Button(self.parent, text="Restore", width=smallbuttonsize, bg=fgcol2, fg=fgletter2, font = widgetfont, command=self.NCBfactorrestoredefault, relief='raised', bd=5, highlightbackground = widgetbg)
         self.NCBfactordefaults.grid(row=5, column=4)
 
         # button to call the normalization program
-        self.NCBrun = tk.Button(self.parent, text='Calculate Normalization', width=bigbigbuttonsize, bg=fgcol1, fg=fgletter1, font = widgetfont, command=self.NCBrunclick, relief='raised', bd=5)
+        self.NCBrun = tk.Button(self.parent, text='Calculate Normalization', width=bigbigbuttonsize, bg=fgcol1, fg=fgletter1, font = widgetfont, command=self.NCBrunclick, relief='raised', bd=5, highlightbackground = widgetbg)
         self.NCBrun.grid(row=6, column=1)
 
         img1 = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
@@ -2656,7 +2663,7 @@ class PPFrame:
         self.PPsliceaxis.insert(0,self.sliceaxis)
 
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.PPslicesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.PPslicesubmit, relief='raised', bd = 5)
+        self.PPslicesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.PPslicesubmit, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.PPslicesubmit.grid(row=srow+1, column=scol+6, columnspan = 4)
         ttk.Separator(self.parent).grid(row=srow+2, column=scol, columnspan=6, sticky="nswe", padx=2, pady=5)
 
@@ -2670,7 +2677,7 @@ class PPFrame:
         self.PPsmoothing.grid(row=srow, column=scol+2, sticky = "W")
         self.PPsmoothing.insert(0,self.smoothwidth)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.PPsmoothsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.PPsmoothsubmit, relief='raised', bd = 5)
+        self.PPsmoothsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.PPsmoothsubmit, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.PPsmoothsubmit.grid(row=srow, column=scol+3)
         ttk.Separator(self.parent).grid(row=srow+1, column=scol, columnspan=6, sticky="nswe", padx=2, pady=5)
 
@@ -2716,7 +2723,7 @@ class PPFrame:
             row=srow+1, column=scol+5, sticky='EW')
 
         # button to run the selected-preprocessing
-        self.PPrun = tk.Button(self.parent, text = 'Process Data', width = bigbuttonsize, bg = fgcol1, fg = fgletter1 , command = self.PPrunclick, font = widgetfont, relief='raised', bd = 5)
+        self.PPrun = tk.Button(self.parent, text = 'Process Data', width = bigbuttonsize, bg = fgcol1, fg = fgletter1 , command = self.PPrunclick, font = widgetfont, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.PPrun.grid(row = srow+2, column = 1, columnspan = 2)
 
         # text to show the resulting prefix for the data that will be created
@@ -2894,7 +2901,7 @@ class GLMFrame:
         self.GLMprefixbox.grid(row=1, column=2, sticky="W")
         self.GLMprefixbox.insert(0,self.GLMprefix)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.GLMprefixsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.GLMprefixsubmit, relief='raised', bd = 5)
+        self.GLMprefixsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.GLMprefixsubmit, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.GLMprefixsubmit.grid(row=1, column=3)
 
 
@@ -2904,7 +2911,7 @@ class GLMFrame:
         self.GLMndropbox.grid(row=2, column=2, sticky = "W")
         self.GLMndropbox.insert(0,self.GLMndrop)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.GLMndropsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.GLMndropsubmit, relief='raised', bd = 5)
+        self.GLMndropsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.GLMndropsubmit, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.GLMndropsubmit.grid(row=2, column=3)
 
         # indicate the contrast to use for analysis
@@ -2913,7 +2920,7 @@ class GLMFrame:
         self.GLMcontrastbox.grid(row=3, column=2, sticky = "W")
         self.GLMcontrastbox.insert(0,self.GLMcontrast)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.GLMcontrastsubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.GLMcontrastsubmit, relief='raised', bd = 5)
+        self.GLMcontrastsubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.GLMcontrastsubmit, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.GLMcontrastsubmitbut.grid(row=3, column=3)
 
         # put in choices for statistical threshold
@@ -2922,7 +2929,7 @@ class GLMFrame:
         self.GLMpvaluebox.grid(row=4, column=2, sticky = "W")
         self.GLMpvaluebox.insert(0,self.GLMpvalue)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.GLMpvaluesubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.GLMpvaluesubmit, relief='raised', bd = 5, state = tk.DISABLED)
+        self.GLMpvaluesubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.GLMpvaluesubmit, relief='raised', bd = 5, state = tk.DISABLED, highlightbackground = widgetbg)
         self.GLMpvaluesubmitbut.grid(row=4, column=3)
 
         # put in choices for voxel volume
@@ -2931,7 +2938,7 @@ class GLMFrame:
         self.GLMvvolumebox.grid(row=5, column=2, sticky = "W")
         self.GLMvvolumebox.insert(0,self.GLMvoxvolume)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.GLMvvolumesubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.GLMvvolumesubmit, relief='raised', bd = 5)
+        self.GLMvvolumesubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.GLMvvolumesubmit, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.GLMvvolumesubmitbut.grid(row=5, column=3)
 
 
@@ -2967,15 +2974,15 @@ class GLMFrame:
         # define a button to browse and select a location for saving the GLM results, and write out the selected name
         # also, define the function for what to do when this button is pressed
         self.GLMfolderbrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
-                                  command=self.GLMresultsbrowseclick, relief='raised', bd=5)
+                                  command=self.GLMresultsbrowseclick, relief='raised', bd=5, highlightbackground = widgetbg)
         self.GLMfolderbrowse.grid(row=8, column=3)
 
         # label, button, and information box for compiling the basis sets
         self.GLMbasisbutton = tk.Button(self.parent, text="Compile Basis Sets", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
-                                        command=self.GLMbasissetup, relief='raised', bd=5)
+                                        command=self.GLMbasissetup, relief='raised', bd=5, highlightbackground = widgetbg)
         self.GLMbasisbutton.grid(row=9, column=1)
         self.GLMbasisbutton2 = tk.Button(self.parent, text="Load Basis Sets", width=bigbigbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
-                                        command=self.GLMbasisload, relief='raised', bd=5)
+                                        command=self.GLMbasisload, relief='raised', bd=5, highlightbackground = widgetbg)
         self.GLMbasisbutton2.grid(row=9, column=2)
         self.GLMbasisinfo= tk.Label(self.parent, text='basis set information ...', font = labelfont)
         self.GLMbasisinfo.grid(row=9, column=3, columnspan = 4, sticky='E')
@@ -2983,10 +2990,10 @@ class GLMFrame:
 
         # label, button, and information box for compiling the data sets
         self.GLMdatabutton = tk.Button(self.parent, text="Compile Data Sets", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
-                                        command=self.GLMdatasetup, relief='raised', bd=5)
+                                        command=self.GLMdatasetup, relief='raised', bd=5, highlightbackground = widgetbg)
         self.GLMdatabutton.grid(row=10, column=1)
         self.GLMdatabutton2 = tk.Button(self.parent, text="Load Data Sets", width=bigbigbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
-                                        command=self.GLMdataload, relief='raised', bd=5)
+                                        command=self.GLMdataload, relief='raised', bd=5, highlightbackground = widgetbg)
         self.GLMdatabutton2.grid(row=10, column=2)
         self.GLMdatainfo = tk.Label(self.parent, text='data set information ...', font = labelfont)
         self.GLMdatainfo.grid(row=10, column=3, columnspan = 4, sticky='E')
@@ -2994,7 +3001,7 @@ class GLMFrame:
         # setup input for contrast
         # label, button, and information box for running the GLM analysis
         self.GLMrunbutton = tk.Button(self.parent, text="Run GLM", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
-                                        command=self.GLMrun1, relief='raised', bd=5)
+                                        command=self.GLMrun1, relief='raised', bd=5, highlightbackground = widgetbg)
         self.GLMrunbutton.grid(row=11, column=1)
         self.GLMruninfo= tk.Label(self.parent, text='GLM results information ...', font = labelfont)
         self.GLMruninfo.grid(row=11, column=2, columnspan = 4, sticky='E')
@@ -3738,7 +3745,7 @@ class CLFrame:
         # define a button to browse and select an existing network definition file, and write out the selected name
         # also, define the function for what to do when this button is pressed
         self.CLnetworkbrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont,
-                                  command=self.CLnetbrowseclick, relief='raised', bd=5)
+                                  command=self.CLnetbrowseclick, relief='raised', bd=5, highlightbackground = widgetbg)
         self.CLnetworkbrowse.grid(row=0, column=3)
 
         # create entry box for the nifti data name prefix (indicates which preprocessing steps were done)
@@ -3748,7 +3755,7 @@ class CLFrame:
         self.CLprefixbox.grid(row=2, column=2, sticky='N')
         self.CLprefixbox.insert(0,self.CLprefix)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.CLprefixsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.CLprefixsubmitaction, relief='raised', bd = 5)
+        self.CLprefixsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.CLprefixsubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.CLprefixsubmit.grid(row=2, column=3, sticky='N')
 
         # need an input for the cluster definition name - save to it, or read from it
@@ -3758,10 +3765,10 @@ class CLFrame:
         self.CLclusternamebox.grid(row=3, column=2, sticky='N')
         self.CLclusternamebox.insert(0,self.CLclustername)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.CLclusternamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.CLclusternamesubmitaction, relief='raised', bd = 5)
+        self.CLclusternamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.CLclusternamesubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.CLclusternamesubmit.grid(row=3, column=3, sticky='N')
         # the entry boxes need a "browse" button to allow selection of existing cluster definition file
-        self.CLclusternamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.CLclusternamebrowseaction, relief='raised', bd = 5)
+        self.CLclusternamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.CLclusternamebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.CLclusternamebrowse.grid(row=3, column=4, sticky='N')
 
         # box etc for entering the name for saving the region data
@@ -3771,16 +3778,16 @@ class CLFrame:
         self.CLregionnamebox.grid(row=4, column=2, sticky='N')
         self.CLregionnamebox.insert(0,self.CLregionname)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.CLregionnamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.CLregionnamesubmitaction, relief='raised', bd = 5)
+        self.CLregionnamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.CLregionnamesubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.CLregionnamesubmit.grid(row=4, column=3, sticky='N')
         # the entry boxes need a "browse" button to allow selection of existing cluster definition file
-        self.CLregionnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.CLregionnamebrowseaction, relief='raised', bd = 5)
+        self.CLregionnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.CLregionnamebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.CLregionnamebrowse.grid(row=4, column=4, sticky='N')
 
 
         # label, button, for running the definition of clusters, and loading data
         self.CLdefineandloadbutton = tk.Button(self.parent, text="Define Clusters", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
-                                        command=self.CLdefineandload, relief='raised', bd=5)
+                                        command=self.CLdefineandload, relief='raised', bd=5, highlightbackground = widgetbg)
         self.CLdefineandloadbutton.grid(row=5, column=2)
 
         self.CLdefinebuttontext = tk.StringVar()
@@ -3790,7 +3797,7 @@ class CLFrame:
 
         # label, button, for running the definition of clusters, and loading data
         self.CLloadbutton = tk.Button(self.parent, text="Load Data", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
-                                        command=self.CLload, relief='raised', bd=5)
+                                        command=self.CLload, relief='raised', bd=5, highlightbackground = widgetbg)
         self.CLloadbutton.grid(row=6, column=2)
 
         self.CLloadbuttontext = tk.StringVar()
@@ -4216,7 +4223,7 @@ class SEMFrame:
         # define a button to browse and select an existing network definition file, and write out the selected name
         # also, define the function for what to do when this button is pressed
         self.SEMnetworkbrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont,
-                                  command=self.SEMnetbrowseclick, relief='raised', bd=5)
+                                  command=self.SEMnetbrowseclick, relief='raised', bd=5, highlightbackground = widgetbg)
         self.SEMnetworkbrowse.grid(row=0, column=3)
 
         # create entry box for the nifti data name prefix (indicates which preprocessing steps were done)
@@ -4226,7 +4233,7 @@ class SEMFrame:
         self.SEMprefixbox.grid(row=2, column=2, sticky='N')
         self.SEMprefixbox.insert(0,self.SEMprefix)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.SEMprefixsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SEMprefixsubmitaction, relief='raised', bd = 5)
+        self.SEMprefixsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SEMprefixsubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SEMprefixsubmit.grid(row=2, column=3, sticky='N')
 
         # need an input for the cluster definition name - save to it, or read from it
@@ -4236,10 +4243,10 @@ class SEMFrame:
         self.SEMclusternamebox.grid(row=3, column=2, sticky='N')
         self.SEMclusternamebox.insert(0,self.SEMclustername)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.SEMclusternamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SEMclusternamesubmitaction, relief='raised', bd = 5)
+        self.SEMclusternamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SEMclusternamesubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SEMclusternamesubmit.grid(row=3, column=3, sticky='N')
         # the entry boxes need a "browse" button to allow selection of existing cluster definition file
-        self.SEMclusternamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SEMclusternamebrowseaction, relief='raised', bd = 5)
+        self.SEMclusternamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SEMclusternamebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SEMclusternamebrowse.grid(row=3, column=4, sticky='N')
 
         # box etc for entering the name for saving the region data
@@ -4249,10 +4256,10 @@ class SEMFrame:
         self.SEMregionnamebox.grid(row=4, column=2, sticky='N')
         self.SEMregionnamebox.insert(0,self.SEMregionname)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.SEMregionnamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SEMregionnamesubmitaction, relief='raised', bd = 5)
+        self.SEMregionnamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SEMregionnamesubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SEMregionnamesubmit.grid(row=4, column=3, sticky='N')
         # the entry boxes need a "browse" button to allow selection of existing cluster definition file
-        self.SEMregionnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SEMregionnamebrowseaction, relief='raised', bd = 5)
+        self.SEMregionnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SEMregionnamebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SEMregionnamebrowse.grid(row=4, column=4, sticky='N')
 
 
@@ -4264,7 +4271,7 @@ class SEMFrame:
         self.SEMtimeenter.insert(0, self.SEMtimetext)
         # the entry box needs a "submit" button so that the program knows when to take the entered values
         self.SEMtimesubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont,
-                                     command=self.SEMtimesubmitclick, relief='raised', bd=5)
+                                     command=self.SEMtimesubmitclick, relief='raised', bd=5, highlightbackground = widgetbg)
         self.SEMtimesubmit.grid(row=5, column=3)
 
 
@@ -4276,7 +4283,7 @@ class SEMFrame:
         self.SEMepochenter.insert(0, self.SEMepoch)
         # the entry box needs a "submit" button so that the program knows when to take the entered values
         self.SEMepochsubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont,
-                                     command=self.SEMepochsubmitclick, relief='raised', bd=5)
+                                     command=self.SEMepochsubmitclick, relief='raised', bd=5, highlightbackground = widgetbg)
         self.SEMepochsubmit.grid(row=6, column=3)
 
 
@@ -4290,7 +4297,7 @@ class SEMFrame:
                                      wraplength=300, justify='left')
         self.SEMresultsdirdisplay.grid(row=7, column=2, sticky='N')
         # the entry boxes need a "browse" button to allow selection of existing cluster definition file
-        self.SEMresultsdirbrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SEMresultsdirbrowseaction, relief='raised', bd = 5)
+        self.SEMresultsdirbrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SEMresultsdirbrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SEMresultsdirbrowse.grid(row=7, column=3, sticky='N')
 
 
@@ -4301,18 +4308,18 @@ class SEMFrame:
         self.SEMsavetagbox.grid(row=8, column=2, sticky='N')
         self.SEMsavetagbox.insert(0,self.SEMsavetag)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.SEMsavetagsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SEMsavetagsubmitaction, relief='raised', bd = 5)
+        self.SEMsavetagsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SEMsavetagsubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SEMsavetagsubmit.grid(row=8, column=3, sticky='N')
 
 
         # label, button, for running the definition of clusters, and loading data
         self.SEMrun1sourcebutton = tk.Button(self.parent, text="Var/Cov", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
-                                        command=self.SEMonesource, relief='raised', bd=5)
+                                        command=self.SEMonesource, relief='raised', bd=5, highlightbackground = widgetbg)
         self.SEMrun1sourcebutton.grid(row=9, column=2)
 
         # label, button, for running the definition of clusters, and loading data
         self.SEMrun2sourcebutton = tk.Button(self.parent, text="2-source SEM", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
-                                        command=self.SEMtwosource, relief='raised', bd=5)
+                                        command=self.SEMtwosource, relief='raised', bd=5, highlightbackground = widgetbg)
         self.SEMrun2sourcebutton.grid(row=10, column=2)
 
         # check to indicate to resume a failed run
@@ -4323,7 +4330,7 @@ class SEMFrame:
 
         # label, button, for running the definition of clusters, and loading data
         self.SEMrunnetworkbutton = tk.Button(self.parent, text="Network SEM", width=bigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
-                                        command=self.SEMrunnetwork, relief='raised', bd=5)
+                                        command=self.SEMrunnetwork, relief='raised', bd=5, highlightbackground = widgetbg)
         self.SEMrunnetworkbutton.grid(row=11, column=2)
 
 
@@ -5334,10 +5341,10 @@ class GRPFrame:
         # define a button to browse and select an existing network definition file, and write out the selected name
         # also, define the function for what to do when this button is pressed
         self.GRPresultsnamebrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
-                                          command=self.GRPresultsbrowseaction, relief='raised', bd=5)
+                                          command=self.GRPresultsbrowseaction, relief='raised', bd=5, highlightbackground = widgetbg)
         self.GRPresultsnamebrowse.grid(row=0, column=4)
         self.GRPresultsnameclear = tk.Button(self.parent, text='Clear', width=smallbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
-                                          command=self.GRPresultsclearaction, relief='raised', bd=5)
+                                          command=self.GRPresultsclearaction, relief='raised', bd=5, highlightbackground = widgetbg)
         self.GRPresultsnameclear.grid(row=0, column=5)
 
 
@@ -5363,20 +5370,20 @@ class GRPFrame:
         self.GRPresultsdirlabel2.grid(row=3, column=2, columnspan=2, sticky='N')
 
         self.GRPresultsnamebrowse2 = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
-                                          command=self.GRPresultsbrowseaction2, relief='raised', bd=5, state = initial_state)
+                                          command=self.GRPresultsbrowseaction2, relief='raised', bd=5, state = initial_state, highlightbackground = widgetbg)
         self.GRPresultsnamebrowse2.grid(row=2, column=4)
         self.GRPresultsnameclear2 = tk.Button(self.parent, text='Clear', width=smallbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
-                                          command=self.GRPresultsclearaction2, relief='raised', bd=5, state = initial_state)
+                                          command=self.GRPresultsclearaction2, relief='raised', bd=5, state = initial_state, highlightbackground = widgetbg)
         self.GRPresultsnameclear2.grid(row=2, column=5)
 
         self.GRPresultsnameswap = tk.Button(self.parent, text='Swap 1-2', width=smallbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
-                                          command=self.GRPresultsswapaction, relief='raised', bd=5, state = initial_state)
+                                          command=self.GRPresultsswapaction, relief='raised', bd=5, state = initial_state, highlightbackground = widgetbg)
         self.GRPresultsnameswap.grid(row=4, column=4)
 
 
         # label, button, for splitting data sets based on a selected characteristic
         self.GRPsplitgroupbutton = tk.Button(self.parent, text="Split Results", width=smallbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
-                                        command=self.GRPmake2groups, relief='raised', bd=5)
+                                        command=self.GRPmake2groups, relief='raised', bd=5, highlightbackground = widgetbg)
         self.GRPsplitgroupbutton.grid(row=4, column=2, sticky = 'N')
 
 
@@ -5441,7 +5448,7 @@ class GRPFrame:
 
         # label, button, for running the definition of clusters, and loading data
         self.GRPcharclearbutton = tk.Button(self.parent, text="Clear/Update", width=smallbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
-                                        command=self.GRPcharacteristicslistclear, relief='raised', bd=5)
+                                        command=self.GRPcharacteristicslistclear, relief='raised', bd=5, highlightbackground = widgetbg)
         self.GRPcharclearbutton.grid(row=8, column=4)
 
         self.GRPlabel3 = tk.Label(self.parent, text = 'Characteristics list:', font = labelfont)
@@ -5461,12 +5468,12 @@ class GRPFrame:
         self.GRPpvaluebox.grid(row=10, column=2, sticky = "W")
         self.GRPpvaluebox.insert(0,self.GRPpvalue)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.GRPpvaluesubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.GRPpvaluesubmit, relief='raised', bd = 5)
+        self.GRPpvaluesubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.GRPpvaluesubmit, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.GRPpvaluesubmitbut.grid(row=10, column=3)
 
         # label, button, for running the definition of clusters, and loading data
         self.GRPrunbutton = tk.Button(self.parent, text="Run Group Analysis", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
-                                        command=self.GRPrunanalysis, relief='raised', bd=5)
+                                        command=self.GRPrunanalysis, relief='raised', bd=5, highlightbackground = widgetbg)
         self.GRPrunbutton.grid(row=11, column=1, columnspan = 2)
 
 
@@ -5976,7 +5983,7 @@ class DisplayFrame:
 
         # button to update values if they have been changed in the Group frame
         self.DISPupdatebutton = tk.Button(self.parent, text='Refresh', width=smallbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
-                                          command=self.DISPupdateaction, relief='raised', bd=5)
+                                          command=self.DISPupdateaction, relief='raised', bd=5, highlightbackground = widgetbg)
         self.DISPupdatebutton.grid(row=0, column=4)
 
         # create entry boxes to indicate which results to plot
@@ -6125,7 +6132,7 @@ class DisplayFrame:
 
         # the entry box needs a "submit" button so that the program knows when to take the entered values
         self.DISPboxsubmit = tk.Button(self.parent, text="Submit Conn. Details", width=bigbigbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
-                                     command=self.DISPboxsubmitclick, relief='raised', bd=5)
+                                     command=self.DISPboxsubmitclick, relief='raised', bd=5, highlightbackground = widgetbg)
         self.DISPboxsubmit.grid(row=13, column=1, columnspan=2, sticky='W')
 
         # option to select an excel file instead-----------------------------------------------------
@@ -6139,7 +6146,7 @@ class DisplayFrame:
         self.DISPexcelnamelabel.grid(row=14, column=2, columnspan=2, sticky='W')
         # define a browse button
         self.DISPexcelnamebrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
-                                  command=self.DISPexcelnamebrowseclick, relief='raised', bd=5)
+                                  command=self.DISPexcelnamebrowseclick, relief='raised', bd=5, highlightbackground = widgetbg)
         self.DISPexcelnamebrowse.grid(row=14, column = 4)
 
         # create pulldown menu for the sheet name
@@ -6163,12 +6170,12 @@ class DisplayFrame:
         self.DISPentrynumenter.insert(0, self.DISPexcelentrynums)
         # the entry box needs a "submit" button so that the program knows when to take the entered values
         self.DISPentrynumsubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
-                                     command=self.DISPentrynumsubmitclick, relief='raised', bd=5)
+                                     command=self.DISPentrynumsubmitclick, relief='raised', bd=5, highlightbackground = widgetbg)
         self.DISPentrynumsubmit.grid(row=16, column=4)
 
         # button to generate the plot
         # for now, just put a button that will eventually call the NIfTI conversion program
-        self.DISPrunbutton = tk.Button(self.parent, text = 'Generate Figures', width = bigbigbuttonsize, bg = fgcol1, fg = fgletter1, font = widgetfont, command = self.DISPgeneratefigs, relief='raised', bd = 5)
+        self.DISPrunbutton = tk.Button(self.parent, text = 'Generate Figures', width = bigbigbuttonsize, bg = fgcol1, fg = fgletter1, font = widgetfont, command = self.DISPgeneratefigs, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.DISPrunbutton.grid(row = 17, column = 1, columnspan = 2)
 
 
@@ -6234,12 +6241,12 @@ class DisplayFrame2:
 
         # the entry box needs a "submit" button so that the program knows when to take the entered values
         self.DISP2figsavebutton1 = tk.Button(self.parent, text="Save plot", width=bigbigbuttonsize, bg=fgcol2,
-                                       fg = fgletter2, font = widgetfont, command=self.DISP2saveclick1, relief='raised', bd=5)
+                                       fg = fgletter2, font = widgetfont, command=self.DISP2saveclick1, relief='raised', bd=5, highlightbackground = widgetbg)
         self.DISP2figsavebutton1.grid(row=1, column=0, sticky='S')
 
         # the entry box needs a "submit" button so that the program knows when to take the entered values
         self.DISP2figsavebutton2 = tk.Button(self.parent, text="Save image", width=bigbigbuttonsize, bg=fgcol2,
-                                       fg = fgletter2, font = widgetfont, command=self.DISP2saveclick2, relief='raised', bd=5)
+                                       fg = fgletter2, font = widgetfont, command=self.DISP2saveclick2, relief='raised', bd=5, highlightbackground = widgetbg)
         self.DISP2figsavebutton2.grid(row=1, column=1, sticky='S')
 
 
@@ -6781,7 +6788,7 @@ class SAPMFrame:
         # define a button to browse and select an existing network definition file, and write out the selected name
         # also, define the function for what to do when this button is pressed
         self.SAPMnetworkbrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont,
-                                  command=self.SAPMnetbrowseclick, relief='raised', bd=5)
+                                  command=self.SAPMnetbrowseclick, relief='raised', bd=5, highlightbackground = widgetbg)
         self.SAPMnetworkbrowse.grid(row=0, column=3)
 
         # cluster definition name ---------------------------------------------
@@ -6792,10 +6799,10 @@ class SAPMFrame:
         self.SAPMclusternamebox.grid(row=3, column=2, sticky='N')
         self.SAPMclusternamebox.insert(0,self.SAPMclustername)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.SAPMclusternamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMclusternamesubmitaction, relief='raised', bd = 5)
+        self.SAPMclusternamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMclusternamesubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SAPMclusternamesubmit.grid(row=3, column=3, sticky='N')
         # the entry boxes need a "browse" button to allow selection of existing cluster definition file
-        self.SAPMclusternamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMclusternamebrowseaction, relief='raised', bd = 5)
+        self.SAPMclusternamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMclusternamebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SAPMclusternamebrowse.grid(row=3, column=4, sticky='N')
 
         # region data name ---------------------------------------------
@@ -6806,10 +6813,10 @@ class SAPMFrame:
         self.SAPMregionnamebox.grid(row=4, column=2, sticky='N')
         self.SAPMregionnamebox.insert(0,self.SAPMregionname)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.SAPMregionnamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMregionnamesubmitaction, relief='raised', bd = 5)
+        self.SAPMregionnamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMregionnamesubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SAPMregionnamesubmit.grid(row=4, column=3, sticky='N')
         # the entry boxes need a "browse" button to allow selection of existing cluster definition file
-        self.SAPMregionnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMregionnamebrowseaction, relief='raised', bd = 5)
+        self.SAPMregionnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMregionnamebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SAPMregionnamebrowse.grid(row=4, column=4, sticky='N')
 
         # outputdir ----------------------------------------------------------------------
@@ -6835,7 +6842,7 @@ class SAPMFrame:
         self.SAPMcnumsbox.grid(row=rownum, column=2, sticky='N')
         self.SAPMcnumsbox.insert(0,self.SAPMcnums)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.SAPMcnumssubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMcnumssubmitaction, relief='raised', bd = 5)
+        self.SAPMcnumssubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMcnumssubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SAPMcnumssubmit.grid(row=rownum, column=3, sticky='N')
 
         rownum = 8
@@ -6854,7 +6861,7 @@ class SAPMFrame:
 
         # the entry box needs a "submit" button so that the program knows when to take the entered values
         self.SAPMtimesubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont,
-                                     command=self.SAPMtimesubmitclick, relief='raised', bd=5)
+                                     command=self.SAPMtimesubmitclick, relief='raised', bd=5, highlightbackground = widgetbg)
         self.SAPMtimesubmit.grid(row=rownum, column=3)
 
 
@@ -6868,7 +6875,7 @@ class SAPMFrame:
         self.SAPMresultsnamebox.grid(row=rownum, column=2, sticky='N')
         self.SAPMresultsnamebox.insert(0,self.SAPMresultsname)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.SAPMresultsnamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMresultsnamesubmitaction, relief='raised', bd = 5)
+        self.SAPMresultsnamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMresultsnamesubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SAPMresultsnamesubmit.grid(row=rownum, column=3, sticky='N')
 
         # SAPM parameters name --------------------------------------------------------------
@@ -6882,7 +6889,7 @@ class SAPMFrame:
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
         self.SAPMparamsnamesubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2,
                                               fg=fgletter2, font=widgetfont, command=self.SAPMparamsnamesubmitaction,
-                                              relief='raised', bd=5)
+                                              relief='raised', bd=5, highlightbackground = widgetbg)
         self.SAPMparamsnamesubmit.grid(row=rownum, column=3, sticky='N')
 
         rownum = 11
@@ -6893,7 +6900,7 @@ class SAPMFrame:
 
         # label, button, for running the definition of clusters, and loading data
         self.SAPMrunsearchbutton = tk.Button(self.parent, text="Best clusters?", width=bigbigbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
-                                        command=self.SAPMbestclusters, relief='raised', bd=5)
+                                        command=self.SAPMbestclusters, relief='raised', bd=5, highlightbackground = widgetbg)
         self.SAPMrunsearchbutton.grid(row=rownum, column=2, columnspan = 2, sticky='W')
 
         self.SAPMkeyinfo1 = tk.Label(self.parent, text = " ", fg = 'gray', justify = 'left')
@@ -6903,7 +6910,7 @@ class SAPMFrame:
         rownum = 12
         # label, button, for running the definition of clusters, and loading data
         self.SAPMrunnetworkbutton = tk.Button(self.parent, text="Run SAPM", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
-                                        command=self.SAPMrunnetwork, relief='raised', bd=5)
+                                        command=self.SAPMrunnetwork, relief='raised', bd=5, highlightbackground = widgetbg)
         self.SAPMrunnetworkbutton.grid(row=rownum, column=2, columnspan = 2, sticky='W')
 
 
@@ -7392,7 +7399,7 @@ class SAPMResultsFrame:
         # define a button to browse and select an existing network definition file, and write out the selected name
         # also, define the function for what to do when this button is pressed
         self.SRupdatevalues = tk.Button(self.parent, text='Update', width=smallbuttonsize, bg = fgcol1, fg = fgletter1, font = widgetfont,
-                                  command=self.SRupdatevaluesclick, relief='raised', bd=5)
+                                  command=self.SRupdatevaluesclick, relief='raised', bd=5, highlightbackground = widgetbg)
         self.SRupdatevalues.grid(row = rownum, column=4, rowspan = 2)
 
 
@@ -7434,7 +7441,7 @@ class SAPMResultsFrame:
         self.SRresultsdirbox.grid(row=rownum, column=2, columnspan=2, sticky='W')
 
         # the entry boxes need a "browse" button to allow selection of existing cluster definition file
-        self.SRresultsdirbrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRresultsdirbrowseaction, relief='raised', bd = 5)
+        self.SRresultsdirbrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRresultsdirbrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRresultsdirbrowse.grid(row=rownum, column=4, sticky='N')
 
         rownum = 3
@@ -7445,7 +7452,7 @@ class SAPMResultsFrame:
         self.SRnametagbox.insert(0,self.SRnametag)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
         self.SRnamesubmitbutton = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2,
-                                font = widgetfont, command = self.SRnametagsubmit, relief='raised', bd = 5)
+                                font = widgetfont, command = self.SRnametagsubmit, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRnamesubmitbutton.grid(row=rownum, column=4)
 
 
@@ -7460,7 +7467,7 @@ class SAPMResultsFrame:
                                      wraplength=300, justify='left')
         self.SRresultsnamebox.grid(row=rownum, column=2, columnspan=2, sticky='W')
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.SRresultsnamesubmit = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRresultsnamebrowseaction, relief='raised', bd = 5)
+        self.SRresultsnamesubmit = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRresultsnamebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRresultsnamesubmit.grid(row=rownum, column=4, sticky='N')
 
 
@@ -7475,7 +7482,7 @@ class SAPMResultsFrame:
                                      wraplength=300, justify='left')
         self.SRparamsnamebox.grid(row=rownum, column=2, columnspan=2, sticky='W')
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.SRparamsnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRparamsnamebrowseaction, relief='raised', bd = 5)
+        self.SRparamsnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRparamsnamebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRparamsnamebrowse.grid(row=rownum, column=4, sticky='N')
 
         # covariates file name --------------------------------------------------------------
@@ -7489,7 +7496,7 @@ class SAPMResultsFrame:
                                      wraplength=300, justify='left')
         self.SRcovnamebox.grid(row=rownum, column=2, columnspan=2, sticky='W')
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.SRcovnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRcovnamebrowseaction, relief='raised', bd = 5)
+        self.SRcovnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRcovnamebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRcovnamebrowse.grid(row=rownum, column=4, sticky='N')
 
         rownum = 7
@@ -7557,12 +7564,12 @@ class SAPMResultsFrame:
         self.SRpvaluebox.insert(0,self.SRpvalue)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
         self.SRpvaluesubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2,
-                                font = widgetfont, command = self.SRpvaluesubmit, relief='raised', bd = 5)
+                                font = widgetfont, command = self.SRpvaluesubmit, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRpvaluesubmitbut.grid(row=rownum, column=3)
 
         rownum = 10
         # button to launch the generation of outputs with the selected options/values
-        self.SRrunoutputbutton = tk.Button(self.parent, text = "GO", width = smallbuttonsize, bg = fgcol1, fg = fgletter1, font = widgetfont, command = self.SRgenerateoutput, relief='raised', bd = 5)
+        self.SRrunoutputbutton = tk.Button(self.parent, text = "GO", width = smallbuttonsize, bg = fgcol1, fg = fgletter1, font = widgetfont, command = self.SRgenerateoutput, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRrunoutputbutton.grid(row=rownum, column=0, sticky='N')
 
         self.SRPlotFigure = plt.figure(123, figsize=(3, 1.5), dpi=100)
@@ -7587,7 +7594,7 @@ class SAPMResultsFrame:
                                      wraplength=150, justify='left', state = tk.DISABLED)
         self.SRdrawfilebox.grid(row=rownum, column=columnum+1, sticky='W')
         # the entry boxes need a "browse" button to allow selection of existing cluster definition file
-        self.SRdrawfilebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRdrawfilebrowseaction, relief='raised', bd = 5)
+        self.SRdrawfilebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRdrawfilebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRdrawfilebrowse.grid(row=rownum, column=columnum+2, sticky='W')
 
         rownum = 11
@@ -7601,7 +7608,7 @@ class SAPMResultsFrame:
                                      wraplength=150, justify='left', state = tk.DISABLED)
         self.SAPMBfilebox.grid(row=rownum, column=columnum+1, sticky='W')
         # the entry boxes need a "browse" button to allow selection of existing cluster definition file
-        self.SAPMBfilebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMBfilebrowseaction, relief='raised', bd = 5)
+        self.SAPMBfilebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMBfilebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SAPMBfilebrowse.grid(row=rownum, column=columnum+2, sticky='W')
 
         rownum = 12
@@ -7635,7 +7642,7 @@ class SAPMResultsFrame:
         self.SRthresholdbox.insert(0,self.SRthresholdtext)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
         self.SRthresholdsubmitbutton = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2,
-                                font = widgetfont, command = self.SRthresholdsubmit, relief='raised', bd = 5)
+                                font = widgetfont, command = self.SRthresholdsubmit, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRthresholdsubmitbutton.grid(row=rownum, column=columnum+2)
 
 #----------MAIN calling function----------------------------------------------------
