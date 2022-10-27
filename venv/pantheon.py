@@ -149,7 +149,15 @@ else:
             'SEMtimepoints':[11,18],
             'SEMepoch':7,
             'SEMresumerun':False,
-            'SRthresholdtext': '',
+            'SRoptionvalue':'unknown',
+            'SRcovname':'unknown',
+            'SRpvalue':0.05,
+            'SRgroup':'unknown',
+            'SRtargetregion':'unknown',
+            'SRnametag':'unknown',
+            'SRdrawfile':'unknown',
+            'SRthresholdtext':'unknown',
+            'SAPMBfile':'unknown',
             'GRPresultsname':'notdefined',
             'GRPresultsname2':'notdefined',
             'GRPcharacteristicscount':0,
@@ -171,6 +179,8 @@ else:
             'SAPMregionname': '',
             'SAPMtimepoint': 'all',
             'SAPMepoch': 'all'}
+
+
 
 np.save(settingsfile,settings)
 
