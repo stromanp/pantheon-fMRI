@@ -31,6 +31,7 @@ def colormap(values):
 
 # display a statistical map in color over a gray scale template image
 def pydisplaystatmap(Tmap, Tthreshold, template, mask,templatename):
+
     # function for displaying fMRI results from the brainstem/cord
     if np.ndim(Tmap) > 4:
         print('pydisplaystatmap:  Tmap has too many dimensions: ',np.ndim(Tmap))
@@ -66,11 +67,13 @@ def pydisplaystatmap(Tmap, Tthreshold, template, mask,templatename):
     # fig = plt.figure(21), plt.imshow(tcimg)
 
     # find voxels that meet the statistical threshold
+
     cx, cy, cz = np.where(np.abs(Tmap*mask) > Tthreshold)
-    rmap, gmap, bmap = colormap(Tmap[cx,cy,cz])
-    red[cx,cy,cz] = rmap
-    green[cx,cy,cz] = gmap
-    blue[cx,cy,cz] = bmap
+    if len(cx) > 0:
+        rmap, gmap, bmap = colormap(Tmap[cx,cy,cz])
+        red[cx,cy,cz] = rmap
+        green[cx,cy,cz] = gmap
+        blue[cx,cy,cz] = bmap
 
     # slice results and put them into a mosaic format image
     xs,ys,zs = np.shape(Tmap)
@@ -1044,3 +1047,19 @@ def display_anatomical_figure(filename, connectiondata, templatename, regioncolo
     plt.axis('off')
     # plt.tight_layout()
     TargetCanvas.draw()
+
+
+def display_sapm_cluster(clusterdataname, regionname, clusternumber):
+    cluster_data = np.load(clusterdataname, allow_pickle=True).flat[0]
+    cluster_properties = cluster_data['cluster_properties']
+    # dict_keys(['cx', 'cy', 'cz', 'IDX', 'nclusters', 'rname', 'regionindex', 'regionnum'])
+
+    nregions = len(cluster_properties)
+    nclusterlist = [cluster_properties[i]['nclusters'] for i in range(nregions)]
+    rnamelist = [cluster_properties[i]['rname'] for i in range(nregions)]
+    nclusterstotal = np.sum(nclusterlist)
+
+    r = rnamelist.index(regionname)
+    cx = cluster_properties[r]['cx']
+    cy = cluster_properties[r]['cy']
+    cz = cluster_properties[r]['cz']

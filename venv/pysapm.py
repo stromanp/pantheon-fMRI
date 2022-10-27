@@ -44,6 +44,7 @@ import multiprocessing as mp
 # import parallel_functions as pf
 import matplotlib.patches as mpatches
 from matplotlib.collections import PatchCollection
+import matplotlib
 
 
 plt.rcParams.update({'font.size': 10})
@@ -344,7 +345,7 @@ def ind2sub_ndims(vsize,index):
 
 #---------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
-def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAPMparametersname, fullgroup = False):
+def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint = 'all', epoch = 'all', fullgroup = False):
 
     outputdir, f = os.path.split(SAPMparametersname)
     network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count = load_network_model_w_intrinsics(networkfile)
@@ -382,16 +383,25 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAP
 
     # setup index lists---------------------------------------------------------------------------
     # timepoints for full runs----------------------------------------------
-    epoch = tsize
-    timepoint = np.floor(tsize/2)
+    if timepoint == 'all':
+        epoch = tsize
+        timepoint = np.floor(tsize/2)
 
     tplist_full = []
     if epoch >= tsize:
         et1 = 0
         et2 = tsize
     else:
-        et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
-        et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+        if np.floor(epoch/2).astype(int) == np.ceil(epoch/2).astype(int):   # even numbered epoch
+            et1 = (timepoint - np.floor(epoch / 2)).astype(int)
+            et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+        else:
+            et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
+            et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+    if et1 < 0: et1 = 0
+    if et2 > tsize: et2 = tsize
+    epoch = et2-et1
+
     dtsize = tsize - 1  # for using deriviation of tc wrt time
     tplist1 = []
     nclusterstotal, tsizetotal = np.shape(tcdata)
@@ -536,6 +546,215 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAP
     np.save(SAPMparametersname, SAPMparams)
 
 
+
+#---------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+def prep_null_data_sem_physio_model(nsamples, networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint = 'all', epoch = 'all', fullgroup = False, addglobalbias = False):
+    outputdir, f = os.path.split(SAPMparametersname)
+    network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count = load_network_model_w_intrinsics(networkfile)
+
+    fintrinsic_region = []
+    if fintrinsic_count > 0:  # find which regions have fixed intrinsic input
+        for nn in range(len(network)):
+            sources = network[nn]['sources']
+            if 'fintrinsic1' in sources:
+                fintrinsic_region = network[nn]['targetnum']  # only one region should have this input
+
+    region_data1 = np.load(regiondataname, allow_pickle=True).flat[0]
+    region_properties = region_data1['region_properties']
+
+    cluster_data = np.load(clusterdataname, allow_pickle=True).flat[0]
+    cluster_properties = cluster_data['cluster_properties']
+
+    nregions = len(cluster_properties)
+    nclusterlist = [cluster_properties[i]['nclusters'] for i in range(nregions)]
+    rnamelist = [cluster_properties[i]['rname'] for i in range(nregions)]
+    nclusterstotal = np.sum(nclusterlist)
+
+    tsize = region_properties[0]['tsize']
+    nruns_per_person = region_properties[0]['nruns_per_person']
+    nruns_total = np.sum(nruns_per_person)
+    # NP = len(nruns_per_person)  # number of people in the data set
+
+    # for null data sets, replace NP with nsamples--------------------------------
+    NP = nsamples
+    nruns = nruns_per_person[0]
+    nruns_per_person = (nruns*np.ones(nsamples)).astype(int)
+    nruns_total = np.sum(nruns_per_person)
+    tcdata = np.random.randn(nclusterstotal, (tsize*nruns_total).astype(int))   # make a new tcdata set out of random values
+
+    if addglobalbias:
+        globalbias = np.random.randn(1, (tsize*nruns_total).astype(int))
+        globalbias = np.repeat(globalbias,nclusterstotal,axis=0)
+        tcdata += globalbias
+    #-----------------------------------------------------------------------------
+
+    # original method:
+    # tcdata = []
+    # for i in range(nregions):
+    #     tc = region_properties[i]['tc']
+    #     if i == 0:
+    #         tcdata = tc
+    #     else:
+    #         tcdata = np.append(tcdata, tc, axis=0)
+
+    # setup index lists---------------------------------------------------------------------------
+    # timepoints for full runs----------------------------------------------
+    if timepoint == 'all':
+        epoch = tsize
+        timepoint = np.floor(tsize/2)
+
+    tplist_full = []
+    if epoch >= tsize:
+        et1 = 0
+        et2 = tsize
+    else:
+        if np.floor(epoch/2).astype(int) == np.ceil(epoch/2).astype(int):   # even numbered epoch
+            et1 = (timepoint - np.floor(epoch / 2)).astype(int)
+            et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+        else:
+            et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
+            et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+    if et1 < 0: et1 = 0
+    if et2 > tsize: et2 = tsize
+    epoch = et2-et1
+
+    dtsize = tsize - 1  # for using deriviation of tc wrt time
+    tplist1 = []
+    nclusterstotal, tsizetotal = np.shape(tcdata)
+    tcdata_centered = copy.deepcopy(tcdata)
+    for nn in range(NP):
+        r1 = sum(nruns_per_person[:nn])
+        r2 = sum(nruns_per_person[:(nn + 1)])
+        tp = []  # initialize list
+        tpoints = []
+        for ee2 in range(r1, r2):
+            # tp = list(range((ee2 * tsize), (ee2 * tsize + tsize)))
+            tp = list(range((ee2*tsize+et1),(ee2*tsize+et2)))
+            tpoints = tpoints + tp  # concatenate lists
+            temp = np.mean(tcdata[:, tp], axis=1)
+            temp_mean = np.repeat(temp[:, np.newaxis], epoch, axis=1)
+            tcdata_centered[:, tp] = tcdata[:, tp] - temp_mean  # center each epoch, in each person
+        tplist1.append({'tp': tpoints})
+    tplist_full.append(tplist1)
+
+    if fullgroup:
+        # special case to fit the full group together
+        # treat the whole group like one person
+        tpgroup_full = []
+        tpgroup = []
+        tp = []
+        for nn in range(NP):
+            tp += tplist_full[0][nn]['tp']   # concatenate timepoint lists
+        tpgroup.append({'tp': tp})
+        tpgroup_full.append(tpgroup)
+        tplist_full = copy.deepcopy(tpgroup_full)
+        nruns_per_person = [np.sum(nruns_per_person)]
+
+    Nintrinsic = fintrinsic_count + vintrinsic_count
+    nregions = len(rnamelist)
+
+    beta_list = []
+    nbeta = 0
+    targetnumlist = []
+    beta_id = []
+    sourcelist = []
+    for nn in range(len(network)):
+        target = network[nn]['targetnum']
+        sources = network[nn]['sourcenums']
+        targetnumlist += [target]
+        for mm in range(len(sources)):
+            source = sources[mm]
+            sourcelist += [source]
+            betaname = '{}_{}'.format(source, target)
+            entry = {'name': betaname, 'number': nbeta, 'pair': [source, target]}
+            beta_list.append(entry)
+            beta_id += [1000 * source + target]
+            nbeta += 1
+
+    ncon = nbeta - Nintrinsic
+
+    # reorder to put intrinsic inputs at the end-------------
+    beta_list2 = []
+    beta_id2 = []
+    x = np.where(np.array(sourcelist) < nregions)[0]
+    for xx in x:
+        beta_list2.append(beta_list[xx])
+        beta_id2 += [beta_id[xx]]
+    for sn in range(nregions, nregions + Nintrinsic):
+        x = np.where(np.array(sourcelist) == sn)[0]
+        for xx in x:
+            beta_list2.append(beta_list[xx])
+            beta_id2 += [beta_id[xx]]
+
+    for nn in range(len(beta_list2)):
+        beta_list2[nn]['number'] = nn
+
+    beta_list = beta_list2
+    beta_id = beta_id2
+
+    beta_pair = []
+    Mconn = np.zeros((nbeta, nbeta))
+    count = 0
+    for nn in range(len(network)):
+        target = network[nn]['targetnum']
+        sources = network[nn]['sourcenums']
+        for mm in range(len(sources)):
+            source = sources[mm]
+            conn1 = beta_id.index(source * 1000 + target)
+            if source >= nregions:  # intrinsic input
+                conn2 = conn1
+                Mconn[conn1, conn2] = 1  # set the intrinsic beta values
+            else:
+                x = targetnumlist.index(source)
+                source_sources = network[x]['sourcenums']
+                for nn in range(len(source_sources)):
+                    ss1 = source_sources[nn]
+                    conn2 = beta_id.index(ss1 * 1000 + source)
+                    beta_pair.append([conn1, conn2])
+                    count += 1
+                    Mconn[conn1, conn2] = count
+
+    # prep to index Mconn for updating beta values
+    beta_pair = np.array(beta_pair)
+    ctarget = beta_pair[:, 0]
+    csource = beta_pair[:, 1]
+
+    latent_flag = np.zeros(len(ctarget))
+    found_latent_list = []
+    for nn in range(len(ctarget)):
+        if csource[nn] >= ncon:
+            if not csource[nn] in found_latent_list:
+                latent_flag[nn] = 1
+                found_latent_list += [csource[nn]]
+
+    # setup Minput matrix--------------------------------------------------------------
+    # Sconn = Mconn @ Sconn    # propagate the intrinsic inputs through the network
+    # Sinput = Minput @ Mconn
+    Minput = np.zeros((nregions, nbeta))  # mixing of connections to model the inputs to each region
+    betanamelist = [beta_list[a]['name'] for a in range(nbeta)]
+    for nn in range(len(network)):
+        target = network[nn]['targetnum']
+        sources = network[nn]['sourcenums']
+        for mm in range(len(sources)):
+            source = sources[mm]
+            betaname = '{}_{}'.format(source, target)
+            x = betanamelist.index(betaname)
+            Minput[target, x] = 1
+
+    # save parameters for looking at results later
+    SAPMparams = {'betanamelist': betanamelist, 'beta_list': beta_list, 'nruns_per_person': nruns_per_person,
+                 'nclusterstotal': nclusterstotal, 'rnamelist': rnamelist, 'nregions': nregions,
+                 'cluster_properties': cluster_properties, 'cluster_data': cluster_data,
+                 'network': network, 'fintrinsic_count': fintrinsic_count, 'vintrinsic_count': vintrinsic_count,
+                 'fintrinsic_region':fintrinsic_region, 'sem_region_list': sem_region_list,
+                 'nclusterlist': nclusterlist, 'tsize': tsize, 'tplist_full': tplist_full,
+                 'tcdata_centered': tcdata_centered, 'ctarget':ctarget ,'csource':csource,
+                 'Mconn':Mconn, 'Minput':Minput, 'timepoint':timepoint, 'epoch':epoch, 'latent_flag':latent_flag}
+    print('saving SAPM parameters to file: {}'.format(SAPMparametersname))
+    np.save(SAPMparametersname, SAPMparams)
+
+
 #----------------------------------------------------------------------------------
 # primary function--------------------------------------------------------------------
 def sem_physio_model(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparametersname, fixed_beta_vals = [], verbose = True):
@@ -609,8 +828,15 @@ def sem_physio_model(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamete
                 et1 = 0
                 et2 = tsize
             else:
-                et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
-                et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+                if np.floor(epoch / 2).astype(int) == np.ceil(epoch / 2).astype(int):  # even numbered epoch
+                    et1 = (timepoint - np.floor(epoch / 2)).astype(int)
+                    et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+                else:
+                    et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
+                    et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+            if et1 < 0: et1 = 0
+            if et2 > tsize: et2 = tsize
+            epoch = et2 - et1
 
             ftemp = fintrinsic_base[et1:et2]
             fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
@@ -831,8 +1057,15 @@ def gradient_descent_per_person(data):
             et1 = 0
             et2 = tsize
         else:
-            et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
-            et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+            if np.floor(epoch / 2).astype(int) == np.ceil(epoch / 2).astype(int):  # even numbered epoch
+                et1 = (timepoint - np.floor(epoch / 2)).astype(int)
+                et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+            else:
+                et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
+                et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+        if et1 < 0: et1 = 0
+        if et2 > tsize: et2 = tsize
+        epoch = et2 - et1
 
         ftemp = fintrinsic_base[et1:et2]
         fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
@@ -1232,7 +1465,7 @@ def loadings_gradients(beta, PCparams,PCloadings,paradigm_centered,SAPMresultsna
 
 
 # gradient descent method to find best clusters------------------------------------
-def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkfile, DBname, regiondataname, clusterdataname, nprocessors, samplesplit, initial_clusters = []):
+def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkfile, DBname, regiondataname, clusterdataname, nprocessors, samplesplit, samplestart=0, initial_clusters = [], timepoint = 'all', epoch = 'all'):
 
     if not os.path.exists(outputdir): os.mkdir(outputdir)
 
@@ -1257,7 +1490,7 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
     namelist = rnamelist + namelist_addon
 
     # ---------------------
-    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAPMparametersname)
+    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch)
     SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
     tcdata = SAPMparams['tcdata_centered']  # data for all regions/clusters concatenated along time dimension for all runs
     # need to get principal components for each region to model the clusters as a continuum
@@ -1267,6 +1500,7 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
     average_data = np.zeros(np.shape(tcdata))
     ncmax = np.max(nclusterlist)
     original_loadings = np.zeros((nregions,ncmax,ncmax))
+    weights = np.zeros((nregions,ncmax))
     for regionnum in range(nregions):
         r1 = sum(nclusterlist[:regionnum])
         r2 = sum(nclusterlist[:(regionnum + 1)])
@@ -1278,6 +1512,7 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
         S_pca_ = pca.fit(tcdata_region).transform(tcdata_region)
 
         components = pca.components_
+        evr = pca.explained_variance_ratio_
         # use components in SAPM in place of original region data
 
         # get loadings
@@ -1290,12 +1525,13 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
         component_data[r1:r2,:] = components
         average_data[r1:r2,:] = mu
         original_loadings[regionnum,:nstates,:nstates] = loadings
+        weights[regionnum,:nstates] = evr
 
     # scale component_data to make original_loadings near maximum of 1
     PCscalefactor = original_loadings.max()
     original_loadings /= PCscalefactor
     component_data *= PCscalefactor
-    PCparams = {'components':component_data, 'average':average_data, 'loadings':original_loadings}
+    PCparams = {'components':component_data, 'average':average_data, 'loadings':original_loadings, 'weights':weights}
 
     # for one set of PCloadings
     Lweight = 1.0e-6
@@ -1304,7 +1540,7 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
     initial_alpha = copy.deepcopy(alpha)
     alphalimit = 1e-5
     maxiter = 20
-    subsample = [samplesplit,0]  # [2,0] use every 2nd data set, starting with 0
+    subsample = [samplesplit,samplestart]  # [2,0] use every 2nd data set, starting with samplestart
 
     PCloadings = 1e-4*np.random.randn(nclusters_total)
 
@@ -1376,8 +1612,9 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
             # look for best match
             nclusters = nclusterlist[region]
             d = np.zeros(nclusters)
+            w = weights[region,:]
             for cc in range(nclusters):
-                d[cc] = np.sqrt(np.sum((L[cc, :] - p) ** 2))
+                d[cc] = np.sqrt(np.sum(w*(L[cc, :] - p) ** 2))
             x = np.argmin(d)
             best_clusters[region] = x
             best_clusters = best_clusters.astype(int)
@@ -1385,6 +1622,7 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
 
 
     # look at final results in more detail---------------------------
+    finaloutputstring = ''
     best_clusters = np.zeros(nregions)
     for region in range(nregions):
         print('\noriginal loadings region {}'.format(region))
@@ -1392,9 +1630,11 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
         nclusters = nclusterlist[region]
         outputstring = ''
         for cc in range(nclusters):
+            outputstring += 'cluster{}:  '.format(cc)
             for dd in range(nclusters):
                 outputstring += '{:.3f} '.format(L[cc,dd])
-            print(outputstring)
+            outputstring += '\n'
+        print(outputstring)
 
         r1 = sum(nclusterlist[:region])
         r2 = sum(nclusterlist[:(region + 1)])
@@ -1408,24 +1648,34 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
         # look for best match
         nclusters = nclusterlist[region]
         d = np.zeros(nclusters)
+        w = weights[region, :]
         for cc in range(nclusters):
-            d[cc] = np.sqrt(np.sum((L[cc,:]-p)**2))
+            d[cc] = np.sqrt(np.sum(w*(L[cc,:]-p)**2))
+
+        #convert distances to confidence level that each cluster is the best choice
+        proximity_score = 1.0/(d**2 + 1.0e-3)
+        proximity_percent = 100.0*proximity_score/np.sum(proximity_score)
+
         print('\ndistance between PCloadings and original {}'.format(region))
         outputstring = ''
+        finaloutputstring += '\nRegion {} cluster percents:  '.format(region)
         for cc in range(nclusters):
-            outputstring += '{:.3f} '.format(d[cc])
+            outputstring += 'cluster{}  {:.3f}   estimated {:.1f} percent best choice \n'.format(cc, d[cc], proximity_percent[cc])
+            finaloutputstring += '{:.1f} '.format(proximity_percent[cc])
         print(outputstring)
 
         x = np.argmin(d)
         best_clusters[region] = x
         best_clusters = best_clusters.astype(int)
     print('\nbest cluster set is : {}'.format(best_clusters))
+    print('\n')
+    print(finaloutputstring)
 
     return best_clusters
 
 
 # main program
-def SAPMrun(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkfile, DBname, reload_existing = False):
+def SAPMrun(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkfile, DBname, timepoint, epoch, reload_existing = False):
     # load paradigm data--------------------------------------------------------------------
     xls = pd.ExcelFile(DBname, engine='openpyxl')
     df1 = pd.read_excel(xls, 'paradigm1_BOLD')
@@ -1460,7 +1710,7 @@ def SAPMrun(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMparamet
 
     # run the analysis with SAPM
     clusterlist = np.array(cnums) + full_rnum_base
-    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAPMparametersname)
+    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch)
     output = sem_physio_model(clusterlist, paradigm_centered, SAPMresultsname, SAPMparametersname)
 
     SAPMresults = np.load(output, allow_pickle=True)
@@ -1968,18 +2218,41 @@ def display_matrix(M,columntitles,rowtitles):
     print(df)
 
 
-def display_anatomical_cluster(clusterdataname, targetnum, targetcluster, orientation = 'axial', regioncolor = [0,1,1]):
+def display_anatomical_cluster(clusterdataname, targetnum, targetcluster, orientation = 'axial', regioncolor = [0,1,1], templatename = 'ccbs', write_output = False):
     # get the voxel coordinates for the target region
     clusterdata = np.load(clusterdataname, allow_pickle=True).flat[0]
+    nregions = len(cluster_properties)
+    nclusterlist = [cluster_properties[i]['nclusters'] for i in range(nregions)]
+    rnamelist = [cluster_properties[i]['rname'] for i in range(nregions)]
+    nclusterstotal = np.sum(nclusterlist)
 
-    IDX = clusterdata['cluster_properties'][targetnum]['IDX']
+    if type(targetnum) == int:
+        r = targetnum
+    else:
+        # assume "targetnum" input is a region name
+        r = rnamelist.index(targetnum)
+
+    IDX = clusterdata['cluster_properties'][r]['IDX']
     idxx = np.where(IDX == targetcluster)
-    cx = clusterdata['cluster_properties'][targetnum]['cx'][idxx]
-    cy = clusterdata['cluster_properties'][targetnum]['cy'][idxx]
-    cz = clusterdata['cluster_properties'][targetnum]['cz'][idxx]
+    cx = clusterdata['cluster_properties'][r]['cx'][idxx]
+    cy = clusterdata['cluster_properties'][r]['cy'][idxx]
+    cz = clusterdata['cluster_properties'][r]['cz'][idxx]
 
-    templatename = 'ccbs'
-    outputimg = pydisplay.pydisplayvoxelregionslice(templatename, cx, cy, cz, orientation, displayslice = [], colorlist = regioncolor)
+    # load template
+    if templatename == 'brain':
+        resolution = 2
+    else:
+        resolution = 1
+    template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_img = load_templates.load_template_and_masks(
+        templatename, resolution)
+
+    outputimg = pydisplay.pydisplayvoxelregionslice(templatename, template_img, cx, cy, cz, orientation, displayslice = [], colorlist = regioncolor)
+
+    if write_output:
+        p,f = os.path.split(clusterdataname)
+        imgname = os.path.join(p,'cluster_{}_{}.png'.format(targetnum,targetcluster))
+        matplotlib.image.imsave(imgname, outputimg)
+
     return outputimg
 
 
@@ -2029,6 +2302,120 @@ def betavalue_labels(csource, ctarget, rnamelist, betanamelist, beta_list, Mconn
 
 
 
+def regress_signal_features_with_cov(target, covariates, Minput, Sinput_total, fit_total, Sconn_total, beta_list, rnamelist, pthresh, outputdir, descriptor):
+    print('size of Minput is {}'.format(np.shape(Minput)))
+    print('size of Sinput_total is {}'.format(np.shape(Sinput_total)))
+    print('size of Sconn_total is {}'.format(np.shape(Sconn_total)))
+
+    # regress signal magnitude, or variance, or something, with covariates, instead of looking only at
+    # correlations with B values ...
+    p = covariates[np.newaxis, :]
+    p -= np.mean(p)
+    G = np.concatenate((np.ones(np.shape(p)),p), axis=0) # put the intercept term first
+
+    Sinput_pp = np.max(Sinput_total,axis=1) - np.min(Sinput_total,axis=1)
+    Sinput_var = np.var(Sinput_total,axis=1)
+    Sinput_std = np.std(Sinput_total,axis=1)
+
+    Sconn_pp = np.max(Sconn_total,axis=1) - np.min(Sconn_total,axis=1)
+    Sconn_var = np.var(Sconn_total,axis=1)
+    Sconn_std = np.std(Sconn_total,axis=1)
+
+    # Zthresh = stats.norm.ppf(1 - pthresh)
+    # pval = 1 - stats.norm.cdf(Z)
+
+    print('size of Sconn_var is {}'.format(np.shape(Sconn_std)))
+    nc1, np1 = np.shape(Sconn_std)
+    Sconn_feature_reg = np.zeros((nc1,5))
+
+    print('Sconn_feature_reg:')
+    nregions = len(rnamelist)
+    cname_list = []
+    for aa in range(nc1):
+        m = Sconn_std[aa, :]
+        if np.var(m) > 0:
+            b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis, :], G)
+            Z = np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(np1-3)
+            pval = 1 - stats.norm.cdf(Z)
+            Sconn_feature_reg[aa, :] = [b[0, 0], b[0, 1], R2, Z,pval]
+            if beta_list[aa]['pair'][0] >= nregions:
+                sname = 'int{}'.format(beta_list[aa]['pair'][0] - nregions)
+            else:
+                sname = rnamelist[beta_list[aa]['pair'][0]][:4]
+            tname = rnamelist[beta_list[aa]['pair'][1]][:4]
+            cname = '{}-{}'.format(sname,tname )
+            cname_list += [cname]
+            print('{} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} {}'.format(aa, Sconn_feature_reg[aa,0], Sconn_feature_reg[aa,1], Sconn_feature_reg[aa,2], Sconn_feature_reg[aa,3], Sconn_feature_reg[aa,4], cname))
+
+    # write results to excel file
+    # sort output by magnitude of Z
+    Zthresh = stats.norm.ppf(1-pthresh)
+    pthresh_list = ['{:.3e}'.format(pthresh)] * nc1
+    Zthresh_list = ['{:.3f}'.format(Zthresh)] * nc1
+    si = np.argsort(np.abs(Sconn_feature_reg[:,3]))[::-1]
+    int_text = np.array(['{:.2e}'.format(Sconn_feature_reg[x,0]) for x in si])
+    slope_text = np.array(['{:.2e}'.format(Sconn_feature_reg[x,1]) for x in si])
+    R2_text = np.array(['R2 = {:.2e}'.format(Sconn_feature_reg[x, 2]) for x in si])
+    Z_text = np.array(['Z = {:.2f}'.format(Sconn_feature_reg[x, 3]) for x in si])
+    p_text = np.array(['p = {:.2e}'.format(Sconn_feature_reg[x, 4]) for x in si])
+
+    # Sinput_feature_reg_sorted = Sinput_feature_reg[si,:]
+    textoutputs = {'regions': np.array(cname_list)[si], 'int': int_text, 'slope': slope_text,
+                   'R2': R2_text, 'Z': Z_text, 'p': p_text,
+                   'Z thresh': np.array(Zthresh_list)[si], 'p thresh': np.array(pthresh_list)[si]}
+    # p, f = os.path.split(SAPMresultsname)
+    df1 = pd.DataFrame(textoutputs)
+
+
+    print('size of Sinput_var is {}'.format(np.shape(Sinput_std)))
+    print('Sinput_feature_reg:')
+    nc1, np1 = np.shape(Sinput_std)
+    Sinput_feature_reg = np.zeros((nc1,5))
+    cname_list = []
+    for aa in range(nc1):
+        m = Sinput_std[aa, :]
+        if np.var(m) > 0:
+            b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis, :], G)
+            Z = np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(np1-3)
+            pval = 1 - stats.norm.cdf(Z)
+            Sinput_feature_reg[aa, :] = [b[0, 0], b[0, 1], R2, Z,pval]
+            cname = '{}'.format(rnamelist[aa][:4])
+            cname_list += [cname]
+            print('{} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} {}'.format(aa, Sinput_feature_reg[aa,0], Sinput_feature_reg[aa,1], Sinput_feature_reg[aa,2], Sinput_feature_reg[aa,3], Sinput_feature_reg[aa,4], cname))
+
+
+    # write results to excel file
+    # sort output by magnitude of Z
+    Zthresh = stats.norm.ppf(1-pthresh)
+    pthresh_list = ['{:.3e}'.format(pthresh)] * nc1
+    Zthresh_list = ['{:.3f}'.format(Zthresh)] * nc1
+    si = np.argsort(np.abs(Sinput_feature_reg[:,3]))[::-1]
+    int_text = np.array(['{:.2e}'.format(Sinput_feature_reg[x, 0]) for x in si])
+    slope_text = np.array(['{:.2e}'.format(Sinput_feature_reg[x, 1]) for x in si])
+    R2_text = np.array(['R2 = {:.2e}'.format(Sinput_feature_reg[x, 2]) for x in si])
+    Z_text = np.array(['Z = {:.2f}'.format(Sinput_feature_reg[x, 3]) for x in si])
+    p_text = np.array(['p = {:.2e}'.format(Sinput_feature_reg[x, 4]) for x in si])
+
+    # Sinput_feature_reg_sorted = Sinput_feature_reg[si,:]
+    textoutputs = {'regions': np.array(cname_list)[si], 'int': int_text, 'slope': slope_text,
+                   'R2': R2_text, 'Z': Z_text, 'p': p_text,
+                   'Z thresh': np.array(Zthresh_list)[si], 'p thresh': np.array(pthresh_list)[si]}
+
+    # Sinput_feature_reg_sorted = Sinput_feature_reg[si,:]
+    # textoutputs = {'regions': np.array(cname_list)[si], 'int': np.array(Sinput_feature_reg[si,0]), 'slope': np.array(Sinput_feature_reg[si,1]),
+    #                'R2': np.array(Sinput_feature_reg[si,2]), 'Z': np.array(Sinput_feature_reg[si,3]), 'p': np.array(Sinput_feature_reg[si,4]),
+    #                'Z thresh': np.array(Zthresh_list)[si], 'p thresh': np.array(pthresh_list)[si]}
+    # p, f = os.path.split(SAPMresultsname)
+    df2 = pd.DataFrame(textoutputs)
+    xlname = os.path.join(outputdir, descriptor + '.xlsx')
+    with pd.ExcelWriter(xlname) as writer:
+        df1.to_excel(writer, sheet_name='Sconn')
+        df2.to_excel(writer, sheet_name = 'Sinput')
+
+    outputname = xlname
+
+
+
 def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdir, SAPMparametersname, SAPMresultsname,
                          group, target = '', pthresh = 0.05, setylimits = [], TargetCanvas = [], display_in_GUI = False):
     # options of results to display:
@@ -2073,8 +2460,15 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         et1 = 0
         et2 = tsize
     else:
-        et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
-        et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+        if np.floor(epoch / 2).astype(int) == np.ceil(epoch / 2).astype(int):  # even numbered epoch
+            et1 = (timepoint - np.floor(epoch / 2)).astype(int)
+            et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+        else:
+            et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
+            et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+    if et1 < 0: et1 = 0
+    if et2 > tsize: et2 = tsize
+    epoch = et2 - et1
     ftemp = paradigm_centered[et1:et2]
 
     Mrecord = np.zeros((nbeta, nbeta, NP))
@@ -2220,6 +2614,12 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         outputname = xlname
 
         print('finished generating results for B_Regression...')
+
+        # testing other regression options
+        target = []
+        descriptor = outputnametag + '_BOLDstdev_vs_Covariate'
+        regress_signal_features_with_cov(target, covariates[g1], Minput, Sinput_total[:, :, g1], fit_total[:, :, g1],
+                                         Sconn_total[:, :, g1], beta_list, rnamelist, pthresh, outputdir, descriptor)
         return outputname
 
     #-------------------------------------------------------------------------------
@@ -2313,14 +2713,13 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         print('finished generating outputs for Plot_SourceModel...')
         return outputname
 
-
     # Draw SAPM Diagram -----------------------------
     # outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel', 'Plot_SourceModel', 'DrawSAPMdiagram']
-    if outputtype == 'DrawSAPMdiagram':
-        print('getting ready to draw the SAPM network diagram ...')
-        outputname = 'NA'
-
-    return outputname
+    # if outputtype == 'DrawSAPMdiagram':
+    #     print('getting ready to draw the SAPM network diagram ...')
+    #     outputname = 'NA'
+    #
+    #   return outputname
 
 #-----------------------------------------------------------------------------------
 #   Functions for plotting SAPM network results
@@ -2479,14 +2878,23 @@ def parse_threshold_text(thresholdtext):
 
 def parse_connection_name(connection, regionlist):
     h1 = connection.index('-')
-    h2 = connection[(h1+2):].index('-') + h1 + 2
-    r1 = connection[:h1]
-    r2 = connection[(h1+1):h2]
-    r3 = connection[(h2+1):]
+    if '-' in connection[(h1+2):]:
+        h2 = connection[(h1+2):].index('-') + h1 + 2
+        r1 = connection[:h1]
+        r2 = connection[(h1+1):h2]
+        r3 = connection[(h2+1):]
 
-    i1 = regionlist.index(r1)
-    i2 = regionlist.index(r2)
-    i3 = regionlist.index(r3)
+        i1 = regionlist.index(r1)
+        i2 = regionlist.index(r2)
+        i3 = regionlist.index(r3)
+    else:
+        r1 = connection[:h1]
+        r2 = connection[(h1+1):]
+        r3 = 'none'
+
+        i1 = regionlist.index(r1)
+        i2 = regionlist.index(r2)
+        i3 = -1
 
     return (r1,r2,r3),(i1,i2,i3)
 
@@ -2495,6 +2903,7 @@ def draw_sapm_plot(results_file, sheetname, regionnames, regions, statname, figu
     # plot diagram is written to a figure window and saved
 
    # templatename, clusterdataname = []
+
     #
     xls = pd.ExcelFile(results_file, engine='openpyxl')
     df1 = pd.read_excel(xls, sheetname)
@@ -2581,19 +2990,27 @@ def draw_sapm_plot(results_file, sheetname, regionnames, regions, statname, figu
             else:
                 linecolor = 'r'
             rlist,ilist = parse_connection_name(c1,regionlist_trunc)
+            if rlist[2] == 'none':
+                throughconnection = False
+            else:
+                throughconnection = True
 
             # get positions of ends of lines,arrows, etc... for one connection
             p0 = regions[ilist[0]]['pos']
             p1 = regions[ilist[1]]['pos']
-            p2 = regions[ilist[2]]['pos']
+            if ilist[2] >= 0:
+                p2 = regions[ilist[2]]['pos']
+            else:
+                p2 = [0,0]
 
             if p0 != p1  and  p1 != p2:
                 pe0, pe1a, pe1b, pe2, pe1ab_connectionstyle, specialcase = points_on_ellipses2(p0,p1,p2,ovalsize)
                 print('{}  {}'.format(c1,pe1ab_connectionstyle))
 
                 connection_type1 = {'con':'{}-{}'.format(rlist[0],rlist[1]), 'type':'input'}
-                connection_type2 = {'con':'{}-{}'.format(rlist[1],rlist[2]), 'type':'output'}
-                connection_joiner = {'con':'{}-{}'.format(rlist[1],rlist[1]), 'type':'joiner'}
+                if throughconnection:
+                    connection_type2 = {'con':'{}-{}'.format(rlist[1],rlist[2]), 'type':'output'}
+                    connection_joiner = {'con':'{}-{}'.format(rlist[1],rlist[1]), 'type':'joiner'}
 
                 if specialcase:
                     print('special case...')
@@ -2601,23 +3018,25 @@ def draw_sapm_plot(results_file, sheetname, regionnames, regions, statname, figu
                     acount+= 1
                     an_list.append(an1)
                     connection_list.append(connection_type1)
-                    an1 = ax.annotate('',xy=pe2,xytext = pe1b, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
-                    acount+= 1
-                    an_list.append(an1)
-                    connection_list.append(connection_type2)
+                    if throughconnection:
+                        an1 = ax.annotate('',xy=pe2,xytext = pe1b, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
+                        acount+= 1
+                        an_list.append(an1)
+                        connection_list.append(connection_type2)
                 else:
                     an1 = ax.annotate('',xy=pe1a,xytext = pe0, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
                     acount+= 1
                     an_list.append(an1)
                     connection_list.append(connection_type1)
-                    an1 = ax.annotate('',xy=pe2,xytext = pe1b, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
-                    acount+= 1
-                    an_list.append(an1)
-                    connection_list.append(connection_type2)
-                    an1 = ax.annotate('',xy=pe1b,xytext = pe1a, arrowprops=dict(arrowstyle="->", connectionstyle=pe1ab_connectionstyle, linewidth = linethick/2.0, color = linecolor, shrinkA = 0.0, shrinkB = 0.0))
-                    acount+= 1
-                    an_list.append(an1)
-                    connection_list.append(connection_joiner)
+                    if throughconnection:
+                        an1 = ax.annotate('',xy=pe2,xytext = pe1b, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
+                        acount+= 1
+                        an_list.append(an1)
+                        connection_list.append(connection_type2)
+                        an1 = ax.annotate('',xy=pe1b,xytext = pe1a, arrowprops=dict(arrowstyle="->", connectionstyle=pe1ab_connectionstyle, linewidth = linethick/2.0, color = linecolor, shrinkA = 0.0, shrinkB = 0.0))
+                        acount+= 1
+                        an_list.append(an1)
+                        connection_list.append(connection_joiner)
             else:
                 print('ambiguous connection not drawn:  {}'.format(c1))
 

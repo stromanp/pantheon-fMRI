@@ -25,6 +25,7 @@ import pandas as pd
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
 import warnings
+import matplotlib
 
 # 2-source SEM results
 # save the results somehow
@@ -53,6 +54,10 @@ import warnings
 # cluster_data = np.load(self.SEMclustername, allow_pickle=True).flat[0]
 # cluster_properties = cluster_data['cluster_properties']
 # # dict_keys(['cx', 'cy', 'cz', 'IDX', 'nclusters', 'rname', 'regionindex', 'regionnum'])
+#
+# # GLM results
+# results = {'type':'GLM','B':B,'sem':sem,'T':T, 'template':template_img, 'regionmap':regionmap_img, 'Tthresh':Tthresh, 'normtemplatename':normtemplatename}
+
 
 
 def get_cluster_info(namelist, nclusterlist, number):
@@ -258,7 +263,11 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
     datafiletype = 0
     try:
         keylist = list(data.keys())
-        if 'type' in keylist: datafiletype = 1   # SEM results
+        if 'type' in keylist:
+            if data['type'] == 'GLM':
+                datafiletype = 3
+            else:
+                datafiletype = 1   # SEM results
         if 'region_properties' in keylist: datafiletype = 2    # BOLD time-course data
         print('group_significance:  datafiletype = ', datafiletype)
     except:
@@ -788,6 +797,99 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                 print('no significant results found at p < {}'.format(pthreshold))
         return excelfilename
 
+
+    if datafiletype == 3:
+        print('GLM results loaded ...')
+        B = data['B']
+        sem = data['sem']
+        T = data['T']
+        template = data['template']
+        regionmap = data['regionmap']
+        roi_map = data['roi_map']
+        normtemplatename = data['normtemplatename']
+        Tthresh = data['Tthresh']
+
+        if np.ndim(B) == 3:
+            xs, ys, zs = np.shape(B)
+            NP = 1
+        else:
+            xs, ys, zs, NP = np.shape(B)
+            Tthresh = stats.t.ppf(1 - pthreshold, NP - 1)
+
+        # stats based on group average ----------
+        if statstype == 'average':
+            stattitle = 'Tvalue'
+            if NP > 1:
+                # stats based on group average - sig diff from zero?
+                meanB = np.mean(B,axis = 3)
+                seB = np.std(B,axis = 3)/np.sqrt(NP)
+                Tbeta = meanB/(seB + 1.0e-10)
+                Bsig = np.abs(Tbeta) > Tthresh
+            else:
+                Tbeta = copy.deepcopy(T)
+                Bsig = np.abs(T) > Tthresh
+
+            # create output figure
+            outputimg = pydisplay.pydisplaystatmap(Tbeta, Tthresh, template, roi_map, normtemplatename)
+            # display the output figure and save it
+            # save the image for later use
+            pname, fname = os.path.split(filename)
+            fname, ext = os.path.splitext(fname)
+            outputimagename = os.path.join(pname, fname + '_GLM_group_sig.png')
+            matplotlib.image.imsave(outputimagename, outputimg)
+
+
+        # stats based on regression with covariates - --------
+        if statstype == 'regression':
+            stattitle = 'Zregression'
+            Zthresh = stats.norm.ppf(1-pthreshold)
+
+            terms, NPt = np.shape(covariates)  # need one term per person, for each covariate
+            b1, b1sem, R21, Z1, Rcorrelation1, Zcorrelation1 = GLMregression(B, covariates, 4)
+
+            beta1_sig = np.abs(Z1) > Zthresh
+            stat_of_interest1 = Z1
+
+            value1 = b1
+            value1_se = b1sem
+
+            # create output figure
+            outputimg = pydisplay.pydisplaystatmap(Z1, Zthresh, template, roi_map, normtemplatename)
+            # display the output figure and save it
+            # save the image for later use
+            pname, fname = os.path.split(filename)
+            fname, ext = os.path.splitext(fname)
+            outputimagename = os.path.join(pname, fname + '_GLM_regression_sig.png')
+            matplotlib.image.imsave(outputimagename, outputimg)
+
+
+        #---------------------------------------------------
+        if statstype == 'correlation':
+            stattitle = 'Zcorr'
+            Zthresh = stats.norm.ppf(1-pthreshold)
+
+            terms, NPt = np.shape(covariates)  # need one term per person, for each covariate
+            b1, b1sem, R21, Z1, Rcorrelation1, Zcorrelation1 = GLMregression(beta1, covariates, 4)
+
+            beta1_sig = np.abs(Zcorrelation1) > Zthresh
+            stat_of_interest1 = Zcorrelation1
+
+            value1 = b1
+            value1_se = b1sem
+
+            # create output figure
+            outputimg = pydisplay.pydisplaystatmap(Z1, Zthresh, template, roi_map, normtemplatename)
+            # display the output figure and save it
+            # save the image for later use
+            pname, fname = os.path.split(filename)
+            fname, ext = os.path.splitext(fname)
+            outputimagename = os.path.join(pname, fname + '_GLM_correlation_sig.png')
+            matplotlib.image.imsave(outputimagename, outputimg)
+
+        #---------------------------------------------------
+        print('results written to {}'.format(outputimagename))
+        return outputimagename
+
 #------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------
 # look for significant group-average beta-value differences from zero
@@ -810,7 +912,11 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
     datafiletype = 0
     try:
         keylist = list(data1.keys())
-        if 'type' in keylist: datafiletype = 1   # SEM results
+        if 'type' in keylist:
+            if data['type'] == 'GLM':
+                datafiletype = 3
+            else:
+                datafiletype = 1   # SEM results
         if 'region_properties' in keylist: datafiletype = 2    # BOLD time-course data
         print('group_significance:  datafiletype = ', datafiletype)
     except:
@@ -1220,6 +1326,89 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                 print('no significant results found at p < {}'.format(pthreshold))
             return excelfilename
 
+    if datafiletype == 3:
+        print('GLM results loaded ...')
+        B1 = data1['B']
+        sem1 = data1['sem']
+        T1 = data1['T']
+        template = data1['template']
+        regionmap = data1['regionmap']
+        roi_map = data1['roi_map']
+        normtemplatename = data1['normtemplatename']
+        Tthresh = data1['Tthresh']
+
+        B2 = data2['B']
+        sem2 = data2['sem']
+        T2 = data2['T']
+
+        if np.ndim(B1) == 3:
+            xs, ys, zs = np.shape(B1)
+            NP1 = 1   # either both data sets must represent individuals, or groups
+            NP2 = 1
+        else:
+            xs, ys, zs, NP1 = np.shape(B1)
+            xs, ys, zs, NP2 = np.shape(B2)
+            Tthresh = stats.t.ppf(1 - pthreshold, NP1 - 1)
+
+        # stats based on group average ----------
+        if statstype == 'average':
+            if mode == 'unpaired':
+                stattitle = 'Tvalue unpaired'
+
+                if NP1 > 1:
+                    # stats based on group average - sig diff from zero?
+                    meanB1 = np.mean(B1,axis = 4)
+                    seB1 = np.std(B1,axis = 4)/np.sqrt(NP1)
+                    Tbeta1 = meanB1/(seB1 + 1.0e-10)
+
+                    meanB2 = np.mean(B2,axis = 4)
+                    seB2 = np.std(B2,axis = 4)/np.sqrt(NP2)
+                    Tbeta2 = meanB1/(seB2 + 1.0e-10)
+
+                    var_beta1 = np.var(B1, axis=4)
+                    var_beta2 = np.var(B2, axis=4)
+                    # pooled standard deviation:
+                    sp = np.sqrt(((NP1 - 1) * var_beta1 + (NP2 - 1) * var_beta2) / (NP1 + NP2 - 2))
+
+                    Tbeta = (meanB1 - meanB2) / (sp * np.sqrt(1 / NP1 + 1 / NP2))
+                    Tthresh = stats.t.ppf(1 - pthreshold, NP1 - 1)
+                    beta_sig = np.abs(Tbeta) > Tthresh  # size is ncombinations x ntimepoints x nsources
+                else:
+                    sp = np.sqrt((sem1**2 + sem2**2)/2.0)   # the two sets of results need to be from the same number of volumes
+                    Tbeta = (meanB1 - meanB2) / (sp + 1.0e-20)
+                    beta_sig = np.abs(Tbeta) > Tthresh  # size is ncombinations x ntimepoints x nsources
+
+                pname, fname = os.path.split(filename)
+                fname, ext = os.path.splitext(fname)
+                outputimagename = os.path.join(pname, fname + '_GLM_group_diff.png')
+            else:   # paired difference
+                if NP1 > 1:
+                    diff = B1-B2
+                    mean_diff = np.mean(diff,axis = 4)
+                    sem_diff = np.std(diff)/np.sqrt(NP1)
+                    Tbeta = mean_diff/(sem_diff + 1.0e-10)
+                    Tthresh = stats.t.ppf(1 - pthreshold, NP1 - 1)
+                    beta_sig = np.abs(Tbeta) > Tthresh
+                else:
+                    # the paired difference with one sample in each group is the same as the unpaired difference
+                    sp = np.sqrt((sem1**2 + sem2**2)/2.0)   # the two sets of results need to be from the same number of volumes
+                    Tbeta = (meanB1 - meanB2) / (sp + 1.0e-20)
+                    beta_sig = np.abs(Tbeta) > Tthresh  # size is ncombinations x ntimepoints x nsources
+
+                pname, fname = os.path.split(filename)
+                fname, ext = os.path.splitext(fname)
+                outputimagename = os.path.join(pname, fname + '_GLM_group_paireddiff.png')
+
+            # create output figure
+            outputimg = pydisplay.pydisplaystatmap(Tbeta, Tthresh, template, roi_map, normtemplatename)
+            # display the output figure and save it
+            # save the image for later use
+            matplotlib.image.imsave(outputimagename, outputimg)
+        #---------------------------------------------------
+        print('results written to {}'.format(outputimagename))
+        return outputimagename
+
+
 
 # -------------group_comparison_ANOVA--------------------------------------
 def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthreshold, mode = 'ANOVA', covariate_name = 'cov1'):
@@ -1261,7 +1450,11 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
     datafiletype = 0
     try:
         keylist = list(data1.keys())
-        if 'type' in keylist: datafiletype = 1   # SEM results
+        if 'type' in keylist:
+            if data['type'] == 'GLM':
+                datafiletype = 3
+            else:
+                datafiletype = 1   # SEM results
         if 'region_properties' in keylist: datafiletype = 2    # BOLD time-course data
         print('group_comparison_ANOVA:  datafiletype = ', datafiletype)
     except:
@@ -1710,6 +1903,10 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                 print('no significant results found at p < {}'.format(pthreshold))
             return excelfilename
 
+    if datafiletype == 3:
+        print('GLM results loaded ...')
+        print(' ... ANOVA based on GLM results is not available ...')
+        return 'NA'
 
 
 #---------------single group ANOVA--------------------------------------
@@ -1759,7 +1956,11 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
     datafiletype = 0
     try:
         keylist = list(data1.keys())
-        if 'type' in keylist: datafiletype = 1   # SEM results
+        if 'type' in keylist:
+            if data['type'] == 'GLM':
+                datafiletype = 3
+            else:
+                datafiletype = 1   # SEM results
         if 'region_properties' in keylist: datafiletype = 2    # BOLD time-course data
         print('group_comparison_ANOVA:  datafiletype = ', datafiletype)
     except:
@@ -2156,7 +2357,12 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
             else:
                 print('no significant results found at p < {}'.format(pthreshold))
             return excelfilename
-        
+
+
+    if datafiletype == 3:
+        print('GLM results loaded ...')
+        print(' ... ANOVA based on GLM results is not available ...')
+        return 'NA'
         
         
 
