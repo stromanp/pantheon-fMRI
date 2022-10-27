@@ -61,7 +61,7 @@ import pybrainregistration
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 matplotlib.use('TkAgg')   # explicitly set this - it might help with displaying figures in different environments
-enable_sapm = True
+enable_sapm = False
 
 # save some colors for consistent layout, and make them easy to change
 # colours for Windows
