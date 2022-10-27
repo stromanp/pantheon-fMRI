@@ -1047,3 +1047,19 @@ def display_anatomical_figure(filename, connectiondata, templatename, regioncolo
     plt.axis('off')
     # plt.tight_layout()
     TargetCanvas.draw()
+
+
+def display_sapm_cluster(clusterdataname, regionname, clusternumber):
+    cluster_data = np.load(clusterdataname, allow_pickle=True).flat[0]
+    cluster_properties = cluster_data['cluster_properties']
+    # dict_keys(['cx', 'cy', 'cz', 'IDX', 'nclusters', 'rname', 'regionindex', 'regionnum'])
+
+    nregions = len(cluster_properties)
+    nclusterlist = [cluster_properties[i]['nclusters'] for i in range(nregions)]
+    rnamelist = [cluster_properties[i]['rname'] for i in range(nregions)]
+    nclusterstotal = np.sum(nclusterlist)
+
+    r = rnamelist.index(regionname)
+    cx = cluster_properties[r]['cx']
+    cy = cluster_properties[r]['cy']
+    cz = cluster_properties[r]['cz']

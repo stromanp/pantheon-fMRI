@@ -44,6 +44,7 @@ import multiprocessing as mp
 # import parallel_functions as pf
 import matplotlib.patches as mpatches
 from matplotlib.collections import PatchCollection
+import matplotlib
 
 
 plt.rcParams.update({'font.size': 10})
@@ -1499,6 +1500,7 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
     average_data = np.zeros(np.shape(tcdata))
     ncmax = np.max(nclusterlist)
     original_loadings = np.zeros((nregions,ncmax,ncmax))
+    weights = np.zeros((nregions,ncmax))
     for regionnum in range(nregions):
         r1 = sum(nclusterlist[:regionnum])
         r2 = sum(nclusterlist[:(regionnum + 1)])
@@ -1510,6 +1512,7 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
         S_pca_ = pca.fit(tcdata_region).transform(tcdata_region)
 
         components = pca.components_
+        evr = pca.explained_variance_ratio_
         # use components in SAPM in place of original region data
 
         # get loadings
@@ -1522,12 +1525,13 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
         component_data[r1:r2,:] = components
         average_data[r1:r2,:] = mu
         original_loadings[regionnum,:nstates,:nstates] = loadings
+        weights[regionnum,:nstates] = evr
 
     # scale component_data to make original_loadings near maximum of 1
     PCscalefactor = original_loadings.max()
     original_loadings /= PCscalefactor
     component_data *= PCscalefactor
-    PCparams = {'components':component_data, 'average':average_data, 'loadings':original_loadings}
+    PCparams = {'components':component_data, 'average':average_data, 'loadings':original_loadings, 'weights':weights}
 
     # for one set of PCloadings
     Lweight = 1.0e-6
@@ -1608,8 +1612,9 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
             # look for best match
             nclusters = nclusterlist[region]
             d = np.zeros(nclusters)
+            w = weights[region,:]
             for cc in range(nclusters):
-                d[cc] = np.sqrt(np.sum((L[cc, :] - p) ** 2))
+                d[cc] = np.sqrt(np.sum(w*(L[cc, :] - p) ** 2))
             x = np.argmin(d)
             best_clusters[region] = x
             best_clusters = best_clusters.astype(int)
@@ -1617,6 +1622,7 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
 
 
     # look at final results in more detail---------------------------
+    finaloutputstring = ''
     best_clusters = np.zeros(nregions)
     for region in range(nregions):
         print('\noriginal loadings region {}'.format(region))
@@ -1642,8 +1648,9 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
         # look for best match
         nclusters = nclusterlist[region]
         d = np.zeros(nclusters)
+        w = weights[region, :]
         for cc in range(nclusters):
-            d[cc] = np.sqrt(np.sum((L[cc,:]-p)**2))
+            d[cc] = np.sqrt(np.sum(w*(L[cc,:]-p)**2))
 
         #convert distances to confidence level that each cluster is the best choice
         proximity_score = 1.0/(d**2 + 1.0e-3)
@@ -1651,14 +1658,18 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
 
         print('\ndistance between PCloadings and original {}'.format(region))
         outputstring = ''
+        finaloutputstring += '\nRegion {} cluster percents:  '.format(region)
         for cc in range(nclusters):
             outputstring += 'cluster{}  {:.3f}   estimated {:.1f} percent best choice \n'.format(cc, d[cc], proximity_percent[cc])
+            finaloutputstring += '{:.1f} '.format(proximity_percent[cc])
         print(outputstring)
 
         x = np.argmin(d)
         best_clusters[region] = x
         best_clusters = best_clusters.astype(int)
     print('\nbest cluster set is : {}'.format(best_clusters))
+    print('\n')
+    print(finaloutputstring)
 
     return best_clusters
 
@@ -2207,18 +2218,41 @@ def display_matrix(M,columntitles,rowtitles):
     print(df)
 
 
-def display_anatomical_cluster(clusterdataname, targetnum, targetcluster, orientation = 'axial', regioncolor = [0,1,1]):
+def display_anatomical_cluster(clusterdataname, targetnum, targetcluster, orientation = 'axial', regioncolor = [0,1,1], templatename = 'ccbs', write_output = False):
     # get the voxel coordinates for the target region
     clusterdata = np.load(clusterdataname, allow_pickle=True).flat[0]
+    nregions = len(cluster_properties)
+    nclusterlist = [cluster_properties[i]['nclusters'] for i in range(nregions)]
+    rnamelist = [cluster_properties[i]['rname'] for i in range(nregions)]
+    nclusterstotal = np.sum(nclusterlist)
 
-    IDX = clusterdata['cluster_properties'][targetnum]['IDX']
+    if type(targetnum) == int:
+        r = targetnum
+    else:
+        # assume "targetnum" input is a region name
+        r = rnamelist.index(targetnum)
+
+    IDX = clusterdata['cluster_properties'][r]['IDX']
     idxx = np.where(IDX == targetcluster)
-    cx = clusterdata['cluster_properties'][targetnum]['cx'][idxx]
-    cy = clusterdata['cluster_properties'][targetnum]['cy'][idxx]
-    cz = clusterdata['cluster_properties'][targetnum]['cz'][idxx]
+    cx = clusterdata['cluster_properties'][r]['cx'][idxx]
+    cy = clusterdata['cluster_properties'][r]['cy'][idxx]
+    cz = clusterdata['cluster_properties'][r]['cz'][idxx]
 
-    templatename = 'ccbs'
-    outputimg = pydisplay.pydisplayvoxelregionslice(templatename, cx, cy, cz, orientation, displayslice = [], colorlist = regioncolor)
+    # load template
+    if templatename == 'brain':
+        resolution = 2
+    else:
+        resolution = 1
+    template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_img = load_templates.load_template_and_masks(
+        templatename, resolution)
+
+    outputimg = pydisplay.pydisplayvoxelregionslice(templatename, template_img, cx, cy, cz, orientation, displayslice = [], colorlist = regioncolor)
+
+    if write_output:
+        p,f = os.path.split(clusterdataname)
+        imgname = os.path.join(p,'cluster_{}_{}.png'.format(targetnum,targetcluster))
+        matplotlib.image.imsave(imgname, outputimg)
+
     return outputimg
 
 
