@@ -7368,8 +7368,9 @@ class SAPMResultsFrame:
             self.SAPMBfile = ''
             self.SAPMBsheet = 'sheet'
             self.SRcolumnnames = 'stat'
+            self.SRsheetnames = ['not set']
 
-        # if 'SAPMBfile' in settings.keys():
+            # if 'SAPMBfile' in settings.keys():
         #     self.SAPMBfile = settings['SAPMBfile']
         #     try:
         #         xls = pd.ExcelFile(self.SAPMBfile, engine='openpyxl')  # get the sheetnames
