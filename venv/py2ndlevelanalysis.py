@@ -1374,8 +1374,9 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                     Tthresh = stats.t.ppf(1 - pthreshold, NP1 - 1)
                     beta_sig = np.abs(Tbeta) > Tthresh  # size is ncombinations x ntimepoints x nsources
                 else:
-                    sp = np.sqrt((sem1**2 + sem2**2)/2.0)   # the two sets of results need to be from the same number of volumes
-                    Tbeta = (meanB1 - meanB2) / (sp + 1.0e-20)
+                    # NP = 1  special case
+                    sp = np.sqrt((sem1**2 + sem2**2)/2.0)
+                    Tbeta = (B1 - B2) / (sp + 1.0e-20)
                     beta_sig = np.abs(Tbeta) > Tthresh  # size is ncombinations x ntimepoints x nsources
 
                 pname, fname = os.path.split(filename)
@@ -1392,7 +1393,7 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                 else:
                     # the paired difference with one sample in each group is the same as the unpaired difference
                     sp = np.sqrt((sem1**2 + sem2**2)/2.0)   # the two sets of results need to be from the same number of volumes
-                    Tbeta = (meanB1 - meanB2) / (sp + 1.0e-20)
+                    Tbeta = (B1 - B2) / (sp + 1.0e-20)
                     beta_sig = np.abs(Tbeta) > Tthresh  # size is ncombinations x ntimepoints x nsources
 
                 pname, fname = os.path.split(filename)
