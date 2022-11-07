@@ -800,13 +800,13 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
 
     if datafiletype == 3:
         print('GLM results loaded ...')
+        normtemplatename = data['normtemplatename']
         B = data['B']
         sem = data['sem']
         T = data['T']
         template = data['template']
         regionmap = data['regionmap']
         roi_map = data['roi_map']
-        normtemplatename = data['normtemplatename']
         Tthresh = data['Tthresh']
 
         if np.ndim(B) == 3:
@@ -1328,13 +1328,13 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
 
     if datafiletype == 3:
         print('GLM results loaded ...')
+        normtemplatename = data1['normtemplatename']
         B1 = data1['B']
         sem1 = data1['sem']
         T1 = data1['T']
         template = data1['template']
         regionmap = data1['regionmap']
         roi_map = data1['roi_map']
-        normtemplatename = data1['normtemplatename']
         Tthresh = data1['Tthresh']
 
         B2 = data2['B']
@@ -1379,9 +1379,11 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                     Tbeta = (B1 - B2) / (sp + 1.0e-20)
                     beta_sig = np.abs(Tbeta) > Tthresh  # size is ncombinations x ntimepoints x nsources
 
-                pname, fname = os.path.split(filename)
-                fname, ext = os.path.splitext(fname)
-                outputimagename = os.path.join(pname, fname + '_GLM_group_diff.png')
+                pname1, fname1 = os.path.split(filename1)
+                fname1, ext = os.path.splitext(fname1)
+                pname2, fname2 = os.path.split(filename2)
+                fname2, ext = os.path.splitext(fname2)
+                outputimagename = os.path.join(pname1, fname1 + '_' + fname2 + '_GLM_group_diff.png')
             else:   # paired difference
                 if NP1 > 1:
                     diff = B1-B2
@@ -1396,9 +1398,12 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                     Tbeta = (B1 - B2) / (sp + 1.0e-20)
                     beta_sig = np.abs(Tbeta) > Tthresh  # size is ncombinations x ntimepoints x nsources
 
-                pname, fname = os.path.split(filename)
-                fname, ext = os.path.splitext(fname)
-                outputimagename = os.path.join(pname, fname + '_GLM_group_paireddiff.png')
+                pname1, fname1 = os.path.split(filename1)
+                fname1, ext = os.path.splitext(fname1)
+                pname2, fname2 = os.path.split(filename2)
+                fname2, ext = os.path.splitext(fname2)
+                outputimagename = os.path.join(pname1, fname1 + '_' + fname2 + '_GLM_group_paireddiff.png')
+
 
             # create output figure
             outputimg = pydisplay.pydisplaystatmap(Tbeta, Tthresh, template, roi_map, normtemplatename)

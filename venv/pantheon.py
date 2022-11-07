@@ -3435,6 +3435,7 @@ class GLMFrame:
         if normtemplatename == 'brain':
             braintemplate = settings['braintemplate']
             template_img, template_affine, roi_map = load_templates.load_brain_template(braintemplate)
+            regionmap_img = []
         else:
             resolution = 1
             template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = load_templates.load_template_and_masks(normtemplatename, resolution)
