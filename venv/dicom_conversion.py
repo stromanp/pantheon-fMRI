@@ -213,5 +213,3 @@ def convert_dicom_folder(databasename, databasenumber, basename = 'Series'):
 
     return output_file
     
-
-# functions to load or create templates?

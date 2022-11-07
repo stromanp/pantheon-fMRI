@@ -9,6 +9,7 @@ import scipy.ndimage as nd
 from scipy import signal
 import math
 import nibabel as nib
+import copy
 
 #def interpolate_3D(input_data, newsize):
 #    # interpolate the input_data to the number of elements in newsize
@@ -431,6 +432,94 @@ def load_and_scale_nifti(niiname):
     new_affine[:,1] = affine[:,1]/voxel_sizes[1]
     new_affine[:,2] = affine[:,2]/voxel_sizes[2]
     return input_datar, new_affine
+
+
+def pad_nifti_files(niiname, axis, newsize, pad_prefix = '', paddirection = 'symmetric', mode = 'zerofill'):
+    mode_options = ['zerofill','replicate','wraparound']
+    if mode not in mode_options:
+        print('mode options are:  zerofill, replicate, wraparound')
+        print('invalid mode entered: {}'.format(mode))
+        mode = 'zerofill'
+        if (mode[0]).lower == 'r': mode = 'replicate'
+        if (mode[0]).lower == 'w': mode = 'wraparound'
+        print('mode changed to: {}'.format(mode))
+
+    pad_options = ['symmetric','pre','post']
+    if paddirection not in pad_options:
+        print('paddirection options are:  symmetric, pre, post')
+        paddirection = 'symmetric'
+        if (paddirection[:2]).lower == 'pr': paddirection = 'pre'
+        if (paddirection[:2]).lower == 'po': paddirection = 'post'
+        print('paddirection to: {}'.format(paddirection))
+
+    input_img = nib.load(niiname)
+    input_data = input_img.get_fdata()
+    affine = input_img.affine
+    input_hdr = input_img.header
+    dims = np.shape(input_data)
+    xd,yd,zd,td = copy.deepcopy(dims)
+    newdims = [xd,yd,zd,td]
+    newdims[axis] = newsize
+
+    output_img = np.zeros(newdims)
+
+    if paddirection == 'symmetric':
+        d1 = np.floor((newdims[axis]-dims[axis])/2).astype(int)
+        d2 = d1+dims[axis]
+    if paddirection == 'pre':
+        d1 = newdims[axis]-dims[axis]
+        d2 = newdims[axis]
+    if paddirection == 'post':
+        d1 = 0
+        d2 = dims[axis]
+
+    # first insert original image data
+    if axis == 0:
+        output_img[d1:d2,:,:,:] = input_data
+    if axis == 1:
+        output_img[:,d1:d2,:,:] = input_data
+    if axis == 2:
+        output_img[:,:,d1:d2,:] = input_data
+    if axis == 3:
+        output_img[:,:,:,d1:d2] = input_data
+
+    if mode == 'replicate':
+        if axis == 0:
+            for dd in range(d1): output_img[dd,:,:,:] = input_data[0,:,:,:]
+            for dd in range(newsize-d2): output_img[d2+dd,:,:,:] = input_data[-1,:,:,:]
+        if axis == 1:
+            for dd in range(d1): output_img[:,dd,:,:] = input_data[:,0,:,:]
+            for dd in range(newsize-d2): output_img[:,d2+dd,:,:] = input_data[:,-1,:,:]
+        if axis == 2:
+            for dd in range(d1): output_img[:,:,dd,:] = input_data[:,:,0,:]
+            for dd in range(newsize-d2): output_img[:,:,d2+dd,:] = input_data[:,:,-1,:]
+        if axis == 3:
+            for dd in range(d1): output_img[:,:,:,dd] = input_data[:,:,:,0]
+            for dd in range(newsize-d2): output_img[:,:,:,d2+dd] = input_data[:,:,:,-1]
+
+    if mode == 'wraparound':
+        if axis == 0:
+            for dd in range(d1): output_img[dd,:,:,:] = input_data[-1-dd,:,:,:]
+            for dd in range(newsize-d2): output_img[d2+dd,:,:,:] = input_data[dd,:,:,:]
+        if axis == 1:
+            for dd in range(d1): output_img[:,dd,:,:] = input_data[:,-1-dd,:,:]
+            for dd in range(newsize-d2): output_img[:,d2+dd,:,:] = input_data[:,dd,:,:]
+        if axis == 2:
+            for dd in range(d1): output_img[:,:,dd,:] = input_data[:,:,-1-dd,:]
+            for dd in range(newsize-d2): output_img[:,:,d2+dd,:] = input_data[:,:,dd,:]
+        if axis == 3:
+            for dd in range(d1): output_img[:,:,:,dd] = input_data[:,:,:,-1-dd]
+            for dd in range(newsize-d2): output_img[:,:,:,d2+dd] = input_data[:,:,:,dd]
+
+    # write out the padded image
+    pname, fname = os.path.split(niiname)
+    niiname_out = os.path.join(pname, pad_prefix + fname)
+    resulting_img = nib.Nifti1Image(output_img, affine)
+    nib.save(resulting_img, niiname_out)
+
+    return niiname_out
+
+
 
 #
 #def warp_image(input_image, mapX, mapY, mapZ):

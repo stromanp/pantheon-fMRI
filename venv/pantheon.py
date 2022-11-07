@@ -266,18 +266,21 @@ class mainspinalfmri_window:
         CLFrame(CLbase, self)
         page_name = CLFrame.__name__
         self.frames[page_name] = CLbase
+        self.CLbase = CLbase
 
         SEMbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
         SEMbase.grid(row=1, column=1, sticky="nsew")
         SEMFrame(SEMbase, self)
         page_name = SEMFrame.__name__
         self.frames[page_name] = SEMbase
+        self.SEMbase = SEMbase
 
         SAPMbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
         SAPMbase.grid(row=1, column=1, sticky="nsew")
         SAPMFrame(SAPMbase, self)
         page_name = SAPMFrame.__name__
         self.frames[page_name] = SAPMbase
+        self.SAPMbase = SAPMbase
 
         SAPMResultsbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
         SAPMResultsbase.grid(row=1, column=1, sticky="nsew")
@@ -3515,6 +3518,7 @@ class CLFrame:
         # update the text in the box, in case it has changed
         self.CLprefix = CLprefix
         print('prefix for clustering analysis set to ',self.CLprefix)
+        self.CLupdate_network_info()
         return self
 
 
@@ -3544,6 +3548,7 @@ class CLFrame:
         self.CLclusternamebox.insert(0,CLclustername)
 
         np.save(settingsfile,settings)
+        self.CLupdate_network_info()
 
 
     def CLclusternamesubmitaction(self):
@@ -3573,6 +3578,7 @@ class CLFrame:
         self.CLclusternamebox.insert(0, self.CLclustername)
 
         np.save(settingsfile, settings)
+        self.CLupdate_network_info()
 
 
     # define functions before they are used in the database frame------------------------------------------
@@ -3601,6 +3607,7 @@ class CLFrame:
         self.CLregionname = CLregionname
 
         np.save(settingsfile,settings)
+        self.CLupdate_network_info()
 
     def CLregionnamesubmitaction(self):
         # first load the settings file so that values can be used later
@@ -3629,6 +3636,7 @@ class CLFrame:
         self.CLregionnamebox.insert(0, self.CLregionname)
 
         np.save(settingsfile, settings)
+        self.CLupdate_network_info()
 
 
     def CLdefineandload(self):
@@ -3674,6 +3682,7 @@ class CLFrame:
         messagetext = 'defining clusters and loading data \ncompleted: ' + time.ctime(time.time())
         self.CLdefinebuttontext.set(messagetext)
         print(messagetext)
+        self.CLupdate_network_info()
 
 
     def CLload(self):
@@ -3697,6 +3706,16 @@ class CLFrame:
         messagetext = 'loading cluster data completed: \n' + time.ctime(time.time())
         self.CLloadbuttontext.set(messagetext)
         print(messagetext)
+
+        self.CLupdate_network_info()
+
+
+    def CLupdate_network_info(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.networkmodel = settings['networkmodel']
+        npname, nfname = os.path.split(self.networkmodel)
+        self.CLnetnametext.set(nfname)
+        self.CLnetdirtext.set(npname)
 
     # initialize the values, keeping track of the frame this definition works on (parent), and
     # also the main window containing that frame (controller)
@@ -3831,6 +3850,7 @@ class SEMFrame:
         self.SEMnetnametext.set(nfname)
         self.SEMnetdirtext.set(npname)
         np.save(settingsfile,settings)
+        self.SEMupdate_network_info()
 
     def SEMprefixsubmitaction(self):
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
@@ -3840,6 +3860,7 @@ class SEMFrame:
         # update the text in the box, in case it has changed
         self.SEMprefix = SEMprefix
         print('prefix for SEM analysis set to ',self.SEMprefix)
+        self.SEMupdate_network_info()
         return self
 
 
@@ -3871,6 +3892,7 @@ class SEMFrame:
         self.SEMclusternamebox.insert(0,SEMclustername)
 
         np.save(settingsfile,settings)
+        self.SEMupdate_network_info()
 
 
     def SEMclusternamesubmitaction(self):
@@ -3902,6 +3924,7 @@ class SEMFrame:
         self.SEMclusternamebox.insert(0, self.SEMclustername)
 
         np.save(settingsfile, settings)
+        self.SEMupdate_network_info()
 
 
     def SEMsavetagsubmitaction(self):
@@ -3917,6 +3940,7 @@ class SEMFrame:
         self.SEMsavetagbox.insert(0, SEMsavetag)
 
         np.save(settingsfile, settings)
+        self.SEMupdate_network_info()
 
 
     # define functions before they are used in the database frame------------------------------------------
@@ -3947,6 +3971,7 @@ class SEMFrame:
         self.SEMregionname = SEMregionname
 
         np.save(settingsfile,settings)
+        self.SEMupdate_network_info()
 
 
     def SEMregionnamesubmitaction(self):
@@ -3978,6 +4003,7 @@ class SEMFrame:
         self.SEMregionnamebox.insert(0, self.SEMregionname)
 
         np.save(settingsfile, settings)
+        self.SEMupdate_network_info()
 
 
     def SEMtimesubmitclick(self):
@@ -4003,6 +4029,7 @@ class SEMFrame:
         self.SEMtimeenter.insert(0, self.SEMtimetext)
         # save the updated settings file again
         np.save(settingsfile, settings)
+        self.SEMupdate_network_info()
 
 
     def SEMepochsubmitclick(self):
@@ -4021,6 +4048,7 @@ class SEMFrame:
         self.SEMepochenter.insert(0, epochtext)
         # save the updated settings file again
         np.save(settingsfile, settings)
+        self.SEMupdate_network_info()
 
 
     def SEMresultsdirbrowseaction(self):
@@ -4037,6 +4065,7 @@ class SEMFrame:
 
         # save the updated settings file again
         np.save(settingsfile,settings)
+        self.SEMupdate_network_info()
 
 
     def SEMonesource(self):
@@ -4052,6 +4081,8 @@ class SEMFrame:
         self.SEMsavetag = settings['SEMsavetag']
         self.SEMtimepoints = settings['SEMtimepoints']
         self.SEMepoch = settings['SEMepoch']
+
+        self.SEMupdate_network_info()
 
         xls = pd.ExcelFile(self.DBname, engine = 'openpyxl')
         df1 = pd.read_excel(xls, 'datarecord')
@@ -4090,6 +4121,8 @@ class SEMFrame:
         self.SEMsavetag = settings['SEMsavetag']
         self.SEMtimepoints = settings['SEMtimepoints']
         self.SEMepoch = settings['SEMepoch']
+
+        self.SEMupdate_network_info()
 
         xls = pd.ExcelFile(self.DBname, engine = 'openpyxl')
         df1 = pd.read_excel(xls, 'datarecord')
@@ -4130,6 +4163,8 @@ class SEMFrame:
         self.SEMepoch = settings['SEMepoch']
         self.SEMresumerun = settings['SEMresumerun']
 
+        self.SEMupdate_network_info()
+
         xls = pd.ExcelFile(self.DBname, engine='openpyxl')
         df1 = pd.read_excel(xls, 'datarecord')
 
@@ -4166,6 +4201,14 @@ class SEMFrame:
         else:
             print('choice to resume previous run set to ',self.SEMresumerun)
         return self
+
+
+    def SEMupdate_network_info(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.networkmodel = settings['networkmodel']
+        npname, nfname = os.path.split(self.networkmodel)
+        self.SEMnetnametext.set(nfname)
+        self.SEMnetdirtext.set(npname)
 
 
     # initialize the values, keeping track of the frame this definition works on (parent), and
@@ -6310,6 +6353,7 @@ class SAPMFrame:
         self.SAPMkeyinfo1.config(text=' ', fg='gray')
         np.save(settingsfile,settings)
 
+
     def SAPMprefixsubmitaction(self):
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         SAPMprefix = self.SAPMprefixbox.get()
@@ -6319,6 +6363,7 @@ class SAPMFrame:
         self.SAPMprefix = SAPMprefix
         self.SAPMkeyinfo1.config(text=' ', fg='gray')
         print('prefix for SAPM analysis set to ',self.SAPMprefix)
+        self.SAPMupdate_network_info()
         return self
 
     # define functions before they are used in the database frame------------------------------------------
@@ -6350,6 +6395,8 @@ class SAPMFrame:
 
         self.SAPMkeyinfo1.config(text=' ', fg='gray')
         np.save(settingsfile,settings)
+
+        self.SAPMupdate_network_info()
 
 
     def SAPMclusternamesubmitaction(self):
@@ -6383,6 +6430,8 @@ class SAPMFrame:
         self.SAPMkeyinfo1.config(text=' ', fg='gray')
         np.save(settingsfile, settings)
 
+        self.SAPMupdate_network_info()
+
 
     def SAPMresultsnamesubmitaction(self):
         # first load the settings file so that values can be used later
@@ -6404,6 +6453,8 @@ class SAPMFrame:
         self.SAPMkeyinfo1.config(text=' ', fg='gray')
         np.save(settingsfile, settings)
 
+        self.SAPMupdate_network_info()
+
 
     def SAPMparamsnamesubmitaction(self):
         # first load the settings file so that values can be used later
@@ -6424,6 +6475,8 @@ class SAPMFrame:
 
         self.SAPMkeyinfo1.config(text=' ', fg='gray')
         np.save(settingsfile, settings)
+
+        self.SAPMupdate_network_info()
 
     # define functions before they are used in the database frame------------------------------------------
     # action when the button to browse for a DB fie is pressed
@@ -6454,6 +6507,8 @@ class SAPMFrame:
 
         self.SAPMkeyinfo1.config(text=' ', fg='gray')
         np.save(settingsfile,settings)
+
+        self.SAPMupdate_network_info()
 
 
     def SAPMregionnamesubmitaction(self):
@@ -6486,6 +6541,8 @@ class SAPMFrame:
 
         self.SAPMkeyinfo1.config(text=' ', fg='gray')
         np.save(settingsfile, settings)
+
+        self.SAPMupdate_network_info()
 
 
     def SAPMcnumssubmitaction(self):
@@ -6523,6 +6580,8 @@ class SAPMFrame:
 
         self.SAPMkeyinfo1.config(text=' ', fg='gray')
         np.save(settingsfile, settings)
+
+        self.SAPMupdate_network_info()
 
 
     def SAPMtimesubmitclick(self):
@@ -6567,6 +6626,8 @@ class SAPMFrame:
             self.SAPMtimeenter.delete(0, 'end')
             self.SAPMtimeenter.insert(0, self.SAPMtimetext)
 
+
+        self.SAPMupdate_network_info()
         # save the updated settings file again
         np.save(settingsfile, settings)
         return self
@@ -6587,6 +6648,8 @@ class SAPMFrame:
         self.SAPMkeyinfo1.config(text=' ', fg='gray')
         # save the updated settings file again
         np.save(settingsfile,settings)
+
+        self.SAPMupdate_network_info()
 
 
     # action when checkboxes are selected/deselected
@@ -6609,6 +6672,8 @@ class SAPMFrame:
         self.SAPMresultsname = settings['SAPMresultsname']
         self.SAPMresultsdir = settings['SAPMresultsdir']
         # self.SAPMsavetag = settings['SAPMsavetag']
+
+        self.SAPMupdate_network_info()
 
         xls = pd.ExcelFile(self.DBname, engine='openpyxl')
         df1 = pd.read_excel(xls, 'datarecord')
@@ -6692,6 +6757,8 @@ class SAPMFrame:
         # self.SEMresumerun = settings['SEMresumerun']
         self.SAPMkeyinfo1.config(text=' ', fg='gray')
 
+        self.SAPMupdate_network_info()
+
         SAPMresultsname = os.path.join(self.SAPMresultsdir, )
         xls = pd.ExcelFile(self.DBname, engine='openpyxl')
         df1 = pd.read_excel(xls, 'datarecord')
@@ -6716,6 +6783,14 @@ class SAPMFrame:
 
         pysapm.SAPMrun(self.SAPMcnums, self.SAPMregionname, self.SAPMclustername,
                        SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, self.SAPMtimepoint, self.SAPMepoch, reload_existing=False)
+
+
+    def SAPMupdate_network_info(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.networkmodel = settings['networkmodel']
+        npname, nfname = os.path.split(self.networkmodel)
+        self.SAPMnetnametext.set(nfname)
+        self.SAPMnetdirtext.set(npname)
 
 
     # initialize the values, keeping track of the frame this definition works on (parent), and
@@ -7209,6 +7284,28 @@ class SAPMResultsFrame:
             outputname = pysapm.draw_sapm_plot(results_file, sheetname, regionnames, regions, statname, figurenumber, scalefactor, cnums,
                            threshold_text, writefigure)
 
+
+        if  'DrawAnatomy' in self.SRoptionvalue:
+            clusterdataname = self.SAPMclustername
+            targetcluster_list = self.SAPMcnums
+            network, nclusterlist, region_list, fintrinsic_count, vintrinsic_count = pysapm.load_network_model_w_intrinsics(self.networkmodel)
+            rnamelist = [r for r in region_list if 'intrinsic' not in r]
+
+            xls = pd.ExcelFile(self.DBname, engine='openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
+            normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
+
+            if self.SRoptionvalue == 'DrawAnatomy_axial':
+                for nn, targetname in enumerate(rnamelist):
+                    outputimg, outputname = pysapm.display_anatomical_cluster(clusterdataname, targetname, targetcluster_list[nn], orientation = 'axial',
+                                                      regioncolor = [0,1,1], templatename = normtemplatename, write_output = True)
+
+            if self.SRoptionvalue == 'DrawAnatomy_sagittal':
+                for nn, targetname in enumerate(rnamelist):
+                    outputimg, outputname = pysapm.display_anatomical_cluster(clusterdataname, targetname, targetcluster_list[nn], orientation = 'sagittal',
+                                                      regioncolor = [0,1,1], templatename = normtemplatename, write_output = True)
+
+
         print('output results to {}'.format(outputname))
 
 
@@ -7526,7 +7623,7 @@ class SAPMResultsFrame:
 
         # specific which outputs to generate...
         rownum = 8
-        outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel','Plot_SourceModel', 'DrawSAPMdiagram' ]
+        outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel','Plot_SourceModel', 'DrawSAPMdiagram', 'DrawAnatomy_axial', 'DrawAnatomy_sagittal' ]
         # add label, and pull-down menu for selected covariate values for searching
         self.SRL5 = tk.Label(self.parent, text = "Output: ", font = labelfont)
         self.SRL5.grid(row=rownum,column=1, sticky='W')

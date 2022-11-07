@@ -45,6 +45,9 @@ import multiprocessing as mp
 import matplotlib.patches as mpatches
 from matplotlib.collections import PatchCollection
 import matplotlib
+import load_templates
+from sklearn.linear_model import LinearRegression
+# from sklearn.linear_model import HuberRegressor
 
 
 plt.rcParams.update({'font.size': 10})
@@ -124,7 +127,7 @@ def load_network_model_w_intrinsics(networkmodel):
 
 
 def gradients_in_vintrinsics(Sinput, Sconn, fintrinsic1, vintrinsics, beta_int1,
-                             Minput, Mconn, dvali, fintrinsic_count, vintrinsic_count):
+                             Minput, Mconn, dvali, fintrinsic_count, vintrinsic_count, Lweight):
     nregions, tsize_full = np.shape(Sinput)
     ncon, tsize_full = np.shape(Sconn)
     nv,nt = np.shape(vintrinsics)
@@ -172,7 +175,7 @@ def gradients_in_vintrinsics(Sinput, Sconn, fintrinsic1, vintrinsics, beta_int1,
 
 
 def gradients_in_beta1(Sinput, Sconn, fintrinsic1, vintrinsics, beta_int1, Minput, Mconn,
-                       dval, fintrinsic_count, vintrinsic_count):
+                       dval, fintrinsic_count, vintrinsic_count, Lweight):
     nregions,tsize_full = np.shape(Sinput)
     ncon,tsize_full = np.shape(Sconn)
     dint = copy.deepcopy(beta_int1)
@@ -762,7 +765,7 @@ def sem_physio_model(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamete
 
     # initialize gradient-descent parameters--------------------------------------------------------------
     initial_alpha = 1e-3
-    initial_Lweight = 1e-4
+    initial_Lweight = 1e-2
     initial_dval = 0.01
     betascale = 0.0
 
@@ -1227,7 +1230,7 @@ def sem_physio_model_PCAclusters(PCparams, PCloadings, fintrinsic_base, SAPMresu
 
     # initialize gradient-descent parameters--------------------------------------------------------------
     initial_alpha = 1e-3
-    initial_Lweight = 1e-4
+    initial_Lweight = 1e-2
     initial_dval = 0.01
     betascale = 0.0
 
@@ -1432,7 +1435,7 @@ def mod_tplist_for_bootstrap(tplist_full, epoch, modtype, percent_replace = 0, t
     return tplist_full2
 
 
-def loadings_gradients(beta, PCparams,PCloadings,paradigm_centered,SAPMresultsname,SAPMparametersname,subsample, nprocessors, Lweight = 1.0e-3):
+def loadings_gradients(beta, PCparams,PCloadings,paradigm_centered,SAPMresultsname,SAPMparametersname,subsample, nprocessors, Lweight = 1.0e-2):
     SAPMresults, search_data_name = sem_physio_model_PCAclusters(PCparams, PCloadings, paradigm_centered, SAPMresultsname,
                                               SAPMparametersname, nitermax = 100, alpha_limit = 1e-5,
                                               subsample = subsample, fixed_beta_vals = [], verbose = False, nprocessors = nprocessors)
@@ -1534,7 +1537,7 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
     PCparams = {'components':component_data, 'average':average_data, 'loadings':original_loadings, 'weights':weights}
 
     # for one set of PCloadings
-    Lweight = 1.0e-6
+    Lweight = 1.0e-2
     beta = 0.01
     alpha = 1e-2
     initial_alpha = copy.deepcopy(alpha)
@@ -2221,6 +2224,7 @@ def display_matrix(M,columntitles,rowtitles):
 def display_anatomical_cluster(clusterdataname, targetnum, targetcluster, orientation = 'axial', regioncolor = [0,1,1], templatename = 'ccbs', write_output = False):
     # get the voxel coordinates for the target region
     clusterdata = np.load(clusterdataname, allow_pickle=True).flat[0]
+    cluster_properties = clusterdata['cluster_properties']
     nregions = len(cluster_properties)
     nclusterlist = [cluster_properties[i]['nclusters'] for i in range(nregions)]
     rnamelist = [cluster_properties[i]['rname'] for i in range(nregions)]
@@ -2248,12 +2252,13 @@ def display_anatomical_cluster(clusterdataname, targetnum, targetcluster, orient
 
     outputimg = pydisplay.pydisplayvoxelregionslice(templatename, template_img, cx, cy, cz, orientation, displayslice = [], colorlist = regioncolor)
 
+    imgname = 'undefined'
     if write_output:
         p,f = os.path.split(clusterdataname)
-        imgname = os.path.join(p,'cluster_{}_{}.png'.format(targetnum,targetcluster))
+        imgname = os.path.join(p,'cluster_{}_{}_{}.png'.format(targetnum,targetcluster,orientation[:3]))
         matplotlib.image.imsave(imgname, outputimg)
 
-    return outputimg
+    return outputimg, imgname
 
 
 # make labels for each betavalue
@@ -2585,6 +2590,19 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
                 if np.var(m) > 0:
                     b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis,:], G)
                     Mregression[aa,bb,:] = [b[0,0],b[0,1],R2]
+
+                    # use huber regression from sklearn instead
+                    # x = covariates[g1,np.newaxis]
+                    # y = m
+                    # huber = HuberRegressor().fit(x,y)
+                    # huberD = huber.predict(x)
+                    # huberR2 = huber.score(x,y)
+                    # huberm = huber.coef_
+                    # huberb = huber.intercept_
+                    # Mregression[aa,bb,:] = [huberb,huberm,huberR2]
+                    # print('{} huber slope = {:.2e}  int = {:.2e}  R2 = {:.2f}'.format(nametags[ng], huberm.flat[0],
+                    #                                                                   huberb.flat[0], huberR2))
+
 
         Zthresh = stats.norm.ppf(1 - pthresh)
         # Z = arctanh(R)*sqrt(NP-1)

@@ -127,6 +127,9 @@ def convert_matlab_database(matlabfilename, database_inputfields, database_outpu
     # "outputfields" must list the corresponding fields, in matching order to inputfields
     # "DBdir" is the full path name of where the database will be saved
 
+    # database_inputfields = ['patientid','studygroup','pname','seriesnumber','niftiname','normdataname','normtemplatename',
+    #                   'painrating','gender','age', 'temperature','studygroup2', 'TR']
+
     # database_inputfields = ['dbdir', 'patientid','studygroup','pname','seriesnumber','niftiname','TR','normdataname','normtemplatename','paradigms',
     #             'painrating','unpleasantness','temperature','age','gender']
     #
