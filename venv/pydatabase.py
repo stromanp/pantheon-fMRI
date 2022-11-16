@@ -4,6 +4,7 @@ import os
 import pandas as pd
 import numpy as np
 import scipy.io
+import openpyxl
 
 #----------------get_datanames_by_person------------------------------------------
 # function to extract nifti format data file names, according to the participant id
