@@ -6434,6 +6434,62 @@ class SAPMFrame:
         self.SAPMupdate_network_info()
 
 
+    def SAPMbetascalebrowseaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
+        filechoice =  tkf.askopenfilename(title = "Select file",filetypes = (("npy files","*.npy"),("all files","*.*")))
+        print('betascale definition name = ',filechoice)
+        # save the selected file name in the settings
+        SAPMbetascale = filechoice
+
+        settings['SAPMbetascale'] = SAPMbetascale
+        self.SAPMbetascale = SAPMbetascale
+
+        # write the result to the label box for display
+        self.SAPMbetascalebox.delete(0, 'end')
+        self.SAPMbetascalebox.insert(0,SAPMbetascale)
+
+        np.save(settingsfile,settings)
+
+
+    def SAPMbetascalesubmitaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        SAPMbetascale = self.SAPMbetascalebox.get()
+
+        # check if SAPMbetascale is a file name, or a floating-point number
+        try:
+            SAPMbetascale = float(SAPMbetascale)
+        except:
+            # check if SAPMbetascale is a file name
+            check = os.path.isfile(SAPMbetascale)
+            if check:
+                print('Reading initial beta values from {}'.format(SAPMbetascale))
+            else:
+                print('initial beta entry is neither a floating-point number nor a file name')
+                print('reverting to default initial beta values of 0.0')
+                SAPMbetascale = 0.0
+
+        settings['SAPMbetascale'] = SAPMbetascale
+        self.SAPMbetascale = SAPMbetascale
+
+        print('SAPMbetascale = {}'.format(SAPMbetascale))
+
+        # write the result to the label box for display
+        self.SAPMbetascalebox.delete(0, 'end')
+        self.SAPMbetascalebox.insert(0, self.SAPMbetascale)
+
+        np.save(settingsfile, settings)
+
+
+    def SAPMbetainitcheckboxes(self):
+        self.SAPMsavebetainit = self.varS2.get()
+        print('SAPMsavebetainit = {}'.format(self.SAPMsavebetainit))
+        return self
+
+
+
     def SAPMresultsnamesubmitaction(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
@@ -6672,6 +6728,7 @@ class SAPMFrame:
         self.SAPMparamsname = settings['SAPMparamsname']
         self.SAPMresultsname = settings['SAPMresultsname']
         self.SAPMresultsdir = settings['SAPMresultsdir']
+        self.SAPMbetascale = settings['SAPMbetascale']
         # self.SAPMsavetag = settings['SAPMsavetag']
 
         self.SAPMupdate_network_info()
@@ -6707,7 +6764,7 @@ class SAPMFrame:
         print('clusterstart set to {}'.format(clusterstart))
         np.save(search_data_file, {'SAPMresultsdir':self.SAPMresultsdir, 'SAPMresultsname':SAPMresultsname, 'SAPMparamsname':SAPMparamsname,
                                    'networkmodel':self.networkmodel, 'DBname':self.DBname, 'SAPMregionname':self.SAPMregionname,
-                                    'SAPMclustername':self.SAPMclustername, 'initial_clusters':clusterstart})
+                                    'SAPMclustername':self.SAPMclustername, 'initial_clusters':clusterstart, 'betascale':self.SAPMbetascale})
 
         message_text = 'Run the cluster search method from the \ncommand line. Follow the instructions \nwritten to the command window.'
         self.SAPMkeyinfo1.config(text = message_text, fg = 'red')
@@ -6755,6 +6812,7 @@ class SAPMFrame:
         self.SAPMtimepoint = settings['SAPMtimepoint']
         self.SAPMepoch = settings['SAPMepoch']
         self.SAPMcnums = settings['SAPMcnums']
+        self.SAPMbetascale = settings['SAPMbetascale']
         # self.SEMresumerun = settings['SEMresumerun']
         self.SAPMkeyinfo1.config(text=' ', fg='gray')
 
@@ -6783,7 +6841,19 @@ class SAPMFrame:
         SAPMparamsname = os.path.join(self.SAPMresultsdir, self.SAPMparamsname)
 
         pysapm.SAPMrun(self.SAPMcnums, self.SAPMregionname, self.SAPMclustername,
-                       SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, self.SAPMtimepoint, self.SAPMepoch, reload_existing=False)
+                       SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, self.SAPMtimepoint, self.SAPMepoch, self.SAPMbetascale, reload_existing=False)
+
+        # get beta values and save for future betascale (initializing beta values)
+        if self.SAPMsavebetainit:
+            # settings['SAPMbetascale'] = self.SAPMbetascale
+            # settings['SAPMsavebetainit'] = self.SAPMsavebetainit
+            results = np.load(SAPMresultsname, allow_pickle=True)
+            betavals = np.array([results[x]['betavals'] for x in range(len(results))])
+            beta_initial = np.mean(betavals,axis=0)
+            p,f = os.path.split(SAPMresultsname)
+            betascale_name = os.path.join(p,'beta_initial_values.npy')
+            np.save(betascale_name, {'beta_initial':beta_initial})
+
 
 
     def SAPMupdate_network_info(self):
@@ -6833,6 +6903,11 @@ class SAPMFrame:
         settings['SAPMtimepoint'] = self.SAPMtimepoint
         settings['SAPMepoch'] = self.SAPMepoch
         self.SAPMtimetext = str(self.SAPMtimepoint)
+
+        self.SAPMbetascale = 0.0
+        self.SAPMsavebetainit = False
+        settings['SAPMbetascale'] = self.SAPMbetascale
+        settings['SAPMsavebetainit'] = self.SAPMsavebetainit
 
         # put some text as a place-holder
         self.SAPMLabel1 = tk.Label(self.parent, text = "1) Select SAPM options...\n   network definition, cluster\n   definitions, region data ...", fg = 'gray', justify = 'left')
@@ -6968,9 +7043,26 @@ class SAPMFrame:
                                               relief='raised', bd=5, highlightbackground = widgetbg)
         self.SAPMparamsnamesubmit.grid(row=rownum, column=3, sticky='N')
 
+        #
+        # betascale definition ---------------------------------------------
+        # this can be a number, or a file name that contains stored values
         rownum = 11
+        self.SAPMbetascalelabel = tk.Label(self.parent, text = 'Initial beta:', font = labelfont)
+        self.SAPMbetascalelabel.grid(row=rownum, column=1, sticky='N')
+        self.SAPMbetascalebox = tk.Entry(self.parent, width = 30, bg="white",justify = 'right')
+        self.SAPMbetascalebox.grid(row=rownum, column=2, sticky='N')
+        self.SAPMbetascalebox.insert(0,self.SAPMbetascale)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SAPMbetascalesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMbetascalesubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.SAPMbetascalesubmit.grid(row=rownum, column=3, sticky='N')
+        # the entry boxes need a "browse" button to allow selection of existing cluster definition file
+        self.SAPMbetascalebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMbetascalebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.SAPMbetascalebrowse.grid(row=rownum, column=4, sticky='N')
+
+
+        rownum = 12
         self.varS1 = tk.IntVar()
-        self.SAPMrandomcluster = tk.Checkbutton(self.parent, text = 'Random start', width = bigbigbuttonsize, fg = fgletter2,
+        self.SAPMrandomcluster = tk.Checkbutton(self.parent, text = 'Random search start?', width = bigbigbuttonsize, fg = fgletter2,
                                           command = self.SAPMcheckboxes, variable = self.varS1)
         self.SAPMrandomcluster.grid(row=rownum, column=1, columnspan = 1, sticky='E')
 
@@ -6983,7 +7075,12 @@ class SAPMFrame:
         self.SAPMkeyinfo1.grid(row=rownum,column=3, sticky='W')
 
 
-        rownum = 12
+        rownum = 13
+        self.varS2 = tk.IntVar()
+        self.SAPMsavebetascale = tk.Checkbutton(self.parent, text = 'Save beta init?', width = bigbigbuttonsize, fg = fgletter2,
+                                          command = self.SAPMbetainitcheckboxes, variable = self.varS2)
+        self.SAPMsavebetascale.grid(row=rownum, column=1, columnspan = 1, sticky='E')
+
         # label, button, for running the definition of clusters, and loading data
         self.SAPMrunnetworkbutton = tk.Button(self.parent, text="Run SAPM", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
                                         command=self.SAPMrunnetwork, relief='raised', bd=5, highlightbackground = widgetbg)

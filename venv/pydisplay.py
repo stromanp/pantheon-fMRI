@@ -10,6 +10,7 @@ import pydatabase
 import matplotlib.pyplot as plt
 import pyclustering
 import pysem
+import re
 
 # setup color scales for displays
 def colormap(values):
@@ -428,6 +429,90 @@ def pydisplayvoxelregionslice(templatename, template_img, cx, cy, cz, orientatio
             outputimg = np.dstack((redrot,greenrot,bluerot))
 
     return outputimg
+
+
+def pydisplay_data_from_database(DBname, DBnumlist, prefix, orientation='axial', windownum = 100, refresh_interval = 1.0):
+
+    if isinstance(DBnumlist,str):
+        DBnumlist = parsenumlist(DBnumlist)
+
+    xls = pd.ExcelFile(DBname, engine = 'openpyxl')
+    df1 = pd.read_excel(xls, 'datarecord')
+
+    plt.close(windownum)
+    fig = plt.figure(windownum)
+
+    for dbnum in DBnumlist:
+        dbhome = df1.loc[dbnum, 'datadir']
+        fname = df1.loc[dbnum, 'niftiname']
+        niiname = os.path.join(dbhome, fname)
+
+        p,f = os.path.split(niiname)
+        prefix_niiname = os.path.join(p,prefix+f)
+
+        temp_data = nib.load(prefix_niiname)
+        img_data = temp_data.get_fdata()
+
+        if np.ndim(temp_data) > 3:
+            img_data = np.mean(img_data,axis = 3)
+
+        xs,ys,zs = np.shape(img_data)
+
+        if orientation not in ['axial','sagittal','coronal']:
+            orientation = 'axial'
+
+        if orientation == 'axial':
+            z0 = np.floor(zs/2).astype(int)
+            plt.imshow(img_data[:,:,z0],'gray')
+
+        if orientation == 'sagittal':
+            x0 = np.floor(xs / 2).astype(int)
+            plt.imshow(img_data[x0, :, :], 'gray')
+
+        if orientation == 'coronal':
+            y0 = np.floor(ys / 2).astype(int)
+            plt.imshow(img_data[:, y0, :], 'gray')
+
+        plt.show()
+        plt.pause(refresh_interval)
+
+
+def parsenumlist(entered_text):
+    # need to make sure we are working with numbers, not text
+    # first, replace any double spaces with single spaces, and then replace spaces with commas
+    entered_text = re.sub('\ +', ',', entered_text)
+    entered_text = re.sub('\,\,+', ',', entered_text)
+    # remove any leading or trailing commas
+    if entered_text[0] == ',': entered_text = entered_text[1:]
+    if entered_text[-1] == ',': entered_text = entered_text[:-1]
+
+    # fix up the text bit, allow the user to specify ranges of numbers with a colon
+    # need to change the text to write out the range
+    # first see if there are any colons included in the text
+    # this part is complicated - need to find any pairs of numbers separated by a colon, to indicate a range
+    m = re.search(r'\d*:\d*', entered_text)
+    while m:
+        # m[0] is the string that matches what we are looking for - two numbers separated by a colon
+        # in m[0] we find where there is the colon, with m[0].find(':')
+        # so, within m[0] everything in the range of :m[0].find(':') is the first number
+        # and everything in the range of (m[0].find(':')+1): is the second number
+        num1 = int(m[0][:m[0].find(':')])
+        num2 = int(m[0][(m[0].find(':') + 1):])
+        # now create the long string that we need to replace the short form indicated with the colon
+        numbers = np.arange(num1, num2 + 1)
+        numtext = ''
+        for n in numbers:
+            numtext1 = '{:d},'.format(n)
+            numtext += numtext1
+        # now insert this where the colon separated pair of number came out
+        new_text = entered_text[:m.start()] + numtext + entered_text[(m.end() + 1):]
+        entered_text = new_text
+        m = re.search(r'\d*:\d*', entered_text)
+
+    entered_values = np.fromstring(entered_text, dtype=int, sep=',')
+
+    return entered_values
+
 
 
 

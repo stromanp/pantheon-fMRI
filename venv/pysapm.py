@@ -126,95 +126,95 @@ def load_network_model_w_intrinsics(networkmodel):
     return network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count
 
 
-def gradients_in_vintrinsics(Sinput, Sconn, fintrinsic1, vintrinsics, beta_int1,
-                             Minput, Mconn, dvali, fintrinsic_count, vintrinsic_count, Lweight):
-    nregions, tsize_full = np.shape(Sinput)
-    ncon, tsize_full = np.shape(Sconn)
-    nv,nt = np.shape(vintrinsics)
-    nI = nv*nt
-    dssq_dI = np.zeros((nv,nt))
+# def gradients_in_vintrinsics(Sinput, Sconn, fintrinsic1, vintrinsics, beta_int1,
+#                              Minput, Mconn, dvali, fintrinsic_count, vintrinsic_count, Lweight):
+#     nregions, tsize_full = np.shape(Sinput)
+#     ncon, tsize_full = np.shape(Sconn)
+#     nv,nt = np.shape(vintrinsics)
+#     nI = nv*nt
+#     dssq_dI = np.zeros((nv,nt))
+#
+#     II = copy.deepcopy(vintrinsics)
+#     Sinput_full = np.array(Sinput)
+#     Sconn_full = np.array(Sconn)
+#     if fintrinsic_count > 0:
+#         Sinput_full = np.concatenate((Sinput_full, beta_int1 * fintrinsic1[np.newaxis, :]), axis=0)
+#         Sconn_full = np.concatenate((Sconn_full, beta_int1 * fintrinsic1[np.newaxis, :]), axis=0)
+#     if vintrinsic_count > 0:
+#         Sinput_full = np.concatenate((Sinput_full, vintrinsics), axis=0)
+#         Sconn_full = np.concatenate((Sconn_full, vintrinsics), axis=0)
+#
+#     fit, Sconn_full = network_eigenvalue_method(Sconn_full, Minput, Mconn, ncon)
+#     Sconn = Sconn_full[:ncon,:]
+#
+#     err = Sinput_full[:nregions, :] - fit[:nregions, :]
+#     cost = np.sum(np.abs(beta_int1)) + np.sum(np.abs(II)) + np.sum(np.abs(betavals))
+#     ssqd = np.sum(err ** 2) + Lweight * cost  # L1 regularization
+#
+#     for nn in range(nI):
+#         II = copy.deepcopy(vintrinsics)
+#         aa,bb = np.unravel_index(nn, (nv,nt))
+#         II[aa,bb] += dvali
+#
+#         Sin_full = np.array(Sinput)
+#         S_full = np.array(Sconn)
+#         if fintrinsic_count > 0:
+#             Sin_full = np.concatenate((Sin_full, beta_int1 * fintrinsic1[np.newaxis, :]), axis=0)
+#             S_full = np.concatenate((S_full, beta_int1 * fintrinsic1[np.newaxis, :]), axis=0)
+#         Sin_full = np.concatenate((Sin_full, II), axis=0)
+#         S_full = np.concatenate((S_full, II), axis=0)
+#
+#         fit, S_full = network_eigenvalue_method(S_full, Minput, Mconn, ncon)
+#
+#         err = Sin_full[:nregions, :] - fit[:nregions, :]
+#         cost = np.sum(np.abs(beta_int1)) + np.sum(np.abs(II)) + np.sum(np.abs(betavals))
+#         ssqdp = np.sum(err ** 2) + Lweight * cost  # L1 regularization
+#         dssq_dI[aa,bb] = (ssqdp - ssqd) / dvali
+#
+#     return dssq_dI, ssqd
 
-    II = copy.deepcopy(vintrinsics)
-    Sinput_full = np.array(Sinput)
-    Sconn_full = np.array(Sconn)
-    if fintrinsic_count > 0:
-        Sinput_full = np.concatenate((Sinput_full, beta_int1 * fintrinsic1[np.newaxis, :]), axis=0)
-        Sconn_full = np.concatenate((Sconn_full, beta_int1 * fintrinsic1[np.newaxis, :]), axis=0)
-    if vintrinsic_count > 0:
-        Sinput_full = np.concatenate((Sinput_full, vintrinsics), axis=0)
-        Sconn_full = np.concatenate((Sconn_full, vintrinsics), axis=0)
 
-    fit, Sconn_full = network_eigenvalue_method(Sconn_full, Minput, Mconn, ncon)
-    Sconn = Sconn_full[:ncon,:]
-
-    err = Sinput_full[:nregions, :] - fit[:nregions, :]
-    cost = np.sum(np.abs(beta_int1)) + np.sum(np.abs(II)) + np.sum(np.abs(betavals))
-    ssqd = np.sum(err ** 2) + Lweight * cost  # L1 regularization
-
-    for nn in range(nI):
-        II = copy.deepcopy(vintrinsics)
-        aa,bb = np.unravel_index(nn, (nv,nt))
-        II[aa,bb] += dvali
-
-        Sin_full = np.array(Sinput)
-        S_full = np.array(Sconn)
-        if fintrinsic_count > 0:
-            Sin_full = np.concatenate((Sin_full, beta_int1 * fintrinsic1[np.newaxis, :]), axis=0)
-            S_full = np.concatenate((S_full, beta_int1 * fintrinsic1[np.newaxis, :]), axis=0)
-        Sin_full = np.concatenate((Sin_full, II), axis=0)
-        S_full = np.concatenate((S_full, II), axis=0)
-
-        fit, S_full = network_eigenvalue_method(S_full, Minput, Mconn, ncon)
-
-        err = Sin_full[:nregions, :] - fit[:nregions, :]
-        cost = np.sum(np.abs(beta_int1)) + np.sum(np.abs(II)) + np.sum(np.abs(betavals))
-        ssqdp = np.sum(err ** 2) + Lweight * cost  # L1 regularization
-        dssq_dI[aa,bb] = (ssqdp - ssqd) / dvali
-
-    return dssq_dI, ssqd
-
-
-def gradients_in_beta1(Sinput, Sconn, fintrinsic1, vintrinsics, beta_int1, Minput, Mconn,
-                       dval, fintrinsic_count, vintrinsic_count, Lweight):
-    nregions,tsize_full = np.shape(Sinput)
-    ncon,tsize_full = np.shape(Sconn)
-    dint = copy.deepcopy(beta_int1)
-
-    Sin_full = np.array(Sinput)
-    S_full = np.array(Sconn)
-    if fintrinsic_count > 0:
-        Sin_full = np.concatenate((Sin_full, dint * fintrinsic1[np.newaxis, :]), axis=0)
-        S_full = np.concatenate((S_full, dint * fintrinsic1[np.newaxis, :]), axis=0)
-    if vintrinsic_count > 0:
-        Sin_full = np.concatenate((Sin_full, vintrinsics), axis=0)
-        S_full = np.concatenate((S_full, vintrinsics), axis=0)
-
-    fit, S_full = network_eigenvalue_method(S_full, Minput, Mconn, ncon)
-    Soutput = S_full[:ncon,:]
-
-    err = Sin_full[:nregions, :] - fit[:nregions, :]
-    cost = np.sum(np.abs(dint)) + np.sum(np.abs(vintrinsics)) + np.sum(np.abs(betavals))
-    ssqd = np.sum(err ** 2) + Lweight * cost  # L1 regularization
-
-    dint += dval
-    Sin_full = np.array(Sinput)
-    S_full = np.array(Sconn)
-    if fintrinsic_count > 0:
-        Sin_full = np.concatenate((Sin_full, dint * fintrinsic1[np.newaxis, :]), axis=0)
-        S_full = np.concatenate((S_full, dint * fintrinsic1[np.newaxis, :]), axis=0)
-    if vintrinsic_count > 0:
-        Sin_full = np.concatenate((Sin_full, vintrinsics), axis=0)
-        S_full = np.concatenate((S_full, vintrinsics), axis=0)
-
-    fit, S_full = network_eigenvalue_method(S_full, Minput, Mconn, ncon)
-
-    err = Sin_full[:nregions, :] - fit[:nregions, :]
-    # cost = np.sum(np.abs(beta_int1)) + np.sum(np.abs(betavals)) + np.sum(np.abs(intrinsic2))
-    cost = np.sum(np.abs(dint)) + np.sum(np.abs(vintrinsics)) + np.sum(np.abs(betavals))
-    ssqdp = np.sum(err ** 2) + Lweight * cost  # L1 regularization
-    dssq_dbeta1 = (ssqdp - ssqd) / dval
-
-    return dssq_dbeta1, ssqd
+# def gradients_in_beta1(Sinput, Sconn, fintrinsic1, vintrinsics, beta_int1, Minput, Mconn,
+#                        dval, fintrinsic_count, vintrinsic_count, Lweight):
+#     nregions,tsize_full = np.shape(Sinput)
+#     ncon,tsize_full = np.shape(Sconn)
+#     dint = copy.deepcopy(beta_int1)
+#
+#     Sin_full = np.array(Sinput)
+#     S_full = np.array(Sconn)
+#     if fintrinsic_count > 0:
+#         Sin_full = np.concatenate((Sin_full, dint * fintrinsic1[np.newaxis, :]), axis=0)
+#         S_full = np.concatenate((S_full, dint * fintrinsic1[np.newaxis, :]), axis=0)
+#     if vintrinsic_count > 0:
+#         Sin_full = np.concatenate((Sin_full, vintrinsics), axis=0)
+#         S_full = np.concatenate((S_full, vintrinsics), axis=0)
+#
+#     fit, S_full = network_eigenvalue_method(S_full, Minput, Mconn, ncon)
+#     Soutput = S_full[:ncon,:]
+#
+#     err = Sin_full[:nregions, :] - fit[:nregions, :]
+#     cost = np.sum(np.abs(dint)) + np.sum(np.abs(vintrinsics)) + np.sum(np.abs(betavals))
+#     ssqd = np.sum(err ** 2) + Lweight * cost  # L1 regularization
+#
+#     dint += dval
+#     Sin_full = np.array(Sinput)
+#     S_full = np.array(Sconn)
+#     if fintrinsic_count > 0:
+#         Sin_full = np.concatenate((Sin_full, dint * fintrinsic1[np.newaxis, :]), axis=0)
+#         S_full = np.concatenate((S_full, dint * fintrinsic1[np.newaxis, :]), axis=0)
+#     if vintrinsic_count > 0:
+#         Sin_full = np.concatenate((Sin_full, vintrinsics), axis=0)
+#         S_full = np.concatenate((S_full, vintrinsics), axis=0)
+#
+#     fit, S_full = network_eigenvalue_method(S_full, Minput, Mconn, ncon)
+#
+#     err = Sin_full[:nregions, :] - fit[:nregions, :]
+#     # cost = np.sum(np.abs(beta_int1)) + np.sum(np.abs(betavals)) + np.sum(np.abs(intrinsic2))
+#     cost = np.sum(np.abs(dint)) + np.sum(np.abs(vintrinsics)) + np.sum(np.abs(betavals))
+#     ssqdp = np.sum(err ** 2) + Lweight * cost  # L1 regularization
+#     dssq_dbeta1 = (ssqdp - ssqd) / dval
+#
+#     return dssq_dbeta1, ssqd
 
 
 def gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight):
@@ -224,7 +224,9 @@ def gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dv
     Mconn[ctarget, csource] = betavals
     fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
     # cost = np.sum(np.abs(betavals**2))  # L2 regularization
-    cost = np.sum(np.abs(betavals))  # L1 regularization
+    # cost = np.sum(np.abs(betavals))  # L1 regularization, original
+    # cost = np.mean(np.abs(betavals)) + np.mean(np.abs(Mintrinsic))  # L1 regularization
+    cost = np.mean(np.abs(betavals))  # L1 regularization
     ssqd = err + Lweight * cost
 
     # gradients for betavals
@@ -235,7 +237,9 @@ def gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dv
         Mconn[ctarget, csource] = b
         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
         # cost = np.sum(np.abs(b**2))  # L2 regularization
-        cost = np.sum(np.abs(b))  # L1 regularization
+        # cost = np.sum(np.abs(b))  # L1 regularization, original
+        # cost = np.mean(np.abs(b)) + np.mean(np.abs(Mintrinsic))  # L1 regularization
+        cost = np.mean(np.abs(b))  # L1 regularization
         ssqdp = err + Lweight * cost
         dssq_db[nn] = (ssqdp - ssqd) / dval
 
@@ -245,7 +249,9 @@ def gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dv
     Mconn[ctarget, csource] = betavals
     fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, b, fintrinsic1)
     # cost = np.sum(np.abs(b**2)) # L2 regularization
-    cost = np.sum(np.abs(b))  # L1 regularization
+    # cost = np.sum(np.abs(b))  # L1 regularization, original
+    # cost = np.mean(np.abs(b)) + np.mean(np.abs(Mintrinsic))  # L1 regularization
+    cost = np.mean(np.abs(b))  # L1 regularization
     ssqdp = err + Lweight * cost
     dssq_dbeta1 = (ssqdp - ssqd) / dval
 
@@ -552,7 +558,8 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAP
 
 #---------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
-def prep_null_data_sem_physio_model(nsamples, networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint = 'all', epoch = 'all', fullgroup = False, addglobalbias = False):
+def prep_null_data_sem_physio_model(nsamples, networkfile, regiondataname, clusterdataname, SAPMparametersname,
+                                    timepoint = 'all', epoch = 'all', fullgroup = False, addglobalbias = False):
     outputdir, f = os.path.split(SAPMparametersname)
     network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count = load_network_model_w_intrinsics(networkfile)
 
@@ -760,14 +767,14 @@ def prep_null_data_sem_physio_model(nsamples, networkfile, regiondataname, clust
 
 #----------------------------------------------------------------------------------
 # primary function--------------------------------------------------------------------
-def sem_physio_model(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparametersname, fixed_beta_vals = [], verbose = True):
+def sem_physio_model(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparametersname, fixed_beta_vals = [], betascale = 0.0, verbose = True):
     starttime = time.ctime()
 
     # initialize gradient-descent parameters--------------------------------------------------------------
     initial_alpha = 1e-3
     initial_Lweight = 1e-2
     initial_dval = 0.01
-    betascale = 0.0
+    # betascale = 0.0
 
     SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
     # load the data values
@@ -859,15 +866,17 @@ def sem_physio_model(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamete
         lastgood_beta_int1 = copy.deepcopy(beta_int1)
 
         # initialize beta values-----------------------------------
-        beta_initial = np.zeros(len(csource))
-        # beta_initial = np.random.randn(len(csource))
-        beta_initial = betascale*np.ones(len(csource))
+        if isinstance(betascale,str):
+            # read saved beta_initial values
+            b = np.load(betascale,allow_pickle=True).flat[0]
+            beta_initial = b['beta_initial']
+        else:
+            beta_initial = betascale*np.random.randn(len(csource))
 
         # limit the beta values related to intrinsic inputs to positive values
-        for aa in range(len(beta_initial)):
-            if latent_flag[aa] > 0:
-                # if beta_initial[aa] < 0:  beta_initial[aa] = 0.0
-                beta_initial[aa] = 1.0
+        # for aa in range(len(beta_initial)):
+        #     if latent_flag[aa] > 0:
+        #         beta_initial[aa] = 1.0
 
         beta_init_record.append({'beta_initial':beta_initial})
 
@@ -889,7 +898,9 @@ def sem_physio_model(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamete
 
         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
         # cost = np.sum(np.abs(betavals**2)) # L2 regularization
-        cost = np.sum(np.abs(betavals))  # L1 regularization
+        # cost = np.sum(np.abs(betavals))  # L1 regularization, original
+        # cost = np.mean(np.abs(betavals)) + np.mean(np.abs(Mintrinsic))  # L1 regularization
+        cost = np.mean(np.abs(betavals))  # L1 regularization
         ssqd = err + Lweight * cost
         ssqd_starting = ssqd
         ssqd_record += [ssqd]
@@ -923,15 +934,17 @@ def sem_physio_model(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamete
             beta_int1 -= alpha * dssq_dbeta1
 
             # limit the beta values related to intrinsic inputs to positive values
-            for aa in range(len(betavals)):
-                if latent_flag[aa] > 0:
-                    betavals[aa] = 1.0
+            # for aa in range(len(betavals)):
+            #     if latent_flag[aa] > 0:
+            #         betavals[aa] = 1.0
 
             Mconn[ctarget, csource] = betavals
             fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
                                                                      vintrinsic_count, beta_int1, fintrinsic1)
             # cost = np.sum(np.abs(betavals**2))  # L2 regularization
-            cost = np.sum(np.abs(betavals))  # L1 regularization
+            # cost = np.sum(np.abs(betavals))  # L1 regularization, original
+            # cost = np.mean(np.abs(betavals)) + np.mean(np.abs(Mintrinsic))  # L1 regularization
+            cost = np.mean(np.abs(betavals))  # L1 regularization
             ssqd_new = err + Lweight * cost
 
             err_total = Sinput - fit
@@ -1033,6 +1046,7 @@ def gradient_descent_per_person(data):
     nitermax = data['nitermax']
     fixed_beta_vals = data['fixed_beta_vals']
     verbose = data['verbose']
+    beta_initial = data['beta_initial']
 
     # if verbose: print('starting person {} at {}'.format(nperson, time.ctime()))
     tp = tplist_full[epochnum][nperson]['tp']
@@ -1088,16 +1102,14 @@ def gradient_descent_per_person(data):
     lastgood_beta_int1 = copy.deepcopy(beta_int1)
 
     # initialize beta values-----------------------------------
-    beta_initial = np.zeros(len(csource))
-    # beta_initial = np.random.randn(len(csource))
-    betascale = 0.0
-    beta_initial = betascale * np.ones(len(csource))
+    # beta_initial = np.zeros(len(csource))
+    # betascale = 0.0
+    # beta_initial = betascale * np.random.randn(len(csource))
 
     # limit the beta values related to intrinsic inputs to positive values
-    for aa in range(len(beta_initial)):
-        if latent_flag[aa] > 0:
-            # if beta_initial[aa] < 0:  beta_initial[aa] = 0.0
-            beta_initial[aa] = 1.0
+    # for aa in range(len(beta_initial)):
+    #     if latent_flag[aa] > 0:
+    #         beta_initial[aa] = 1.0
 
     # initalize Sconn
     betavals = copy.deepcopy(beta_initial)  # initialize beta values at zero
@@ -1118,7 +1130,9 @@ def gradient_descent_per_person(data):
     fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count,
                                                              beta_int1, fintrinsic1)
     # cost = np.sum(np.abs(betavals**2)) # L2 regularization
-    cost = np.sum(np.abs(betavals))  # L1 regularization
+    # cost = np.sum(np.abs(betavals))  # L1 regularization, original
+    # cost = np.mean(np.abs(betavals)) + np.mean(np.abs(Mintrinsic))  # L1 regularization
+    cost = np.mean(np.abs(betavals))  # L1 regularization
     ssqd = err + Lweight * cost
     ssqd_starting = ssqd
     ssqd_record += [ssqd]
@@ -1148,16 +1162,17 @@ def gradient_descent_per_person(data):
         beta_int1 -= alpha * dssq_dbeta1
 
         # limit the beta values related to intrinsic inputs to positive values
-        for aa in range(len(betavals)):
-            if latent_flag[aa] > 0:
-                # if betavals[aa] < 0:  betavals[aa] = 0.0
-                betavals[aa] = 1.0
+        # for aa in range(len(betavals)):
+        #     if latent_flag[aa] > 0:
+        #         betavals[aa] = 1.0
 
         Mconn[ctarget, csource] = betavals
         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
                                                                  vintrinsic_count, beta_int1, fintrinsic1)
         # cost = np.sum(np.abs(betavals**2))  # L2 regularization
-        cost = np.sum(np.abs(betavals))  # L1 regularization
+        # cost = np.sum(np.abs(betavals))  # L1 regularization, original
+        # cost = np.mean(np.abs(betavals)) + np.mean(np.abs(Mintrinsic))  # L1 regularization
+        cost = np.mean(np.abs(betavals))  # L1 regularization
         ssqd_new = err + Lweight * cost
 
         err_total = Sinput - fit
@@ -1218,7 +1233,7 @@ def gradient_descent_per_person(data):
 # --------------------------------------------------------------------
 def sem_physio_model_PCAclusters(PCparams, PCloadings, fintrinsic_base, SAPMresultsname,
                                  SAPMparametersname, nitermax = 250, alpha_limit = 1e-5,
-                                 subsample = [1,0], fixed_beta_vals = [], verbose = False,
+                                 subsample = [1,0], fixed_beta_vals = [], betascale = 0.0, verbose = False,
                                  nprocessors = 8):
     starttime = time.ctime()
 
@@ -1232,7 +1247,13 @@ def sem_physio_model_PCAclusters(PCparams, PCloadings, fintrinsic_base, SAPMresu
     initial_alpha = 1e-3
     initial_Lweight = 1e-2
     initial_dval = 0.01
-    betascale = 0.0
+
+    if isinstance(betascale, str):
+        # read saved beta_initial values
+        b = np.load(betascale, allow_pickle=True).flat[0]
+        beta_initial = b['beta_initial']
+    else:
+        beta_initial = betascale * np.random.randn(len(csource))
 
     SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
     # load the data values
@@ -1305,7 +1326,8 @@ def sem_physio_model_PCAclusters(PCparams, PCloadings, fintrinsic_base, SAPMresu
             'alpha_limit' :alpha_limit,
             'nitermax' :nitermax,
             'fixed_beta_vals' :fixed_beta_vals,
-            'verbose' :verbose }
+            'verbose' :verbose,
+            'beta_initial':beta_initial}
 
     # setup iterable input parameters
     input_data = []
@@ -1435,10 +1457,10 @@ def mod_tplist_for_bootstrap(tplist_full, epoch, modtype, percent_replace = 0, t
     return tplist_full2
 
 
-def loadings_gradients(beta, PCparams,PCloadings,paradigm_centered,SAPMresultsname,SAPMparametersname,subsample, nprocessors, Lweight = 1.0e-2):
+def loadings_gradients(beta, betascale, PCparams,PCloadings,paradigm_centered,SAPMresultsname,SAPMparametersname,subsample, nprocessors, Lweight = 1.0e-2):
     SAPMresults, search_data_name = sem_physio_model_PCAclusters(PCparams, PCloadings, paradigm_centered, SAPMresultsname,
                                               SAPMparametersname, nitermax = 100, alpha_limit = 1e-5,
-                                              subsample = subsample, fixed_beta_vals = [], verbose = False, nprocessors = nprocessors)
+                                              subsample = subsample, fixed_beta_vals = [], betascale = betascale, verbose = False, nprocessors = nprocessors)
     nclusters_total = len(PCloadings)
 
     # cost function
@@ -1453,7 +1475,7 @@ def loadings_gradients(beta, PCparams,PCloadings,paradigm_centered,SAPMresultsna
         testload[aa] += beta
         SAPMresults, search_data_name = sem_physio_model_PCAclusters(PCparams, testload, paradigm_centered, SAPMresultsname,
                                                   SAPMparametersname, nitermax = 100, alpha_limit = 1e-5, subsample = subsample,
-                                                  fixed_beta_vals = [], verbose = False, nprocessors = nprocessors)
+                                                  fixed_beta_vals = [], betascale = betascale, verbose = False, nprocessors = nprocessors)
 
         # cost function
         R2list = np.array([SAPMresults[x]['R2total'] for x in range(len(SAPMresults))])
@@ -1468,7 +1490,8 @@ def loadings_gradients(beta, PCparams,PCloadings,paradigm_centered,SAPMresultsna
 
 
 # gradient descent method to find best clusters------------------------------------
-def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkfile, DBname, regiondataname, clusterdataname, nprocessors, samplesplit, samplestart=0, initial_clusters = [], timepoint = 'all', epoch = 'all'):
+def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkfile, DBname, regiondataname, clusterdataname, nprocessors,
+                        samplesplit, samplestart=0, initial_clusters = [], timepoint = 'all', epoch = 'all', betascale = 0.1):
 
     if not os.path.exists(outputdir): os.mkdir(outputdir)
 
@@ -1568,14 +1591,14 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
         iter += 1
         # gradients in PCloadings
         if recalculate_load_gradients:
-            load_gradients, basecost = loadings_gradients(beta, PCparams, PCloadings, paradigm_centered, SAPMresultsname, SAPMparametersname, subsample, nprocessors, Lweight)
+            load_gradients, basecost = loadings_gradients(beta, betascale, PCparams, PCloadings, paradigm_centered, SAPMresultsname, SAPMparametersname, subsample, nprocessors, Lweight)
         else:
             print('not calculating load gradients')
         PCloadings -= alpha*load_gradients
 
         SAPMresults, search_data_name = sem_physio_model_PCAclusters(PCparams, PCloadings, paradigm_centered,
                             SAPMresultsname, SAPMparametersname, nitermax = 100, alpha_limit = 1e-5,
-                            subsample = subsample, fixed_beta_vals = [], verbose = False, nprocessors = nprocessors)
+                            subsample = subsample, fixed_beta_vals = [], betascale = betascale, verbose = False, nprocessors = nprocessors)
 
         # cost function
         R2list = np.array([SAPMresults[x]['R2total'] for x in range(len(SAPMresults))])
@@ -1678,7 +1701,7 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
 
 
 # main program
-def SAPMrun(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkfile, DBname, timepoint, epoch, reload_existing = False):
+def SAPMrun(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkfile, DBname, timepoint, epoch, betascale = 0.0, reload_existing = False):
     # load paradigm data--------------------------------------------------------------------
     xls = pd.ExcelFile(DBname, engine='openpyxl')
     df1 = pd.read_excel(xls, 'paradigm1_BOLD')
@@ -1714,7 +1737,7 @@ def SAPMrun(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMparamet
     # run the analysis with SAPM
     clusterlist = np.array(cnums) + full_rnum_base
     prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch)
-    output = sem_physio_model(clusterlist, paradigm_centered, SAPMresultsname, SAPMparametersname)
+    output = sem_physio_model(clusterlist, paradigm_centered, SAPMresultsname, SAPMparametersname, fixed_beta_vals = [], betascale = betascale)
 
     SAPMresults = np.load(output, allow_pickle=True)
     NP = len(SAPMresults)
@@ -2848,6 +2871,11 @@ def points_on_ellipses2(pos0, pos1, pos2, ovalsize):
 
 
 def parse_statval(val):
+    if isinstance(val,float):
+        m = val
+        s = 0
+        return m,s
+
     foundpattern = False
     t = chr(177)   # check for +/- sign
     if t in val:
