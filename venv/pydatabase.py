@@ -191,3 +191,38 @@ def convert_matlab_database(matlabfilename, database_inputfields, database_outpu
     datap = pd.DataFrame(pdata)
     with pd.ExcelWriter(outputname, mode='a', engine='openpyxl') as writer:
         datap.to_excel(writer, sheet_name='paradigm1')
+
+
+
+def convert_database_OS(databasename):
+    xls = pd.ExcelFile(databasename, engine='openpyxl')
+    df1 = pd.read_excel(xls, 'datarecord')
+    keylist = df1.keys()
+    for kname in keylist:
+        if 'Unnamed' in kname:
+            df1.pop(kname)  # remove this blank field from the beginning
+
+    fields_to_convert = ['pname', 'niftiname', 'normdataname']
+
+    nentries, nfields = np.shape(df1)
+    for snum in range(nentries):
+        for fieldname in fields_to_convert:
+            entry = df1.loc[snum, fieldname]
+            newentry = entry.replace('\\','/')
+            df1.loc[snum, fieldname] = newentry
+
+
+    # need to delete the existing sheet before writing the new version
+    existing_sheet_names = xls.sheet_names
+    if 'datarecord' in existing_sheet_names:
+        # delete sheet - need to use openpyxl
+        workbook = openpyxl.load_workbook(databasename)
+        del workbook['datarecord']
+        workbook.save(databasename)
+
+    # write it to the database by appending a sheet to the excel file
+    # remove old version of datarecord first
+    with pd.ExcelWriter(databasename, engine="openpyxl", mode='a') as writer:
+        df1.to_excel(writer, sheet_name='datarecord')
+
+    return databasename

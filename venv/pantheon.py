@@ -657,6 +657,11 @@ class DBFrame:
         self.DBsearchresult.grid(row=5,column=3,columnspan = 3, sticky='W')
 
 
+        # add a button to convert database entries for different operating systems
+        self.DBrunconvertosbutton = tk.Button(self.parent, text = "Convert DB for OS", width = smallbuttonsize, bg = fgcol1, fg = fgletter1, command = self.DBrunconvertOS, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.DBrunconvertosbutton.grid(row = 7, column = 2)
+
+
     # define functions before they are used in the database frame------------------------------------------
     # action when the button to browse for a DB fie is pressed
     def DBbrowseclick(self):
@@ -1007,6 +1012,14 @@ class DBFrame:
         self.DBsearchtext.configure(text = self.searchterm_text.get())
 
         return self
+
+    def DBrunconvertOS(self):
+        # determine the operating system and change database entries to use the correct file separators
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.DBname = settings['DBname']
+        newdbname = pydatabase.convert_database_OS(self.DBname)
+        print('converted database file {}'.format(newdbname))
+
 
 #--------------------NIFTI conversion FRAME---------------------------------------------------------------
 # Definition of the frame that will have inputs and options for converting DICOM images to NIfTI format
