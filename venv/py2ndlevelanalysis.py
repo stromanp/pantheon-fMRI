@@ -278,6 +278,129 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
         semtype = data['type']
         print('SEM results loaded:  type ',semtype)
 
+        if semtype == '1source':
+            # results = {'type': '1source', 'CCrecord': CCrecord, 'Correcord': CRrecord, 'DBname': DBname, 'DBnum': DBnum,
+            #            'cluster_properties': cluster_properties}
+            #
+            # CRrecord = np.zeros((ntimepoints, NP, nclusters, nclusters))   # correlation
+            # CCrecord = np.zeros((ntimepoints, NP, nclusters, nclusters))   # covariance
+
+            cluster_properties = data['cluster_properties']
+            cluster_info, rname_list, ncluster_list = get_cluster_position_details(cluster_properties)
+
+            covdata = data['CCrecord']
+            corrdata = data['Correcord']
+
+            ntime, NP, nclusters_total, nclusters_total2 = np.shape(covdata)
+
+            # stats based on group average ----------
+            if statstype == 'average':
+                stattitle = 'Tvalue'
+                # stats based on group average - sig diff from zero?
+                mean_cov = np.mean(covdata,axis = 1)
+                se_cov = np.std(covdata,axis = 1)/np.sqrt(NP)
+                Tcov = mean_cov/(se_cov + 1.0e-10)
+
+                mean_corr = np.mean(corrdata,axis = 1)
+                se_corr = np.std(corrdata,axis = 1)/np.sqrt(NP)
+                Tcorr = mean_corr/(se_corr + 1.0e-10)
+
+                Tthresh = stats.t.ppf(1-pthreshold,NP-1)
+
+                cov_sig = np.abs(Tcov) > Tthresh
+                corr_sig = np.abs(Tcorr) > Tthresh
+                stat_of_interest1 = Tcov
+                stat_of_interest2 = Tcorr
+
+                value1 = mean_cov
+                value1_se = se_cov
+                value2 = mean_corr
+                value2_se = se_corr
+
+                sheetname1 = 'cov sig '
+                sheetname2 = 'corr sig '
+
+            # stats based on regression with covariates - --------
+            if statstype == 'regression':
+                stattitle = 'Zregression'
+                Zthresh = stats.norm.ppf(1-pthreshold)
+
+                terms, NPt = np.shape(covariates)  # need one term per person, for each covariate
+                b1, b1sem, R21, Z1, Rcorrelation1, Zcorrelation1 = GLMregression(covdata, covariates, 1)
+                b2, b2sem, R22,Z2, Rcorrelation2, Zcorrelation2 = GLMregression(corrdata, covariates, 1)
+
+                beta1_sig = np.abs(Z1) > Zthresh
+                beta2_sig = np.abs(Z2) > Zthresh
+                stat_of_interest1 = Z1
+                stat_of_interest2 = Z2
+
+                value1 = b1
+                value1_se = b1sem
+                value2 = b2
+                value2_se = b2sem
+
+                sheetname1 = 'cov reg '
+                sheetname2 = 'corr reg '
+
+            #---------------------------------------------------
+            if statstype == 'correlation':
+                stattitle = 'Zcorr'
+                Zthresh = stats.norm.ppf(1-pthreshold)
+
+                terms, NPt = np.shape(covariates)  # need one term per person, for each covariate
+                b1, b1sem, R21, Z1, Rcorrelation1, Zcorrelation1 = GLMregression(covdata, covariates, 1)
+                b2, b2sem, R22,Z2, Rcorrelation2, Zcorrelation2 = GLMregression(corrdata, covariates, 1)
+
+                beta1_sig = np.abs(Zcorrelation1) > Zthresh
+                beta2_sig = np.abs(Zcorrelation2) > Zthresh
+                stat_of_interest1 = Zcorrelation1
+                stat_of_interest2 = Zcorrelation2
+
+                value1 = b1
+                value1_se = b1sem
+                value2 = b2
+                value2_se = b2sem
+
+                sheetname1 = 'cov corr '
+                sheetname2 = 'corr corr '
+
+            # write results to excel file ----
+            keys = [' ']
+            for nn in range(len(cluster_info)):
+                rname = cluster_info[nn]['rname']
+                nclusters = cluster_info[nn]['nclusters']
+                for cc in range(nclusters):
+                    keys += ['{}{}'.format(rname[:4],cc)]
+
+            for tt in range(ntime):
+                results = []
+                for cc in range(nclusters_total):
+                    values = [keys[cc+1]]
+                    for cc2 in range(nclusters_total):
+                        values += [stat_of_interest1[tt,cc,cc2]]
+                    entry = dict(zip(keys, values))
+                    results.append(entry)
+
+                excelsheetname = sheetname1 + ' ' + str(tt)
+                print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+                pydisplay.pywriteexcel(results, excelfilename, excelsheetname, 'append')
+                print('finished writing results to ',excelfilename)
+
+                results = []
+                for cc in range(nclusters_total):
+                    values = [keys[cc+1]]
+                    for cc2 in range(nclusters_total):
+                        values += [stat_of_interest2[tt,cc,cc2]]
+                    entry = dict(zip(keys, values))
+                    results.append(entry)
+
+                excelsheetname = sheetname2 + ' ' + str(tt)
+                print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+                pydisplay.pywriteexcel(results, excelfilename, excelsheetname, 'append')
+                print('finished writing results to ',excelfilename)
+
+            return excelfilename
+
         if semtype == '2source':
             cluster_properties = data['cluster_properties']
             cluster_info, rname_list, ncluster_list = get_cluster_position_details(cluster_properties)

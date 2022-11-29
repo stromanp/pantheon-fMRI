@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import pyclustering
 import pysem
 import re
+import nibabel as nib
 
 # setup color scales for displays
 def colormap(values):

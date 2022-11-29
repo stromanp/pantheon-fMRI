@@ -24,6 +24,7 @@ Jobs to do:
 
 """
 # sys.path.append(r'C:\Users\16135\PycharmProjects\pantheon\venv')
+# sys.path.append('/Users/brieanakeast/PycharmProjects/pantheon-fMRI/venv')
 
 # import necessary modules 
 import tkinter as tk
@@ -4382,7 +4383,7 @@ class SEMFrame:
         # check to indicate to resume a failed run
         self.var1 = tk.IntVar()
         self.SEMresumebox = tk.Checkbutton(self.parent, text = 'Resume previous', width = bigbigbuttonsize, fg = fgletter2,
-                                          command = self.SEMresumecheck, variable = self.var1)
+                                          command = self.SEMresumecheck, variable = self.var1, highlightbackground = widgetbg)
         self.SEMresumebox.grid(row = 11, column = 1, sticky="E")
 
         # label, button, for running the definition of clusters, and loading data
@@ -5448,48 +5449,48 @@ class GRPFrame:
         # checkboxes to indicate 1) signficiance from zero, 2) group differences, 3) correlation
         self.GRPanalysistypevalue = tk.IntVar(None,1)
         self.GRPsig1 = tk.Radiobutton(self.parent, text = 'Sign. non-zero', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 1)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 1, highlightbackground = widgetbg)
         self.GRPsig1.grid(row = 5, column = 1, sticky="W")
 
         self.var2 = tk.IntVar()
         self.GRPsig2 = tk.Radiobutton(self.parent, text = 'Avg. Group Diff.', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 2)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 2, highlightbackground = widgetbg)
         self.GRPsig2.grid(row = 6, column = 1, sticky="W")
 
         self.var3 = tk.IntVar()
         self.GRPsig2p = tk.Radiobutton(self.parent, text = 'Paired Group Diff.', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 3)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 3, highlightbackground = widgetbg)
         self.GRPsig2p.grid(row = 7, column = 1, sticky="W")
 
         self.var4 = tk.IntVar()
         self.GRPcorr = tk.Radiobutton(self.parent, text = 'Correlation', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 4)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 4, highlightbackground = widgetbg)
         self.GRPcorr.grid(row = 5, column = 2, sticky="W")
 
         self.var5 = tk.IntVar()
         self.GRPcorr = tk.Radiobutton(self.parent, text = 'Regression', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 5)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 5, highlightbackground = widgetbg)
         self.GRPcorr.grid(row = 6, column = 2, sticky="W")
 
         self.var8 = tk.IntVar()
         self.GRPtime = tk.Radiobutton(self.parent, text = 'Time Paired Diff.', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 8)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 8, highlightbackground = widgetbg)
         self.GRPtime.grid(row = 7, column = 2, sticky="W")
 
 
         self.var6 = tk.IntVar()
         self.GRPcorr = tk.Radiobutton(self.parent, text = 'ANOVA', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 6)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 6, highlightbackground = widgetbg)
         self.GRPcorr.grid(row = 5, column = 3, sticky="W")
 
         self.var7 = tk.IntVar()
         self.GRPcorr = tk.Radiobutton(self.parent, text = 'ANCOVA', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 7)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 7, highlightbackground = widgetbg)
         self.GRPcorr.grid(row = 6, column = 3, sticky="W")
 
 
         # indicate which "personal characteristics" to use - selected from database
-        self.GRPlabel2 = tk.Label(self.parent, text = "Select characteristic:", font = labelfont)
+        self.GRPlabel2 = tk.Label(self.parent, text = "Select characteristic:", font = labelfont, highlightbackground = widgetbg)
         self.GRPlabel2.grid(row=8,column=1, sticky='W')
         # fieldvalues = DBFrame.get_DB_field_values(self)
         self.fields = self.get_DB_fields()
@@ -5508,7 +5509,7 @@ class GRPFrame:
                                         command=self.GRPcharacteristicslistclear, relief='raised', bd=5, highlightbackground = widgetbg)
         self.GRPcharclearbutton.grid(row=8, column=4)
 
-        self.GRPlabel3 = tk.Label(self.parent, text = 'Characteristics list:', font = labelfont)
+        self.GRPlabel3 = tk.Label(self.parent, text = 'Characteristics list:', font = labelfont, highlightbackground = widgetbg)
         self.GRPlabel3.grid(row=9, column=1, sticky='N')
 
         self.GRPcharacteristicscount = 0
@@ -5520,7 +5521,7 @@ class GRPFrame:
         self.GRPcharacteristicsdisplay.grid(row=9, column=2, columnspan=2, sticky='N')
 
         # put in choices for statistical threshold
-        self.GRPlabel5 = tk.Label(self.parent, text = 'p-value threhold:', font = labelfont).grid(row=10, column=1, sticky='NSEW')
+        self.GRPlabel5 = tk.Label(self.parent, text = 'p-value threhold:', font = labelfont, highlightbackground = widgetbg).grid(row=10, column=1, sticky='NSEW')
         self.GRPpvaluebox = tk.Entry(self.parent, width = 8, bg="white")
         self.GRPpvaluebox.grid(row=10, column=2, sticky = "W")
         self.GRPpvaluebox.insert(0,self.GRPpvalue)
@@ -5539,6 +5540,7 @@ class GRPFrame:
 class DisplayFrame:
 
     def get_data_fields(self):
+        fields = 'empty'
         if os.path.isfile(self.DISPresultsname):
             data = np.load(self.DISPresultsname, allow_pickle=True).flat[0]
             keylist = data.keys()
@@ -6477,12 +6479,16 @@ class SAPMFrame:
         except:
             # check if SAPMbetascale is a file name
             check = os.path.isfile(SAPMbetascale)
+            check2 = (SAPMbetascale.lower() == 'shotgun')
             if check:
                 print('Reading initial beta values from {}'.format(SAPMbetascale))
             else:
-                print('initial beta entry is neither a floating-point number nor a file name')
-                print('reverting to default initial beta values of 0.0')
-                SAPMbetascale = 0.0
+                if check2:
+                    print('initial beta values will be estimated using a random sampling')
+                else:
+                    print('initial beta entry is neither a floating-point number nor a file name')
+                    print('reverting to default initial beta values of 0.0')
+                    SAPMbetascale = 0.0
 
         settings['SAPMbetascale'] = SAPMbetascale
         self.SAPMbetascale = SAPMbetascale
@@ -6861,7 +6867,7 @@ class SAPMFrame:
             # settings['SAPMbetascale'] = self.SAPMbetascale
             # settings['SAPMsavebetainit'] = self.SAPMsavebetainit
             results = np.load(SAPMresultsname, allow_pickle=True)
-            betavals = np.array([results[x]['betavals'] for x in range(len(results))])
+            betavals = np.array([results[x][0]['betavals'] for x in range(len(results))])
             beta_initial = np.mean(betavals,axis=0)
             p,f = os.path.split(SAPMresultsname)
             betascale_name = os.path.join(p,'beta_initial_values.npy')
@@ -7328,6 +7334,14 @@ class SAPMResultsFrame:
         np.save(settingsfile, settings)
         return self
 
+    def SRvariantvaluesubmit(self):
+        self.SRvariant = int(self.SRvariantvaluebox.get())
+        print('p-value for SAPM results display is set to ',self.SRvariant)
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        settings['SRvariant'] = self.SRvariant
+        np.save(settingsfile, settings)
+        return self
+
 
     def SRnametagsubmit(self):
         self.SRnametag = self.SRnametagbox.get()
@@ -7348,6 +7362,7 @@ class SAPMResultsFrame:
         print('SRtargetregion:  {}'.format(self.SRtargetregion))
         print('SRpvalue:  {}'.format(self.SRpvalue))
         print('SRnametag:  {}'.format(self.SRnametag))
+        print('SRvariant:  {}'.format(self.SRvariant))
 
         # print('running pysapm.display_SAPM_results ...')
         # print('SRCanvas = {}'.format(self.SRCanvas))
@@ -7356,14 +7371,13 @@ class SAPMResultsFrame:
 
         # self.SRPlotFigure = 123
         outputname = pysapm.display_SAPM_results(123, self.SRnametag, self.covariatesvalues, self.SRoptionvalue,
-                            self.SRresultsdir, self.SRparamsname, self.SRresultsname,
+                            self.SRresultsdir, self.SRparamsname, self.SRresultsname, self.SRvariant,
                             self.SRgroup, self.SRtargetregion, self.SRpvalue, [], self.SRCanvas, True)
 
         if ('Plot' in self.SRoptionvalue):     # or ('Draw' in self.SRoptionvalue)
             print('generating figures to save as svg files ...')
-            # self.SRwindownum2 = 124
             outputname = pysapm.display_SAPM_results(124, self.SRnametag, self.covariatesvalues, self.SRoptionvalue,
-                                self.SRresultsdir, self.SRparamsname, self.SRresultsname,
+                                self.SRresultsdir, self.SRparamsname, self.SRresultsname, self.SRvariant,
                                 self.SRgroup, self.SRtargetregion, self.SRpvalue, [], 'none', False)
 
         if self.SRoptionvalue == 'DrawSAPMdiagram':
@@ -7527,6 +7541,7 @@ class SAPMResultsFrame:
         self.networkmodel = settings['networkmodel']
         self.SAPMclustername = settings['SAPMclustername']
         self.SAPMregionname = settings['SAPMregionname']
+        self.SRvariant = 0
 
         # initialize some values
         if 'SRoptionvalue' in keylist: # expect that if one value for this section is
@@ -7559,6 +7574,7 @@ class SAPMResultsFrame:
             settings['SRgroup'] = self.SRgroup
             settings['SRtargetregion'] = self.SRtargetregion
             settings['SRnametag'] = self.SRnametag
+            settings['SRvariant'] = self.SRvariant
 
         # if 'SRdrawfile' in settings.keys():
         #     self.SRdrawfile = settings['SRdrawfile']
@@ -7596,11 +7612,11 @@ class SAPMResultsFrame:
         np.save(settingsfile, settings)
 
         # put some text as a place-holder
-        self.SRLabel1 = tk.Label(self.parent, text = "1) Select SAPM results files...\n   or use the Update button to\n   load them from previous pages", fg = 'gray', justify = 'left', font = infofont)
+        self.SRLabel1 = tk.Label(self.parent, text = "1) Select SAPM results files... or use the Update \nbutton to load from previous pages", fg = 'gray', justify = 'left', font = infofont)
         self.SRLabel1.grid(row=0,column=0, sticky='W')
-        self.SRLabel3 = tk.Label(self.parent, text = "2) Select covariates file if \noutputs are to show correlations etc\n with covariates", fg = 'gray', justify = 'left', font = infofont)
+        self.SRLabel3 = tk.Label(self.parent, text = "2) Select covariates file if outputs are to show \ncorrelations etc with covariates", fg = 'gray', justify = 'left', font = infofont)
         self.SRLabel3.grid(row=1,column=0, sticky='W')
-        self.SRLabel3 = tk.Label(self.parent, text = "3) If DrawSAPMdiagram is chosen for output\n an xlsx file defining plot parameters must be chosen \nand .xlsx files with results to plot\n must be selected", fg = 'gray', justify = 'left', font = infofont)
+        self.SRLabel3 = tk.Label(self.parent, text = "3) For DrawSAPMdiagram you must choose xlsx files \ndefining plot parameters and results to plot", fg = 'gray', justify = 'left', font = infofont)
         self.SRLabel3.grid(row=2,column=0, sticky='W')
 
         rownum = 0
@@ -7774,6 +7790,17 @@ class SAPMResultsFrame:
         self.SRpvaluesubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2,
                                 font = widgetfont, command = self.SRpvaluesubmit, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRpvaluesubmitbut.grid(row=rownum, column=3)
+
+
+        # choose run variation number (latent inputs being +/-)
+        self.SRL8 = tk.Label(self.parent, text = 'result variant:', font = labelfont).grid(row=rownum, column=4, sticky='NSEW')
+        self.SRvariantvaluebox = tk.Entry(self.parent, width = 8, bg="white")
+        self.SRvariantvaluebox.grid(row=rownum, column=5, sticky = "W")
+        self.SRvariantvaluebox.insert(0,self.SRvariant)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SRvariantvaluesubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2,
+                                font = widgetfont, command = self.SRvariantvaluesubmit, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.SRvariantvaluesubmitbut.grid(row=rownum, column=6)
 
         rownum = 10
         # button to launch the generation of outputs with the selected options/values
