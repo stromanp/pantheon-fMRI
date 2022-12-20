@@ -309,8 +309,8 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
 
                 cov_sig = np.abs(Tcov) > Tthresh
                 corr_sig = np.abs(Tcorr) > Tthresh
-                stat_of_interest1 = Tcov
-                stat_of_interest2 = Tcorr
+                stat_of_interest1 = Tcov*cov_sig
+                stat_of_interest2 = Tcorr*corr_sig
 
                 value1 = mean_cov
                 value1_se = se_cov
@@ -448,10 +448,15 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                 stat_of_interest1 = Z1
                 stat_of_interest2 = Z2
 
-                value1 = b1
-                value1_se = b1sem
-                value2 = b2
-                value2_se = b2sem
+                print('size of b1 = {}'.format(np.shape(b1)))
+                print('size of b1sem = {}'.format(np.shape(b1sem)))
+                print('size of b2 = {}'.format(np.shape(b2)))
+                print('size of b2sem = {}'.format(np.shape(b2sem)))
+
+                value1 = b1[:,:,:,:,:,-1]
+                value1_se = b1sem[:,:,:,:,:,-1]
+                value2 = b2[:,:,:,:,:,-1]
+                value2_se = b2sem[:,:,:,:,:,-1]
 
             #---------------------------------------------------
             if statstype == 'correlation':
@@ -467,10 +472,15 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                 stat_of_interest1 = Zcorrelation1
                 stat_of_interest2 = Zcorrelation2
 
-                value1 = b1
-                value1_se = b1sem
-                value2 = b2
-                value2_se = b2sem
+                print('size of b1 = {}'.format(np.shape(b1)))
+                print('size of b1sem = {}'.format(np.shape(b1sem)))
+                print('size of b2 = {}'.format(np.shape(b2)))
+                print('size of b2sem = {}'.format(np.shape(b2sem)))
+
+                value1 = b1[:,:,:,:,:,-1]
+                value1_se = b1sem[:,:,:,:,:,-1]
+                value2 = b2[:,:,:,:,:,-1]
+                value2_se = b2sem[:,:,:,:,:,-1]
 
             #---------------------------------------------------
             if statstype == 'time':
@@ -531,37 +541,43 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
                 sig_temp = beta1_sig[:,:,:,tt,:]
                 t,s1,s2,nb = np.where(sig_temp)    # significant connections during this time period
 
-                Svalue_list = np.zeros(len(t))
-                connid_list = np.zeros(len(t))   # identify connections - to be able to remove redundant ones later
-                for ii in range(len(t)):
-                    Svalue_list[ii] = stat_of_interest1[t[ii],s1[ii],s2[ii],tt,nb[ii]]
-                    v1 = value1[t[ii],s1[ii],s2[ii],tt,nb[ii]]
-                    v1s = value1_se[t[ii],s1[ii],s2[ii],tt,nb[ii]]
-                    v2 = value2[t[ii],s1[ii],s2[ii],tt,nb[ii]]
-                    v2s = value2_se[t[ii],s1[ii],s2[ii],tt,nb[ii]]
+                if len(t) > 0:
+                    Svalue_list = np.zeros(len(t))
+                    connid_list = np.zeros(len(t))   # identify connections - to be able to remove redundant ones later
+                    for ii in range(len(t)):
+                        Svalue_list[ii] = stat_of_interest1[t[ii],s1[ii],s2[ii],tt,nb[ii]]
+                        v1 = value1[t[ii],s1[ii],s2[ii],tt,nb[ii]]
+                        v1s = value1_se[t[ii],s1[ii],s2[ii],tt,nb[ii]]
+                        v2 = value2[t[ii],s1[ii],s2[ii],tt,nb[ii]]
+                        v2s = value2_se[t[ii],s1[ii],s2[ii],tt,nb[ii]]
 
-                    if nb[ii] == 0:
-                        s = s1[ii]
-                    else:
-                        s = s2[ii]
-                    # get region names, cluster numbers, etc.
-                    connid_list[ii] = t[ii]*1000 + s   # a unique identifier for the connection
-                    targetname, targetcluster, targetnumber = get_cluster_info(rname_list, ncluster_list, t[ii])
-                    sourcename, sourcecluster, sourcenumber = get_cluster_info(rname_list, ncluster_list, s)
-                    targetcoords = cluster_info[targetnumber]['cluster_coords'][targetcluster,:]
-                    targetlimits = cluster_info[targetnumber]['regionlimits']
-                    sourcecoords = cluster_info[sourcenumber]['cluster_coords'][sourcecluster,:]
-                    sourcelimits = cluster_info[sourcenumber]['regionlimits']
-                    connection_info = [t[ii],s1[ii],s2[ii],tt,nb[ii]]
+                        if nb[ii] == 0:
+                            s = s1[ii]
+                        else:
+                            s = s2[ii]
+                        # get region names, cluster numbers, etc.
+                        connid_list[ii] = t[ii]*1000 + s   # a unique identifier for the connection
+                        targetname, targetcluster, targetnumber = get_cluster_info(rname_list, ncluster_list, t[ii])
+                        sourcename, sourcecluster, sourcenumber = get_cluster_info(rname_list, ncluster_list, s)
+                        targetcoords = cluster_info[targetnumber]['cluster_coords'][targetcluster,:]
+                        targetlimits = cluster_info[targetnumber]['regionlimits']
+                        sourcecoords = cluster_info[sourcenumber]['cluster_coords'][sourcecluster,:]
+                        sourcelimits = cluster_info[sourcenumber]['regionlimits']
+                        connection_info = [t[ii],s1[ii],s2[ii],tt,nb[ii]]
 
-                    # print('target {} {}  source {} {}  v1 {:.3f} {} {:.3f}  v2 {:.3f} {} {:.3f}'.format(targetname, targetcluster, sourcename, sourcecluster,v1,chr(177),v1s,v2,chr(177),v2s))
-                    # print('    target coords {}  limits {} source coords {} limits {}  connection info {}'.format(list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits), connection_info))
+                        # print('target {} {}  source {} {}  v1 {:.3f} {} {:.3f}  v2 {:.3f} {} {:.3f}'.format(targetname, targetcluster, sourcename, sourcecluster,v1,chr(177),v1s,v2,chr(177),v2s))
+                        # print('    target coords {}  limits {} source coords {} limits {}  connection info {}'.format(list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits), connection_info))
 
-                    values = np.concatenate(([targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]], [v1,v1s,v2,v2s],
-                                             list(targetcoords),list(targetlimits), list(sourcecoords),list(sourcelimits),connection_info))
+                        namelist = [targetname, targetcluster, sourcename, sourcecluster, Svalue_list[ii]]
+                        vlist = [v1,v1s,v2,v2s]
+                        print('shape(namelist) = {}'.format(np.shape(namelist)))
+                        print('shape(vlist) = {}'.format(np.shape(vlist)))
+                        values = np.concatenate((namelist, vlist, list(targetcoords),list(targetlimits),
+                                                 list(sourcecoords),list(sourcelimits),connection_info))
+                        print('size of values = {}'.format(np.shape(values)))
 
-                    entry = dict(zip(keys, values))
-                    results.append(entry)
+                        entry = dict(zip(keys, values))
+                        results.append(entry)
 
                 # eliminate redundant values, for repeats keep the one with the largest Tvalue
                 if len(results) > 0:

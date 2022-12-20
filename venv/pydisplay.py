@@ -432,7 +432,7 @@ def pydisplayvoxelregionslice(templatename, template_img, cx, cy, cz, orientatio
     return outputimg
 
 
-def pydisplay_data_from_database(DBname, DBnumlist, prefix, orientation='axial', windownum = 100, refresh_interval = 1.0):
+def pydisplay_data_from_database(DBname, DBnumlist, prefix, orientation='sagittal', windownum = 100, refresh_interval = 2.0):
 
     if isinstance(DBnumlist,str):
         DBnumlist = parsenumlist(DBnumlist)
@@ -444,6 +444,7 @@ def pydisplay_data_from_database(DBname, DBnumlist, prefix, orientation='axial',
     fig = plt.figure(windownum)
 
     for dbnum in DBnumlist:
+        plt.cla()
         dbhome = df1.loc[dbnum, 'datadir']
         fname = df1.loc[dbnum, 'niftiname']
         niiname = os.path.join(dbhome, fname)
@@ -458,6 +459,7 @@ def pydisplay_data_from_database(DBname, DBnumlist, prefix, orientation='axial',
             img_data = np.mean(img_data,axis = 3)
 
         xs,ys,zs = np.shape(img_data)
+        dannot = 2
 
         if orientation not in ['axial','sagittal','coronal']:
             orientation = 'axial'
@@ -465,15 +467,31 @@ def pydisplay_data_from_database(DBname, DBnumlist, prefix, orientation='axial',
         if orientation == 'axial':
             z0 = np.floor(zs/2).astype(int)
             plt.imshow(img_data[:,:,z0],'gray')
+            xa1 = dannot
+            xa2 = ys-dannot
+            ya1 = dannot
+            ya2 = xs-dannot
 
         if orientation == 'sagittal':
             x0 = np.floor(xs / 2).astype(int)
             plt.imshow(img_data[x0, :, :], 'gray')
+            xa1 = 5
+            xa2 = zs-10
+            ya1 = 5
+            ya2 = ys-10
 
         if orientation == 'coronal':
             y0 = np.floor(ys / 2).astype(int)
             plt.imshow(img_data[:, y0, :], 'gray')
+            xa1 = dannot
+            xa2 = zs-dannot
+            ya1 = dannot
+            ya2 = xs-dannot
 
+        plt.annotate('{}'.format(dbnum),(xa1,ya1), color = [1,1,0],fontsize = 11, horizontalalignment='left')
+        plt.annotate('{}'.format(dbnum),(xa1,ya2), color = [1,1,0],fontsize = 11, horizontalalignment='left')
+        plt.annotate('{}'.format(dbnum),(xa2,ya1), color = [0,1,0],fontsize = 11, horizontalalignment='right')
+        plt.annotate('{}'.format(dbnum),(xa2,ya2), color = [0,1,0],fontsize = 11, horizontalalignment='right')
         plt.show()
         plt.pause(refresh_interval)
 

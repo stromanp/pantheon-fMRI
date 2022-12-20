@@ -6904,6 +6904,9 @@ class SAPMFrame:
             self.networkmodel = settings['networkmodel']
             self.SAPMclustername = settings['SAPMclustername']
             self.SAPMregionname = settings['SAPMregionname']
+            self.SAPMbetascale = settings['SAPMbetascale']
+            self.SAPMtimepoint = settings['SAPMtimepoint']
+            self.SAPMepoch = settings['SAPMepoch']
             # self.SAPMsavetag = settings['SAPMsavetag']
         else:
             self.DBname = settings['DBname']
@@ -6915,6 +6918,9 @@ class SAPMFrame:
             self.networkmodel = ''
             self.SAPMclustername = ''
             self.SAPMregionname = ''
+            self.SAPMbetascale = 0.0
+            self.SAPMtimepoint = 'all'
+            self.SAPMepoch = 'all'
             # self.SAPMsavetag = ''
 
         self.SAPMtimepoint = 'all'
@@ -6923,9 +6929,7 @@ class SAPMFrame:
         settings['SAPMepoch'] = self.SAPMepoch
         self.SAPMtimetext = str(self.SAPMtimepoint)
 
-        self.SAPMbetascale = 0.0
         self.SAPMsavebetainit = False
-        settings['SAPMbetascale'] = self.SAPMbetascale
         settings['SAPMsavebetainit'] = self.SAPMsavebetainit
 
         # put some text as a place-holder
