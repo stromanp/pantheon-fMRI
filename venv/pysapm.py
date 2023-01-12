@@ -1,4 +1,4 @@
-# sys.path.append(r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv')
+# sys.path.append(r'C:\Users\Stroman\PycharmProjects\pantheon\venv')
 
 # calculate eigenvectors and intrinsic inputs
 # then calculate matrix of beta values from those
@@ -225,7 +225,8 @@ def sapm_error_function(Sinput,fit,Lweight,betavals,beta_int1, Mintrinsic):
 
     all_bvals = np.append(betavals,beta_int1)
     # cost = np.mean(np.abs(all_bvals)) + np.mean(np.abs(Mintrinsic))  # L1 regularization
-    cost = np.mean(np.abs(all_bvals)) # L1 regularization
+    # cost = np.mean(np.abs(all_bvals)) # L1 regularization
+    cost = np.mean(all_bvals**2) # L2 regularization
 
     # ssqd = error + R2total + Lweight * cost
     ssqd = error + Lweight * cost
@@ -261,9 +262,10 @@ def gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dv
     return dssq_db, ssqd, dssq_dbeta1
 
 
-def update_betavals_sequentially(Sinput, Minput, Mconn, betavals, ctarget, csource, dval, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight, alphalist, alphabint):
+def update_betavals_sequentially(Sinput, Minput, Mconn, betavals, ctarget, csource, dval, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight, alphalist, alphabint, latent_flag = []):
     # calculate change in error term with small changes in betavalues
     # include beta_int1
+    if len(latent_flag) < len(betavals): latent_flag = np.zeros(len(betavals))
     nbetavals = len(betavals)
     updatebflag = np.zeros(nbetavals)
     Mconn[ctarget, csource] = copy.deepcopy(betavals)
@@ -273,6 +275,7 @@ def update_betavals_sequentially(Sinput, Minput, Mconn, betavals, ctarget, csour
     # gradients for betavals
     dssq_db = np.zeros(nbetavals)
     for nn in range(nbetavals):
+        # if latent_flag[nn] == 0:
         b = copy.deepcopy(betavals)
         b[nn] += dval
         Mconn[ctarget, csource] = copy.deepcopy(b)
@@ -509,6 +512,7 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAP
     NP = len(nruns_per_person)  # number of people in the data set
 
     tcdata = []
+    tcdata_std = np.zeros((nclusterstotal,NP))
     for i in range(nregions):
         tc = region_properties[i]['tc']
         if i == 0:
@@ -554,6 +558,13 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAP
             temp_mean = np.repeat(temp[:, np.newaxis], epoch, axis=1)
             tcdata_centered[:, tp] = tcdata[:, tp] - temp_mean  # center each epoch, in each person
         tplist1.append({'tp': tpoints})
+
+        # normalize the data to have the same variance, for each person
+        # tpoints = np.array(tpoints).astype(int)
+        tcdata_std[:,nn] = np.std(tcdata_centered[:,tpoints],axis=1)
+        scale_factor = np.repeat(tcdata_std[:,nn][:,np.newaxis],len(tpoints),axis=1)
+        tcdata_centered[:, tpoints] /= scale_factor
+
     tplist_full.append(tplist1)
 
     if fullgroup:
@@ -649,12 +660,13 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAP
     #             found_latent_list += [csource[nn]]
 
     latent_flag = np.zeros(len(ctarget))
-    found_latent_list = []
-    for nn in range(len(ctarget)):
-        if csource[nn] >= ncon  and ctarget[nn] < ncon:
-            found_latent_list += [csource[nn]]
-            occurence = np.count_nonzero(found_latent_list == csource[nn])
-            latent_flag[nn] = csource[nn]-ncon+1
+    # set all the latent flag values to zero, so that they are updated during the gradient descent method
+    # found_latent_list = []
+    # for nn in range(len(ctarget)):
+    #     if csource[nn] >= ncon  and ctarget[nn] < ncon:
+    #         found_latent_list += [csource[nn]]
+    #         occurence = np.count_nonzero(found_latent_list == csource[nn])
+    #         latent_flag[nn] = csource[nn]-ncon+1
 
 
     reciprocal_flag = np.zeros(len(ctarget))
@@ -686,10 +698,227 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAP
                  'fintrinsic_region':fintrinsic_region, 'sem_region_list': sem_region_list,
                  'nclusterlist': nclusterlist, 'tsize': tsize, 'tplist_full': tplist_full,
                  'tcdata_centered': tcdata_centered, 'ctarget':ctarget ,'csource':csource,
-                 'Mconn':Mconn, 'Minput':Minput, 'timepoint':timepoint, 'epoch':epoch, 'latent_flag':latent_flag, 'reciprocal_flag':reciprocal_flag}
+                 'Mconn':Mconn, 'Minput':Minput, 'timepoint':timepoint, 'epoch':epoch, 'latent_flag':latent_flag,
+                  'reciprocal_flag':reciprocal_flag, 'tcdata_std':tcdata_std}
     print('saving SAPM parameters to file: {}'.format(SAPMparametersname))
     np.save(SAPMparametersname, SAPMparams)
 
+
+
+# prep data for single output model
+
+#---------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+def prep_data_sem_physio_model_SO(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint = 'all', epoch = 'all', fullgroup = False):
+# model each region as having a single output that is common to all regions it projects to
+    outputdir, f = os.path.split(SAPMparametersname)
+    network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count = load_network_model_w_intrinsics(networkfile)
+
+    fintrinsic_region = []
+    if fintrinsic_count > 0:  # find which regions have fixed intrinsic input
+        for nn in range(len(network)):
+            sources = network[nn]['sources']
+            if 'fintrinsic1' in sources:
+                fintrinsic_region = network[nn]['targetnum']  # only one region should have this input
+
+    region_data1 = np.load(regiondataname, allow_pickle=True).flat[0]
+    region_properties = region_data1['region_properties']
+
+    cluster_data = np.load(clusterdataname, allow_pickle=True).flat[0]
+    # cluster_properties = cluster_data['cluster_properties']
+    cluster_properties = load_filtered_cluster_properties(clusterdataname, networkfile)
+
+    nregions = len(cluster_properties)
+    nclusterlist = [cluster_properties[i]['nclusters'] for i in range(nregions)]
+    rnamelist = [cluster_properties[i]['rname'] for i in range(nregions)]
+    nclusterstotal = np.sum(nclusterlist)
+
+    tsize = region_properties[0]['tsize']
+    nruns_per_person = region_properties[0]['nruns_per_person']
+    nruns_total = np.sum(nruns_per_person)
+    NP = len(nruns_per_person)  # number of people in the data set
+
+    tcdata = []
+    tcdata_std = np.zeros((nclusterstotal,NP))
+    for i in range(nregions):
+        tc = region_properties[i]['tc']
+        if i == 0:
+            tcdata = tc
+        else:
+            tcdata = np.append(tcdata, tc, axis=0)
+
+    # setup index lists---------------------------------------------------------------------------
+    # timepoints for full runs----------------------------------------------
+    if timepoint == 'all':
+        epoch = tsize
+        timepoint = np.floor(tsize/2)
+
+    tplist_full = []
+    if epoch >= tsize:
+        et1 = 0
+        et2 = tsize
+    else:
+        if np.floor(epoch/2).astype(int) == np.ceil(epoch/2).astype(int):   # even numbered epoch
+            et1 = (timepoint - np.floor(epoch / 2)).astype(int)
+            et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+        else:
+            et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
+            et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+    if et1 < 0: et1 = 0
+    if et2 > tsize: et2 = tsize
+    epoch = et2-et1
+
+    dtsize = tsize - 1  # for using deriviation of tc wrt time
+    tplist1 = []
+    nclusterstotal, tsizetotal = np.shape(tcdata)
+    tcdata_centered = copy.deepcopy(tcdata)
+    for nn in range(NP):
+        r1 = sum(nruns_per_person[:nn])
+        r2 = sum(nruns_per_person[:(nn + 1)])
+        tp = []  # initialize list
+        tpoints = []
+        for ee2 in range(r1, r2):
+            # tp = list(range((ee2 * tsize), (ee2 * tsize + tsize)))
+            tp = list(range((ee2*tsize+et1),(ee2*tsize+et2)))
+            tpoints = tpoints + tp  # concatenate lists
+            temp = np.mean(tcdata[:, tp], axis=1)
+            temp_mean = np.repeat(temp[:, np.newaxis], epoch, axis=1)
+            tcdata_centered[:, tp] = tcdata[:, tp] - temp_mean  # center each epoch, in each person
+
+        # normalize the data to have the same variance, for each person
+        tplist1.append({'tp': tpoints})
+        # tpoints = np.array(tpoints).astype(int)
+        tcdata_std[:,nn] = np.std(tcdata_centered[:,tpoints],axis=1)
+        scale_factor = np.repeat(tcdata_std[:,nn][:,np.newaxis],len(tpoints),axis=1)
+        tcdata_centered[:, tpoints] /= scale_factor
+
+    tplist_full.append(tplist1)
+
+    if fullgroup:
+        # special case to fit the full group together
+        # treat the whole group like one person
+        tpgroup_full = []
+        tpgroup = []
+        tp = []
+        for nn in range(NP):
+            tp += tplist_full[0][nn]['tp']   # concatenate timepoint lists
+        tpgroup.append({'tp': tp})
+        tpgroup_full.append(tpgroup)
+        tplist_full = copy.deepcopy(tpgroup_full)
+        nruns_per_person = [np.sum(nruns_per_person)]
+
+    Nintrinsic = fintrinsic_count + vintrinsic_count
+    nregions = len(rnamelist)
+
+    beta_list = []
+    nbeta = 0
+    targetnumlist = []
+    beta_id = []
+    sourcelist = []
+    for nn in range(len(network)):
+        target = network[nn]['targetnum']
+        sources = network[nn]['sourcenums']
+        targetnumlist += [target]
+        for mm in range(len(sources)):
+            source = sources[mm]
+            sourcelist += [source]
+            betaname = '{}_{}'.format(source, target)
+            entry = {'name': betaname, 'number': nbeta, 'pair': [source, target]}
+            beta_list.append(entry)
+            beta_id += [1000 * source + target]
+            nbeta += 1
+
+    ncon = nbeta - Nintrinsic
+
+    # reorder to put intrinsic inputs at the end-------------
+    beta_list2 = []
+    beta_id2 = []
+    x = np.where(np.array(sourcelist) < nregions)[0]
+    for xx in x:
+        beta_list2.append(beta_list[xx])
+        beta_id2 += [beta_id[xx]]
+    for sn in range(nregions, nregions + Nintrinsic):
+        x = np.where(np.array(sourcelist) == sn)[0]
+        for xx in x:
+            beta_list2.append(beta_list[xx])
+            beta_id2 += [beta_id[xx]]
+
+    for nn in range(len(beta_list2)):
+        beta_list2[nn]['number'] = nn
+
+    beta_list = beta_list2
+    beta_id = beta_id2
+
+    beta_pair = []
+    # Mconn = np.zeros((nbeta, nbeta))
+    Mconn = np.zeros((nregions + Nintrinsic, nregions + Nintrinsic))
+    count = 0
+    for nn in range(len(network)):
+        target = network[nn]['targetnum']
+        sources = network[nn]['sourcenums']
+        for mm in range(len(sources)):
+            source = sources[mm]
+            conn1 = beta_id.index(source * 1000 + target)
+
+            count += 1
+            beta_pair.append([target, source])
+            Mconn[target, source] = count
+
+            if source >= nregions:  # intrinsic input
+                # conn2 = conn1
+                # Mconn[conn1, conn2] = 1  # set the intrinsic beta values
+                Mconn[source, source] = 1  # set the intrinsic beta values
+
+
+    # prep to index Mconn for updating beta values
+    beta_pair = np.array(beta_pair)
+    ctarget = beta_pair[:, 0]
+    csource = beta_pair[:, 1]
+
+    latent_flag = np.zeros(len(ctarget))
+    found_latent_list = []
+    for nn in range(len(ctarget)):
+        # if csource[nn] >= ncon  and ctarget[nn] < ncon:
+        if csource[nn] >= nregions  and ctarget[nn] < nregions:
+            found_latent_list += [csource[nn]]
+            occurence = np.count_nonzero(found_latent_list == csource[nn])
+            latent_flag[nn] = csource[nn]-nregions+1
+
+    reciprocal_flag = np.zeros(len(ctarget))
+    for nn in range(len(ctarget)):
+        spair = beta_list[csource[nn]]['pair']
+        tpair = beta_list[ctarget[nn]]['pair']
+        if spair[0] == tpair[1]:
+            reciprocal_flag[nn] = 1
+
+    # setup Minput matrix--------------------------------------------------------------
+    # Sconn = Mconn @ Sconn    # propagate the intrinsic inputs through the network
+    # Sinput = Minput @ Mconn
+    # Minput = np.zeros((nregions, nbeta))  # mixing of connections to model the inputs to each region
+    Minput = np.zeros((nregions, nregions+Nintrinsic))  # mixing of connections to model the inputs to each region
+    betanamelist = [beta_list[a]['name'] for a in range(nbeta)]
+    for nn in range(len(network)):
+        target = network[nn]['targetnum']
+        sources = network[nn]['sourcenums']
+        for mm in range(len(sources)):
+            source = sources[mm]
+            betaname = '{}_{}'.format(source, target)
+            x = betanamelist.index(betaname)
+            # Minput[target, x] = 1
+            Minput[target, source] = 1
+
+    # save parameters for looking at results later
+    SAPMparams = {'betanamelist': betanamelist, 'beta_list': beta_list, 'nruns_per_person': nruns_per_person,
+                 'nclusterstotal': nclusterstotal, 'rnamelist': rnamelist, 'nregions': nregions,
+                 'cluster_properties': cluster_properties, 'cluster_data': cluster_data,
+                 'network': network, 'fintrinsic_count': fintrinsic_count, 'vintrinsic_count': vintrinsic_count,
+                 'fintrinsic_region':fintrinsic_region, 'sem_region_list': sem_region_list,
+                 'nclusterlist': nclusterlist, 'tsize': tsize, 'tplist_full': tplist_full,
+                 'tcdata_centered': tcdata_centered, 'ctarget':ctarget ,'csource':csource,
+                 'Mconn':Mconn, 'Minput':Minput, 'timepoint':timepoint, 'epoch':epoch, 'latent_flag':latent_flag,
+                  'reciprocal_flag':reciprocal_flag, 'tcdata_std':tcdata_std}
+    print('saving SAPM parameters to file: {}'.format(SAPMparametersname))
+    np.save(SAPMparametersname, SAPMparams)
 
 
 #---------------------------------------------------------------------------------
@@ -1311,7 +1540,7 @@ def sem_physio_model2(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamet
     initial_alpha = 1e-2
     initial_Lweight = 0.0
     initial_dval = 0.01
-    nitermax = 200
+    nitermax = 300
     alpha_limit = 1.0e-5
     repeat_limit = 2
     repeat_count = 0
@@ -1376,6 +1605,14 @@ def sem_physio_model2(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamet
             # tc1 /= np.var(tc1)
             Sinput.append(tc1)
         Sinput = np.array(Sinput)
+
+        # nregions,tsizefull = np.shape(Sinput)
+        # Sinput_std = np.repeat(np.std(Sinput, axis=1)[:, np.newaxis], tsizefull, axis=1)
+        # Sinput /= Sinput_std
+        # print('-----------------------------------------------------------------------------')
+        # print('sem_physio_model2:  Sinput is scaled to have the same variance in all regions')
+        # print('-----------------------------------------------------------------------------')
+
         # Sinput is size:  nregions x tsize_total
 
         # setup fixed intrinsic based on the model paradigm
@@ -1424,6 +1661,7 @@ def sem_physio_model2(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamet
                 beta_initial = b['beta_initial']
         else:
             beta_initial = betascale*np.random.randn(len(csource))
+        beta_initial[latent_flag > 0] = 1.0
 
         beta_init_record.append({'beta_initial':beta_initial})
 
@@ -1464,7 +1702,7 @@ def sem_physio_model2(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamet
             betavals, beta_int1, fit, updatebflag, updatebintflag, dssq_db, dssq_dbeta1, ssqd, alphalist, alphabint = \
                 update_betavals_sequentially(Sinput, Minput, Mconn, betavals, ctarget, csource, dval,
                                                     fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight,
-                                                    alphalist, alphabint)
+                                                    alphalist, alphabint, latent_flag)
 
             ssqd_record += [ssqd]
 
@@ -2212,7 +2450,8 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
     namelist = rnamelist + namelist_addon
 
     # ---------------------
-    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch)
+    # prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch)
+    prep_data_sem_physio_model_SO(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch)
     SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
     tcdata = SAPMparams['tcdata_centered']  # data for all regions/clusters concatenated along time dimension for all runs
     # need to get principal components for each region to model the clusters as a continuum
@@ -2397,7 +2636,8 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
 
 
 # main program
-def SAPMrun(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkfile, DBname, timepoint, epoch, betascale = 0.01, reload_existing = False):
+def SAPMrun(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkfile, DBname, timepoint,
+            epoch, betascale = 0.01, reload_existing = False, multiple_output = False):
     # load paradigm data--------------------------------------------------------------------
     xls = pd.ExcelFile(DBname, engine='openpyxl')
     df1 = pd.read_excel(xls, 'paradigm1_BOLD')
@@ -2432,8 +2672,13 @@ def SAPMrun(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMparamet
 
     # run the analysis with SAPM
     clusterlist = np.array(cnums) + full_rnum_base
-    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch)
-    output = sem_physio_model2(clusterlist, paradigm_centered, SAPMresultsname, SAPMparametersname, fixed_beta_vals = [], betascale = betascale)
+    # prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch)
+    if multiple_output:
+        prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch)
+    else:
+        prep_data_sem_physio_model_SO(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch)
+    output = sem_physio_model2(clusterlist, paradigm_centered, SAPMresultsname, SAPMparametersname,
+                               fixed_beta_vals = [], betascale = betascale)
 
     SAPMresults = np.load(output, allow_pickle=True)
     NP = len(SAPMresults)
@@ -2453,7 +2698,8 @@ def SAPMrun(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMparamet
 #----------------------------------------------------------------------------------------
 
 def plot_region_inputs_average(window, target, nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrange = [], TargetCanvas = 'none'):
+                               Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrange = [], TargetCanvas = 'none',
+                               multiple_output = False):
 
     if isinstance(TargetCanvas,str):
         display_in_GUI = False
@@ -2480,18 +2726,35 @@ def plot_region_inputs_average(window, target, nametag1, Minput, Sinput_avg, Sin
     if np.ndim(Sinput_avg) > 2:  nv = checkdims[2]
     tsize = checkdims[1]
 
+    # ncon,tsize = np.shape(Sconn_avg)
+    # if ncon < len(beta_list):
+    #     single_output = True
+    # else:
+    #     single_output = False
+
     # get beta values from Mconn
-    m = Mconn_avg[:,sources[0]]
-    targets2ndlevel_list = np.where(m != 0.)[0]
-    textlist = []
-    for ss in sources:
-        text = betanamelist[ss] + ': '
-        beta = Mconn_avg[targets2ndlevel_list,ss]
-        for ss2 in range(len(beta)):
-            valtext = '{:.2f} '.format(beta[ss2])
-            text1 = '{}{}'.format(valtext,betanamelist[targets2ndlevel_list[ss2]])
-            text += text1 + ', '
-        textlist += [text[:-1]]
+    if multiple_output:
+        m = Mconn_avg[:,sources[0]]
+        targets2ndlevel_list = np.where(m != 0.)[0]
+        textlist = []
+        for ss in sources:
+            text = betanamelist[ss] + ': '
+            beta = Mconn_avg[targets2ndlevel_list,ss]
+            for ss2 in range(len(beta)):
+                valtext = '{:.2f} '.format(beta[ss2])
+                text1 = '{}{}'.format(valtext,betanamelist[targets2ndlevel_list[ss2]])
+                text += text1 + ', '
+            textlist += [text[:-1]]
+    else:
+        textlist = []
+        for ss in sources:
+            beta = Mconn_avg[rtarget, ss]
+            valtext = '{:.3f} '.format(beta)
+            if ss >= nregions:
+                text = 'int{} {}'.format(ss - nregions, valtext)
+            else:
+                text = '{} {}'.format(rnamelist[ss], valtext)
+            textlist += [text]
 
     fig1 = plt.figure(window)   # for plotting in GUI, expect "window" to refer to a figure
     if display_in_GUI:
@@ -2518,12 +2781,23 @@ def plot_region_inputs_average(window, target, nametag1, Minput, Sinput_avg, Sin
     y1 = list(tc1f+tc1fp)
     y2 = list(tc1f-tc1fp)
     yy = y1 + y2[::-1]
-    axs[1,1].plot(x, tc1, '-ob', linewidth=1, markersize=4)
-    axs[1,1].plot(x, tc1f, '-xr', linewidth=1, markersize=4)
-    axs[1,1].fill(xx,yy, facecolor=(1,0,0), edgecolor='None', alpha = 0.2)
-    axs[1,1].plot(x, tc1f+tc1fp, color = (1,0,0), linestyle = '-', linewidth = 0.5)
-    axs[1,1].set_title('target input {}'.format(rnamelist[rtarget]))
+    axs[0,1].plot(x, tc1, '-ob', linewidth=1, markersize=4)
+    axs[0,1].plot(x, tc1f, '-xr', linewidth=1, markersize=4)
+    axs[0,1].fill(xx,yy, facecolor=(1,0,0), edgecolor='None', alpha = 0.2)
+    axs[0,1].plot(x, tc1f+tc1fp, color = (1,0,0), linestyle = '-', linewidth = 0.5)
+    axs[0,1].set_title('target input {}'.format(rnamelist[rtarget]))
     ymax = np.max(np.abs(yy))
+
+    if not multiple_output:
+        tc1 = Sconn_avg[rtarget,:]
+        tc1p = Sconn_sem[rtarget,:]
+
+        y1 = list(tc1+tc1p)
+        y2 = list(tc1-tc1p)
+        yy = y1 + y2[::-1]
+        axs[1,1].plot(x, tc1, '-ob', linewidth=1, markersize=4)
+        axs[1,1].fill(xx,yy, facecolor=(0,0,1), edgecolor='None', alpha = 0.2)
+        axs[1,1].set_title('target output {}'.format(rnamelist[rtarget]))
 
     for ss in range(nsources):
         tc1 = Sconn_avg[sources[ss], :]
@@ -2534,12 +2808,20 @@ def plot_region_inputs_average(window, target, nametag1, Minput, Sinput_avg, Sin
         axs[ss,0].plot(x, tc1, '-xr')
         axs[ss,0].fill(xx,yy, facecolor=(1,0,0), edgecolor='None', alpha = 0.2)
         axs[ss,0].plot(x, tc1+tc1p, color = (1,0,0), linestyle = '-', linewidth = 0.5)
-        if rsources[ss] >= nregions:
-            axs[ss, 0].set_title('source output {} {}'.format(betanamelist[sources[ss]], 'int'))
+        if multiple_output:
+            if rsources[ss] >= nregions:
+                axs[ss, 0].set_title('source output {} {}'.format(betanamelist[sources[ss]], 'int'))
+            else:
+                axs[ss,0].set_title('source output {} {}'.format(betanamelist[sources[ss]], rnamelist[rsources[ss]]))
+            axs[ss,0].annotate(textlist[ss], xy=(.025, .025), xycoords='axes  fraction',
+                    horizontalalignment='left', verticalalignment='bottom', fontsize=10)
         else:
-            axs[ss,0].set_title('source output {} {}'.format(betanamelist[sources[ss]], rnamelist[rsources[ss]]))
-        axs[ss,0].annotate(textlist[ss], xy=(.025, .025), xycoords='axes  fraction',
-                horizontalalignment='left', verticalalignment='bottom', fontsize=10)
+            if sources[ss] >= nregions:
+                axs[ss, 0].set_title('source latent {}'.format(sources[ss]-nregions))
+            else:
+                axs[ss,0].set_title('source output {}'.format(rnamelist[sources[ss]]))
+            axs[ss,0].annotate(textlist[ss], xy=(.025, .025), xycoords='axes  fraction',
+                    horizontalalignment='left', verticalalignment='bottom', fontsize=10)
 
         if setylim:
             axs[ss,0].set_ylim((ymin,ymax))
@@ -2554,7 +2836,9 @@ def plot_region_inputs_average(window, target, nametag1, Minput, Sinput_avg, Sin
     return svgname
 
 
-def plot_region_inputs_regression(window, target, nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrange = [], TargetCanvas = 'none'):
+def plot_region_inputs_regression(window, target, nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list,
+                                  rnamelist, betanamelist, Mconn_avg, outputdir, yrange = [], TargetCanvas = 'none',
+                                  multiple_output = False):
 
     if isinstance(TargetCanvas,str):
         display_in_GUI = False
@@ -2582,17 +2866,45 @@ def plot_region_inputs_regression(window, target, nametag1, Minput, Sinput_reg, 
     tsize = checkdims[1]
 
     # get beta values from Mconn
-    m = Mconn_avg[:,sources[0]]
-    targets2ndlevel_list = np.where(m != 0.)[0]
-    textlist = []
-    for ss in sources:
-        text = betanamelist[ss] + ': '
-        beta = Mconn_avg[targets2ndlevel_list,ss]
-        for ss2 in range(len(beta)):
-            valtext = '{:.2f} '.format(beta[ss2])
-            text1 = '{}{}'.format(valtext,betanamelist[targets2ndlevel_list[ss2]])
-            text += text1 + ', '
-        textlist += [text[:-1]]
+    # print('size of Sconn_reg is {}'.format(np.shape(Sconn_reg)))
+    # ncon, tsize, nregparams = np.shape(Sconn_reg)
+    # if ncon < len(beta_list):
+    #     single_output = True
+    # else:
+    #     single_output = False
+
+    if multiple_output:
+        m = Mconn_avg[:, sources[0]]
+        targets2ndlevel_list = np.where(m != 0.)[0]
+        textlist = []
+        for ss in sources:
+            text = betanamelist[ss] + ': '
+            beta = Mconn_avg[targets2ndlevel_list, ss]
+            for ss2 in range(len(beta)):
+                valtext = '{:.2f} '.format(beta[ss2])
+                text1 = '{}{}'.format(valtext, betanamelist[targets2ndlevel_list[ss2]])
+                text += text1 + ', '
+            textlist += [text[:-1]]
+    else:
+        textlist = []
+        for ss in sources:
+            if ss >= nregions:
+                text = 'int{}'.format(ss - nregions)
+            else:
+                text = rnamelist[ss]
+            textlist += [text]
+
+    # m = Mconn_avg[:,sources[0]]
+    # targets2ndlevel_list = np.where(m != 0.)[0]
+    # textlist = []
+    # for ss in sources:
+    #     text = betanamelist[ss] + ': '
+    #     beta = Mconn_avg[targets2ndlevel_list,ss]
+    #     for ss2 in range(len(beta)):
+    #         valtext = '{:.2f} '.format(beta[ss2])
+    #         text1 = '{}{}'.format(valtext,betanamelist[targets2ndlevel_list[ss2]])
+    #         text += text1 + ', '
+    #     textlist += [text[:-1]]
 
     fig1 = plt.figure(window)
     if display_in_GUI:
@@ -2657,12 +2969,21 @@ def plot_region_inputs_regression(window, target, nametag1, Minput, Sinput_reg, 
         # axs[ss,0].plot(x, tc1+tc1p, '-r')
         # axs[ss,0].plot(x, tc1-tc1p, '--r')
         axs[ss,0].plot(x, tc1+tc1p, color = (1,0,0), linestyle = '-', linewidth = 0.5)
-        if rsources[ss] >= nregions:
-            axs[ss, 0].set_title('source output {} {}'.format(betanamelist[sources[ss]], 'int'))
+
+        if multiple_output:
+            if rsources[ss] >= nregions:
+                axs[ss, 0].set_title('source output {} {}'.format(betanamelist[sources[ss]], 'int'))
+            else:
+                axs[ss,0].set_title('source output {} {}'.format(betanamelist[sources[ss]], rnamelist[rsources[ss]]))
+            axs[ss,0].annotate(textlist[ss], xy=(.025, .025), xycoords='axes  fraction',
+                    horizontalalignment='left', verticalalignment='bottom', fontsize=10)
         else:
-            axs[ss,0].set_title('source output {} {}'.format(betanamelist[sources[ss]], rnamelist[rsources[ss]]))
-        axs[ss,0].annotate(textlist[ss], xy=(.025, .025), xycoords='axes  fraction',
-                horizontalalignment='left', verticalalignment='bottom', fontsize=10)
+            if sources[ss] >= nregions:
+                axs[ss, 0].set_title('source latent {}'.format(sources[ss] - nregions))
+            else:
+                axs[ss, 0].set_title('source output {}'.format(rnamelist[sources[ss]]))
+            axs[ss, 0].annotate(textlist[ss], xy=(.025, .025), xycoords='axes  fraction',
+                                horizontalalignment='left', verticalalignment='bottom', fontsize=10)
 
         # add marks for significant slope wrt pain
         ymax = np.max(np.abs(yy))
@@ -2765,55 +3086,98 @@ def plot_region_fits(window, regionlist, nametag, Sinput_avg, Sinput_sem, fit_av
     return svgname, Rtext_record, Rval_record
 
 
-def write_Mconn_values2(Mconn, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format = 'f', pthresh = 0.05, sigflag = []):
-
+def write_Mconn_values2(Mconn, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format = 'f', pthresh = 0.05,
+                        sigflag = [], multiple_output = False):
+    # get beta values from Mconn
     nregions = len(rnamelist)
     nr1, nr2 = np.shape(Mconn)
 
     if np.size(sigflag) == 0:
         sigflag = np.zeros(np.shape(Mconn))
 
-    Tvals = Mconn/(Mconn_sem + 1.0e-20)
+    Tvals = Mconn / (Mconn_sem + 1.0e-20)
     Tthresh = stats.t.ppf(1 - pthresh, NP - 1)
     if np.isnan(Tthresh):  Tthresh = 0.0
 
-    labeltext_record = []
-    valuetext_record = []
-    Ttext_record = []
-    T_record = []
-    for n1 in range(nr1):
-        tname = betanamelist[n1]
-        tpair = beta_list[n1]['pair']
-        if tpair[0] >= nregions:
-            ts = 'int{}'.format(tpair[0]-nregions)
-        else:
-            ts = rnamelist[tpair[0]]
-            if len(ts) > 4:  ts = ts[:4]
-        tt = rnamelist[tpair[1]]
-        if len(tt) > 4:  tt = tt[:4]
-        # text1 = '{}-{} input from '.format(ts,tt)
-        showval = False
-        for n2 in range(nr2):
-            if (np.abs(Tvals[n1,n2]) > Tthresh)  or (sigflag[n1,n2]):
-                showval = True
-                sname = betanamelist[n2]
-                spair = beta_list[n2]['pair']
-                if spair[0] >= nregions:
-                    ss = 'int{}'.format(spair[0]-nregions)
-                else:
-                    ss = rnamelist[spair[0]]
-                    if len(ss) > 4:  ss = ss[:4]
-                st = rnamelist[spair[1]]
-                if len(st) > 4:  st = st[:4]
 
-                labeltext = '{}-{}-{}'.format(ss, st, tt)
-                T = Tvals[n1,n2]
+    # if nr1 < len(betanamelist):
+    #     single_output = True
+    # else:
+    #     single_output = False
+
+    if multiple_output:
+        labeltext_record = []
+        valuetext_record = []
+        Ttext_record = []
+        T_record = []
+        for n1 in range(nr1):
+            tname = betanamelist[n1]
+            tpair = beta_list[n1]['pair']
+            if tpair[0] >= nregions:
+                ts = 'int{}'.format(tpair[0]-nregions)
+            else:
+                ts = rnamelist[tpair[0]]
+                if len(ts) > 4:  ts = ts[:4]
+            tt = rnamelist[tpair[1]]
+            if len(tt) > 4:  tt = tt[:4]
+            # text1 = '{}-{} input from '.format(ts,tt)
+            showval = False
+            for n2 in range(nr2):
+                if (np.abs(Tvals[n1,n2]) > Tthresh)  or (sigflag[n1,n2]):
+                    showval = True
+                    sname = betanamelist[n2]
+                    spair = beta_list[n2]['pair']
+                    if spair[0] >= nregions:
+                        ss = 'int{}'.format(spair[0]-nregions)
+                    else:
+                        ss = rnamelist[spair[0]]
+                        if len(ss) > 4:  ss = ss[:4]
+                    st = rnamelist[spair[1]]
+                    if len(st) > 4:  st = st[:4]
+
+                    labeltext = '{}-{}-{}'.format(ss, st, tt)
+                    T = Tvals[n1,n2]
+                    if format == 'f':
+                        valuetext = '{:.3f} {} {:.3f} '.format(Mconn[n1, n2], chr(177), Mconn_sem[n1, n2])
+                        Ttext = 'T = {:.2f} '.format(Tvals[n1,n2])
+                    else:
+                        valuetext = '{:.3e} {} {:.3e} '.format(Mconn[n1, n2], chr(177), Mconn_sem[n1, n2])
+                        Ttext = 'T = {:.2e} '.format(Tvals[n1,n2])
+
+                    labeltext_record += [labeltext]
+                    valuetext_record += [valuetext]
+                    Ttext_record += [Ttext]
+                    T_record += [T]
+                    if showval:
+                        print(labeltext)
+                        print(valuetext)
+                        print(Ttext)
+    else:
+        labeltext_record = []
+        valuetext_record = []
+        Ttext_record = []
+        T_record = []
+        for n1 in range(len(beta_list)):
+            tpair = beta_list[n1]['pair']
+            if tpair[0] >= nregions:
+                ts = 'int{}'.format(tpair[0]-nregions)
+            else:
+                ts = rnamelist[tpair[0]]
+                if len(ts) > 4:  ts = ts[:4]
+            tt = rnamelist[tpair[1]]
+            if len(tt) > 4:  tt = tt[:4]
+            showval = False
+
+            if (np.abs(Tvals[tpair[1],tpair[0]]) > Tthresh)  or (sigflag[tpair[1],tpair[0]]):
+                showval = True
+                labeltext = '{}-{}'.format(ts, tt)
+                T = Tvals[tpair[1],tpair[0]]
                 if format == 'f':
-                    valuetext = '{:.3f} {} {:.3f} '.format(Mconn[n1, n2], chr(177), Mconn_sem[n1, n2])
-                    Ttext = 'T = {:.2f} '.format(Tvals[n1,n2])
+                    valuetext = '{:.3f} {} {:.3f} '.format(Mconn[tpair[1],tpair[0]], chr(177), Mconn_sem[tpair[1],tpair[0]])
+                    Ttext = 'T = {:.2f} '.format(Tvals[tpair[1],tpair[0]])
                 else:
-                    valuetext = '{:.3e} {} {:.3e} '.format(Mconn[n1, n2], chr(177), Mconn_sem[n1, n2])
-                    Ttext = 'T = {:.2e} '.format(Tvals[n1,n2])
+                    valuetext = '{:.3e} {} {:.3e} '.format(Mconn[tpair[1],tpair[0]], chr(177), Mconn_sem[tpair[1],tpair[0]])
+                    Ttext = 'T = {:.2e} '.format(Tvals[tpair[1],tpair[0]])
 
                 labeltext_record += [labeltext]
                 valuetext_record += [valuetext]
@@ -2827,10 +3191,16 @@ def write_Mconn_values2(Mconn, Mconn_sem, NP, betanamelist, rnamelist, beta_list
 
 
 
-def write_Mreg_values(Mint, Mslope, R2, betanamelist, rnamelist, beta_list, format = 'f', R2thresh = 0.1, sigflag = []):
+def write_Mreg_values(Mint, Mslope, R2, betanamelist, rnamelist, beta_list, format = 'f', R2thresh = 0.1,
+                      sigflag = [], multiple_output = False):
 
     nregions = len(rnamelist)
     nr1, nr2 = np.shape(Mslope)
+
+    # if nr1 < len(betanamelist):
+    #     single_output = True
+    # else:
+    #     single_output = False
 
     if np.size(sigflag) == 0:
         sigflag = np.zeros(np.shape(Mslope))
@@ -2841,49 +3211,88 @@ def write_Mreg_values(Mint, Mslope, R2, betanamelist, rnamelist, beta_list, form
     R2text_record = []
     R2_record = []
     for n1 in range(nr1):
-        tname = betanamelist[n1]
-        tpair = beta_list[n1]['pair']
-        if tpair[0] >= nregions:
-            ts = 'int{}'.format(tpair[0]-nregions)
-        else:
-            ts = rnamelist[tpair[0]]
-            if len(ts) > 4:  ts = ts[:4]
-        tt = rnamelist[tpair[1]]
-        if len(tt) > 4:  tt = tt[:4]
-        # text1 = '{}-{} input from '.format(ts,tt)
-        showval = False
-        for n2 in range(nr2):
-            if (np.abs(R2[n1,n2]) > R2thresh) or sigflag[n1,n2]:
-                showval = True
-                sname = betanamelist[n2]
-                spair = beta_list[n2]['pair']
-                if spair[0] >= nregions:
-                    ss = 'int{}'.format(spair[0]-nregions)
-                else:
-                    ss = rnamelist[spair[0]]
-                    if len(ss) > 4:  ss = ss[:4]
-                st = rnamelist[spair[1]]
-                if len(st) > 4:  st = st[:4]
-                labeltext = '{}-{}-{}'.format(ss, st, tt)
-                if format == 'f':
-                    inttext = '{:.3f}'.format(Mint[n1, n2])
-                    slopetext = '{:.3f}'.format(Mslope[n1, n2])
-                    R2text = 'R2 = {:.2f}'.format(R2[n1,n2])
-                else:
-                    inttext = '{:.3e}'.format(Mint[n1, n2])
-                    slopetext = '{:.3e}'.format(Mslope[n1, n2])
-                    R2text = 'R2 = {:.2e}'.format(R2[n1,n2])
+        if multiple_output:
+            tname = betanamelist[n1]
+            tpair = beta_list[n1]['pair']
+            if tpair[0] >= nregions:
+                ts = 'int{}'.format(tpair[0]-nregions)
+            else:
+                ts = rnamelist[tpair[0]]
+                if len(ts) > 4:  ts = ts[:4]
+            tt = rnamelist[tpair[1]]
+            if len(tt) > 4:  tt = tt[:4]
+            # text1 = '{}-{} input from '.format(ts,tt)
+            showval = False
+            for n2 in range(nr2):
+                if (np.abs(R2[n1,n2]) > R2thresh) or sigflag[n1,n2]:
+                    showval = True
+                    sname = betanamelist[n2]
+                    spair = beta_list[n2]['pair']
+                    if spair[0] >= nregions:
+                        ss = 'int{}'.format(spair[0]-nregions)
+                    else:
+                        ss = rnamelist[spair[0]]
+                        if len(ss) > 4:  ss = ss[:4]
+                    st = rnamelist[spair[1]]
+                    if len(st) > 4:  st = st[:4]
+                    labeltext = '{}-{}-{}'.format(ss, st, tt)
 
-                labeltext_record += [labeltext]
-                inttext_record += [inttext]
-                slopetext_record += [slopetext]
-                R2text_record += [R2text]
-                R2_record += [R2[n1,n2]]
-                if showval:
-                    print(labeltext)
-                    print(inttext)
-                    print(slopetext)
-                    print(R2text)
+                    if format == 'f':
+                        inttext = '{:.3f}'.format(Mint[n1, n2])
+                        slopetext = '{:.3f}'.format(Mslope[n1, n2])
+                        R2text = 'R2 = {:.2f}'.format(R2[n1,n2])
+                    else:
+                        inttext = '{:.3e}'.format(Mint[n1, n2])
+                        slopetext = '{:.3e}'.format(Mslope[n1, n2])
+                        R2text = 'R2 = {:.2e}'.format(R2[n1,n2])
+
+                    labeltext_record += [labeltext]
+                    inttext_record += [inttext]
+                    slopetext_record += [slopetext]
+                    R2text_record += [R2text]
+                    R2_record += [R2[n1,n2]]
+                    if showval:
+                        print(labeltext)
+                        print(inttext)
+                        print(slopetext)
+                        print(R2text)
+        else:
+            if n1 >= nregions:
+                tt = 'int{}'.format(n1 - nregions)
+            else:
+                tt = rnamelist[n1]
+                if len(tt) > 4:  tt = tt[:4]
+            showval = False
+            for n2 in range(nr2):
+                if (np.abs(R2[n1, n2]) > R2thresh) or sigflag[n1, n2]:
+                    showval = True
+                    if n2 >= nregions:
+                        ss = 'int{}'.format(n2 - nregions)
+                    else:
+                        ss = rnamelist[n2]
+                        if len(ss) > 4:  ss = ss[:4]
+                    labeltext = '{}-{}'.format(ss, tt)
+
+                    if format == 'f':
+                        inttext = '{:.3f}'.format(Mint[n1, n2])
+                        slopetext = '{:.3f}'.format(Mslope[n1, n2])
+                        R2text = 'R2 = {:.2f}'.format(R2[n1, n2])
+                    else:
+                        inttext = '{:.3e}'.format(Mint[n1, n2])
+                        slopetext = '{:.3e}'.format(Mslope[n1, n2])
+                        R2text = 'R2 = {:.2e}'.format(R2[n1, n2])
+
+                    labeltext_record += [labeltext]
+                    inttext_record += [inttext]
+                    slopetext_record += [slopetext]
+                    R2text_record += [R2text]
+                    R2_record += [R2[n1, n2]]
+                    if showval:
+                        print(labeltext)
+                        print(inttext)
+                        print(slopetext)
+                        print(R2text)
+
     return labeltext_record, inttext_record, slopetext_record, R2text_record, R2_record, R2thresh
 
 #
@@ -2926,19 +3335,25 @@ def write_Mreg_values(Mint, Mslope, R2, betanamelist, rnamelist, beta_list, form
 #     plt.title(textlabel)
 
 
-def display_matrix(M,columntitles,rowtitles):
+def display_matrix(M,columntitles,rowtitles,outputformat = 'float', excelname = ''):
 
     # columns = [name[:3] +' in' for name in betanamelist]
     # rows = [name[:3] for name in betanamelist]
 
-    df = pd.DataFrame(M,columns = columntitles, index = rorowtitlesws)
+    df = pd.DataFrame(M,columns = columntitles, index = rowtitles)
     pd.set_option('display.max_rows', None)
     pd.set_option('display.max_columns', None)
     pd.set_option('display.width', None)
     pd.set_option('display.max_colwidth', None)
 
-    pd.options.display.float_format = '{:.2f}'.format
+    if outputformat == 'float':
+        pd.options.display.float_format = '{:.2f}'.format
+    else:
+        pd.options.display.float_format = '{:.0f}'.format
     print(df)
+
+    if len(excelname) > 0:
+        df.to_excel(excelname)
 
 
 def display_anatomical_cluster(clusterdataname, targetnum, targetcluster, orientation = 'axial', regioncolor = [0,1,1], templatename = 'ccbs', write_output = False):
@@ -3142,7 +3557,8 @@ def regress_signal_features_with_cov(target, covariates, Minput, Sinput_total, f
 
 
 def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdir, SAPMparametersname, SAPMresultsname,
-                         variation_number, group, target = '', pthresh = 0.05, setylimits = [], TargetCanvas = [], display_in_GUI = False):
+                         variation_number, group, target = '', pthresh = 0.05, setylimits = [], TargetCanvas = [],
+                         display_in_GUI = False, multiple_output = False):
     # options of results to display:
     # 1) average input time-courses compared with model input
     # 2) modelled input signaling with corresponding source time-courses (outputs from source regions)
@@ -3287,7 +3703,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         # pthresh = 0.05
         # Tthresh = stats.t.ppf(1 - pthresh, NP - 1)
         print('\n\nAverage B values')
-        labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(Mconn_avg, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format='f', pthresh=pthresh)
+        labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(Mconn_avg, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format='f', pthresh=pthresh, multiple_output=multiple_output)
 
         pthresh_list = ['{:.3e}'.format(pthresh)]*len(Ttext)
         Tthresh_list = ['{:.3f}'.format(Tthresh)]*len(Ttext)
@@ -3330,7 +3746,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         R2thresh = Rthresh**2
 
         print('\n\nMconn regression with continuous covariate values')
-        labeltext, inttext, slopetext, R2text, R2, R2thresh = write_Mreg_values(Mregression[:,:,0], Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', R2thresh=R2thresh)
+        labeltext, inttext, slopetext, R2text, R2, R2thresh = write_Mreg_values(Mregression[:,:,0], Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', R2thresh=R2thresh, multiple_output = multiple_output)
 
         if len(labeltext) > 0:
             pthresh_list = ['{:.3e}'.format(pthresh)] * len(inttext)
@@ -3443,10 +3859,11 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
             yrangethis = []
 
         if continuouscov:
-            outputname = plot_region_inputs_regression(window, target, nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis, TargetCanvas)
+            outputname = plot_region_inputs_regression(window, target, nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg,
+                                beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis, TargetCanvas, multiple_output)
 
         outputname = plot_region_inputs_average(window, target, nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                                   Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis, TargetCanvas)
+                                   Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis, TargetCanvas, multiple_output)
 
         print('finished generating outputs for Plot_SourceModel...')
         return outputname
@@ -3504,6 +3921,68 @@ def display_anatomical_slices(clusterdataname, regionname, clusternum, templaten
     # display one slice of an anatomical region in the selected target figure
     outputimg = pydisplay.pydisplayvoxelregionslice(templatename, template_img, cx, cy, cz, orientation, displayslice = [], colorlist = regioncolor)
     return outputimg
+
+
+def points_on_ellipses1(pos0, pos1, ovalsize):
+    # point on ellipse 0 on line from region 0 to region 1
+    ovd = np.array(ovalsize)/2.0
+
+    v01 = np.array(pos1)-np.array(pos0)
+    d01 = np.sqrt(1/((v01[0]/ovd[0])**2 + (v01[1]/ovd[1])**2))
+    pe0 = pos0 + d01*v01
+
+    # point on ellipse 1 on line from region 1 to region 0
+    v10 = np.array(pos0)-np.array(pos1)
+    d10 = np.sqrt(1/((v10[0]/ovd[0])**2 + (v10[1]/ovd[1])**2))
+    pe1a = pos1 + d10*v10
+
+    # v12 = np.array(pos2)-np.array(pos1)
+    # d12 = np.sqrt(1/((v12[0]/ovd[0])**2 + (v12[1]/ovd[1])**2))
+    # pe1b = pos1 + d12*v12
+
+    # point on ellipse 1 on line from region 1 to region 0
+    # v21 = np.array(pos1)-np.array(pos2)
+    # d21 = np.sqrt(1/((v21[0]/ovd[0])**2 + (v21[1]/ovd[1])**2))
+    # pe2 = pos2 + d21*v21
+
+    # smooth arc line in region 1, betwen arrows for pos0-->pos1 and pos1-->pos2
+    # line starts along vector v01 at point pe1a
+    # line ends along vector v12 at point pe1b
+
+    # angle of line along vector v01, wrt x axis
+    angleA = (180/np.pi)*np.arctan2(v01[1],v01[0])
+    angleA = np.round(angleA).astype(int)
+
+    # angle of line along vector v12, wrt x axis
+    # angleB = (180/np.pi)*np.arctan2(v12[1],v12[0])
+    # angleB = np.round(angleB).astype(int)
+    # anglediff = np.abs(angleB-angleA)
+
+    # pe1ab_connectionstyle = "angle3,angleA={},angleB={}".format(angleA,angleB)
+
+    # special case
+    # specialcase = False
+    # if np.abs(anglediff-180.0) < 1.0:
+    #     specialcase = True
+    #     pe1ab_connectionstyle = "arc3,rad=0"
+    #     pe1ab_connectionstyle = "bar,fraction=0"
+    #
+    # if np.abs(anglediff) < 1.0:
+    #     specialcase = False
+    #     pe1ab_connectionstyle = "arc3,rad=0"
+
+    # shift lines slightly to allow for reciprocal connections
+    # offset = 0.007
+    # dpos1 = np.array([offset*np.sin(angleA*np.pi/180.0), offset*np.cos(angleA*np.pi/180.0)])
+    # dpos2 = np.array([offset*np.sin(angleB*np.pi/180.0), offset*np.cos(angleB*np.pi/180.0)])
+
+    # pe0 += dpos1
+    # pe1a += dpos1
+    # pe1b += dpos2
+    # pe2 += dpos2
+
+    return pe0, pe1a
+
 
 
 def points_on_ellipses2(pos0, pos1, pos2, ovalsize):
@@ -3734,7 +4213,7 @@ def draw_sapm_plot(results_file, sheetname, regionnames, regions, statname, figu
                 linecolor = 'r'
             rlist,ilist = parse_connection_name(c1,regionlist_trunc)
             if rlist[2] == 'none':
-                throughconnection = False
+                throughconnection = False   # this is always the case for single output, leave this for future expansion
             else:
                 throughconnection = True
 
@@ -3783,7 +4262,7 @@ def draw_sapm_plot(results_file, sheetname, regionnames, regions, statname, figu
             else:
                 print('ambiguous connection not drawn:  {}'.format(c1))
 
-    # look for inputs and outputs drawn for the same connection.  Only show the input if both exist
+    # look for inputs and outputs drawn for the same connection.  If both exist, only show the input connection
     conlist = [connection_list[x]['con'] for x in range(len(connection_list))]
     typelist = [connection_list[x]['type'] for x in range(len(connection_list))]
     for nn in range(len(connection_list)):
@@ -3801,6 +4280,168 @@ def draw_sapm_plot(results_file, sheetname, regionnames, regions, statname, figu
                         a.remove()
                         typelist[c3] = 'removed'
                         connection_list[c3]['type'] = 'removed'
+
+    svgname = 'none'
+    if writefigure:
+        p,f1 = os.path.split(results_file)
+        f,e = os.path.splitext(f1)
+        svgname = os.path.join(p,f+'_'+statname+'_SAPMnetwork.svg')
+        plt.figure(figurenumber)
+        plt.savefig(svgname, format='svg')
+
+    return svgname
+
+
+# draw SAPM diagram for single output model----------------------------------------------------
+def draw_sapm_plot_SO(results_file, sheetname, regionnames, regions, statname, figurenumber, scalefactor, cnums, thresholdtext = 'abs>0', writefigure = False):
+    # plot diagram is written to a figure window and saved
+    #
+    xls = pd.ExcelFile(results_file, engine='openpyxl')
+    df1 = pd.read_excel(xls, sheetname)
+    connections = df1[regionnames]
+    statvals = df1[statname]
+
+    statval_values = []
+    for nn in range(len(statvals)):
+        val1 = statvals[nn]
+        m, s = parse_statval(val1)
+        statval_values += [m]
+    statval_values = np.array(statval_values)
+
+    # set scale factor if it is set to 'auto'
+    if isinstance(scalefactor,str):
+        maxval = 5.0
+        maxstat = np.max(np.abs(statval_values))
+        scalefactor = maxval/maxstat
+
+    # parse thresholdtext
+    comparisontext, absval, threshold = parse_threshold_text(thresholdtext)
+
+    plt.close(figurenumber)
+
+    regionlist = [regions[x]['name'] for x in range(len(regions))]
+    regionlist_trunc = [regions[x]['name'][:4] for x in range(len(regions))]
+
+    # set some drawing parameters
+    ovalsize = (0.1,0.05)
+    width = 0.001
+    ovalcolor = [0,0,0]
+
+    # start drawing
+    plt.close(figurenumber)
+    fig = plt.figure(figurenumber)
+    ax = fig.add_axes([0,0,1,1])
+
+    # add ellipses and labels
+    for nn in range(len(regions)):
+        ellipse = mpatches.Ellipse(regions[nn]['pos'],ovalsize[0],ovalsize[1], alpha = 0.3)
+        ax.add_patch(ellipse)
+        if nn < len(cnums):
+            ax.annotate('{}{}'.format(regions[nn]['name'],cnums[nn]),regions[nn]['pos']+regions[nn]['labeloffset'])
+        else:
+            ax.annotate(regions[nn]['name'],regions[nn]['pos']+regions[nn]['labeloffset'])
+
+    an_list = []
+    connection_list = []
+    acount = 0
+    for nn in range(len(connections)):
+        # plot lines for connections
+        c1 = connections[nn]
+        m = statval_values[nn]
+        if comparisontext == '>':
+            if absval:
+                statcondition = np.abs(m) > threshold
+                linethick = np.min([5.0, np.abs(m)*scalefactor])
+            else:
+                statcondition = m > threshold
+                linethick = np.min([5.0, np.abs(m)*scalefactor])
+                if threshold < 0:
+                    linethick = np.max([0.5, linethick])
+        else:
+            if absval:
+                statcondition = np.abs(m) < threshold
+                linethick = np.min([5.0, np.abs(m)*scalefactor])
+                linethick = np.max([0.5, linethick])
+            else:
+                statcondition = m < threshold
+                linethick = np.min([5.0, np.abs(m)*scalefactor])
+
+        if statcondition:
+            if m > 0:
+                linecolor = 'k'
+            else:
+                linecolor = 'r'
+            rlist,ilist = parse_connection_name(c1,regionlist_trunc)
+            # if rlist[2] == 'none':
+            #     throughconnection = False
+            # else:
+            #     throughconnection = True
+
+            # get positions of ends of lines,arrows, etc... for one connection
+            p0 = regions[ilist[0]]['pos']
+            p1 = regions[ilist[1]]['pos']
+            # if ilist[2] >= 0:
+            #     p2 = regions[ilist[2]]['pos']
+            # else:
+            #     p2 = [0,0]
+
+            # if p0 != p1  and  p1 != p2:
+
+                # pe0, pe1a, pe1b, pe2, pe1ab_connectionstyle, specialcase = points_on_ellipses2(p0,p1,p2,ovalsize)
+            pe0, pe1a = points_on_ellipses1(p0,p1,ovalsize)
+                # print('{}  {}'.format(c1,pe1ab_connectionstyle))
+
+            connection_type1 = {'con':'{}-{}'.format(rlist[0],rlist[1]), 'type':'input'}
+                # if throughconnection:
+                #     connection_type2 = {'con':'{}-{}'.format(rlist[1],rlist[2]), 'type':'output'}
+                #     connection_joiner = {'con':'{}-{}'.format(rlist[1],rlist[1]), 'type':'joiner'}
+
+                # if specialcase:
+                #     print('special case...')
+                #     an1 = ax.annotate('',xy=pe1a,xytext = pe0, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
+                #     acount+= 1
+                #     an_list.append(an1)
+                #     connection_list.append(connection_type1)
+                #     # if throughconnection:
+                #     #     an1 = ax.annotate('',xy=pe2,xytext = pe1b, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
+                #     #     acount+= 1
+                #     #     an_list.append(an1)
+                #     #     connection_list.append(connection_type2)
+                # else:
+            an1 = ax.annotate('',xy=pe1a,xytext = pe0, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
+            acount+= 1
+            an_list.append(an1)
+            connection_list.append(connection_type1)
+                    # if throughconnection:
+                    #     an1 = ax.annotate('',xy=pe2,xytext = pe1b, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
+                    #     acount+= 1
+                    #     an_list.append(an1)
+                    #     connection_list.append(connection_type2)
+                    #     an1 = ax.annotate('',xy=pe1b,xytext = pe1a, arrowprops=dict(arrowstyle="->", connectionstyle=pe1ab_connectionstyle, linewidth = linethick/2.0, color = linecolor, shrinkA = 0.0, shrinkB = 0.0))
+                    #     acount+= 1
+                    #     an_list.append(an1)
+                    #     connection_list.append(connection_joiner)
+            # else:
+            #     print('ambiguous connection not drawn:  {}'.format(c1))
+
+    # look for inputs and outputs drawn for the same connection.  If both exist, only show the input
+    # conlist = [connection_list[x]['con'] for x in range(len(connection_list))]
+    # typelist = [connection_list[x]['type'] for x in range(len(connection_list))]
+    # for nn in range(len(connection_list)):
+    #     con = conlist[nn]
+    #     c = np.where([conlist[x] == con for x in range(len(conlist))])[0]
+    #     if len(c) > 1:
+    #         t = [typelist[x] for x in c]
+    #         if 'input' in t:   # if some of the connections are inputs, do not draw outputs at the same place
+    #             c2 = np.where([typelist[x] == 'output' for x in c])[0]
+    #             if len(c2) > 0:
+    #                 redundant_c = c[c2]
+    #                 # remove the redundant connections
+    #                 for c3 in redundant_c:
+    #                     a = an_list[c3]
+    #                     a.remove()
+    #                     typelist[c3] = 'removed'
+    #                     connection_list[c3]['type'] = 'removed'
 
     svgname = 'none'
     if writefigure:
@@ -4180,6 +4821,102 @@ def generate_null_data_set(regiondataname, covariatesname, npeople=0):
 #             results2r[person2][nl2] = copy.deepcopy(results2[person2][final_order[nl2]])
 #
 #     return results2r, final_order
+
+
+def check_network_for_defects(networkfile, clusterdataname):
+    network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count = load_network_model_w_intrinsics(
+        networkfile)
+
+    cluster_data = np.load(clusterdataname, allow_pickle=True).flat[0]
+    cluster_properties = load_filtered_cluster_properties(clusterdataname, networkfile)
+    nregions = len(cluster_properties)
+    nclusterlist = [cluster_properties[i]['nclusters'] for i in range(nregions)]
+    rnamelist = [cluster_properties[i]['rname'] for i in range(nregions)]
+
+    Nintrinsic = fintrinsic_count + vintrinsic_count
+    nregions = len(rnamelist)
+
+    beta_list = []
+    nbeta = 0
+    targetnumlist = []
+    beta_id = []
+    sourcelist = []
+    for nn in range(len(network)):
+        target = network[nn]['targetnum']
+        sources = network[nn]['sourcenums']
+        targetnumlist += [target]
+        for mm in range(len(sources)):
+            source = sources[mm]
+            sourcelist += [source]
+            betaname = '{}_{}'.format(source, target)
+            entry = {'name': betaname, 'number': nbeta, 'pair': [source, target]}
+            beta_list.append(entry)
+            beta_id += [1000 * source + target]
+            nbeta += 1
+
+    ncon = nbeta - Nintrinsic
+
+    # reorder to put intrinsic inputs at the end-------------
+    beta_list2 = []
+    beta_id2 = []
+    x = np.where(np.array(sourcelist) < nregions)[0]
+    for xx in x:
+        beta_list2.append(beta_list[xx])
+        beta_id2 += [beta_id[xx]]
+    for sn in range(nregions, nregions + Nintrinsic):
+        x = np.where(np.array(sourcelist) == sn)[0]
+        for xx in x:
+            beta_list2.append(beta_list[xx])
+            beta_id2 += [beta_id[xx]]
+
+    for nn in range(len(beta_list2)):
+        beta_list2[nn]['number'] = nn
+
+    beta_list = beta_list2
+    beta_id = beta_id2
+
+    beta_pair = []
+    Mconn = np.zeros((nbeta, nbeta))
+    count = 0
+    for nn in range(len(network)):
+        target = network[nn]['targetnum']
+        sources = network[nn]['sourcenums']
+        for mm in range(len(sources)):
+            source = sources[mm]
+            conn1 = beta_id.index(source * 1000 + target)
+            if source >= nregions:  # intrinsic input
+                conn2 = conn1
+                Mconn[conn1, conn2] = 1  # set the intrinsic beta values
+            else:
+                x = targetnumlist.index(source)
+                source_sources = network[x]['sourcenums']
+                for nn in range(len(source_sources)):
+                    ss1 = source_sources[nn]
+                    conn2 = beta_id.index(ss1 * 1000 + source)
+                    beta_pair.append([conn1, conn2])
+                    count += 1
+                    Mconn[conn1, conn2] = count
+
+    # prep to index Mconn for updating beta values
+    beta_pair = np.array(beta_pair)
+    ctarget = beta_pair[:, 0]
+    csource = beta_pair[:, 1]
+
+    Mconn_test = copy.deepcopy(Mconn)
+    Mconn_test[ctarget,csource] = 1.0
+    check_det = np.linalg.det(Mconn_test)
+    if check_det < 1.0e-6:
+        print('connectivity matrix is not invertible ...')
+        print('network might not have a single distinct result')
+        print('Mconn matrix size is {} x {}, and has rank {}'.format(np.shape(Mconn)[0],np.shape(Mconn)[1], np.linalg.matrix_rank(Mconn)))
+    else:
+        print('connectivity matrix could be invertible ...')
+        print('network might have a single distinct result')
+
+    return Mconn, ctarget, csource
+
+
+
 
 
 #

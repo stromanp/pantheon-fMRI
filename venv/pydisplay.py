@@ -12,6 +12,8 @@ import pyclustering
 import pysem
 import re
 import nibabel as nib
+import matplotlib.patches as mpatches
+import pysapm
 
 # setup color scales for displays
 def colormap(values):
@@ -1167,3 +1169,191 @@ def display_sapm_cluster(clusterdataname, regionname, clusternumber):
     cx = cluster_properties[r]['cx']
     cy = cluster_properties[r]['cy']
     cz = cluster_properties[r]['cz']
+
+
+
+# draw SAPM diagram for single output model----------------------------------------------------
+def draw_sem_plot(results_file, sheetname, rownumbers, drawregionsfile, statname, scalefactor, thresholdtext = 'abs>0', writefigure = False):
+    # draw a plot of connections between anatomical regions based on SEM results, and a definition of how to draw the network
+    regionnames = 'regions'
+    figurenumber = 201
+    regions = pysapm.define_drawing_regions_from_file(drawregionsfile)
+
+    xls = pd.ExcelFile(results_file, engine='openpyxl')
+    df1 = pd.read_excel(xls, sheetname)
+
+    comparisontext, absval, threshold = parse_threshold_text(thresholdtext)
+    if statname[0] == 'T':
+        statvals = df1['Tvalue']
+    else:
+        statvals = df1['v1']
+
+    # set rownumbers if not set
+    if isinstance(rownumbers,str):
+        rownumbers = list(range(len(statvals)))
+
+    # # set scale factor if it is set to 'auto'
+    if isinstance(scalefactor,str):
+        maxval = 3.0
+        maxstat = np.max(np.abs(statvals[rownumbers]))
+        scalefactor = maxval/maxstat
+
+    regionlist = [regions[x]['name'] for x in range(len(regions))]
+    regionlist_trunc = [regions[x]['name'][:4] for x in range(len(regions))]
+
+    # set some drawing parameters
+    ovalsize = (0.1,0.05)
+    width = 0.001
+    ovalcolor = [0,0,0]
+
+    # start drawing
+    plt.close(figurenumber)
+    fig = plt.figure(figurenumber)
+    ax = fig.add_axes([0,0,1,1])
+
+    # add ellipses and labels
+    for nn in range(len(regions)):
+        ellipse = mpatches.Ellipse(regions[nn]['pos'],ovalsize[0],ovalsize[1], alpha = 0.3)
+        ax.add_patch(ellipse)
+        ax.annotate(regions[nn]['name'],regions[nn]['pos']+regions[nn]['labeloffset'])
+
+    an_list = []
+    connection_list = []
+    acount = 0
+    for nn in rownumbers:
+        # plot lines for connections
+        m = statvals[nn]
+        if comparisontext == '>':
+            if absval:
+                statcondition = np.abs(m) > threshold
+                linethick = np.min([5.0, np.abs(m)*scalefactor])
+            else:
+                statcondition = m > threshold
+                linethick = np.min([5.0, np.abs(m)*scalefactor])
+                if threshold < 0:
+                    linethick = np.max([0.5, linethick])
+        else:
+            if absval:
+                statcondition = np.abs(m) < threshold
+                linethick = np.min([5.0, np.abs(m)*scalefactor])
+                linethick = np.max([0.5, linethick])
+            else:
+                statcondition = m < threshold
+                linethick = np.min([5.0, np.abs(m)*scalefactor])
+
+        if statcondition:
+            if m > 0:
+                linecolor = 'k'
+            else:
+                linecolor = 'r'
+
+            # get coordinates for the two ends of the arrow for one connection
+            # need to first identify the regions that are connected
+            startpoint, endpoint = connectivity_plot_entry(df1.loc[[nn]],regions, ovalsize)
+            connection_type1 = {'con':'{}-{}'.format(df1.iloc[nn]['sname'],df1.iloc[nn]['tname']), 'type':'input'}
+
+            an1 = ax.annotate('',xy=startpoint,xytext = endpoint, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
+            acount+= 1
+            an_list.append(an1)
+            connection_list.append(connection_type1)
+
+    svgname = 'none'
+    if writefigure:
+        p,f1 = os.path.split(results_file)
+        f,e = os.path.splitext(f1)
+        svgname = os.path.join(p,f+'_'+statname+'_SEMnetwork.svg')
+        plt.figure(figurenumber)
+        plt.savefig(svgname, format='svg')
+
+    return svgname
+
+
+def connectivity_plot_entry(connection,regions, ovalsize):
+    # connection input must be in the form of a pandas dataframe with the following entries
+    # tname, tcluster, sname, scluster, Tvalue, v1, v1sem, tx, ty, tz, tlimx1, tlimx2, tlimy1, tlimy2, tlimz1, tlimz2,
+    # sx, sy, sz, slimx1, slimx2, slimy1, slimy2, slimz1, slimz2, networkcomponent, tt, combo, timepoint, ss
+    regionlist = [regions[x]['name'] for x in range(len(regions))]
+    target = connection.iloc[0]['tname']
+    source = connection.iloc[0]['sname']
+
+    source_offset = np.array([ovalsize[0]*(connection.iloc[0]['sx']-connection.iloc[0]['slimx1'])/(connection.iloc[0]['slimx2']-connection.iloc[0]['slimx1']),
+                              ovalsize[1]*(connection.iloc[0]['sy']-connection.iloc[0]['slimy1'])/(connection.iloc[0]['slimy2']-connection.iloc[0]['slimy1'])])
+    target_offset = np.array([ovalsize[0]*(connection.iloc[0]['tx']-connection.iloc[0]['tlimx1'])/(connection.iloc[0]['tlimx2']-connection.iloc[0]['tlimx1']),
+                              ovalsize[1]*(connection.iloc[0]['ty']-connection.iloc[0]['tlimy1'])/(connection.iloc[0]['tlimy2']-connection.iloc[0]['tlimy1'])])
+
+    ss = regionlist.index(source)
+    tt = regionlist.index(target)
+
+    sourcepos = np.array(regions[ss]['pos'])
+    targetpos = np.array(regions[tt]['pos'])
+
+    startpoint = sourcepos + source_offset - np.array(ovalsize)/2
+    endpoint = targetpos + target_offset - np.array(ovalsize)/2
+
+    return startpoint, endpoint
+
+
+def parse_threshold_text(thresholdtext):
+    # parse thresholdtext
+    if '<' in thresholdtext:
+        c = thresholdtext.index('<')
+        comparisontext = '<'
+    else:
+        c = thresholdtext.index('>')
+        comparisontext = '>'
+    threshold = float(thresholdtext[(c+1):])
+
+    if c > 0:
+        if 'mag' in thresholdtext[:c]:
+            absval = False
+        if 'abs' in thresholdtext[:c]:
+            absval = True
+    else:
+        absval = False
+
+    if absval:
+        print('threshold is set to absolute value {} {}'.format(comparisontext, threshold))
+    else:
+        print('threshold is set to {} {}'.format(comparisontext, threshold))
+    return comparisontext, absval, threshold
+
+
+def parse_connection_name(connection, regionlist):
+    h1 = connection.index('-')
+    if '-' in connection[(h1+2):]:
+        h2 = connection[(h1+2):].index('-') + h1 + 2
+        r1 = connection[:h1]
+        r2 = connection[(h1+1):h2]
+        r3 = connection[(h2+1):]
+
+        i1 = regionlist.index(r1)
+        i2 = regionlist.index(r2)
+        i3 = regionlist.index(r3)
+    else:
+        r1 = connection[:h1]
+        r2 = connection[(h1+1):]
+        r3 = 'none'
+
+        i1 = regionlist.index(r1)
+        i2 = regionlist.index(r2)
+        i3 = -1
+
+    return (r1,r2,r3),(i1,i2,i3)
+
+
+def define_drawing_regions_from_file(regionfilename):
+    # setup region labels and positions
+    xls = pd.ExcelFile(regionfilename, engine='openpyxl')
+    df1 = pd.read_excel(xls, 'regions')
+    names = df1['name']
+    posx = df1['posx']
+    posy = df1['posy']
+    offset_x = df1['labeloffset_x']
+    offset_y = df1['labeloffset_y']
+
+    regions = []
+    for nn in range(len(names)):
+        entry = {'name': names[nn], 'pos':[posx[nn],posy[nn]], 'labeloffset':np.array([offset_x[nn],offset_y[nn]])}
+        regions.append(entry)
+
+    return regions

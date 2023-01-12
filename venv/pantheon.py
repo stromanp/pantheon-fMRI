@@ -23,7 +23,7 @@ Jobs to do:
 10) Visualization of results
 
 """
-# sys.path.append(r'C:\Users\16135\PycharmProjects\pantheon\venv')
+# sys.path.append(r'C:\Users\Stroman\PycharmProjects\pantheon\venv')
 # sys.path.append('/Users/brieanakeast/PycharmProjects/pantheon-fMRI/venv')
 
 # import necessary modules 
@@ -181,10 +181,29 @@ else:
             'SAPMclustername': '',
             'SAPMregionname': '',
             'SAPMtimepoint': 'all',
-            'SAPMepoch': 'all'}
-
-
-
+            'SAPMepoch': 'all',
+            'SRoptionvalue':1,
+            'SRcovname':'none',
+            'SRpvalue':0.05,
+            'SRgroup':'',
+            'SRtargetregion':'none',
+            'SRnametag':'',
+            'SRdrawfile':'',
+            'SRthresholdtext':'',
+            'SAPMBfile':'',
+            'SAPMsavetag':'',
+            'SRresultsdir':'',
+            'SRresultsname':'',
+            'SRparamsname':'',
+            'SAPMBsheet':'',
+            'SAPMBcolumn':'',
+            'SRcovvalue':'',
+            'GLMbasisset':'',
+            'GLMparadigmnames':'',
+            'GLMdataname':'',
+            'SAPMbetascale':'',
+            'SRvariant':0,
+            'DISPconndefnamefull':''}
 np.save(settingsfile,settings)
 
 # ------Create the Base Window that will hold everything, widgets, etc.---------------------
@@ -5697,6 +5716,8 @@ class DisplayFrame:
             self.DISPmethod = 'boxplot'
         if value == 2:
             self.DISPmethod = 'lineplot'
+        if value == 3:
+            self.DISPmethod = 'connectionplot'
         print('Plot method set to: ',self.DISPmethod)
         return self
 
@@ -5811,7 +5832,7 @@ class DisplayFrame:
         else:
             self.sheetname_var.set('empty')
         excelsheet_menu = tk.OptionMenu(self.parent, self.sheetname_var, *self.DISPexcelsheetnamelist, command=self.DISPexcelsheetchoice)
-        excelsheet_menu.grid(row=15, column=2, sticky='EW')
+        excelsheet_menu.grid(row=16, column=2, sticky='EW')
         self.excelsheetchoice_opt = excelsheet_menu  # save this way so that values are not cleared
         self.DISPexcelsheetinput = self.DISPexcelsheetnamelist[0]
 
@@ -5938,6 +5959,46 @@ class DisplayFrame:
             # pydisplay.display_anatomical_figure(filename1, connectiondata, normtemplatename, [1,0,0], self.DISPanatorientation, self.Canvas2, self.PlotAx2)
             pydisplay.display_anatomical_figure(filename1, connectiondata, normtemplatename, [1,0,0], self.DISPanatorientation, self.controller.Canvas4, self.controller.PlotAx4)
 
+        if self.DISPmethod == 'connectionplot':
+            # generate SEM style connection plot
+            # needed inputs are excel file with results to show, excel file with network drawing parameters
+            print('reading SEM data from {},  sheet {}'.format(self.DISPexcelnameinput, self.DISPexcelsheetinput))
+            if len(self.DISPexcelentrynums) > 10:
+                print('plotting data in rows from {} to {}'.format(np.min(self.DISPexcelentrynums),np.max(self.DISPexcelentrynums)))
+            else:
+                print('plotting data in rows: {}'.format(self.DISPexcelentrynums))
+            print('plotting with definition in {}'.format(self.DISPconndefnamefull))
+            statname = 'T value'
+            scalefactor = 'auto'
+            results_file = self.DISPexcelnameinput
+            sheetname = self.DISPexcelsheetinput
+            drawregionsfile = self.DISPconndefnamefull
+            rownumbers = self.DISPexcelentrynums
+            svgname = pydisplay.draw_sem_plot(results_file, sheetname, rownumbers, drawregionsfile, statname, scalefactor, thresholdtext='abs>0',
+                          writefigure=True)
+
+    # def DISPconndatabrowse(self):
+    #     # use the input data and generate the figures
+    #     filechoice = tkf.askopenfilename(title="Select SEM results excel file",
+    #                                      filetypes=(("excel files", "*.xlsx"), ("all files", "*.*")))
+    #     print('SEM results file = ', filechoice)
+    #     self.DISPconnplotnamefull = filechoice
+    #     p,f = os.path.split(filechoice)
+    #     self.DISPconnplotname.set(f)
+
+    def DISPconndefbrowse(self):
+        # use the input data and generate the figures
+        filechoice = tkf.askopenfilename(title="Select SEM plot definition excel file",
+                                         filetypes=(("excel files", "*.xlsx"), ("all files", "*.*")))
+        print('SEM plot defintion file = ', filechoice)
+        self.DISPconndefnamefull = filechoice
+        p,f = os.path.split(filechoice)
+        self.DISPconndefname.set(f[:15])
+
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        settings['DISPconndefnamefull'] = self.DISPconndefnamefull
+        np.save(settingsfile, settings)
+
 
     # initialize the values, keeping track of the frame this definition works on (parent), and
     # also the main window containing that frame (controller)
@@ -5969,6 +6030,11 @@ class DisplayFrame:
         self.connectiondata_names = ['not defined']*5
         self.connectiondata = ['not defined']*5
         self.connectiondata_values = []
+
+        if 'DISPconndefnamefull' in settings.keys():
+            self.DISPconndefnamefull = settings['DISPconndefnamefull']
+        else:
+            self.DISPconndefnamefull = ''
 
         # put some text as a place-holder
         self.DISPLabel1 = tk.Label(self.parent,
@@ -6082,9 +6148,28 @@ class DisplayFrame:
                                           command = self.DISPsetmethodtype, variable = self.DISPplotmethod, value = 1)
         self.DISPmethod1.grid(row = 6, column = 2, sticky="W")
 
-        self.DISPmethod2 = tk.Radiobutton(self.parent, text = 'XY Scatter Plot', width = smallbuttonsize, fg = fgletter2, font = radiofont,
+        self.DISPmethod2 = tk.Radiobutton(self.parent, text = 'Scatter Plot', width = smallbuttonsize, fg = fgletter2, font = radiofont,
                                           command = self.DISPsetmethodtype, variable = self.DISPplotmethod, value = 2)
         self.DISPmethod2.grid(row = 6, column = 3, sticky="W")
+
+        # SEM connection plot
+        self.DISPmethod3 = tk.Radiobutton(self.parent, text = 'Connection', width = smallbuttonsize, fg = fgletter2, font = radiofont,
+                                          command = self.DISPsetmethodtype, variable = self.DISPplotmethod, value = 3)
+        self.DISPmethod3.grid(row = 7, column = 2, sticky="W")
+        # self.DISPconnplotname = tk.StringVar(self.parent, 'SEM data file')
+        # self.DISPconnplottext = tk.Label(self.parent, textvariable=self.DISPconnplotname, font = infofont)
+        # self.DISPconnplottext.grid(row=7, column=3, sticky='N')
+        # self.DISPconndatabutton = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
+        #                                   command=self.DISPconndatabrowse, relief='raised', bd=5, highlightbackground = widgetbg)
+        # self.DISPconndatabutton.grid(row=7, column=4)
+        f,p = os.path.split(self.DISPconndefnamefull)
+        self.DISPconndefname = tk.StringVar(self.parent, f[:15])
+        self.DISPconndeftext = tk.Label(self.parent, textvariable=self.DISPconndefname, font = infofont)
+        self.DISPconndeftext.grid(row=7, column=3, sticky='N')
+        self.DISPconndefbutton = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
+                                          command=self.DISPconndefbrowse, relief='raised', bd=5, highlightbackground = widgetbg)
+        self.DISPconndefbutton.grid(row=7, column=4)
+
 
         # 2b) show anatomical images (if appropriate)?------------------------------------
         self.DISPlabel5 = tk.Label(self.parent, text="Show Anat.:", font = labelfont)
@@ -6115,47 +6200,47 @@ class DisplayFrame:
         # provide 5 text boxes for inputing values,  one for each entry in self.connectiondata, and self.connectiondata_names
 
         self.DISPsectionlabel1 = tk.Label(self.parent, text='Specify data to display:', font = labelfont)
-        self.DISPsectionlabel1.grid(row=7, column=1, columnspan = 2, sticky='W')
+        self.DISPsectionlabel1.grid(row=8, column=1, columnspan = 2, sticky='W')
         nvalues = len(self.connectiondata_names)  # for initializing values
         # box1
         self.DISPboxname1 = tk.StringVar(self.parent, self.connectiondata_names[0])
         # self.DISPboxname1.set(self.connectiondata_names[0])
         self.DISPboxlabel1 = tk.Label(self.parent, textvariable=self.DISPboxname1, font = labelfont)
-        self.DISPboxlabel1.grid(row=8, column=1, sticky='W')
+        self.DISPboxlabel1.grid(row=9, column=1, sticky='W')
         # create entry box1
         self.DISPboxenter1 = tk.Entry(self.parent, width=20, bg="white")
-        self.DISPboxenter1.grid(row=8, column=2, sticky="W")
+        self.DISPboxenter1.grid(row=9, column=2, sticky="W")
         self.DISPboxenter1.insert(0, 'not set')
         self.DISPboxnumtext1 = tk.StringVar()
         self.DISPboxnumtext1.set('no values set')
         self.DISPboxnum1 = tk.Label(self.parent, textvariable=self.DISPboxnumtext1, font = labelfont)
-        self.DISPboxnum1.grid(row=8, column=3, sticky='W')
+        self.DISPboxnum1.grid(row=9, column=3, sticky='W')
 
         # box2
         self.DISPboxname2 = tk.StringVar(self.parent, self.connectiondata_names[1])
         # self.DISPboxname2.set(self.connectiondata_names[1])
         self.DISPboxlabel2 = tk.Label(self.parent, textvariable=self.DISPboxname2, font = labelfont)
-        self.DISPboxlabel2.grid(row=9, column=1, sticky='W')
+        self.DISPboxlabel2.grid(row=10, column=1, sticky='W')
         # create entry box2
         self.DISPboxenter2 = tk.Entry(self.parent, width=20, bg="white")
-        self.DISPboxenter2.grid(row=9, column=2, sticky="W")
+        self.DISPboxenter2.grid(row=10, column=2, sticky="W")
         self.DISPboxenter2.insert(0, 'not set')
         self.DISPboxnumtext2 = tk.StringVar()
         self.DISPboxnumtext2.set('no values set')
         self.DISPboxnum2 = tk.Label(self.parent, textvariable=self.DISPboxnumtext2, font = labelfont)
-        self.DISPboxnum2.grid(row=9, column=3, sticky='W')
+        self.DISPboxnum2.grid(row=10, column=3, sticky='W')
 
         # box3
         self.DISPboxname3 = tk.StringVar(self.parent, self.connectiondata_names[2])
         self.DISPboxlabel3 = tk.Label(self.parent, textvariable=self.DISPboxname3, font = labelfont)
-        self.DISPboxlabel3.grid(row=10, column=1, sticky='W')
+        self.DISPboxlabel3.grid(row=11, column=1, sticky='W')
         # create entry box3
         self.DISPboxenter3 = tk.Entry(self.parent, width=20, bg="white")
-        self.DISPboxenter3.grid(row=10, column=2, sticky="W")
+        self.DISPboxenter3.grid(row=11, column=2, sticky="W")
         self.DISPboxenter3.insert(0, 'not set')
         self.DISPboxnumtext3 = tk.StringVar(self.parent, 'no values set')
         self.DISPboxnum3 = tk.Label(self.parent, textvariable=self.DISPboxnumtext3, font = labelfont)
-        self.DISPboxnum3.grid(row=10, column=3, sticky='W')
+        self.DISPboxnum3.grid(row=11, column=3, sticky='W')
 
         # box4
         if nvalues > 3:
@@ -6164,14 +6249,14 @@ class DisplayFrame:
             nameval = 'not needed'
         self.DISPboxname4 = tk.StringVar(self.parent, nameval)
         self.DISPboxlabel4 = tk.Label(self.parent, textvariable=self.DISPboxname4, font = labelfont)
-        self.DISPboxlabel4.grid(row=11, column=1, sticky='W')
+        self.DISPboxlabel4.grid(row=12, column=1, sticky='W')
         # create entry box4
         self.DISPboxenter4 = tk.Entry(self.parent, width=20, bg="white")
-        self.DISPboxenter4.grid(row=11, column=2, sticky="W")
+        self.DISPboxenter4.grid(row=12, column=2, sticky="W")
         self.DISPboxenter4.insert(0, 'not set')
         self.DISPboxnumtext4 = tk.StringVar(self.parent, 'no values set')
         self.DISPboxnum4 = tk.Label(self.parent, textvariable=self.DISPboxnumtext4, font = labelfont)
-        self.DISPboxnum4.grid(row=11, column=3, sticky='W')
+        self.DISPboxnum4.grid(row=12, column=3, sticky='W')
 
         # box5
         if nvalues > 4:
@@ -6180,62 +6265,62 @@ class DisplayFrame:
             nameval = 'not needed'
         self.DISPboxname5 = tk.StringVar(self.parent, nameval)
         self.DISPboxlabel5 = tk.Label(self.parent, textvariable=self.DISPboxname5, font = labelfont)
-        self.DISPboxlabel5.grid(row=12, column=1, sticky='W')
+        self.DISPboxlabel5.grid(row=13, column=1, sticky='W')
         # create entry box5
         self.DISPboxenter5 = tk.Entry(self.parent, width=20, bg="white")
-        self.DISPboxenter5.grid(row=12, column=2, sticky="W")
+        self.DISPboxenter5.grid(row=13, column=2, sticky="W")
         self.DISPboxenter5.insert(0, 'not set')
         self.DISPboxnumtext5 = tk.StringVar(self.parent, 'no values set')
         self.DISPboxnum5 = tk.Label(self.parent, textvariable=self.DISPboxnumtext5, font = labelfont)
-        self.DISPboxnum5.grid(row=12, column=3, sticky='W')
+        self.DISPboxnum5.grid(row=13, column=3, sticky='W')
 
         # the entry box needs a "submit" button so that the program knows when to take the entered values
         self.DISPboxsubmit = tk.Button(self.parent, text="Submit Conn. Details", width=bigbigbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
                                      command=self.DISPboxsubmitclick, relief='raised', bd=5, highlightbackground = widgetbg)
-        self.DISPboxsubmit.grid(row=13, column=1, columnspan=2, sticky='W')
+        self.DISPboxsubmit.grid(row=14, column=1, columnspan=2, sticky='W')
 
         # option to select an excel file instead-----------------------------------------------------
         # make a label to show the current setting of the database name
         self.DISPexcelnamelabel = tk.Label(self.parent, text='Excel file name:', font = labelfont)
-        self.DISPexcelnamelabel.grid(row=14, column=1, sticky='W')
+        self.DISPexcelnamelabel.grid(row=15, column=1, sticky='W')
         self.DISPexcelnametext = tk.StringVar()
         self.DISPexcelnametext.set(self.DISPexcelnameinput)
-        self.DISPexcelnamelabel = tk.Label(self.parent, textvariable=self.DISPexcelnametext, bg=bgcol, fg="black", font = labelfont,
+        self.DISPexcelnametextbox = tk.Label(self.parent, textvariable=self.DISPexcelnametext, bg=bgcol, fg="black", font = labelfont,
                                      wraplength=250, justify='left')
-        self.DISPexcelnamelabel.grid(row=14, column=2, columnspan=2, sticky='W')
+        self.DISPexcelnametextbox.grid(row=15, column=2, columnspan=2, sticky='W')
         # define a browse button
         self.DISPexcelnamebrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
                                   command=self.DISPexcelnamebrowseclick, relief='raised', bd=5, highlightbackground = widgetbg)
-        self.DISPexcelnamebrowse.grid(row=14, column = 4)
+        self.DISPexcelnamebrowse.grid(row=15, column = 4)
 
         # create pulldown menu for the sheet name
         self.DISPexcelsheetnamelabel = tk.Label(self.parent, text='Excel sheet name:', font = labelfont)
-        self.DISPexcelsheetnamelabel.grid(row=15, column=1, sticky='W')
+        self.DISPexcelsheetnamelabel.grid(row=16, column=1, sticky='W')
         self.sheetname_var = tk.StringVar()
         if len(self.DISPexcelsheetnamelist) > 0:
             self.sheetname_var.set(self.DISPexcelsheetnamelist[0])
         else:
             self.sheetname_var.set('empty')
         self.excelsheet_menu = tk.OptionMenu(self.parent, self.sheetname_var, *self.DISPexcelsheetnamelist, command=self.DISPexcelsheetchoice)
-        self.excelsheet_menu.grid(row=15, column=2, columnspan=2, sticky='W')
+        self.excelsheet_menu.grid(row=16, column=2, columnspan=2, sticky='W')
         self.excelsheetchoice_opt = self.excelsheet_menu  # save this way so that values are not cleared
 
         # box for entering values of which excel file rows to read
         self.DISPexcelentrynumlabel = tk.Label(self.parent, text='Excel rows:', font = labelfont)
-        self.DISPexcelentrynumlabel.grid(row=16, column=1, sticky='W')
+        self.DISPexcelentrynumlabel.grid(row=17, column=1, sticky='W')
         # create entry box
         self.DISPentrynumenter = tk.Entry(self.parent, width=20, bg="white")
-        self.DISPentrynumenter.grid(row=16, column=2, sticky="W")
+        self.DISPentrynumenter.grid(row=17, column=2, sticky="W")
         self.DISPentrynumenter.insert(0, self.DISPexcelentrynums)
         # the entry box needs a "submit" button so that the program knows when to take the entered values
         self.DISPentrynumsubmit = tk.Button(self.parent, text="Submit", width=smallbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
                                      command=self.DISPentrynumsubmitclick, relief='raised', bd=5, highlightbackground = widgetbg)
-        self.DISPentrynumsubmit.grid(row=16, column=4)
+        self.DISPentrynumsubmit.grid(row=17, column=4)
 
         # button to generate the plot
         # for now, just put a button that will eventually call the NIfTI conversion program
         self.DISPrunbutton = tk.Button(self.parent, text = 'Generate Figures', width = bigbigbuttonsize, bg = fgcol1, fg = fgletter1, font = widgetfont, command = self.DISPgeneratefigs, relief='raised', bd = 5, highlightbackground = widgetbg)
-        self.DISPrunbutton.grid(row = 17, column = 1, columnspan = 2)
+        self.DISPrunbutton.grid(row = 18, column = 1, columnspan = 2)
 
 
 class DisplayFrame2:
@@ -6859,8 +6944,10 @@ class SAPMFrame:
         SAPMresultsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
         SAPMparamsname = os.path.join(self.SAPMresultsdir, self.SAPMparamsname)
 
+        multiple_output = False
         pysapm.SAPMrun(self.SAPMcnums, self.SAPMregionname, self.SAPMclustername,
-                       SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, self.SAPMtimepoint, self.SAPMepoch, self.SAPMbetascale, reload_existing=False)
+                       SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, self.SAPMtimepoint,
+                       self.SAPMepoch, self.SAPMbetascale, reload_existing=False, multiple_output = multiple_output)
 
         # get beta values and save for future betascale (initializing beta values)
         if self.SAPMsavebetainit:
@@ -6894,40 +6981,52 @@ class SAPMFrame:
         self.SAPMrandomclusterstart = 0
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         keylist = settings.keys()
-        if 'SAPMcnums' in keylist:
-            self.SAPMcnums = settings['SAPMcnums']
-            self.SAPMresultsdir = settings['SAPMresultsdir']
-            self.SAPMresultsname = settings['SAPMresultsname']
-            self.SAPMparamsname = settings['SAPMparamsname']
-            self.DBname = settings['DBname']
-            self.DBnum = settings['DBnum']
-            self.networkmodel = settings['networkmodel']
-            self.SAPMclustername = settings['SAPMclustername']
-            self.SAPMregionname = settings['SAPMregionname']
-            self.SAPMbetascale = settings['SAPMbetascale']
-            self.SAPMtimepoint = settings['SAPMtimepoint']
-            self.SAPMepoch = settings['SAPMepoch']
-            # self.SAPMsavetag = settings['SAPMsavetag']
-        else:
-            self.DBname = settings['DBname']
-            self.DBnum = settings['DBnum']
-            self.SAPMcnums = [0,0,0,0,0,0,0,0,0,0]   # need a function to initialize this
-            self.SAPMresultsdir = ''
-            self.SAPMresultsname = ''
-            self.SAPMparamsname = ''
-            self.networkmodel = ''
-            self.SAPMclustername = ''
-            self.SAPMregionname = ''
-            self.SAPMbetascale = 0.0
-            self.SAPMtimepoint = 'all'
-            self.SAPMepoch = 'all'
+        # if 'SAPMcnums' in keylist:
+        self.SAPMcnums = settings['SAPMcnums']
+        self.SAPMresultsdir = settings['SAPMresultsdir']
+        self.SAPMresultsname = settings['SAPMresultsname']
+        self.SAPMparamsname = settings['SAPMparamsname']
+        self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
+        self.networkmodel = settings['networkmodel']
+        self.SAPMclustername = settings['SAPMclustername']
+        self.SAPMregionname = settings['SAPMregionname']
+        self.SAPMbetascale = settings['SAPMbetascale']
+        self.SAPMtimepoint = settings['SAPMtimepoint']
+        self.SAPMepoch = settings['SAPMepoch']
+
+        self.SAPMtimepoint = settings['SAPMtimepoint']
+        self.SAPMepoch = settings['SAPMepoch']
+        # settings['SAPMtimepoint'] = self.SAPMtimepoint
+        # settings['SAPMepoch'] = self.SAPMepoch
+        self.SAPMtimetext = str(self.SAPMtimepoint)
+
+        if 'SAPMsavebetainit' not in list(settings.keys()): settings['SAPMsavebetainit'] = False
+        self.SAPMsavebetainit = settings['SAPMsavebetainit']
+        # settings['SAPMsavebetainit'] = self.SAPMsavebetainit
+
+
+        # self.SAPMsavetag = settings['SAPMsavetag']
+        # else:
+        #     self.DBname = settings['DBname']
+        #     self.DBnum = settings['DBnum']
+        #     self.SAPMcnums = [0,0,0,0,0,0,0,0,0,0]   # need a function to initialize this
+        #     self.SAPMresultsdir = ''
+        #     self.SAPMresultsname = ''
+        #     self.SAPMparamsname = ''
+        #     self.networkmodel = ''
+        #     self.SAPMclustername = ''
+        #     self.SAPMregionname = ''
+        #     self.SAPMbetascale = 0.0
+        #     self.SAPMtimepoint = 'all'
+        #     self.SAPMepoch = 'all'
             # self.SAPMsavetag = ''
 
-        self.SAPMtimepoint = 'all'
-        self.SAPMepoch = 'all'
-        settings['SAPMtimepoint'] = self.SAPMtimepoint
-        settings['SAPMepoch'] = self.SAPMepoch
-        self.SAPMtimetext = str(self.SAPMtimepoint)
+        # self.SAPMtimepoint = 'all'
+        # self.SAPMepoch = 'all'
+        # settings['SAPMtimepoint'] = self.SAPMtimepoint
+        # settings['SAPMepoch'] = self.SAPMepoch
+        # self.SAPMtimetext = str(self.SAPMtimepoint)
 
         self.SAPMsavebetainit = False
         settings['SAPMsavebetainit'] = self.SAPMsavebetainit
@@ -7368,6 +7467,8 @@ class SAPMResultsFrame:
         print('SRnametag:  {}'.format(self.SRnametag))
         print('SRvariant:  {}'.format(self.SRvariant))
 
+        multiple_output = False
+
         # print('running pysapm.display_SAPM_results ...')
         # print('SRCanvas = {}'.format(self.SRCanvas))
         # print('  SRCanvas is a string:  {}'.format(isinstance(self.SRCanvas,str)))
@@ -7376,13 +7477,13 @@ class SAPMResultsFrame:
         # self.SRPlotFigure = 123
         outputname = pysapm.display_SAPM_results(123, self.SRnametag, self.covariatesvalues, self.SRoptionvalue,
                             self.SRresultsdir, self.SRparamsname, self.SRresultsname, self.SRvariant,
-                            self.SRgroup, self.SRtargetregion, self.SRpvalue, [], self.SRCanvas, True)
+                            self.SRgroup, self.SRtargetregion, self.SRpvalue, [], self.SRCanvas, True, multiple_output = multiple_output)
 
         if ('Plot' in self.SRoptionvalue):     # or ('Draw' in self.SRoptionvalue)
             print('generating figures to save as svg files ...')
             outputname = pysapm.display_SAPM_results(124, self.SRnametag, self.covariatesvalues, self.SRoptionvalue,
                                 self.SRresultsdir, self.SRparamsname, self.SRresultsname, self.SRvariant,
-                                self.SRgroup, self.SRtargetregion, self.SRpvalue, [], 'none', False)
+                                self.SRgroup, self.SRtargetregion, self.SRpvalue, [], 'none', False, multiple_output = multiple_output)
 
         if self.SRoptionvalue == 'DrawSAPMdiagram':
             # need:
@@ -7410,8 +7511,13 @@ class SAPMResultsFrame:
             writefigure = True
 
             regions = pysapm.define_drawing_regions_from_file(drawregionsfile)
-            outputname = pysapm.draw_sapm_plot(results_file, sheetname, regionnames, regions, statname, figurenumber, scalefactor, cnums,
-                           threshold_text, writefigure)
+            multiple_output = False
+            if multiple_output:
+                outputname = pysapm.draw_sapm_plot(results_file, sheetname, regionnames, regions, statname,
+                                                   figurenumber, scalefactor, cnums, threshold_text, writefigure)
+            else:
+                outputname = pysapm.draw_sapm_plot_SO(results_file, sheetname, regionnames, regions, statname,
+                                                   figurenumber, scalefactor, cnums, threshold_text, writefigure)
 
 
         if  'DrawAnatomy' in self.SRoptionvalue:
@@ -7546,39 +7652,48 @@ class SAPMResultsFrame:
         self.SAPMclustername = settings['SAPMclustername']
         self.SAPMregionname = settings['SAPMregionname']
         self.SRvariant = 0
+        self.SRoptionvalue = settings['SRoptionvalue']
+        self.SRcovname = settings['SRcovname']
+        self.SRpvalue = settings['SRpvalue']
+        self.SRgroup = settings['SRgroup']
+        self.SRtargetregion = settings['SRtargetregion']
+        self.SRnametag = settings['SRnametag']
+        self.SRdrawfile = settings['SRdrawfile']
+        self.SRthresholdtext = settings['SRthresholdtext']
+        self.SAPMBfile = settings['SAPMBfile']
 
         # initialize some values
-        if 'SRoptionvalue' in keylist: # expect that if one value for this section is
-                                        # in settings, then they all are
-            self.SRoptionvalue = settings['SRoptionvalue']
-            self.SRcovname = settings['SRcovname']
-            self.SRpvalue = settings['SRpvalue']
-            self.SRgroup = settings['SRgroup']
-            self.SRtargetregion = settings['SRtargetregion']
-            self.SRnametag = settings['SRnametag']
-            self.SRdrawfile = settings['SRdrawfile']
-            self.SRthresholdtext = settings['SRthresholdtext']
-            self.SAPMBfile = settings['SAPMBfile']
-        else:
-            self.SRoptionvalue = 'not defined'
-            self.SRcovname = 'not defined'
-            self.SRpvalue = 0.05
-            self.SRgroup = []
-            self.SRtargetregion = []
-            self.SRnametag = ''
-            self.SRdrawfile = ''
-            self.SRthresholdtext = 'abs>0'
-            self.SAPMBfile = ''
-            self.SAPMBsheet = 'sheet'
-            self.SRcolumnnames = 'stat'
-
-            settings['SRoptionvalue'] = self.SRoptionvalue
-            settings['SRcovname'] = self.SRcovname
-            settings['SRpvalue'] = self.SRpvalue
-            settings['SRgroup'] = self.SRgroup
-            settings['SRtargetregion'] = self.SRtargetregion
-            settings['SRnametag'] = self.SRnametag
-            settings['SRvariant'] = self.SRvariant
+        # if 'SRoptionvalue' in keylist: # expect that if one value for this section is
+        #                                 # in settings, then they all are
+        #     self.SRoptionvalue = settings['SRoptionvalue']
+        #     self.SRcovname = settings['SRcovname']
+        #     self.SRpvalue = settings['SRpvalue']
+        #     self.SRgroup = settings['SRgroup']
+        #     self.SRtargetregion = settings['SRtargetregion']
+        #     self.SRnametag = settings['SRnametag']
+        #     self.SRdrawfile = settings['SRdrawfile']
+        #     self.SRthresholdtext = settings['SRthresholdtext']
+        #     self.SAPMBfile = settings['SAPMBfile']
+        # else:
+        #     self.SRoptionvalue = 'not defined'
+        #     self.SRcovname = 'not defined'
+        #     self.SRpvalue = 0.05
+        #     self.SRgroup = []
+        #     self.SRtargetregion = []
+        #     self.SRnametag = ''
+        #     self.SRdrawfile = ''
+        #     self.SRthresholdtext = 'abs>0'
+        #     self.SAPMBfile = ''
+        #     self.SAPMBsheet = 'sheet'
+        #     self.SRcolumnnames = 'stat'
+        #
+        #     settings['SRoptionvalue'] = self.SRoptionvalue
+        #     settings['SRcovname'] = self.SRcovname
+        #     settings['SRpvalue'] = self.SRpvalue
+        #     settings['SRgroup'] = self.SRgroup
+        #     settings['SRtargetregion'] = self.SRtargetregion
+        #     settings['SRnametag'] = self.SRnametag
+        #     settings['SRvariant'] = self.SRvariant
 
         # if 'SRdrawfile' in settings.keys():
         #     self.SRdrawfile = settings['SRdrawfile']

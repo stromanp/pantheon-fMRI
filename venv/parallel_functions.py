@@ -171,84 +171,118 @@ def gradient_descent_per_person(data):
     # nitermax = 100
     # alpha_limit = 1.0e-4
 
+    alphalist = initial_alpha * np.ones(len(betavals))
+    alphabint = copy.deepcopy(initial_alpha)
+    alphamax = copy.deepcopy(initial_alpha)
     iter = 0
     # vintrinsics_record = []
     converging = True
     dssq_record = np.ones(3)
     dssq_count = 0
     sequence_count = 0
-    while alpha > alpha_limit and iter < nitermax and converging:
+    while alphamax > alpha_limit and iter < nitermax and converging:
+
         iter += 1
         # gradients in betavals and beta_int1
         Mconn[ctarget, csource] = betavals
-        fit, Mintrinsic, Meigv, err = pysapm.network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
-                                                                 vintrinsic_count, beta_int1, fintrinsic1)
-        dssq_db, ssqd, dssq_dbeta1 = pysapm.gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval,
-                                                            fintrinsic_count, vintrinsic_count, beta_int1,
-                                                            fintrinsic1, Lweight)
+        # fit, Mintrinsic, Meigv, err = pysapm.network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
+        #                                                          vintrinsic_count, beta_int1, fintrinsic1)
+        # dssq_db, ssqd, dssq_dbeta1 = pysapm.gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval,
+        #                                                     fintrinsic_count, vintrinsic_count, beta_int1,
+        #                                                     fintrinsic1, Lweight)
+
+        betavals, beta_int1, fit, updatebflag, updatebintflag, dssq_db, dssq_dbeta1, ssqd, alphalist, alphabint = \
+            pysapm.update_betavals_sequentially(Sinput, Minput, Mconn, betavals, ctarget, csource, dval,
+                                         fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight,
+                                         alphalist, alphabint)
+
         ssqd_record += [ssqd]
-
-        # fix some beta values at zero, if specified
-        if len(fixed_beta_vals) > 0:
-            dssq_db[fixed_beta_vals] = 0
-
-        # apply the changes
-        betavals -= alpha * dssq_db
-        beta_int1 -= alpha * dssq_dbeta1
-
-        # limit the beta values related to intrinsic inputs to positive values
-        for aa in range(len(betavals)):
-            if latent_flag[aa] > 0:
-                # if betavals[aa] < 0:  betavals[aa] = 0.0
-                betavals[aa] = 1.0
-
-        # betavals[betavals >= betalimit] = betalimit
-        # betavals[betavals <= -betalimit] = -betalimit
-
-        Mconn[ctarget, csource] = betavals
-        fit, Mintrinsic, Meigv, err = pysapm.network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
-                                                                 vintrinsic_count, beta_int1, fintrinsic1)
-        # cost = np.sum(np.abs(betavals**2))  # L2 regularization
-        cost = np.sum(np.abs(betavals))  # L1 regularization
-        ssqd_new = err + Lweight * cost
 
         err_total = Sinput - fit
         Smean = np.mean(Sinput)
         errmean = np.mean(err_total)
-        R2total = 1 - np.sum((err_total - errmean) ** 2) / np.sum((Sinput - Smean) ** 2)
-        if R2total < 0: R2total = 0.0
+        # R2total = 1 - np.sum((err_total - errmean) ** 2) / np.sum((Sinput - Smean) ** 2)
+
+        # R2list = [1-np.sum((Sinput[x,:]-fit[x,:])**2)/np.sum(Sinput[x,:]**2) for x in range(nregions)]
+        R2list = 1.0 - np.sum((Sinput - fit) ** 2, axis=1) / np.sum(Sinput ** 2, axis=1)
+        R2avg = np.mean(R2list)
+        R2total = 1.0 - np.sum((Sinput - fit) ** 2) / np.sum(Sinput ** 2)
 
         # Sinput_sim, Soutput_sim = network_sim(Sinput_full, Soutput_full, Minput, Moutput)
-        results_record.append({'Sinput': fit, 'Mintrinsic': Mintrinsic, 'Meigv': Meigv})
+        results_record.append({'Sinput': Sinput, 'fit': fit, 'Mintrinsic': Mintrinsic, 'Meigv': Meigv})
+        atemp = np.append(alphalist, alphabint)
+        alphamax = np.max(atemp)
+        alphalist[alphalist < alpha_limit] = alpha_limit
+        if alphabint < alpha_limit:  alphabint = copy.deepcopy(alpha_limit)
 
-        if ssqd_new >= ssqd:
-            alpha *= 0.5
-            # revert back to last good values
-            betavals = copy.deepcopy(lastgood_betavals)
-            beta_int1 = copy.deepcopy(lastgood_beta_int1)
-            dssqd = ssqd - ssqd_new
-            dssq_record = np.ones(3)  # reset the count
-            dssq_count = 0
-            sequence_count = 0
-            if verbose: print('beta vals:  iter {} alpha {:.3e}  delta ssq > 0  - no update'.format(iter, alpha))
-        else:
-            # save the good values
-            lastgood_betavals = copy.deepcopy(betavals)
-            lastgood_beta_int1 = copy.deepcopy(beta_int1)
+        ssqchange = ssqd - ssqd_old
+        if np.abs(ssqchange) < 1e-5: converging = False
 
-            dssqd = ssqd - ssqd_new
-            ssqd = ssqd_new
 
-            sequence_count += 1
-            if sequence_count > 5:
-                alpha *= 1.5
-                sequence_count = 0
-
-            dssq_count += 1
-            dssq_count = np.mod(dssq_count, 3)
-            # dssq_record[dssq_count] = 100.0 * dssqd / ssqd_starting
-            dssq_record[dssq_count] = dssqd
-            if np.max(dssq_record) < 0.1:  converging = False
+        # original method before change to sequentially updating beta values
+        # ssqd_record += [ssqd]
+        #
+        # # fix some beta values at zero, if specified
+        # if len(fixed_beta_vals) > 0:
+        #     dssq_db[fixed_beta_vals] = 0
+        #
+        # # apply the changes
+        # betavals -= alpha * dssq_db
+        # beta_int1 -= alpha * dssq_dbeta1
+        #
+        # # limit the beta values related to intrinsic inputs to positive values
+        # for aa in range(len(betavals)):
+        #     if latent_flag[aa] > 0:
+        #         # if betavals[aa] < 0:  betavals[aa] = 0.0
+        #         betavals[aa] = 1.0
+        #
+        # # betavals[betavals >= betalimit] = betalimit
+        # # betavals[betavals <= -betalimit] = -betalimit
+        #
+        # Mconn[ctarget, csource] = betavals
+        # fit, Mintrinsic, Meigv, err = pysapm.network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
+        #                                                          vintrinsic_count, beta_int1, fintrinsic1)
+        # # cost = np.sum(np.abs(betavals**2))  # L2 regularization
+        # cost = np.sum(np.abs(betavals))  # L1 regularization
+        # ssqd_new = err + Lweight * cost
+        #
+        # err_total = Sinput - fit
+        # Smean = np.mean(Sinput)
+        # errmean = np.mean(err_total)
+        # R2total = 1 - np.sum((err_total - errmean) ** 2) / np.sum((Sinput - Smean) ** 2)
+        # if R2total < 0: R2total = 0.0
+        #
+        # # Sinput_sim, Soutput_sim = network_sim(Sinput_full, Soutput_full, Minput, Moutput)
+        # results_record.append({'Sinput': fit, 'Mintrinsic': Mintrinsic, 'Meigv': Meigv})
+        #
+        # if ssqd_new >= ssqd:
+        #     alpha *= 0.5
+        #     # revert back to last good values
+        #     betavals = copy.deepcopy(lastgood_betavals)
+        #     beta_int1 = copy.deepcopy(lastgood_beta_int1)
+        #     dssqd = ssqd - ssqd_new
+        #     dssq_record = np.ones(3)  # reset the count
+        #     dssq_count = 0
+        #     sequence_count = 0
+        #     if verbose: print('beta vals:  iter {} alpha {:.3e}  delta ssq > 0  - no update'.format(iter, alpha))
+        # else:
+        #     # save the good values
+        #     lastgood_betavals = copy.deepcopy(betavals)
+        #     lastgood_beta_int1 = copy.deepcopy(beta_int1)
+        #
+        #     dssqd = ssqd - ssqd_new
+        #     ssqd = ssqd_new
+        #
+        #     sequence_count += 1
+        #     if sequence_count > 5:
+        #         alpha *= 1.5
+        #         sequence_count = 0
+        #
+        #     dssq_count += 1
+        #     dssq_count = np.mod(dssq_count, 3)
+        #     # dssq_record[dssq_count] = 100.0 * dssqd / ssqd_starting
+        #     dssq_record[dssq_count] = dssqd
+        #     if np.max(dssq_record) < 0.1:  converging = False
 
         if verbose: print('beta vals:  iter {} alpha {:.3e}  delta ssq {:.4f}  relative: {:.1f} percent  '
                           'R2 {:.3f}'.format(iter, alpha, -dssqd, 100.0 * ssqd / ssqd_starting, R2total))
