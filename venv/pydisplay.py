@@ -146,6 +146,7 @@ def pydisplaystatmap(Tmap, Tthreshold, template, mask,templatename):
 
 # display named regions in different colors
 def pydisplayanatregions(templatename, anatnames, colorlist = []):
+    templatename = templatename.lower()
     resolution = 1
     template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_img = load_templates.load_template_and_masks(templatename, resolution)
 
@@ -249,6 +250,7 @@ def pydisplayanatregions(templatename, anatnames, colorlist = []):
 
 # display named regions in different colors
 def pydisplayanatregionslice(templatename, anatname, orientation, displayslice = [], colorlist = []):
+    templatename = templatename.lower()
     resolution = 1
     template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_img = load_templates.load_template_and_masks(templatename, resolution)
 
@@ -338,6 +340,7 @@ def pydisplayanatregionslice(templatename, anatname, orientation, displayslice =
 
 # display named regions in different colors
 def pydisplayvoxelregionslice(templatename, template_img, cx, cy, cz, orientation, displayslice = [], colorlist = []):
+    templatename = templatename.lower()
 
     #
     # if templatename == 'brain':
@@ -539,6 +542,7 @@ def parsenumlist(entered_text):
 
 # display named regions in different colors
 def pydisplayvoxels(templatename, cx,cy,cz, colorlist = [1,0,0]):
+    templatename = templatename.lower()
     resolution = 1
     template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = load_templates.load_template_and_masks(templatename, resolution)
 
@@ -1054,7 +1058,7 @@ def simple_GLMfit(x, y):
 #----------------------------------------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------------------------------------
 def display_anatomical_figure(filename, connectiondata, templatename, regioncolor, orientation, TargetCanvas = [], TargetAxes = []):
-
+    templatename = templatename.lower()
     # get the connection and region information
     data1 = np.load(filename, allow_pickle=True).flat[0]
 

@@ -526,7 +526,7 @@ class OptionsFrame:
         else:
             normtemplatename = 'notdefined'
 
-        if normtemplatename == 'brain':
+        if normtemplatename.lower() == 'brain':
             self.options_show_frame('NCbrainFrame', 'normalizationcalc')
         else:
             self.options_show_frame('NCFrame', 'normalizationcalc')
@@ -2153,7 +2153,7 @@ class NCbrainFrame:
             self.normtemplatename = 'notdefined'
 
         # check we are in the correct mode
-        if self.normtemplatename != 'brain':
+        if self.normtemplatename.lower() != 'brain':
             print('ERROR:  expecting brain data for normalization method ...')
             print('database number {} in database {}'.format(self.NCdbnum[0],self.NCdatabasename))
             print('normalization template is indicated as: {}'.format(self.normtemplatename))
@@ -3102,7 +3102,7 @@ class GLMFrame:
             df1 = pd.read_excel(xls, 'datarecord')
             normtemplatename = df1.loc[DBnum[0], 'normtemplatename']
 
-            if normtemplatename == 'brain':
+            if normtemplatename.lower() == 'brain':
                 braintemplate = settings['braintemplate']
                 template_img, template_affine, roi_map = load_templates.load_brain_template(braintemplate)
             else:
@@ -3126,7 +3126,7 @@ class GLMFrame:
             xls = pd.ExcelFile(DBname, engine='openpyxl')
             df1 = pd.read_excel(xls, 'datarecord')
             normtemplatename = df1.loc[DBnum[0], 'normtemplatename']
-            if normtemplatename == 'brain':
+            if normtemplatename.lower() == 'brain':
                 braintemplate = settings['braintemplate']
                 template_img, template_affine, roi_map = load_templates.load_brain_template(braintemplate)
             else:
@@ -3691,7 +3691,7 @@ class CLFrame:
         template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = \
             load_templates.load_template_and_masks(normtemplatename, resolution)
 
-        if normtemplatename == 'brain':
+        if normtemplatename.lower() == 'brain':
             # for brain data, need to match the template, region map, etc., to the data size/position
             dbhome = df1.loc[self.DBnum[0], 'datadir']
             fname = df1.loc[self.DBnum[0], 'niftiname']

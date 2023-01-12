@@ -3378,7 +3378,7 @@ def display_anatomical_cluster(clusterdataname, targetnum, targetcluster, orient
     cz = clusterdata['cluster_properties'][r]['cz'][idxx]
 
     # load template
-    if templatename == 'brain':
+    if templatename.lower() == 'brain':
         resolution = 2
     else:
         resolution = 1
