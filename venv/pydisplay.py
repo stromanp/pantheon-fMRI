@@ -35,7 +35,7 @@ def colormap(values):
 
 # display a statistical map in color over a gray scale template image
 def pydisplaystatmap(Tmap, Tthreshold, template, mask,templatename):
-
+    templatename = templatename.lower()
     # function for displaying fMRI results from the brainstem/cord
     if np.ndim(Tmap) > 4:
         print('pydisplaystatmap:  Tmap has too many dimensions: ',np.ndim(Tmap))
