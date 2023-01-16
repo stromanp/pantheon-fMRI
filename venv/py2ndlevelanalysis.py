@@ -1008,7 +1008,7 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
             Zthresh = stats.norm.ppf(1-pthreshold)
 
             terms, NPt = np.shape(covariates)  # need one term per person, for each covariate
-            b1, b1sem, R21, Z1, Rcorrelation1, Zcorrelation1 = GLMregression(beta1, covariates, 4)
+            b1, b1sem, R21, Z1, Rcorrelation1, Zcorrelation1 = GLMregression(B, covariates, 4)
 
             beta1_sig = np.abs(Zcorrelation1) > Zthresh
             stat_of_interest1 = Zcorrelation1
@@ -1052,7 +1052,7 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
     try:
         keylist = list(data1.keys())
         if 'type' in keylist:
-            if data['type'] == 'GLM':
+            if data1['type'] == 'GLM':
                 datafiletype = 3
             else:
                 datafiletype = 1   # SEM results
@@ -1299,7 +1299,7 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                             sem_beta_diff = np.std(beta_diff)/np.sqrt(NP1)
                             Tbeta = mean_beta_diff/(sem_beta_diff + 1.0e-10)
 
-                            Tthresh = stats.t.ppf(1-pthreshold,NP-1)
+                            Tthresh = stats.t.ppf(1-pthreshold,NP1-1)
                             beta_sig = np.abs(Tbeta) > Tthresh
                             stat_of_interest = Tbeta
 
@@ -1449,7 +1449,7 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
 
                 # write out timecourse values?
                 outputdata = []
-                for tt in range(tsize):
+                for tt in range(tsize1):
                     values = []
                     for cc in range(nclusters):
                         values = values + [tc_diff[cc, tt], tc_diff_sem[cc, tt], T[cc, tt], sig[cc, tt]]
@@ -1457,7 +1457,7 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                     outputdata.append(entry)
 
             if len(outputdata) > 0:
-                excelsheetname = rname
+                excelsheetname = rname1
                 print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
                 pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'append', '%.3f')
                 print('finished writing results to ',excelfilename)
@@ -1496,16 +1496,16 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
 
                 if NP1 > 1:
                     # stats based on group average - sig diff from zero?
-                    meanB1 = np.mean(B1,axis = 4)
-                    seB1 = np.std(B1,axis = 4)/np.sqrt(NP1)
+                    meanB1 = np.mean(B1,axis = 3)
+                    seB1 = np.std(B1,axis = 3)/np.sqrt(NP1)
                     Tbeta1 = meanB1/(seB1 + 1.0e-10)
 
-                    meanB2 = np.mean(B2,axis = 4)
-                    seB2 = np.std(B2,axis = 4)/np.sqrt(NP2)
+                    meanB2 = np.mean(B2,axis = 3)
+                    seB2 = np.std(B2,axis = 3)/np.sqrt(NP2)
                     Tbeta2 = meanB1/(seB2 + 1.0e-10)
 
-                    var_beta1 = np.var(B1, axis=4)
-                    var_beta2 = np.var(B2, axis=4)
+                    var_beta1 = np.var(B1, axis=3)
+                    var_beta2 = np.var(B2, axis=3)
                     # pooled standard deviation:
                     sp = np.sqrt(((NP1 - 1) * var_beta1 + (NP2 - 1) * var_beta2) / (NP1 + NP2 - 2))
 
@@ -1596,7 +1596,7 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
     try:
         keylist = list(data1.keys())
         if 'type' in keylist:
-            if data['type'] == 'GLM':
+            if data1['type'] == 'GLM':
                 datafiletype = 3
             else:
                 datafiletype = 1   # SEM results
@@ -1929,7 +1929,12 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
         region_properties2 = data2['region_properties']
         # regiondata_entry = {'tc': tc, 'tc_sem': tc_sem, 'nruns_per_person': nruns_per_person, 'tsize': tsize,'rname': rname}
 
+        cluster_properties = data1['cluster_properties']
+        cluster_info, rname_list, ncluster_list = get_cluster_position_details(cluster_properties)
+
         nregions = len(region_properties1)
+        results = []
+        Svalue_list = []
         for rr in range(nregions):
             tc1 = region_properties1[rr]['tc']          # nclusters x tsize_total
             tc_sem1 = region_properties1[rr]['tc_sem']
@@ -2003,10 +2008,11 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
             beta_sig = anova_p < pthreshold
 
             # --------sort and write out the results---------------------------
-            keys = ['tname', 'tcluster', 'sname', 'scluster', 'anova_p', 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
-                    'tlimy1',
-                    'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2',
-                    'slimz1', 'slimz2', 'combo','nt','ss']
+            # keys = ['tname', 'tcluster', 'sname', 'scluster', 'anova_p', 'tx', 'ty', 'tz', 'tlimx1', 'tlimx2',
+            #         'tlimy1',
+            #         'tlimy2', 'tlimz1', 'tlimz2', 'sx', 'sy', 'sz', 'slimx1', 'slimx2', 'slimy1', 'slimy2',
+            #         'slimz1', 'slimz2', 'combo','nt','ss']
+            keys = ['combo','nt','ss']
 
             # organize significant results
             # if np.ndim(beta_sig) < 4:  # allow for different forms of results (some have multiple stats terms)
@@ -2019,20 +2025,21 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                 # get region names, cluster numbers, etc.
                 Svalue = beta_sig[combo[ii], nt[ii], ss[ii]]
                 timepoint = nt[ii]
-                sourcename = cluster_info[sourcenums[ss[ii]]]['rname']
-                mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums], combo[ii]).astype(
-                    int)  # cluster number for each source
-                sourcecluster = mlist[ss[ii]]
-                sourcecoords = cluster_info[sourcenums[ss[ii]]]['cluster_coords'][sourcecluster, :]
-                sourcelimits = cluster_info[sourcenums[ss[ii]]]['regionlimits']
+                # sourcename = cluster_info[ss]['rname']
+                # sourcename = cluster_info[tt]['rname']
+                # mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums], combo[ii]).astype(
+                #     int)  # cluster number for each source
+                # sourcecluster = mlist[ss[ii]]
+                # sourcecoords = cluster_info[sourcenums[ss[ii]]]['cluster_coords'][sourcecluster, :]
+                # sourcelimits = cluster_info[sourcenums[ss[ii]]]['regionlimits']
 
                 # connid = nt[ii] * 1e7 + targetnum * 1e5 + tt * 1e3 + sourcenums[ss[ii]] * 10 + sourcecluster
 
                 connection_info = [combo[ii], nt[ii], ss[ii]]
-                values = np.concatenate(([targetname, tt, sourcename, sourcecluster, Svalue],
-                                         list(targetcoords), list(targetlimits), list(sourcecoords), list(sourcelimits),
-                                         connection_info))
-                entry = dict(zip(keys, values))
+                # values = np.concatenate(([targetname, tt, sourcename, sourcecluster, Svalue],
+                #                          list(targetcoords), list(targetlimits), list(sourcecoords), list(sourcelimits),
+                #                          connection_info))
+                entry = dict(zip(keys, connection_info))
 
                 results.append(entry)
                 Svalue_list.append(Svalue)
@@ -2040,7 +2047,7 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
 
             #-------------sort and write out the results?-------------------------
             if len(results) > 0:
-                excelsheetname = rname
+                excelsheetname = rname1
                 print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
                 pydisplay.pywriteexcel(results, excelfilename, excelsheetname, 'append', '%.3f')
                 print('finished writing results to ',excelfilename)
@@ -2102,7 +2109,7 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
     try:
         keylist = list(data1.keys())
         if 'type' in keylist:
-            if data['type'] == 'GLM':
+            if data1['type'] == 'GLM':
                 datafiletype = 3
             else:
                 datafiletype = 1   # SEM results
@@ -2454,7 +2461,7 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
             NP1 = len(nruns_per_person1)
 
             nclusters, tsize_total1 = np.shape(tc1)   # nclusters need to be the same for the two data sets, for comparisons
-            nclusters, tsize_total2 = np.shape(tc2)   # nclusters need to be the same for the two data sets, for comparisons
+            # nclusters, tsize_total2 = np.shape(tc2)   # nclusters need to be the same for the two data sets, for comparisons
 
             # change shape of timecourse data array - prep data - group 1
             tc_per_person1 = np.zeros((nclusters,tsize1,NP1))
@@ -2485,7 +2492,7 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
             for nc in range(nclusters):
                 for ts in range(tsize1):
                     tc1 = tc_per_person1[nc, ts, :]
-                    if np.var(tc1) > 0 and np.var(tc2) > 0:
+                    if np.var(tc1) > 0:   # and np.var(tc2) > 0:
                         anova_table, p_MeoG, p_MeoC, p_intGC = run_ANOVA_or_ANCOVA1(tc1, cov1, cov2, covname1, covname2,
                                                                                     formula_key1, formula_key2,
                                                                                     formula_key3, atype)
@@ -2494,10 +2501,10 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
             beta_sig = anova_p < pthreshold
 
             #-------------sort and write out the results-------------------------
-            if len(outputdata) > 0:
-                excelsheetname = rname
+            if np.shape(anova_p)[2] > 0:
+                excelsheetname = rname1
                 print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
-                pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'append', '%.3f')
+                pydisplay.pywriteexcel(anova_p, excelfilename, excelsheetname, 'append', '%.3f')
                 print('finished writing results to ',excelfilename)
             else:
                 print('no significant results found at p < {}'.format(pthreshold))

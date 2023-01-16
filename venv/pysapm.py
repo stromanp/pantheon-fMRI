@@ -218,10 +218,11 @@ def load_network_model_w_intrinsics(networkmodel):
 #     return dssq_dbeta1, ssqd
 
 def sapm_error_function(Sinput,fit,Lweight,betavals,beta_int1, Mintrinsic):
-    error = np.sum((Sinput - fit) ** 2)
-    R2total = np.sum(np.sum((Sinput - fit) ** 2, axis=1) / np.sum(Sinput ** 2, axis=1))
+    # error = np.sum((Sinput - fit) ** 2)
+    # R2total = np.sum(np.sum((Sinput - fit) ** 2, axis=1) / np.sum(Sinput ** 2, axis=1))
 
-    error = np.sum(np.sum((Sinput - fit) ** 2, axis=1) / np.sum(Sinput ** 2, axis=1))
+    # error = np.sum(np.sum((Sinput - fit) ** 2, axis=1) / np.sum(Sinput ** 2, axis=1))
+    error = np.sum( np.sum((Sinput - fit) ** 2, axis=1) / np.var(Sinput, axis=1) )
 
     all_bvals = np.append(betavals,beta_int1)
     # cost = np.mean(np.abs(all_bvals)) + np.mean(np.abs(Mintrinsic))  # L1 regularization
@@ -512,7 +513,7 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAP
     NP = len(nruns_per_person)  # number of people in the data set
 
     tcdata = []
-    tcdata_std = np.zeros((nclusterstotal,NP))
+    # tcdata_std = np.zeros((nclusterstotal,NP))
     for i in range(nregions):
         tc = region_properties[i]['tc']
         if i == 0:
@@ -559,11 +560,13 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAP
             tcdata_centered[:, tp] = tcdata[:, tp] - temp_mean  # center each epoch, in each person
         tplist1.append({'tp': tpoints})
 
-        # normalize the data to have the same variance, for each person
-        # tpoints = np.array(tpoints).astype(int)
-        tcdata_std[:,nn] = np.std(tcdata_centered[:,tpoints],axis=1)
-        scale_factor = np.repeat(tcdata_std[:,nn][:,np.newaxis],len(tpoints),axis=1)
-        tcdata_centered[:, tpoints] /= scale_factor
+        # # normalize the data to have the same variance, for each person
+        # # tpoints = np.array(tpoints).astype(int)
+        # tcdata_std[:,nn] = np.std(tcdata_centered[:,tpoints],axis=1)
+        # # scale_factor = np.repeat(tcdata_std[:,nn][:,np.newaxis],len(tpoints),axis=1)
+        # scale_factor = np.ones(np.shape(scale_factor))
+        # tcdata_centered[:, tpoints] /= scale_factor
+
 
     tplist_full.append(tplist1)
 
@@ -699,7 +702,7 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAP
                  'nclusterlist': nclusterlist, 'tsize': tsize, 'tplist_full': tplist_full,
                  'tcdata_centered': tcdata_centered, 'ctarget':ctarget ,'csource':csource,
                  'Mconn':Mconn, 'Minput':Minput, 'timepoint':timepoint, 'epoch':epoch, 'latent_flag':latent_flag,
-                  'reciprocal_flag':reciprocal_flag, 'tcdata_std':tcdata_std}
+                  'reciprocal_flag':reciprocal_flag}   #, 'tcdata_std':tcdata_std
     print('saving SAPM parameters to file: {}'.format(SAPMparametersname))
     np.save(SAPMparametersname, SAPMparams)
 
@@ -739,7 +742,7 @@ def prep_data_sem_physio_model_SO(networkfile, regiondataname, clusterdataname, 
     NP = len(nruns_per_person)  # number of people in the data set
 
     tcdata = []
-    tcdata_std = np.zeros((nclusterstotal,NP))
+    # tcdata_std = np.zeros((nclusterstotal,NP))
     for i in range(nregions):
         tc = region_properties[i]['tc']
         if i == 0:
@@ -784,13 +787,13 @@ def prep_data_sem_physio_model_SO(networkfile, regiondataname, clusterdataname, 
             temp = np.mean(tcdata[:, tp], axis=1)
             temp_mean = np.repeat(temp[:, np.newaxis], epoch, axis=1)
             tcdata_centered[:, tp] = tcdata[:, tp] - temp_mean  # center each epoch, in each person
+        tplist1.append({'tp': tpoints})
 
         # normalize the data to have the same variance, for each person
-        tplist1.append({'tp': tpoints})
-        # tpoints = np.array(tpoints).astype(int)
-        tcdata_std[:,nn] = np.std(tcdata_centered[:,tpoints],axis=1)
-        scale_factor = np.repeat(tcdata_std[:,nn][:,np.newaxis],len(tpoints),axis=1)
-        tcdata_centered[:, tpoints] /= scale_factor
+        # # tpoints = np.array(tpoints).astype(int)
+        # tcdata_std[:,nn] = np.std(tcdata_centered[:,tpoints],axis=1)
+        # scale_factor = np.repeat(tcdata_std[:,nn][:,np.newaxis],len(tpoints),axis=1)
+        # tcdata_centered[:, tpoints] /= scale_factor
 
     tplist_full.append(tplist1)
 
@@ -916,7 +919,7 @@ def prep_data_sem_physio_model_SO(networkfile, regiondataname, clusterdataname, 
                  'nclusterlist': nclusterlist, 'tsize': tsize, 'tplist_full': tplist_full,
                  'tcdata_centered': tcdata_centered, 'ctarget':ctarget ,'csource':csource,
                  'Mconn':Mconn, 'Minput':Minput, 'timepoint':timepoint, 'epoch':epoch, 'latent_flag':latent_flag,
-                  'reciprocal_flag':reciprocal_flag, 'tcdata_std':tcdata_std}
+                  'reciprocal_flag':reciprocal_flag}   #, 'tcdata_std':tcdata_std
     print('saving SAPM parameters to file: {}'.format(SAPMparametersname))
     np.save(SAPMparametersname, SAPMparams)
 
@@ -2713,6 +2716,7 @@ def plot_region_inputs_average(window, target, nametag1, Minput, Sinput_avg, Sin
         setylim = True
         ymin = yrange[0]
         ymax = yrange[1]
+        print('yrange set to {} to {}'.format(ymin,ymax))
     else:
         setylim = False
 
@@ -2786,7 +2790,7 @@ def plot_region_inputs_average(window, target, nametag1, Minput, Sinput_avg, Sin
     axs[0,1].fill(xx,yy, facecolor=(1,0,0), edgecolor='None', alpha = 0.2)
     axs[0,1].plot(x, tc1f+tc1fp, color = (1,0,0), linestyle = '-', linewidth = 0.5)
     axs[0,1].set_title('target input {}'.format(rnamelist[rtarget]))
-    ymax = np.max(np.abs(yy))
+    # ymax = np.max(np.abs(yy))
 
     if not multiple_output:
         tc1 = Sconn_avg[rtarget,:]
@@ -2949,9 +2953,9 @@ def plot_region_inputs_regression(window, target, nametag1, Minput, Sinput_reg, 
     axs[1,1].set_title('target input {}'.format(rnamelist[rtarget]))
 
     # add marks for significant slope wrt pain
-    ymax = np.max(np.abs(yy))
+    ympos = np.max(np.abs(yy))
     for n,s in enumerate(S):
-        if s > 0: axs[1,1].annotate(symbollist[s], xy = (x[n]-0.25, ymax), fontsize=8)
+        if s > 0: axs[1,1].annotate(symbollist[s], xy = (x[n]-0.25, ympos), fontsize=8)
 
     for ss in range(nsources):
         tc1 = Sconn_reg[sources[ss], :, 0]
@@ -2986,9 +2990,9 @@ def plot_region_inputs_regression(window, target, nametag1, Minput, Sinput_reg, 
                                 horizontalalignment='left', verticalalignment='bottom', fontsize=10)
 
         # add marks for significant slope wrt pain
-        ymax = np.max(np.abs(yy))
+        ympos = np.max(np.abs(yy))
         for n, s in enumerate(S):
-            if s > 0: axs[ss,0].annotate(symbollist[s], xy = (x[n]-0.25, ymax), fontsize=8)
+            if s > 0: axs[ss,0].annotate(symbollist[s], xy = (x[n]-0.25, ympos), fontsize=8)
 
         if setylim:
             axs[ss,0].set_ylim((ymin,ymax))
