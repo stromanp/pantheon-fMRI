@@ -483,7 +483,7 @@ def load_filtered_cluster_properties(clusterdataname, networkfile):
 
 #---------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
-def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint = 'all', epoch = 'all', fullgroup = False):
+def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint = 'all', epoch = 'all', fullgroup = False, normalizevar = False):
 
     outputdir, f = os.path.split(SAPMparametersname)
     network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count = load_network_model_w_intrinsics(networkfile)
@@ -513,7 +513,8 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAP
     NP = len(nruns_per_person)  # number of people in the data set
 
     tcdata = []
-    # tcdata_std = np.zeros((nclusterstotal,NP))
+    if normalizevar:
+        tcdata_std = np.zeros((nclusterstotal,NP))
     for i in range(nregions):
         tc = region_properties[i]['tc']
         if i == 0:
@@ -560,12 +561,12 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAP
             tcdata_centered[:, tp] = tcdata[:, tp] - temp_mean  # center each epoch, in each person
         tplist1.append({'tp': tpoints})
 
-        # # normalize the data to have the same variance, for each person
-        # # tpoints = np.array(tpoints).astype(int)
-        # tcdata_std[:,nn] = np.std(tcdata_centered[:,tpoints],axis=1)
-        # # scale_factor = np.repeat(tcdata_std[:,nn][:,np.newaxis],len(tpoints),axis=1)
-        # scale_factor = np.ones(np.shape(scale_factor))
-        # tcdata_centered[:, tpoints] /= scale_factor
+        if normalizevar:
+            # # normalize the data to have the same variance, for each person
+            tcdata_std[:,nn] = np.std(tcdata_centered[:,tpoints],axis=1)
+            # scale_factor = np.repeat(tcdata_std[:,nn][:,np.newaxis],len(tpoints),axis=1)
+            scale_factor = np.ones(np.shape(scale_factor))
+            tcdata_centered[:, tpoints] /= scale_factor
 
 
     tplist_full.append(tplist1)
@@ -703,6 +704,8 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAP
                  'tcdata_centered': tcdata_centered, 'ctarget':ctarget ,'csource':csource,
                  'Mconn':Mconn, 'Minput':Minput, 'timepoint':timepoint, 'epoch':epoch, 'latent_flag':latent_flag,
                   'reciprocal_flag':reciprocal_flag}   #, 'tcdata_std':tcdata_std
+    if normalizevar:
+        SAPMparams['tcdata_std'] = tcdata_std
     print('saving SAPM parameters to file: {}'.format(SAPMparametersname))
     np.save(SAPMparametersname, SAPMparams)
 
@@ -712,7 +715,7 @@ def prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAP
 
 #---------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
-def prep_data_sem_physio_model_SO(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint = 'all', epoch = 'all', fullgroup = False):
+def prep_data_sem_physio_model_SO(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint = 'all', epoch = 'all', fullgroup = False, normalizevar = False):
 # model each region as having a single output that is common to all regions it projects to
     outputdir, f = os.path.split(SAPMparametersname)
     network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count = load_network_model_w_intrinsics(networkfile)
@@ -742,7 +745,8 @@ def prep_data_sem_physio_model_SO(networkfile, regiondataname, clusterdataname, 
     NP = len(nruns_per_person)  # number of people in the data set
 
     tcdata = []
-    # tcdata_std = np.zeros((nclusterstotal,NP))
+    if normalizevar:
+        tcdata_std = np.zeros((nclusterstotal,NP))
     for i in range(nregions):
         tc = region_properties[i]['tc']
         if i == 0:
@@ -789,11 +793,11 @@ def prep_data_sem_physio_model_SO(networkfile, regiondataname, clusterdataname, 
             tcdata_centered[:, tp] = tcdata[:, tp] - temp_mean  # center each epoch, in each person
         tplist1.append({'tp': tpoints})
 
-        # normalize the data to have the same variance, for each person
-        # # tpoints = np.array(tpoints).astype(int)
-        # tcdata_std[:,nn] = np.std(tcdata_centered[:,tpoints],axis=1)
-        # scale_factor = np.repeat(tcdata_std[:,nn][:,np.newaxis],len(tpoints),axis=1)
-        # tcdata_centered[:, tpoints] /= scale_factor
+        if normalizevar:
+            # normalize the data to have the same variance, for each person
+            tcdata_std[:,nn] = np.std(tcdata_centered[:,tpoints],axis=1)
+            scale_factor = np.repeat(tcdata_std[:,nn][:,np.newaxis],len(tpoints),axis=1)
+            tcdata_centered[:, tpoints] /= scale_factor
 
     tplist_full.append(tplist1)
 
@@ -920,6 +924,8 @@ def prep_data_sem_physio_model_SO(networkfile, regiondataname, clusterdataname, 
                  'tcdata_centered': tcdata_centered, 'ctarget':ctarget ,'csource':csource,
                  'Mconn':Mconn, 'Minput':Minput, 'timepoint':timepoint, 'epoch':epoch, 'latent_flag':latent_flag,
                   'reciprocal_flag':reciprocal_flag}   #, 'tcdata_std':tcdata_std
+    if normalizevar:
+        SAPMparams['tcdata_std'] = tcdata_std
     print('saving SAPM parameters to file: {}'.format(SAPMparametersname))
     np.save(SAPMparametersname, SAPMparams)
 
@@ -1144,7 +1150,8 @@ def prep_null_data_sem_physio_model(nsamples, networkfile, regiondataname, clust
                  'fintrinsic_region':fintrinsic_region, 'sem_region_list': sem_region_list,
                  'nclusterlist': nclusterlist, 'tsize': tsize, 'tplist_full': tplist_full,
                  'tcdata_centered': tcdata_centered, 'ctarget':ctarget ,'csource':csource,
-                 'Mconn':Mconn, 'Minput':Minput, 'timepoint':timepoint, 'epoch':epoch, 'latent_flag':latent_flag, 'reciprocal_flag':reciprocal_flag}
+                 'Mconn':Mconn, 'Minput':Minput, 'timepoint':timepoint, 'epoch':epoch, 'latent_flag':latent_flag,
+                  'reciprocal_flag':reciprocal_flag}
     print('saving SAPM parameters to file: {}'.format(SAPMparametersname))
     np.save(SAPMparametersname, SAPMparams)
 
@@ -2454,7 +2461,8 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
 
     # ---------------------
     # prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch)
-    prep_data_sem_physio_model_SO(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch)
+    prep_data_sem_physio_model_SO(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch,
+                                  fullgroup=False, normalizevar=True)
     SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
     tcdata = SAPMparams['tcdata_centered']  # data for all regions/clusters concatenated along time dimension for all runs
     # need to get principal components for each region to model the clusters as a continuum
