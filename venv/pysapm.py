@@ -2462,7 +2462,7 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
     # ---------------------
     # prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch)
     prep_data_sem_physio_model_SO(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch,
-                                  fullgroup=False, normalizevar=True)
+                                  fullgroup=False, normalizevar=False)
     SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
     tcdata = SAPMparams['tcdata_centered']  # data for all regions/clusters concatenated along time dimension for all runs
     # need to get principal components for each region to model the clusters as a continuum
@@ -2511,10 +2511,15 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
     alpha = 1e-2
     initial_alpha = copy.deepcopy(alpha)
     alphalimit = 1e-5
-    maxiter = 20
+    maxiter = 30
     subsample = [samplesplit,samplestart]  # [2,0] use every 2nd data set, starting with samplestart
 
     PCloadings = 1e-4*np.random.randn(nclusters_total)
+    for aa in range(nregions):
+        L = original_loadings[aa,:,:]
+        r1 = sum(nclusterlist[:aa])
+        r2 = sum(nclusterlist[:(aa + 1)])
+        PCloadings[r1:r2] = np.mean(L,axis=0)   # initially set the PCloadings to the average for all clusters in the region
 
     if len(initial_clusters) == nregions:
         for aa in range(nregions):
@@ -2543,7 +2548,7 @@ def SAPM_cluster_search(outputdir, SAPMresultsname, SAPMparametersname, networkf
         PCloadings -= alpha*load_gradients
 
         SAPMresults, search_data_name = sem_physio_model_PCAclusters(PCparams, PCloadings, paradigm_centered,
-                            SAPMresultsname, SAPMparametersname, nitermax = 100, alpha_limit = 1e-5,
+                            SAPMresultsname, SAPMparametersname, nitermax = 150, alpha_limit = 1e-5,
                             subsample = subsample, fixed_beta_vals = [], betascale = betascale, verbose = False, nprocessors = nprocessors)
 
         # cost function
