@@ -14,6 +14,21 @@ import pydatabase
 import GLMfit
 from sklearn.cluster import KMeans
 import copy
+from scipy.spatial.distance import cdist
+from scipy.optimize import linear_sum_assignment
+
+
+# modified clustering method - for roughly equal size clusters
+# Thanks to Eyal Shulman who shared on StackOverflow  https://stackoverflow.com/users/6247548/eyal-shulman
+def get_even_clusters(X, cluster_size):
+    n_clusters = int(np.ceil(len(X)/cluster_size))
+    kmeans = KMeans(n_clusters)
+    kmeans.fit(X)
+    centers = kmeans.cluster_centers_
+    centers = centers.reshape(-1, 1, X.shape[-1]).repeat(cluster_size, 1).reshape(-1, X.shape[-1])
+    distance_matrix = cdist(X, centers)
+    clusters = linear_sum_assignment(distance_matrix)[1]//cluster_size
+    return clusters
 
 
 def load_network_model(networkmodel):
@@ -276,8 +291,18 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, networkmodel, regionmap
         # divide each region into N clusters with similar timecourse properties
         nclusters = ncluster_list2[nn]
         kmeans = KMeans(n_clusters=nclusters, random_state=0).fit(regiondata)
-        IDX = kmeans.labels_
-        cluster_tc = kmeans.cluster_centers_
+        # IDX = kmeans.labels_
+        # cluster_tc = kmeans.cluster_centers_
+
+        # modified clustering method - for roughly equal size clusters
+        # Thanks to Eyal Shulman who shared on StackOverflow  https://stackoverflow.com/users/6247548/eyal-shulman
+        # method for making clusters approximately equal size
+        nvoxels, tsizefull = np.shape(regiondata)
+        cluster_size = np.floor(nvoxels/nclusters).astype(int)
+        centers = kmeans.cluster_centers_
+        centers = centers.reshape(-1, 1, regiondata.shape[-1]).repeat(cluster_size, 1).reshape(-1, regiondata.shape[-1])
+        distance_matrix = cdist(regiondata, centers)
+        IDX = linear_sum_assignment(distance_matrix)[1] // cluster_size
 
         tc = np.zeros([nclusters,ts])
         tc_sem = np.zeros([nclusters,ts])

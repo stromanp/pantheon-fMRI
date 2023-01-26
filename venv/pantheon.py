@@ -80,21 +80,23 @@ if os.name == 'nt':
     radiofont = "none 9"
     infofont = "none 8"
     widgetbg = 'SystemButtonFace'
+    mainbg = 'SystemButtonFace'
 else:
     # colours for Mac/Linux
     fgcol1 = 'red'
     fgcol2 = 'red'
     fgcol3 = 'red'
-    bgcol = 'grey94'
-    fgletter1 = 'black'
-    fgletter2 = 'black'
-    fgletter3 = 'black'
+    bgcol = '#808080'
+    fgletter1 = '#FFFFFF'
+    fgletter2 = '#FFFFFF'
+    fgletter3 = '#FFFFFF'
     widgetfont = "none 9 bold"
     widgetfont2 = "none 9 bold"
     labelfont = "none 9 bold"
     radiofont = "none 9"
     infofont = "none 9"
-    widgetbg = '#3E4149'
+    widgetbg = '#808080'
+    mainbg = '#808080'
 
 bigbigbuttonsize = 21
 bigbuttonsize = 14
@@ -222,7 +224,7 @@ class mainspinalfmri_window:
         self.frames = {}  # this is to keep a record of the frame names, so that one can be moved to the top when wanted
         # create an initial fixed frame with labels etc
         # The frame with pictures, labels, etc, is Fbase and is on the top row
-        Fbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol2)
+        Fbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol2, bg = mainbg)
         Fbase.grid(row=0, column=1)
         BaseFrame(Fbase, self)
         page_name = BaseFrame.__name__
@@ -654,6 +656,7 @@ class DBFrame:
         else:
             self.fieldvalue_var.set('empty')
         fieldvalue_menu = tk.OptionMenu(self.parent, self.fieldvalue_var, *fieldvalues, command = self.DBfieldvaluechoice)
+        fieldvalue_menu.config(bg=bgcol)
         fieldvalue_menu.grid(row=4, column=3, sticky='EW')
         self.fieldvaluesearch_opt = fieldvalue_menu   # save this way so that values are not cleared
 
@@ -661,6 +664,7 @@ class DBFrame:
         self.DBL4.grid(row=4,column=0, sticky='W')
         # fields = DBFrame.get_DB_fields(self)
         field_menu = tk.OptionMenu(self.parent, self.field_var, *fields, command = self.DBfieldchoice)
+        field_menu.config(bg=bgcol)
         field_menu.grid(row=4, column=1, sticky='EW')
         self.fieldsearch_opt = field_menu   # save this way so that values are not cleared
 
@@ -705,10 +709,12 @@ class DBFrame:
         self.fieldvalue_var.set(fieldvalues[0])
 
         fieldvalue_menu = tk.OptionMenu(self.parent, self.fieldvalue_var, *fieldvalues, command = self.DBfieldvaluechoice)
+        fieldvalue_menu.config(bg=bgcol)
         fieldvalue_menu.grid(row=4, column=3, sticky='EW')
         self.fieldvaluesearch_opt = fieldvalue_menu   # save this way so that values are not cleared
 
         field_menu = tk.OptionMenu(self.parent, self.field_var, *fields, command = self.DBfieldchoice)
+        field_menu.config(bg=bgcol)
         field_menu.grid(row=4, column=1, sticky='EW')
         self.fieldsearch_opt = field_menu   # save this way so that values are not cleared
 
@@ -1012,6 +1018,7 @@ class DBFrame:
         # destroy the old pulldown menu and create a new one with the new choices
         self.fieldvaluesearch_opt.destroy()  # remove it
         fieldvalue_menu = tk.OptionMenu(self.parent, self.fieldvalue_var, *fieldvalues, command = self.DBfieldvaluechoice)
+        fieldvalue_menu.config(bg=bgcol)
         fieldvalue_menu.grid(row=4, column=3, sticky='EW')
         self.fieldvaluesearch_opt = fieldvalue_menu   # save this way so that values are not cleared
 
@@ -2675,8 +2682,9 @@ class PPFrame:
         self.PPslicelabel1 = tk.Label(self.parent, text="Slice Order:", font = labelfont).grid(row=1, column=1, sticky='E')
         self.sliceorder_var = tk.StringVar()
         self.sliceorder_var.set(self.sliceorder)
-        self.sliceorder_opt = tk.OptionMenu(self.parent, self.sliceorder_var, *orderoptions, command = self.PPsliceorderchoice).grid(
-            row=srow+1, column=scol+1, sticky='EW')
+        self.sliceorder_opt = tk.OptionMenu(self.parent, self.sliceorder_var, *orderoptions, command = self.PPsliceorderchoice)
+        self.sliceorder_opt.config(bg=bgcol)
+        self.sliceorder_opt.grid(row=srow+1, column=scol+1, sticky='EW')
         # tk.CreateToolTip(self.sliceorder_opt, text='Inc,Alt,Odd = 1,3,5...2,4,6...\n'
         #                                            'Inc,Alt,Even = 2,4,6...1,3,5...\n'
         #                                            'Dec,Alt,N = N,N-2,...N-1,N-3,...\n'
@@ -2725,38 +2733,44 @@ class PPFrame:
         self.coreg_label = tk.Label(self.parent, text="Coregister:", font = labelfont).grid(row=srow, column=scol, sticky='E')
         self.coreg_var = tk.StringVar()
         self.coreg_var.set(self.coreg_choice)
-        self.coreg_opt = tk.OptionMenu(self.parent, self.coreg_var, *options, command = self.PPcoregchoice).grid(
-            row=srow, column=scol+1, sticky='EW')
+        self.coreg_opt = tk.OptionMenu(self.parent, self.coreg_var, *options, command = self.PPcoregchoice)
+        self.coreg_opt.config(bg=bgcol)
+        self.coreg_opt.grid(row=srow, column=scol+1, sticky='EW')
         # slice-time correction
         self.slicetime_label = tk.Label(self.parent, text="Slice-timing:", font = labelfont).grid(row=srow, column=scol+2, sticky='E')
         self.slicetime_var = tk.StringVar()
         self.slicetime_var.set(self.slicetime_choice)
-        self.slicetime_opt = tk.OptionMenu(self.parent, self.slicetime_var, *options, command = self.PPslicetimechoice).grid(
-            row=srow, column=scol+3, sticky='EW')
+        self.slicetime_opt = tk.OptionMenu(self.parent, self.slicetime_var, *options, command = self.PPslicetimechoice)
+        self.slicetime_opt.config(bg=bgcol)
+        self.slicetime_opt.grid(row=srow, column=scol+3, sticky='EW')
         # apply normalization
         self.norm_label = tk.Label(self.parent, text="Normalize:", font = labelfont).grid(row=srow, column=scol+4, sticky='E')
         self.norm_var = tk.StringVar()
         self.norm_var.set(self.norm_choice)
-        self.norm_opt = tk.OptionMenu(self.parent, self.norm_var, *options, command = self.PPnormchoice).grid(
-            row=srow, column=scol+5, sticky='EW')
+        self.norm_opt = tk.OptionMenu(self.parent, self.norm_var, *options, command = self.PPnormchoice)
+        self.norm_opt.config(bg=bgcol)
+        self.norm_opt.grid(row=srow, column=scol+5, sticky='EW')
         # apply smoothing
         self.smooth_label = tk.Label(self.parent, text="Smooth:", font = labelfont).grid(row=srow+1, column=scol, sticky='E')
         self.smooth_var = tk.StringVar()
         self.smooth_var.set(self.smooth_choice)
-        self.norm_opt = tk.OptionMenu(self.parent, self.smooth_var, *options, command=self.PPsmoothchoice).grid(
-            row=srow+1, column=scol + 1, sticky='EW')
+        self.norm_opt = tk.OptionMenu(self.parent, self.smooth_var, *options, command=self.PPsmoothchoice)
+        self.norm_opt.config(bg=bgcol)
+        self.norm_opt.grid(row=srow+1, column=scol + 1, sticky='EW')
         # define basis sets
         self.define_label = tk.Label(self.parent, text="Define basis sets:", font = labelfont).grid(row=srow+1, column=scol+2, sticky='E')
         self.define_var = tk.StringVar()
         self.define_var.set(self.define_choice)
-        self.define_opt = tk.OptionMenu(self.parent, self.define_var, *options, command=self.PPdefinechoice).grid(
-            row=srow+1, column=scol+3, sticky='EW')
+        self.define_opt = tk.OptionMenu(self.parent, self.define_var, *options, command=self.PPdefinechoice)
+        self.define_opt.config(bg=bgcol)
+        self.define_opt.grid(row=srow+1, column=scol+3, sticky='EW')
         # clean the data
         self.clean_label = tk.Label(self.parent, text="Clean data:", font = labelfont).grid(row=srow+1, column=scol+4, sticky='E')
         self.clean_var = tk.StringVar()
         self.clean_var.set(self.clean_choice)
-        self.clean_opt = tk.OptionMenu(self.parent, self.clean_var, *options, command=self.PPcleanchoice).grid(
-            row=srow+1, column=scol+5, sticky='EW')
+        self.clean_opt = tk.OptionMenu(self.parent, self.clean_var, *options, command=self.PPcleanchoice)
+        self.clean_opt.config(bg=bgcol)
+        self.clean_opt.grid(row=srow+1, column=scol+5, sticky='EW')
 
         # button to run the selected-preprocessing
         self.PPrun = tk.Button(self.parent, text = 'Process Data', width = bigbuttonsize, bg = fgcol1, fg = fgletter1 , command = self.PPrunclick, font = widgetfont, relief='raised', bd = 5, highlightbackground = widgetbg)
@@ -2928,8 +2942,9 @@ class GLMFrame:
         self.GLMoptionlabel1 = tk.Label(self.parent, text="GLM Method:", font = labelfont).grid(row=0, column=1, sticky='E')
         self.GLMoption_var = tk.StringVar()
         self.GLMoption_var.set(self.GLM1_option)
-        self.GLMoption_opt = tk.OptionMenu(self.parent, self.GLMoption_var, *GLMoptions, command = self.GLMoptionchoice).grid(
-            row=0, column=2, sticky='EW')
+        self.GLMoption_opt = tk.OptionMenu(self.parent, self.GLMoption_var, *GLMoptions, command = self.GLMoptionchoice)
+        self.GLMoption_opt.config(bg=bgcol)
+        self.GLMoption_opt.grid(row=0, column=2, sticky='EW')
 
         # set the data prefix for analysis
         self.GLMlabel2 = tk.Label(self.parent, text = 'Data prefix:', font = labelfont).grid(row=1, column=1, sticky='NSEW')
@@ -4441,6 +4456,7 @@ class GRPFrame:
             self.field_var.set('empty')
 
         self.GRPfield_menu = tk.OptionMenu(self.parent, self.field_var, *self.fields, command=self.DBfieldchoice)
+        self.GRPfield_menu.config(bg=bgcol)
         self.GRPfield_menu.grid(row=8, column=2, sticky='EW')
         self.fieldsearch_opt = self.GRPfield_menu  # save this way so that values are not cleared
 
@@ -5520,6 +5536,7 @@ class GRPFrame:
             self.field_var.set('empty')
 
         self.GRPfield_menu = tk.OptionMenu(self.parent, self.field_var, *self.fields, command=self.DBfieldchoice)
+        self.GRPfield_menu.config(bg=bgcol)
         self.GRPfield_menu.grid(row=8, column=2, columnspan = 2, sticky='EW')
         self.fieldsearch_opt = self.GRPfield_menu  # save this way so that values are not cleared
 
@@ -5654,6 +5671,7 @@ class DisplayFrame:
         self.DISPfields = fields
         self.fieldchoice_opt.destroy()
         field_menu = tk.OptionMenu(self.parent, self.field_var, *fields, command=self.DISPfieldchoice)
+        field_menu.config(bg=bgcol)
         field_menu.grid(row=5, column=2, sticky='EW')
         self.fieldchoice_opt = field_menu  # save this way so that values are not cleared
 
@@ -5703,6 +5721,7 @@ class DisplayFrame:
         self.excelsheetchoice_opt.destroy()
         self.sheetname_var.set('not defined')
         self.excelsheet_menu = tk.OptionMenu(self.parent, self.sheetname_var, *self.DISPexcelsheetnamelist, command=self.DISPexcelsheetchoice)
+        self.excelsheet_menu.config(bg=bgcol)
         self.excelsheet_menu.grid(row=15, column=2, sticky='EW')
         self.excelsheetchoice_opt = self.excelsheet_menu  # save this way so that values are not cleared
         self.DISPexcelsheetinput = self.DISPexcelsheetnamelist[0]
@@ -5832,6 +5851,7 @@ class DisplayFrame:
         else:
             self.sheetname_var.set('empty')
         excelsheet_menu = tk.OptionMenu(self.parent, self.sheetname_var, *self.DISPexcelsheetnamelist, command=self.DISPexcelsheetchoice)
+        excelsheet_menu.config(bg=bgcol)
         excelsheet_menu.grid(row=16, column=2, sticky='EW')
         self.excelsheetchoice_opt = excelsheet_menu  # save this way so that values are not cleared
         self.DISPexcelsheetinput = self.DISPexcelsheetnamelist[0]
@@ -6137,6 +6157,7 @@ class DisplayFrame:
         # print('connectiondata_names set to {}'.format(self.connectiondata_names))
 
         field_menu = tk.OptionMenu(self.parent, self.field_var, *self.DISPfields, command = self.DISPfieldchoice)
+        field_menu.config(bg=bgcol)
         field_menu.grid(row=5, column=2, columnspan=2, sticky='EW')
         self.fieldchoice_opt = field_menu   # save this way so that values are not cleared
 
@@ -6302,6 +6323,7 @@ class DisplayFrame:
         else:
             self.sheetname_var.set('empty')
         self.excelsheet_menu = tk.OptionMenu(self.parent, self.sheetname_var, *self.DISPexcelsheetnamelist, command=self.DISPexcelsheetchoice)
+        self.excelsheet_menu.config(bg=bgcol)
         self.excelsheet_menu.grid(row=16, column=2, columnspan=2, sticky='W')
         self.excelsheetchoice_opt = self.excelsheet_menu  # save this way so that values are not cleared
 
@@ -6405,6 +6427,8 @@ class SAPMFrame:
         # first, replace any double spaces with single spaces, and then replace spaces with commas
         entered_text = re.sub('\ +', ',', entered_text)
         entered_text = re.sub('\,\,+', ',', entered_text)
+        # replace x's with -1's
+        entered_text = re.sub('x+', '-1', entered_text)
         # remove any leading or trailing commas
         if entered_text[0] == ',': entered_text = entered_text[1:]
         if entered_text[-1] == ',': entered_text = entered_text[:-1]
@@ -6870,35 +6894,44 @@ class SAPMFrame:
                                    'networkmodel':self.networkmodel, 'DBname':self.DBname, 'SAPMregionname':self.SAPMregionname,
                                     'SAPMclustername':self.SAPMclustername, 'initial_clusters':clusterstart, 'betascale':self.SAPMbetascale})
 
-        message_text = 'Run the cluster search method from the \ncommand line. Follow the instructions \nwritten to the command window.'
-        self.SAPMkeyinfo1.config(text = message_text, fg = 'red')
+        use_parallel_processing = False
+        if use_parallel_processing:
+            message_text = 'Run the cluster search method from the \ncommand line. Follow the instructions \nwritten to the command window.'
+            self.SAPMkeyinfo1.config(text = message_text, fg = 'red')
 
-        # print out command line to use parallel processing ...
-        print('\n\nIt is much faster to run the cluster search from the python command line\nusing the following commands...')
-        print('  Note: if you get an error saying \'pantheon_command_line\' cannot be found, you need to add the folder containing '
-              'panthon_command_line.py to your path by entering the command sys.path.append( ...complete folder name... ) at the command line\n')
-        print('Enter the following commands at the command line. Change the values of nprocessors, samplesplit, and samplestart if needed:  ')
-        print('\nimport pantheon_command_line as pp')
-        print('import multiprocessing as mp')
-        print('max_processors = mp.cpu_count()')
-        print('print(\'maximum number of processors is {}\'.format(max_processors))')
-        print('nprocessors = 8  # ...choose the number to use, using the max available is not always the fastest')
-        print('samplesplit = 1  # ...choose how to divide the sample, 1 for all data, 2 for 1/2, 3 for 1/3 etc...')
-        print('samplestart = 0  # ...if the sample is split, which number to start with, i.e. for 1/2 use 0,2,4... or 1,3,5...')
-        print('# ...optional inputs that can be added after "samplestart" are: ,timepoint, epoch')
-        print('#    timepoint is the volume number at the center of the range of data you want to use (default is "all")')
-        print('#    epoch is the volume span of the range of data you want to use (default is "all")')
-        print('pp.SAPM_cluster_search_commandline(r\'{}\',nprocessors, samplesplit,samplestart)'.format(search_data_file))
+            # print out command line to use parallel processing ...
+            print('\n\nIt is much faster to run the cluster search from the python command line\nusing the following commands...')
+            print('  Note: if you get an error saying \'pantheon_command_line\' cannot be found, you need to add the folder containing '
+                  'panthon_command_line.py to your path by entering the command sys.path.append( ...complete folder name... ) at the command line\n')
+            print('Enter the following commands at the command line. Change the values of nprocessors, samplesplit, and samplestart if needed:  ')
+            print('\nimport pantheon_command_line as pp')
+            print('import multiprocessing as mp')
+            print('max_processors = mp.cpu_count()')
+            print('print(\'maximum number of processors is {}\'.format(max_processors))')
+            print('nprocessors = 8  # ...choose the number to use, using the max available is not always the fastest')
+            print('samplesplit = 1  # ...choose how to divide the sample, 1 for all data, 2 for 1/2, 3 for 1/3 etc...')
+            print('samplestart = 0  # ...if the sample is split, which number to start with, i.e. for 1/2 use 0,2,4... or 1,3,5...')
+            print('# ...optional inputs that can be added after "samplestart" are: ,timepoint, epoch')
+            print('#    timepoint is the volume number at the center of the range of data you want to use (default is "all")')
+            print('#    epoch is the volume span of the range of data you want to use (default is "all")')
+            print('pp.SAPM_cluster_search_commandline(r\'{}\',nprocessors, samplesplit,samplestart)'.format(search_data_file))
+        else:
+            nprocessors = 1
+            samplesplit = 1
+            samplestart = 0
+            # best_clusters = pysapm.SAPM_cluster_search(self.SAPMresultsdir, SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, self.SAPMregionname,
+            #                     self.SAPMclustername, nprocessors, samplesplit, samplestart, initial_clusters=clusterstart)
 
-        nprocessors = 1
-        # best_clusters = pysapm.SAPM_cluster_search(self.SAPMresultsdir, SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, self.SAPMregionname,
-        #                     self.SAPMclustername, nprocessors, samplesplit, initial_clusters=self.SAPMcnums)
-        #
-        # self.SAPMcnums = copy.deepcopy(list(best_clusters))
-        # self.SAPMcnumsbox.delete(0, 'end')
-        # self.SAPMcnumsbox.insert(0, self.SAPMcnums)
-        # settings['SAPMcnums'] = self.SAPMcnums
-        # np.save(settingsfile,settings)
+            best_clusters = pysapm.SAPM_cluster_stepsearch(self.SAPMresultsdir, SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, self.SAPMregionname,
+                        self.SAPMclustername, samplesplit, samplestart, initial_clusters=clusterstart)
+
+            self.SAPMcnums = copy.deepcopy(list(best_clusters))
+            self.SAPMcnumsbox.delete(0, 'end')
+            self.SAPMcnumsbox.insert(0, self.SAPMcnums)
+            message_text = 'Best clusters appear to be\n{}\nstarting clusters were\n{}'.format(self.SAPMcnums,clusterstart)
+            self.SAPMkeyinfo1.config(text = message_text, fg = 'red')
+            settings['SAPMcnums'] = self.SAPMcnums
+            np.save(settingsfile,settings)
 
     def SAPMrunnetwork(self):
         # define the clusters and load the data
@@ -7033,9 +7066,13 @@ class SAPMFrame:
 
         # put some text as a place-holder
         self.SAPMLabel1 = tk.Label(self.parent, text = "1) Select SAPM options...\n   network definition, cluster\n   definitions, region data ...", fg = 'gray', justify = 'left')
-        self.SAPMLabel1.grid(row=0,column=0, sticky='W')
-        self.SAPMLabel3 = tk.Label(self.parent, text = "2) Run selected SAPM", fg = 'gray', justify = 'left')
-        self.SAPMLabel3.grid(row=2,column=0, sticky='W')
+        self.SAPMLabel1.grid(row=0,column=0, sticky='W',rowspan=2)
+        self.SAPMLabel2 = tk.Label(self.parent, text = "2) The time span of data to\nuse can be specified as \'all\'\nor as the volume at the \ncenter of the time period\n(epoch), and the span of\nthe time period, separated\nby a comma", fg = 'gray', justify = 'left')
+        self.SAPMLabel2.grid(row=2,column=0, sticky='W',rowspan=4)
+        self.SAPMLabel3 = tk.Label(self.parent, text = "3) Clusters with the best\nfit to the data can be\nsearched, either starting\nfrom random values,\nspecified clusters, or\nwith some clusters fixed\nby specifying some clusters\nand indicating others with\n\'x\' or -1", fg = 'gray', justify = 'left')
+        self.SAPMLabel3.grid(row=6,column=0, sticky='W',rowspan=4)
+        self.SAPMLabel4 = tk.Label(self.parent, text = "4) Once parameters are selected:\nRun selected SAPM", fg = 'gray', justify = 'left')
+        self.SAPMLabel4.grid(row=10,column=0, sticky='W',rowspan=3)
 
         # network file--------------------------------------------------
         # create an entry box so that the user can specify the network file to use-----------------
@@ -7246,6 +7283,7 @@ class SAPMResultsFrame:
         self.SRtargetregion_var = tk.StringVar()
         self.SRtargetregion_var.set('empty')
         SRtargetregion_menu = tk.OptionMenu(self.parent, self.SRtargetregion_var, *region_list, command = self.SRtargetregionvalue_choice)
+        SRtargetregion_menu.config(bg=bgcol)
         SRtargetregion_menu.grid(row=8, column=4, sticky='EW')
         self.SRtargetregion_opt = SRtargetregion_menu   # save this way so that values are not cleared
 
@@ -7310,6 +7348,7 @@ class SAPMResultsFrame:
         self.SRcovfieldvaluesearch_opt.destroy()  # remove it
         SRcovfieldvalue_menu = tk.OptionMenu(self.parent, self.SRcovfield_var, *fieldvalues,
                                         command=self.SRcovfieldvaluechoice)
+        SRcovfieldvalue_menu.config(bg=bgcol)
         SRcovfieldvalue_menu.grid(row=7, column=2, sticky='EW')
         self.SRcovfieldvaluesearch_opt = SRcovfieldvalue_menu  # save this way so that values are not cleared
 
@@ -7357,6 +7396,7 @@ class SAPMResultsFrame:
         self.SRcovvaluesearch_opt.destroy()  # remove it
         SRcovvalue_menu = tk.OptionMenu(self.parent, self.SRcovvalue_var, *fieldvalues,
                                         command=self.SRcovvaluechoice)
+        SRcovvalue_menu.config(bg=bgcol)
         SRcovvalue_menu.grid(row=7, column=3, sticky='EW')
         self.SRcovvaluesearch_opt = SRcovvalue_menu  # save this way so that values are not cleared
 
@@ -7577,6 +7617,7 @@ class SAPMResultsFrame:
         self.SAPMBsheetfield_search_opt.destroy()  # remove it
         SAPMBsheet_menu = tk.OptionMenu(self.parent, self.SAPMBsheetfield_var, *fieldvalues,
                                         command=self.SAPMBsheetfieldvaluechoice)
+        SAPMBsheet_menu.config(bg=bgcol)
         SAPMBsheet_menu.grid(row=rownum, column=columnum, sticky='EW')
         self.SAPMBsheetfield_search_opt = SAPMBsheet_menu  # save this way so that values are not cleared
 
@@ -7615,6 +7656,7 @@ class SAPMResultsFrame:
         self.SAPMBcolumnfield_search_opt.destroy()  # remove it
         SAPMBcolumn_menu = tk.OptionMenu(self.parent, self.SAPMBcolumnfield_var, *fieldvalues,
                                         command=self.SAPMBcolumnfieldvaluechoice)
+        SAPMBcolumn_menu.config(bg=bgcol)
         SAPMBcolumn_menu.grid(row=rownum, column=columnum, sticky='EW')
         self.SAPMBcolumnfield_search_opt = SAPMBcolumn_menu  # save this way so that values are not cleared
         return self
@@ -7855,6 +7897,7 @@ class SAPMResultsFrame:
         self.SRcovfield_var.set('empty')
         fieldvalues = 'empty'
         SRcovfieldvalue_menu = tk.OptionMenu(self.parent, self.SRcovfield_var, *fieldvalues, command = self.SRcovfieldvaluechoice)
+        SRcovfieldvalue_menu.config(bg=bgcol)
         SRcovfieldvalue_menu.grid(row=7, column=2, sticky='EW')
         self.SRcovfieldvaluesearch_opt = SRcovfieldvalue_menu   # save this way so that values are not cleared
 
@@ -7864,6 +7907,7 @@ class SAPMResultsFrame:
         self.SRcovvalue_var.set('empty')
         fieldvalues = 'empty'
         SRcovvalue_menu = tk.OptionMenu(self.parent, self.SRcovvalue_var, *fieldvalues, command = self.SRcovvaluechoice)
+        SRcovvalue_menu.config(bg=bgcol)
         SRcovvalue_menu.grid(row=rownum, column=3, sticky='EW')
         self.SRcovvaluesearch_opt = SRcovvalue_menu   # save this way so that values are not cleared
 
@@ -7877,6 +7921,7 @@ class SAPMResultsFrame:
         self.SRoption_var = tk.StringVar()
         self.SRoption_var.set('empty')
         SRoptionvalue_menu = tk.OptionMenu(self.parent, self.SRoption_var, *outputoptions, command = self.SRoptionvalue_choice)
+        SRoptionvalue_menu.config(bg=bgcol)
         SRoptionvalue_menu.grid(row=rownum, column=2, sticky='EW')
         self.SRoptionvalue_opt = SRoptionvalue_menu   # save this way so that values are not cleared
 
@@ -7896,6 +7941,7 @@ class SAPMResultsFrame:
         self.SRtargetregion_var = tk.StringVar()
         self.SRtargetregion_var.set('empty')
         SRtargetregion_menu = tk.OptionMenu(self.parent, self.SRtargetregion_var, *region_list, command = self.SRtargetregionvalue_choice)
+        SRtargetregion_menu.config(bg=bgcol)
         SRtargetregion_menu.grid(row=rownum, column=4, sticky='EW')
         self.SRtargetregion_opt = SRtargetregion_menu   # save this way so that values are not cleared
 
@@ -7972,6 +8018,7 @@ class SAPMResultsFrame:
         self.SAPMBsheetfield_var = tk.StringVar()
         self.SAPMBsheetfield_var.set('sheet')
         SAPMBsheet_menu = tk.OptionMenu(self.parent, self.SAPMBsheetfield_var, *self.SRsheetnames, command = self.SAPMBsheetfieldvaluechoice)
+        SAPMBsheet_menu.config(bg=bgcol)
         SAPMBsheet_menu.grid(row=rownum, column=columnum, sticky='EW')
         SAPMBsheet_menu.config(state = tk.DISABLED)
         self.SAPMBsheetfield_search_opt = SAPMBsheet_menu   # save this way so that values are not cleared
@@ -7983,6 +8030,7 @@ class SAPMResultsFrame:
         self.SAPMBcolumnfield_var = tk.StringVar()
         self.SAPMBcolumnfield_var.set('stat')
         SAPMBcolumn_menu = tk.OptionMenu(self.parent, self.SAPMBcolumnfield_var, *self.SRcolumnnames, command = self.SAPMBcolumnfieldvaluechoice)
+        SAPMBcolumn_menu.config(bg=bgcol)
         SAPMBcolumn_menu.grid(row=rownum, column=columnum, sticky='EW')
         SAPMBcolumn_menu.config(state = tk.DISABLED)
         self.SAPMBcolumnfield_search_opt = SAPMBcolumn_menu   # save this way so that values are not cleared

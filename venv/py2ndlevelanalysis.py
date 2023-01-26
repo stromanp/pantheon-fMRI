@@ -2510,7 +2510,6 @@ def single_group_ANOVA(filename1, covariates1, pthreshold, mode = 'ANOVA', covar
                 print('no significant results found at p < {}'.format(pthreshold))
             return excelfilename
 
-
     if datafiletype == 3:
         print('GLM results loaded ...')
         print(' ... ANOVA based on GLM results is not available ...')

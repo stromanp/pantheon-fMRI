@@ -58,3 +58,52 @@ def SAPM_cluster_search_commandline(search_data_file, nprocessors, samplesplit,s
                                                search_data['SAPMclustername'], nprocessors, samplesplit,samplestart,
                                                search_data['initial_clusters'], timepoint, epoch)
     print('best clusters appear to be: {}'.format(best_clusters))
+
+
+
+def SAPM_cluster_search_commandline2(search_data_file, nprocessors, samplesplit,samplestart, timepoint = 'all', epoch = 'all'):
+    # this is meant to be run from the command line - to make use of parallel processing
+    # search_data_file = r'E:/SAPMresults_Dec2022\SAPM_search_parameters.npy'
+    # nprocessors = 1
+    # samplesplit = 1
+    # samplestart = 0
+    # timepoint = 'all'
+    # epoch = 'all'
+
+    print('Running SAPM_cluster_search with parallel processing')
+    search_data = np.load(search_data_file, allow_pickle=True).flat[0]
+
+    outputdir = search_data['SAPMresultsdir']
+    SEMresultsname = search_data['SAPMresultsname']
+    SEMparametersname = search_data['SAPMparamsname']
+    networkfile = search_data['networkmodel']
+    DBname = search_data['DBname']
+    regiondataname = search_data['SAPMregionname']
+    clusterdataname = search_data['SAPMclustername']
+    initial_clusters = search_data['initial_clusters']
+
+    best_clusters = pysapm.SAPM_cluster_search2b(search_data['SAPMresultsdir'], search_data['SAPMresultsname'],
+                                               search_data['SAPMparamsname'],
+                                               search_data['networkmodel'], search_data['DBname'],
+                                               search_data['SAPMregionname'],
+                                               search_data['SAPMclustername'], nprocessors, samplesplit,samplestart,
+                                               search_data['initial_clusters'], timepoint, epoch)
+
+    # outputdir = search_data['SAPMresultsdir']
+    # SAPMresultsname = search_data['SAPMresultsname']
+    # SAPMparametersname = search_data['SAPMparamsname']
+    # networkfile = search_data['networkmodel']
+    # DBname = search_data['DBname']
+    # regiondataname = search_data['SAPMregionname']
+    # clusterdataname = search_data['SAPMclustername']
+    # nprocessors = 1
+    # samplesplit = 1
+    # samplestart=0
+    # initial_clusters=[]
+    # timepoint='all'
+    # epoch='all'
+    # betascale=0.0
+
+
+
+    print('best clusters appear to be: {}'.format(best_clusters))
