@@ -640,7 +640,7 @@ def pywriteexcel(data, excelname, excelsheet = 'pydata', write_mode = 'replace',
         with pd.ExcelWriter(excelname, engine = 'openpyxl', mode='w') as writer:
             dataf.to_excel(writer, sheet_name=excelsheet, float_format = floatformat)
     else:
-        with pd.ExcelWriter(excelname, engine = 'openpyxl', mode='a') as writer:
+        with pd.ExcelWriter(excelname, engine = 'openpyxl', mode='a', if_sheet_exists = 'replace') as writer:
             dataf.to_excel(writer, sheet_name=excelsheet, float_format = floatformat)
 
 

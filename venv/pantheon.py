@@ -2936,8 +2936,9 @@ class GLMFrame:
         self.GLMlabel1 = tk.Label(self.parent, text = "2) Specify database numbers,\ncontrast, and analysis mode", fg = 'gray')
         self.GLMlabel1.grid(row=1,column=0, sticky='W')
 
-        GLMoptions = {'concatenate_group', 'group_concatenate_by_person_avg', 'avg_by_person',
-                        'concatenate_by_person', 'group_average'}
+        GLMoptions = ['group_average', 'group_concatenate', 'group_concatenate_by_avg_person', 'per_person_avg',
+                        'per_person_concatenate_runs']
+        # per_person_modes = ['per_person_avg', 'per_person_concatenate_runs']
 
         self.GLMoptionlabel1 = tk.Label(self.parent, text="GLM Method:", font = labelfont).grid(row=0, column=1, sticky='E')
         self.GLMoption_var = tk.StringVar()
@@ -3402,8 +3403,8 @@ class GLMFrame:
 
     def GLMrun1(self):
         # select the method for GLM analysis
-        # GLMoptions = {'concatenate_group', 'group_concatenate_by_person_avg', 'avg_by_person',
-        #               'concatenate_by_person', 'group_average'}
+        # GLMoptions = {'group_average', 'group_concatenate', 'group_concatenate_by_avg_person', 'per_person_avg',
+        #                 'per_person_concatenate_runs'}
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         DBname = settings['DBname']
         DBnum = settings['DBnum']
@@ -3430,7 +3431,7 @@ class GLMFrame:
         self.dataset = dataset
         self.basisset = basisset
 
-        per_person_modes = ['avg_by_person', 'concatenate_by_person']
+        per_person_modes = ['per_person_avg', 'per_person_concatenate_runs']
         runmode = settings['GLM1_option']
         contrast = settings['GLMcontrast']
 
@@ -5484,17 +5485,17 @@ class GRPFrame:
         # checkboxes to indicate 1) signficiance from zero, 2) group differences, 3) correlation
         self.GRPanalysistypevalue = tk.IntVar(None,1)
         self.GRPsig1 = tk.Radiobutton(self.parent, text = 'Sign. non-zero', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 1, highlightbackground = widgetbg)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 1)
         self.GRPsig1.grid(row = 5, column = 1, sticky="W")
 
         self.var2 = tk.IntVar()
         self.GRPsig2 = tk.Radiobutton(self.parent, text = 'Avg. Group Diff.', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 2, highlightbackground = widgetbg)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 2)
         self.GRPsig2.grid(row = 6, column = 1, sticky="W")
 
         self.var3 = tk.IntVar()
         self.GRPsig2p = tk.Radiobutton(self.parent, text = 'Paired Group Diff.', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 3, highlightbackground = widgetbg)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 3)
         self.GRPsig2p.grid(row = 7, column = 1, sticky="W")
 
         self.var4 = tk.IntVar()
@@ -5504,28 +5505,28 @@ class GRPFrame:
 
         self.var5 = tk.IntVar()
         self.GRPcorr = tk.Radiobutton(self.parent, text = 'Regression', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 5, highlightbackground = widgetbg)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 5)
         self.GRPcorr.grid(row = 6, column = 2, sticky="W")
 
         self.var8 = tk.IntVar()
         self.GRPtime = tk.Radiobutton(self.parent, text = 'Time Paired Diff.', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 8, highlightbackground = widgetbg)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 8)
         self.GRPtime.grid(row = 7, column = 2, sticky="W")
 
 
         self.var6 = tk.IntVar()
         self.GRPcorr = tk.Radiobutton(self.parent, text = 'ANOVA', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 6, highlightbackground = widgetbg)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 6)
         self.GRPcorr.grid(row = 5, column = 3, sticky="W")
 
         self.var7 = tk.IntVar()
         self.GRPcorr = tk.Radiobutton(self.parent, text = 'ANCOVA', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 7, highlightbackground = widgetbg)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 7)
         self.GRPcorr.grid(row = 6, column = 3, sticky="W")
 
 
         # indicate which "personal characteristics" to use - selected from database
-        self.GRPlabel2 = tk.Label(self.parent, text = "Select characteristic:", font = labelfont, highlightbackground = widgetbg)
+        self.GRPlabel2 = tk.Label(self.parent, text = "Select characteristic:", font = labelfont)
         self.GRPlabel2.grid(row=8,column=1, sticky='W')
         # fieldvalues = DBFrame.get_DB_field_values(self)
         self.fields = self.get_DB_fields()
@@ -5545,7 +5546,7 @@ class GRPFrame:
                                         command=self.GRPcharacteristicslistclear, relief='raised', bd=5, highlightbackground = widgetbg)
         self.GRPcharclearbutton.grid(row=8, column=4)
 
-        self.GRPlabel3 = tk.Label(self.parent, text = 'Characteristics list:', font = labelfont, highlightbackground = widgetbg)
+        self.GRPlabel3 = tk.Label(self.parent, text = 'Characteristics list:', font = labelfont)
         self.GRPlabel3.grid(row=9, column=1, sticky='N')
 
         self.GRPcharacteristicscount = 0
@@ -5557,17 +5558,17 @@ class GRPFrame:
         self.GRPcharacteristicsdisplay.grid(row=9, column=2, columnspan=2, sticky='N')
 
         # put in choices for statistical threshold
-        self.GRPlabel5 = tk.Label(self.parent, text = 'p-value threhold:', font = labelfont, highlightbackground = widgetbg).grid(row=10, column=1, sticky='NSEW')
+        self.GRPlabel5 = tk.Label(self.parent, text = 'p-value threhold:', font = labelfont).grid(row=10, column=1, sticky='NSEW')
         self.GRPpvaluebox = tk.Entry(self.parent, width = 8, bg="white")
         self.GRPpvaluebox.grid(row=10, column=2, sticky = "W")
         self.GRPpvaluebox.insert(0,self.GRPpvalue)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.GRPpvaluesubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.GRPpvaluesubmit, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.GRPpvaluesubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.GRPpvaluesubmit, relief='raised', bd = 5)
         self.GRPpvaluesubmitbut.grid(row=10, column=3)
 
         # label, button, for running the definition of clusters, and loading data
         self.GRPrunbutton = tk.Button(self.parent, text="Run Group Analysis", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
-                                        command=self.GRPrunanalysis, relief='raised', bd=5, highlightbackground = widgetbg)
+                                        command=self.GRPrunanalysis, relief='raised', bd=5)
         self.GRPrunbutton.grid(row=11, column=1, columnspan = 2)
 
 

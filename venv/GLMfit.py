@@ -220,20 +220,24 @@ def GLMfit_subtract_and_separate(image_data, basis_set, add_constant = False, nd
 
 #----------------compile_data_sets------------------------------------------
 # function to load nifti format data and organize it as needed for analysis
-def compile_data_sets(DBname, dbnumlist, prefix, mode = 'concatenate_group', nvolmask = 2):
+def compile_data_sets(DBname, dbnumlist, prefix, mode = 'group_concatenate', nvolmask = 2):
     # options are:
     #   with input data being size xs, ys, zs, ts   and N database numbers, from Npeople participants, in dbnumlist:
-    #  1) concatenate_group:   concatenate across the entire group  - tsize  = N x ts
-    #  2) group_concatenate_by_person_avg:  concatenate averaged data for each person  - tsize = Npeople x ts
-    #  3) avg_by_person:  average data for each person  - tsize = ts, plus 5th dimension of size Npeople
-    #  4) concatenate_by_person:  concatenate data for each person  - tsize = Nruns per person x ts, plus 5th dimension of size Npeople
+    #  1) group_concatenate:   concatenate across the entire group  - tsize  = N x ts
+    #  2) group_concatenate_by_avg_person:  concatenate averaged data for each person  - tsize = Npeople x ts
+    #  3) per_person_avg:  average data for each person  - tsize = ts, plus 5th dimension of size Npeople
+    #  4) per_person_concatenate_runs:  concatenate data for each person  - tsize = Nruns per person x ts, plus 5th dimension of size Npeople
     #  5) group_average:  average all data - tsize = ts
     # the input option "nvolmask" is similar to dropping initial volumes, but instead they are masked by
     # replacing the initial time point values with replications of the one at timepoint = nvolmask, to
     # eliminate the influence of the initial volumes even though they are still represented
 
-    options_list = ['concatenate_group', 'group_concatenate_by_person_avg', 'avg_by_person', 'concatenate_by_person', 'group_average']
-    person_avg_options = ['group_concatenate_by_person_avg', 'avg_by_person', 'group_average']
+    # options_list = ['concatenate_group', 'group_concatenate_by_person_avg', 'avg_by_person', 'concatenate_by_person', 'group_average']
+    options_list = ['group_average', 'group_concatenate', 'group_concatenate_by_avg_person', 'per_person_avg',
+                  'per_person_concatenate_runs']
+    # person_avg_options = ['group_concatenate_by_person_avg', 'avg_by_person', 'group_average']
+    person_avg_options = ['group_concatenate_by_avg_person', 'per_person_avg', 'group_average']
+
     if mode in options_list:
         print('compile_data_sets:  DBname = ',DBname)
         filename_list, dbnum_person_list, NP = pydatabase.get_datanames_by_person(DBname, dbnumlist, prefix, mode = 'list')
@@ -246,7 +250,7 @@ def compile_data_sets(DBname, dbnumlist, prefix, mode = 'concatenate_group', nvo
             divisor = 0
             for runnum, name in enumerate(list1):
                 # read in the name, and do something with the data ...
-                # if mode is group_concatenate_by_person_avg, avg_by_person, or group_average, then sum the data for now
+                # if mode is group_concatenate_by_avg_person, per_person_avg, or group_average, then sum the data for now
                 # otherwise, concatenate the data
                 input_img = nib.load(name)
                 input_data = input_img.get_data()
@@ -291,8 +295,8 @@ def compile_data_sets(DBname, dbnumlist, prefix, mode = 'concatenate_group', nvo
             person_data = person_data/divisor # average
 
             # group level
-            options_list = ['concatenate_group', 'group_concatenate_by_person_avg', 'avg_by_person',
-                'concatenate_by_person', 'group_average']
+            options_list = ['group_concatenate', 'group_concatenate_by_avg_person', 'per_person_avg',
+                'per_person_concatenate_runs', 'group_average']
 
             if pnum == 0:
                 group_data = person_data
@@ -301,16 +305,16 @@ def compile_data_sets(DBname, dbnumlist, prefix, mode = 'concatenate_group', nvo
                 if mode == 'group_average':
                     group_data += person_data
                     group_divisor += 1
-                if mode == 'group_concatenate_by_person_avg':
+                if mode == 'group_concatenate_by_avg_person':
                     group_data = np.concatenate((group_data,person_data),axis = 3)
-                if mode == 'concatenate_group':
+                if mode == 'group_concatenate':
                     group_data = np.concatenate((group_data,person_data),axis = 3)
-                if mode == 'avg_by_person':
+                if mode == 'per_person_avg':
                     if np.ndim(group_data) == 4:
                         group_data = np.concatenate((group_data[:,:,:,:,np.newaxis],person_data[:,:,:,:,np.newaxis]),axis = 4)
                     else:
                         group_data = np.concatenate((group_data,person_data[:,:,:,:,np.newaxis]),axis = 4)
-                if mode == 'concatenate_by_person':
+                if mode == 'per_person_concatenate_runs':
                     # need to pad every person out to the same length  --> taken care of earlier now
                     # tsize_group = np.shape(group_data)[3]
                     # xs,ys,zs,tsize_person = np.shape(person_data)
@@ -338,13 +342,13 @@ def compile_data_sets(DBname, dbnumlist, prefix, mode = 'concatenate_group', nvo
 
 #----------------compile_basis_sets------------------------------------------
 # function to load nifti format data and organize it as needed for analysis
-def compile_basis_sets(DBname, dbnumlist, prefix, mode = 'concatenate_group', nvolmask = 2):
+def compile_basis_sets(DBname, dbnumlist, prefix, mode = 'group_concatenate', nvolmask = 2):
     # options are:
     #   with input data being size xs, ys, zs, ts   and N database numbers, from Npeople participants, in dbnumlist:
-    #  1) concatenate_group:   concatenate across the entire group  - tsize  = N x ts
-    #  2) group_concatenate_by_person_avg:  concatenate averaged data for each person  - tsize = Npeople x ts
-    #  3) avg_by_person:  average data for each person  - tsize = ts, plus 5th dimension of size Npeople
-    #  4) concatenate_by_person:  concatenate data for each person  - tsize = Nruns per person x ts, plus 5th dimension of size Npeople
+    #  1) group_concatenate:   concatenate across the entire group  - tsize  = N x ts
+    #  2) group_concatenate_by_avg_person:  concatenate averaged data for each person  - tsize = Npeople x ts
+    #  3) per_person_avg:  average data for each person  - tsize = ts, plus 5th dimension of size Npeople
+    #  4) per_person_concatenate_runs:  concatenate data for each person  - tsize = Nruns per person x ts, plus 5th dimension of size Npeople
     #  5) group_average:  average all data - tsize = ts
     # the input option "nvolmask" is similar to dropping initial volumes, but instead they are masked by
     # replacing the initial time point values with replications of the one at timepoint = nvolmask, to
@@ -352,8 +356,11 @@ def compile_basis_sets(DBname, dbnumlist, prefix, mode = 'concatenate_group', nv
     xls = pd.ExcelFile(DBname)
     datarecord = pd.read_excel(xls, 'datarecord')
 
-    options_list = ['concatenate_group', 'group_concatenate_by_person_avg', 'avg_by_person', 'concatenate_by_person', 'group_average']
-    person_avg_options = ['group_concatenate_by_person_avg', 'avg_by_person', 'group_average']
+    # options_list = ['concatenate_group', 'group_concatenate_by_person_avg', 'avg_by_person', 'concatenate_by_person', 'group_average']
+    options_list = ['group_average', 'group_concatenate', 'group_concatenate_by_avg_person', 'per_person_avg',
+                  'per_person_concatenate_runs']
+    # person_avg_options = ['group_concatenate_by_person_avg', 'avg_by_person', 'group_average']
+    person_avg_options = ['group_concatenate_by_avg_person', 'per_person_avg', 'group_average']
     if mode in options_list:
         filename_list, dbnum_person_list, NP = pydatabase.get_datanames_by_person(DBname, dbnumlist, prefix, mode = 'list')
         # group level
@@ -366,7 +373,7 @@ def compile_basis_sets(DBname, dbnumlist, prefix, mode = 'concatenate_group', nv
             divisor = 0
             for runnum, name in enumerate(list1):
                 # read in the name, and do something with the data ...
-                # if mode is group_concatenate_by_person_avg, avg_by_person, or group_average, then sum the data for now
+                # if mode is group_concatenate_by_avg_person, per_person_avg, or group_average, then sum the data for now
                 # otherwise, concatenate the data
                 # input_img = nib.load(name)
                 # input_data = input_img.get_data()
@@ -441,8 +448,8 @@ def compile_basis_sets(DBname, dbnumlist, prefix, mode = 'concatenate_group', nv
             person_data = person_data/divisor # average
 
             # group level
-            options_list = ['concatenate_group', 'group_concatenate_by_person_avg', 'avg_by_person',
-                'concatenate_by_person', 'group_average']
+            options_list = ['group_concatenate', 'group_concatenate_by_avg_person', 'per_person_avg',
+                'per_person_concatenate_runs', 'group_average']
 
             if pnum == 0:
                 group_basis_set = person_data
@@ -451,16 +458,16 @@ def compile_basis_sets(DBname, dbnumlist, prefix, mode = 'concatenate_group', nv
                 if mode == 'group_average':
                     group_basis_set += person_data
                     group_divisor += 1
-                if mode == 'group_concatenate_by_person_avg':
+                if mode == 'group_concatenate_by_avg_person':
                     group_basis_set = np.concatenate((group_basis_set,person_data),axis = 1)
-                if mode == 'concatenate_group':
+                if mode == 'group_concatenate':
                     group_basis_set = np.concatenate((group_basis_set,person_data),axis = 1)
-                if mode == 'avg_by_person':
+                if mode == 'per_person_avg':
                     if np.ndim(group_basis_set) == 2:
                         group_basis_set = np.concatenate((group_basis_set[:,:,np.newaxis],person_data[:,:,np.newaxis]),axis = 2)
                     else:
                         group_basis_set = np.concatenate((group_basis_set,person_data[:,:,np.newaxis]),axis = 2)
-                if mode == 'concatenate_by_person':
+                if mode == 'per_person_concatenate_runs':
                     # need to pad every person out to the same length
                     tsize_group = np.shape(group_basis_set)[1]
                     nd,tsize_person = np.shape(person_data)
