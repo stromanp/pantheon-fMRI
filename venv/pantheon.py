@@ -98,6 +98,22 @@ else:
     widgetbg = '#808080'
     mainbg = '#808080'
 
+    # colours for Mac/Linux - alternatives
+    fgcol1 = '#990f18'
+    fgcol2 = '#347453'
+    fgcol3 = '#5435e9'
+    bgcol = '#808080'
+    fgletter1 = '#FFFFFF'
+    fgletter2 = '#FFFFFF'
+    fgletter3 = '#FFFFFF'
+    widgetfont = "none 9 bold"
+    widgetfont2 = "none 9 bold"
+    labelfont = "none 9 bold"
+    radiofont = "none 9"
+    infofont = "none 9"
+    widgetbg = '#808080'
+    mainbg = '#fefefe'
+
 bigbigbuttonsize = 21
 bigbuttonsize = 14
 smallbuttonsize = 9
@@ -106,106 +122,123 @@ smallbuttonsize = 9
 basedir = os.getcwd()
 settingsfile = os.path.join(basedir,'base_settings_file.npy')
 
-if os.path.isfile(settingsfile):
-    print('name of the settings file is : ', settingsfile)
-    settings = np.load(settingsfile, allow_pickle = True).flat[0]
-    # set some defaults
-    settings['GLMpvalue_unc'] = settings['GLMpvalue']
-    settings['GRPanalysistype'] = 'Sig1'
-else:
-    settings = {'DBname':'none',
-            'DBnum':'none',
-            'DBname2': 'none',
-            'DBnum2': 'none',
-            'DBnumstring':'none',
-            'NIbasename':'Series',
-            'CRprefix':'',
-            'NCparameters':[50,50,5,6,-10,20,-10,10],
-            'NCsavename':'normdata',
-            'coreg_choice':'Yes.',
-            'slicetime_choice':'Yes.',
-            'norm_choice':'Yes.',
-            'smooth_choice':'Yes.',
-            'define_choice':'Yes.',
-            'clean_choice':'Yes.',
-            'sliceorder':'Inc,Alt,Odd',
-            'sliceaxis':0,
-            'refslice':1,
-            'smoothwidth':3,
-            'GLM1_option':'group_average',
-            'GLMprefix':'ptc',
-            'GLMndrop':2,
-            'GLMcontrast':[1,0],
-            'GLMresultsdir':basedir,
-            'GLMpvalue':0.05,
-            'GLMpvalue_unc':0.05,
-            'GLMvoxvolume':1.0,
-            'networkmodel':'none',
-            'CLprefix':'xptc',
-            'CLclustername':'notdefined',
-            'CLregionname':'notdefined',
-            'CLresultsdir':basedir,
-            'last_folder':basedir,
-            'SEMprefix':'xptc',
-            'SEMclustername':'notdefined',
-            'SEMregionname':'notdefined',
-            'SEMresultsdir':basedir,
-            'SEMsavetag':'base',
-            'SEMtimepoints':[11,18],
-            'SEMepoch':7,
-            'SEMresumerun':False,
-            'SRoptionvalue':'unknown',
-            'SRcovname':'unknown',
-            'SRpvalue':0.05,
-            'SRgroup':'unknown',
-            'SRtargetregion':'unknown',
-            'SRnametag':'unknown',
-            'SRdrawfile':'unknown',
-            'SRthresholdtext':'unknown',
-            'SAPMBfile':'unknown',
-            'GRPresultsname':'notdefined',
-            'GRPresultsname2':'notdefined',
-            'GRPcharacteristicscount':0,
-            'GRPcharacteristicslist':[],
-            'GRPcharacteristicsvalues':[],
-            'GRPcharacteristicsvalues2':[],
-            'GRPanalysistype':'undefined',
-            'GRPdatafiletype1':0,
-            'GRPdatafiletype2':0,
-            'GRPpvalue':0.05,
-            'NCBparameters':[(10000, 1000, 100),(3.0, 1.0, 0.0),(4, 2, 1)],
-            'braintemplate':'avg152T2.nii',
-            'SAPMcnums': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            'SAPMresultsdir': '',
-            'SAPMresultsname': '',
-            'SAPMparamsname': '',
-            'networkmodel': '',
-            'SAPMclustername': '',
-            'SAPMregionname': '',
-            'SAPMtimepoint': 'all',
-            'SAPMepoch': 'all',
-            'SRoptionvalue':1,
-            'SRcovname':'none',
-            'SRpvalue':0.05,
-            'SRgroup':'',
-            'SRtargetregion':'none',
-            'SRnametag':'',
-            'SRdrawfile':'',
-            'SRthresholdtext':'',
-            'SAPMBfile':'',
-            'SAPMsavetag':'',
-            'SRresultsdir':'',
-            'SRresultsname':'',
-            'SRparamsname':'',
-            'SAPMBsheet':'',
-            'SAPMBcolumn':'',
-            'SRcovvalue':'',
-            'GLMbasisset':'',
-            'GLMparadigmnames':'',
-            'GLMdataname':'',
-            'SAPMbetascale':'',
-            'SRvariant':0,
-            'DISPconndefnamefull':''}
+def check_settings_file(settingsfile):
+    default_settings = {'DBname': 'none',
+                    'DBnum': 'none',
+                    'DBname2': 'none',
+                    'DBnum2': 'none',
+                    'DBnumstring': 'none',
+                    'NIbasename': 'Series',
+                    'CRprefix': '',
+                    'NCparameters': [50, 50, 5, 6, -10, 20, -10, 10],
+                    'NCsavename': 'normdata',
+                    'coreg_choice': 'Yes.',
+                    'slicetime_choice': 'Yes.',
+                    'norm_choice': 'Yes.',
+                    'smooth_choice': 'Yes.',
+                    'define_choice': 'Yes.',
+                    'clean_choice': 'Yes.',
+                    'sliceorder': 'Inc,Alt,Odd',
+                    'sliceaxis': 0,
+                    'refslice': 1,
+                    'smoothwidth': 3,
+                    'GLM1_option': 'group_average',
+                    'GLMprefix': 'ptc',
+                    'GLMndrop': 2,
+                    'GLMcontrast': [1, 0],
+                    'GLMresultsdir': basedir,
+                    'GLMpvalue': 0.05,
+                    'GLMpvalue_unc': 0.05,
+                    'GLMvoxvolume': 1.0,
+                    'networkmodel': 'none',
+                    'CLprefix': 'xptc',
+                    'CLclustername': 'notdefined',
+                    'CLregionname': 'notdefined',
+                    'CLresultsdir': basedir,
+                    'last_folder': basedir,
+                    'SEMprefix': 'xptc',
+                    'SEMclustername': 'notdefined',
+                    'SEMregionname': 'notdefined',
+                    'SEMresultsdir': basedir,
+                    'SEMsavetag': 'base',
+                    'SEMtimepoints': [11, 18],
+                    'SEMepoch': 7,
+                    'SEMresumerun': False,
+                    'SRoptionvalue': 'unknown',
+                    'SRcovname': 'unknown',
+                    'SRpvalue': 0.05,
+                    'SRgroup': 'unknown',
+                    'SRtargetregion': 'unknown',
+                    'SRnametag': 'unknown',
+                    'SRdrawfile': 'unknown',
+                    'SRthresholdtext': 'unknown',
+                    'SAPMBfile': 'unknown',
+                    'GRPresultsname': 'notdefined',
+                    'GRPresultsname2': 'notdefined',
+                    'GRPcharacteristicscount': 0,
+                    'GRPcharacteristicslist': [],
+                    'GRPcharacteristicsvalues': [],
+                    'GRPcharacteristicsvalues2': [],
+                    'GRPanalysistype': 'Sig1',
+                    'GRPdatafiletype1': 0,
+                    'GRPdatafiletype2': 0,
+                    'GRPpvalue': 0.05,
+                    'NCBparameters': [(10000, 1000, 100), (3.0, 1.0, 0.0), (4, 2, 1)],
+                    'braintemplate': 'avg152T2.nii',
+                    'SAPMcnums': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    'SAPMresultsdir': '',
+                    'SAPMresultsname': '',
+                    'SAPMparamsname': '',
+                    'networkmodel': '',
+                    'SAPMclustername': '',
+                    'SAPMregionname': '',
+                    'SAPMtimepoint': 'all',
+                    'SAPMepoch': 'all',
+                    'SRoptionvalue': 1,
+                    'SRcovname': 'none',
+                    'SRpvalue': 0.05,
+                    'SRgroup': '',
+                    'SRtargetregion': 'none',
+                    'SRnametag': '',
+                    'SRdrawfile': '',
+                    'SRthresholdtext': '',
+                    'SAPMBfile': '',
+                    'SAPMsavetag': '',
+                    'SRresultsdir': '',
+                    'SRresultsname': '',
+                    'SRparamsname': '',
+                    'SAPMBsheet': '',
+                    'SAPMBcolumn': '',
+                    'SRcovvalue': '',
+                    'GLMbasisset': '',
+                    'GLMparadigmnames': '',
+                    'GLMdataname': '',
+                    'SAPMbetascale': 0.01,
+                    'SRvariant': 0,
+                    'DISPconndefnamefull': ''}
+
+    if os.path.isfile(settingsfile):
+        print('name of the settings file is : ', settingsfile)
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        # set some defaults
+        settings['GLMpvalue_unc'] = settings['GLMpvalue']
+        settings['GRPanalysistype'] = 'Sig1'
+
+        # check that the settings list is complete (could be out of date)
+        requiredkeylist = default_settings.keys()
+        savedkeylist = settings.keys()
+        for kk in requiredkeylist:
+            if kk not in savedkeylist:
+                settings[kk] = copy.deepcopy(default_settings[kk])
+    else:
+        settings = copy.deepcopy(default_settings)
+
+    np.save(settingsfile,settings)
+    return settings
+
+#-------------------------------------------------------------------
+# check the settings file
+settings = check_settings_file(settingsfile)
 np.save(settingsfile,settings)
 
 # ------Create the Base Window that will hold everything, widgets, etc.---------------------
@@ -2999,13 +3032,13 @@ class GLMFrame:
         self.GLML7.grid(row=6, column=1, sticky='W')
         self.GLMpcorrectionmethod = tk.IntVar(None,1)
         self.GLMcorr1 = tk.Radiobutton(self.parent, text = 'no correction', width = smallbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GLMsetcorrtype, variable = self.GLMpcorrectionmethod, value = 1, state = tk.DISABLED)
+                                          command = self.GLMsetcorrtype, variable = self.GLMpcorrectionmethod, value = 1, state = tk.DISABLED, highlightbackground = widgetbg)
         self.GLMcorr1.grid(row = 6, column = 2, sticky="E")
         self.GLMcorr2 = tk.Radiobutton(self.parent, text = 'GRF', width = smallbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GLMsetcorrtype, variable = self.GLMpcorrectionmethod, value = 2, state = tk.DISABLED)
+                                          command = self.GLMsetcorrtype, variable = self.GLMpcorrectionmethod, value = 2, state = tk.DISABLED, highlightbackground = widgetbg)
         self.GLMcorr2.grid(row = 6, column = 3, sticky="E")
         self.GLMcorr3 = tk.Radiobutton(self.parent, text = 'Bonferroni', width = smallbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GLMsetcorrtype, variable = self.GLMpcorrectionmethod, value = 3, state = tk.DISABLED)
+                                          command = self.GLMsetcorrtype, variable = self.GLMpcorrectionmethod, value = 3, state = tk.DISABLED, highlightbackground = widgetbg)
         self.GLMcorr3.grid(row = 6, column = 4, sticky="E")
 
 
@@ -5485,17 +5518,17 @@ class GRPFrame:
         # checkboxes to indicate 1) signficiance from zero, 2) group differences, 3) correlation
         self.GRPanalysistypevalue = tk.IntVar(None,1)
         self.GRPsig1 = tk.Radiobutton(self.parent, text = 'Sign. non-zero', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 1)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 1, highlightbackground = widgetbg)
         self.GRPsig1.grid(row = 5, column = 1, sticky="W")
 
         self.var2 = tk.IntVar()
         self.GRPsig2 = tk.Radiobutton(self.parent, text = 'Avg. Group Diff.', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 2)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 2, highlightbackground = widgetbg)
         self.GRPsig2.grid(row = 6, column = 1, sticky="W")
 
         self.var3 = tk.IntVar()
         self.GRPsig2p = tk.Radiobutton(self.parent, text = 'Paired Group Diff.', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 3)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 3, highlightbackground = widgetbg)
         self.GRPsig2p.grid(row = 7, column = 1, sticky="W")
 
         self.var4 = tk.IntVar()
@@ -5505,23 +5538,23 @@ class GRPFrame:
 
         self.var5 = tk.IntVar()
         self.GRPcorr = tk.Radiobutton(self.parent, text = 'Regression', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 5)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 5, highlightbackground = widgetbg)
         self.GRPcorr.grid(row = 6, column = 2, sticky="W")
 
         self.var8 = tk.IntVar()
         self.GRPtime = tk.Radiobutton(self.parent, text = 'Time Paired Diff.', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 8)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 8, highlightbackground = widgetbg)
         self.GRPtime.grid(row = 7, column = 2, sticky="W")
 
 
         self.var6 = tk.IntVar()
         self.GRPcorr = tk.Radiobutton(self.parent, text = 'ANOVA', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 6)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 6, highlightbackground = widgetbg)
         self.GRPcorr.grid(row = 5, column = 3, sticky="W")
 
         self.var7 = tk.IntVar()
         self.GRPcorr = tk.Radiobutton(self.parent, text = 'ANCOVA', width = bigbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 7)
+                                          command = self.GRPselecttype, variable = self.GRPanalysistypevalue, value = 7, highlightbackground = widgetbg)
         self.GRPcorr.grid(row = 6, column = 3, sticky="W")
 
 
@@ -6167,16 +6200,16 @@ class DisplayFrame:
         self.DISPlabel4.grid(row=6, column=1, sticky='E')
         self.DISPplotmethod = tk.IntVar(None,1)
         self.DISPmethod1 = tk.Radiobutton(self.parent, text = 'Box Plot', width = smallbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.DISPsetmethodtype, variable = self.DISPplotmethod, value = 1)
+                                          command = self.DISPsetmethodtype, variable = self.DISPplotmethod, value = 1, highlightbackground = widgetbg)
         self.DISPmethod1.grid(row = 6, column = 2, sticky="W")
 
         self.DISPmethod2 = tk.Radiobutton(self.parent, text = 'Scatter Plot', width = smallbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.DISPsetmethodtype, variable = self.DISPplotmethod, value = 2)
+                                          command = self.DISPsetmethodtype, variable = self.DISPplotmethod, value = 2, highlightbackground = widgetbg)
         self.DISPmethod2.grid(row = 6, column = 3, sticky="W")
 
         # SEM connection plot
         self.DISPmethod3 = tk.Radiobutton(self.parent, text = 'Connection', width = smallbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.DISPsetmethodtype, variable = self.DISPplotmethod, value = 3)
+                                          command = self.DISPsetmethodtype, variable = self.DISPplotmethod, value = 3, highlightbackground = widgetbg)
         self.DISPmethod3.grid(row = 7, column = 2, sticky="W")
         # self.DISPconnplotname = tk.StringVar(self.parent, 'SEM data file')
         # self.DISPconnplottext = tk.Label(self.parent, textvariable=self.DISPconnplotname, font = infofont)
@@ -6199,15 +6232,15 @@ class DisplayFrame:
 
         self.DISPshowanat = tk.IntVar(None,2)
         self.DISPanat1 = tk.Radiobutton(self.parent, text = 'Axial', width = smallbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.DISPsetanattype, variable = self.DISPshowanat, value = 1)
+                                          command = self.DISPsetanattype, variable = self.DISPshowanat, value = 1, highlightbackground = widgetbg)
         self.DISPanat1.grid(row = 6, column = 5, sticky="W")
 
         self.DISPanat2 = tk.Radiobutton(self.parent, text = 'Sagittal', width = smallbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.DISPsetanattype, variable = self.DISPshowanat, value = 2)
+                                          command = self.DISPsetanattype, variable = self.DISPshowanat, value = 2, highlightbackground = widgetbg)
         self.DISPanat2.grid(row = 6, column = 6, sticky="W")
 
         self.DISPanat3 = tk.Radiobutton(self.parent, text = 'Coronal', width = smallbuttonsize, fg = fgletter2, font = radiofont,
-                                          command = self.DISPsetanattype, variable = self.DISPshowanat, value = 3)
+                                          command = self.DISPsetanattype, variable = self.DISPshowanat, value = 3, highlightbackground = widgetbg)
         self.DISPanat3.grid(row = 6, column = 7, sticky="W")
 
         #--------------------------------------------------------------------------------------------------------
@@ -7343,7 +7376,7 @@ class SAPMResultsFrame:
         self.allcovariatesvalues = covariatesdata['GRPcharacteristicsvalues']
 
         # destroy the old pulldown menu and create a new one with the new choices
-        fieldvalues = copy.deepcopy(self.covnamelist)
+        fieldvalues = copy.deepcopy(self.covnamelist) + ['R2total']
         self.SRcovfield_var = tk.StringVar()
         self.SRcovfield_var.set('empty')
         self.SRcovfieldvaluesearch_opt.destroy()  # remove it
@@ -7363,8 +7396,15 @@ class SAPMResultsFrame:
 
         # self.covnamelist = covariatesdata['GRPcharacteristicslist']
         # self.allcovariatesvalues = covariatesdata['GRPcharacteristicsvalues']
-        c = np.where(np.array(self.covnamelist) == self.SRcovfield)
-        self.covariatesvalues = self.allcovariatesvalues[c[0],:][0]
+        if self.SRcovfield == 'R2total':
+            # load selected results file and get R2total values
+            results = np.load(self.SRresultsname,allow_pickle=True)
+            R2total_list = [results[x]['R2total'] for x in range(len(results))]
+            self.covariatesvalues = np.array(R2total_list)
+        else:
+            c = np.where(np.array(self.covnamelist) == self.SRcovfield)
+            self.covariatesvalues = self.allcovariatesvalues[c[0],:][0]
+
         uniquevals = np.unique(self.covariatesvalues)
         uniquecheck = len(uniquevals)
         if uniquecheck < len(self.covariatesvalues)/4:

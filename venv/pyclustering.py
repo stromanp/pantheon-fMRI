@@ -17,7 +17,6 @@ import copy
 from scipy.spatial.distance import cdist
 from scipy.optimize import linear_sum_assignment
 
-
 # modified clustering method - for roughly equal size clusters
 # Thanks to Eyal Shulman who shared on StackOverflow  https://stackoverflow.com/users/6247548/eyal-shulman
 def get_even_clusters(X, cluster_size):
@@ -126,13 +125,13 @@ def load_network_model(networkmodel, exclude_latent = False):
     sem_region_list = []
     ncluster_list = []
     for nn in range(nregions):
-        sem_region_list.append(dnclusters.loc[nn,'name'])
         check_latent = ('intrinsic' in dnclusters.loc[nn,'name']) or ('latent' in dnclusters.loc[nn,'name'])
         if check_latent and exclude_latent:
             print('latent component of network model not included: {}'.format(dnclusters.loc[nn,'name']))
         else:
             entry = {'name':dnclusters.loc[nn,'name'],'nclusters':dnclusters.loc[nn,'nclusters']}
             ncluster_list.append(entry)
+            sem_region_list.append(dnclusters.loc[nn,'name'])
 
     network = []
     for nn in range(ntargets):
@@ -492,10 +491,6 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, networkmodel):
 
     # load information about the network
     network, ncluster_list, sem_region_list = load_network_model(networkmodel, exclude_latent = True)
-
-    # anatnamelist = []
-    # for name in anatlabels['names']:
-    #     anatnamelist.append(name)
 
     # identify the voxels in the regions of interest
     region_properties = []
