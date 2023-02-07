@@ -124,9 +124,9 @@ settingsfile = os.path.join(basedir,'base_settings_file.npy')
 
 def check_settings_file(settingsfile):
     default_settings = {'DBname': 'none',
-                    'DBnum': 'none',
+                    'DBnum': [0],
                     'DBname2': 'none',
-                    'DBnum2': 'none',
+                    'DBnum2': [0],
                     'DBnumstring': 'none',
                     'NIbasename': 'Series',
                     'CRprefix': '',
@@ -220,9 +220,6 @@ def check_settings_file(settingsfile):
     if os.path.isfile(settingsfile):
         print('name of the settings file is : ', settingsfile)
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
-        # set some defaults
-        settings['GLMpvalue_unc'] = settings['GLMpvalue']
-        settings['GRPanalysistype'] = 'Sig1'
 
         # check that the settings list is complete (could be out of date)
         requiredkeylist = default_settings.keys()
