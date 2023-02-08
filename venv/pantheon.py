@@ -1125,7 +1125,7 @@ class NIFrame:
         self.NIrunconvert.grid(row = 2, column = 1, columnspan = 2)
 
 
-    # action when the button is pressed to submit the DB entry number list
+    # action when the button is pressed to submit
     def NInamesubmitclick(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
@@ -1598,7 +1598,7 @@ class NCFrame:
         print('finished copying rough normalization data and saving results ...')
 
 
-    # action when the button is pressed to submit the DB entry number list
+    # action when the button is pressed to submit a name
     def NCsavenamesubmit(self):
         entered_text = self.NCsavename.get()  # collect the text from the text entry box
         # remove any spaces
@@ -2306,7 +2306,7 @@ class NCbrainFrame:
         self.windowdisplay3 = self.window3.create_image(0, 0, image=img3, anchor=tk.NW)
 
 
-    # action when the button is pressed to submit the DB entry number list
+    # action when the button is pressed to submit a name
     def NCsavenamesubmit(self):
         entered_text = self.NCsavename.get()  # collect the text from the text entry box
         # remove any spaces
@@ -3565,8 +3565,6 @@ class GLMFrame:
         np.save(filechoice,results)
 
         return self
-
-
 
 #-----------Clustering FRAME--------------------------------------------------
 # Definition of the frame that has inputs for the database name, and entry numbers to use
@@ -5628,6 +5626,7 @@ class DisplayFrame:
             fields = 'empty'
         return fields
 
+
     def DISPfieldchoice(self,value):
         # get the field value choices for the selected field
         fvalue = self.field_var.get()
@@ -5636,6 +5635,7 @@ class DisplayFrame:
         self.DISP_get_connectiondata_fields()
 
         return self
+
 
     def DISP_get_connectiondata_fields(self):
         # 3) networkcomponent, tt, combo, timepoint, ss for network results "b" or "R2"
@@ -5891,6 +5891,7 @@ class DisplayFrame:
         # print('DISPLAY:  excel sheet name set to {}'.format(self.DISPexcelsheetinput))
 
         return self
+
 
     def DISPexcelsheetchoice(self,value):
         self.DISPexcelsheetinput = value
@@ -6392,7 +6393,11 @@ class DisplayFrame2:
             plt.savefig(filechoice, format = 'svg')
             print('saved plot as {}'.format(filechoice))
         if not e in ['.eps', '.svg']:
-            print('image not saved - bad type chosen')
+            print('bad file type chosen - using .svg as default')
+            filechoice = f+'.svg'
+            plt.figure(93)
+            plt.savefig(filechoice, format = 'svg')
+            print('saved plot as {}'.format(filechoice))
 
 
     def DISP2saveclick2(self):
@@ -6410,7 +6415,11 @@ class DisplayFrame2:
             plt.savefig(filechoice, format = 'svg')
             print('saved anat image as {}'.format(filechoice))
         if not e in ['.eps', '.svg']:
-            print('image not saved - bad type chosen')
+            print('bad file type chosen - using .svg as default')
+            filechoice = f+'.svg'
+            plt.figure(93)
+            plt.savefig(filechoice, format = 'svg')
+            print('saved plot as {}'.format(filechoice))
 
 
     def __init__(self, parent, controller):
