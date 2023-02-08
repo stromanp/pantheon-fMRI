@@ -63,7 +63,7 @@ class main_window:
         # create the Entry box, and put it next to the label, 4th row, 2nd column
         self.enter1 = tk.Entry(self.parent, width = 20, bg="white")
         self.enter1.grid(row=0, column = 2, sticky = "W")
-        self.enter1.insert(0,'testing entry box (enter text)')
+        self.enter1.insert(0,'testing entry box')
 
         # the entry box needs a "submit" button so that the program knows when to take the entered values
         self.enter1submit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, command = self.enter1submitclick, relief='raised', bd = 5, highlightbackground = widgetbg)
