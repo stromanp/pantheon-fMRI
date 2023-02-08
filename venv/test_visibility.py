@@ -69,6 +69,7 @@ class main_window:
         self.enter1submit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, command = self.enter1submitclick, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.enter1submit.grid(row = 0, column = 3)
 
+
         # testing radio buttons
         # radioboxes to indicate stats correction choices
         self.label2 = tk.Label(self.parent, text="Testing check boxes:", font = labelfont)
