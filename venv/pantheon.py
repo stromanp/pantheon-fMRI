@@ -82,6 +82,21 @@ if os.name == 'nt':
     widgetbg = 'SystemButtonFace'
     mainbg = 'SystemButtonFace'
 else:
+    # old version --  colours for Mac/Linux
+    fgcol1 = 'red'
+    fgcol2 = 'red'
+    fgcol3 = 'red'
+    bgcol = 'grey94'
+    fgletter1 = 'black'
+    fgletter2 = 'black'
+    fgletter3 = 'black'
+    widgetfont = "none 9 bold"
+    widgetfont2 = "none 9 bold"
+    labelfont = "none 9 bold"
+    radiofont = "none 9"
+    infofont = "none 9"
+    widgetbg = '#3E4149'
+
     # colours for Mac/Linux
     fgcol1 = 'red'
     fgcol2 = 'red'
@@ -113,6 +128,7 @@ else:
     infofont = "none 9"
     widgetbg = '#808080'
     mainbg = '#fefefe'
+    mainbg = '#6a0000'
 
 bigbigbuttonsize = 21
 bigbuttonsize = 14
