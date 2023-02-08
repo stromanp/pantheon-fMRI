@@ -106,7 +106,7 @@ class main_window:
         self.enter1.delete(0,'end')
         self.enter1.insert(0,entered_text)
 
-        if entered_text[:4].lower() == 'hide':
+        if entered_text[:4].lower() == 'test':
             self.radio1.config(state=tk.DISABLED)
             self.radio2.config(state=tk.DISABLED)
             self.radio3.config(state=tk.DISABLED)
@@ -114,7 +114,6 @@ class main_window:
             self.radio1.config(state=tk.NORMAL)
             self.radio2.config(state=tk.NORMAL)
             self.radio3.config(state=tk.NORMAL)
-
 
     def setradiovalue(self):
         value = self.radio1value.get()
