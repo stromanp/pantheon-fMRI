@@ -5970,6 +5970,20 @@ class DisplayFrame:
 
 
     def DISPgeneratefigs(self):
+        # update values
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
+        self.DBname2 = settings['DBname2']  # for 2nd set of comparison results
+        self.DBnum2 = settings['DBnum2']
+        self.networkmodel = settings['networkmodel']
+        self.DISPresultsname = settings['GRPresultsname']
+        self.DISPresultsname2 = settings['GRPresultsname2']
+        self.DISPcharacteristicscount = settings['GRPcharacteristicscount']
+        self.DISPcharacteristicslist = settings['GRPcharacteristicslist']
+        self.DISPcharacteristicsvalues = settings['GRPcharacteristicsvalues']
+        self.DISPcharacteristicsvalues2 = settings['GRPcharacteristicsvalues2']
+
         # use the input data and generate the figures
         filename1 = self.DISPresultsname
         filename2 = self.DISPresultsname2
