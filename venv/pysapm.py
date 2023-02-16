@@ -1330,8 +1330,8 @@ def sem_physio_model(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamete
 #----------------------------------------------------------------------------------
 # primary function--------------------------------------------------------------------
 def sem_physio_model2(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparametersname, fixed_beta_vals = [],
-                      betascale = 0.01, nitermax = 200, verbose = True, initial_nitermax_stage1 = 10,
-                      initial_nsteps_stage1 = 10):
+                      betascale = 0.01, nitermax = 100, verbose = True, initial_nitermax_stage1 = 20,
+                      initial_nsteps_stage1 = 20):
     starttime = time.ctime()
 
     # initialize gradient-descent parameters--------------------------------------------------------------
@@ -1527,7 +1527,7 @@ def sem_physio_model2(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamet
                 if np.abs(ssqchange) < 1e-5: converging = False
 
                 if verbose:
-                    print('SAPM2  {} stage1 pass {} iter {} alpha {:.3e}  ssqd {:.2f} change {:.3f}  percent {:.1f}  R2 avg {:.3f}  R2 total {:.3f}'.format(nperson,
+                    print('SAPM  {} stage1 pass {} iter {} alpha {:.3e}  ssqd {:.2f} change {:.3f}  percent {:.1f}  R2 avg {:.3f}  R2 total {:.3f}'.format(nperson,
                                     ns, iter, np.mean(alphalist), ssqd, ssqchange, 100.*ssqd/ssqd_starting, R2avg, R2total))
                 ssqd_old = copy.deepcopy(ssqd)
                 # now repeat it ...
@@ -1596,7 +1596,7 @@ def sem_physio_model2(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamet
             if np.abs(ssqchange) < 1e-5: converging = False
 
             if verbose:
-                print('SAPM2  {} beta vals:  iter {} alpha {:.3e}  ssqd {:.2f} change {:.3f}  percent {:.1f}  R2 avg {:.3f}  R2 total {:.3f}'.format(
+                print('SAPM  {} beta vals:  iter {} alpha {:.3e}  ssqd {:.2f} change {:.3f}  percent {:.1f}  R2 avg {:.3f}  R2 total {:.3f}'.format(
                         nperson,
                         iter, np.mean(alphalist), ssqd, ssqchange, 100. * ssqd / ssqd_starting, R2avg, R2total))
             ssqd_old = copy.deepcopy(ssqd)
@@ -3656,8 +3656,8 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
     converging = True
 
     output = sem_physio_model2(cluster_numbers+full_rnum_base, paradigm_centered, SAPMresultsname, SAPMparametersname,
-                               fixed_beta_vals=[], betascale=betascale, nitermax = 90, verbose=False,
-                               initial_nitermax_stage1=10, initial_nsteps_stage1=5)
+                               fixed_beta_vals=[], betascale=betascale, nitermax = 30, verbose=False,
+                               initial_nitermax_stage1=20, initial_nsteps_stage1=10)
 
     SAPMresults = np.load(output,allow_pickle=True)
 
@@ -3689,8 +3689,8 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
                     else:
                         test_clusters[nnn] = ccc
                         output = sem_physio_model2(test_clusters+full_rnum_base, paradigm_centered, SAPMresultsname, SAPMparametersname,
-                                                        fixed_beta_vals=[], betascale=betascale, nitermax=100, verbose=False,
-                                                        initial_nitermax_stage1=10, initial_nsteps_stage1=5)
+                                                        fixed_beta_vals=[], betascale=betascale, nitermax=30, verbose=False,
+                                                        initial_nitermax_stage1=20, initial_nsteps_stage1=10)
                         SAPMresults = np.load(output, allow_pickle=True)
 
                         # SAPMresults = sem_physio_model2_fast(tcdata, test_clusters+full_rnum_base, paradigm_centered, SAPMresultsname,
@@ -4997,15 +4997,22 @@ def define_drawing_regions_from_file(regionfilename):
     # setup region labels and positions
     xls = pd.ExcelFile(regionfilename, engine='openpyxl')
     df1 = pd.read_excel(xls, 'regions')
+    keylist = df1.keys()
     names = df1['name']
     posx = df1['posx']
     posy = df1['posy']
     offset_x = df1['labeloffset_x']
     offset_y = df1['labeloffset_y']
 
+    if 'outputangle' in keylist:
+        outputangle = df1['outputangle']
+    else:
+        outputangle = []
+
     regions = []
     for nn in range(len(names)):
-        entry = {'name': names[nn], 'pos':[posx[nn],posy[nn]], 'labeloffset':np.array([offset_x[nn],offset_y[nn]])}
+        entry = {'name': names[nn], 'pos':[posx[nn],posy[nn]], 'labeloffset':np.array([offset_x[nn],offset_y[nn]]),
+                 'outputangle':outputangle[nn]}
         regions.append(entry)
 
     return regions
@@ -5097,7 +5104,7 @@ def points_on_ellipses1(pos0, pos1, ovalsize):
 
 
 
-def points_on_ellipses2(pos0, pos1, pos2, ovalsize):
+def points_on_ellipses2(pos0, pos1, pos2, ovalsize, offset = 0.007):
     # point on ellipse 0 on line from region 0 to region 1
     ovd = np.array(ovalsize)/2.0
 
@@ -5146,7 +5153,7 @@ def points_on_ellipses2(pos0, pos1, pos2, ovalsize):
         pe1ab_connectionstyle = "arc3,rad=0"
 
     # shift lines slightly to allow for reciprocal connections
-    offset = 0.007
+    # offset = 0.007
     dpos1 = np.array([offset*np.sin(angleA*np.pi/180.0), offset*np.cos(angleA*np.pi/180.0)])
     dpos2 = np.array([offset*np.sin(angleB*np.pi/180.0), offset*np.cos(angleB*np.pi/180.0)])
 
@@ -5154,6 +5161,88 @@ def points_on_ellipses2(pos0, pos1, pos2, ovalsize):
     pe1a += dpos1
     pe1b += dpos2
     pe2 += dpos2
+
+    return pe0, pe1a, pe1b, pe2, pe1ab_connectionstyle, specialcase
+
+
+def points_on_ellipses_SO(pos0, pos1, pos2, ovalsize, offset = 0.0, outputangle1 = [], outputangle2 = []):
+    throughconnection = (len(pos2) > 0)
+    ovd = np.array(ovalsize)/2.0
+
+    if type(outputangle1) == list:
+        # point on ellipse 0 on line from region 0 center to region 1 center
+        v01 = np.array(pos1)-np.array(pos0)
+        d01 = np.sqrt(1/((v01[0]/ovd[0])**2 + (v01[1]/ovd[1])**2))
+        pe0 = pos0 + d01*v01
+    else:
+        # point on ellipse 0 at output point
+        v01 = np.array([np.cos(outputangle1*np.pi/180.), np.sin(outputangle1*np.pi/180.)])
+        d01 = np.sqrt(1/((v01[0]/ovd[0])**2 + (v01[1]/ovd[1])**2))
+        pe0 = pos0 + d01*v01
+
+    # point on ellipse 1 on line from region 1 to region 0
+    v10 = np.array(pe0)-np.array(pos1)
+    d10 = np.sqrt(1/((v10[0]/ovd[0])**2 + (v10[1]/ovd[1])**2))
+    pe1a = pos1 + d10*v10
+
+    if throughconnection:
+        if type(outputangle2) == list:
+            # point on ellipse 1 on line from region 1 center to region 2 center
+            v12 = np.array(pos2) - np.array(pos1)
+            d12 = np.sqrt(1 / ((v12[0] / ovd[0]) ** 2 + (v12[1] / ovd[1]) ** 2))
+            pe1b = pos1 + d12 * v12
+        else:
+            # point on ellipse 1 at output point
+            v12 = np.array([np.cos(outputangle2 * np.pi / 180.), np.sin(outputangle2 * np.pi / 180.)])
+            d12 = np.sqrt(1 / ((v12[0] / ovd[0]) ** 2 + (v12[1] / ovd[1]) ** 2))
+            pe1b = pos1 + d12 * v12
+
+        # point on ellipse 1 on line from region 2 to region 1
+        v21 = np.array(pe1b)-np.array(pos2)
+        d21 = np.sqrt(1/((v21[0]/ovd[0])**2 + (v21[1]/ovd[1])**2))
+        pe2 = pos2 + d21*v21
+
+    # smooth arc line in region 1, betwen arrows for pos0-->pos1 and pos1-->pos2
+    # line starts along vector v01 at point pe1a
+    # line ends along vector v12 at point pe1b
+
+    # angle of line along vector v01, wrt x axis
+    angleA = (180/np.pi)*np.arctan2(v01[1],v01[0])
+    angleA = np.round(angleA).astype(int)
+
+    pe1ab_connectionstyle = "arc3,rad=0"
+    specialcase = False
+    if throughconnection:
+        # angle of line along vector v12, wrt x axis
+        angleB = (180/np.pi)*np.arctan2(v12[1],v12[0])
+        angleB = np.round(angleB).astype(int)
+        anglediff = np.abs(angleB-angleA)
+
+        pe1ab_connectionstyle = "angle3,angleA={},angleB={}".format(angleA,angleB)
+
+        # special case
+        specialcase = False
+        if np.abs(anglediff-180.0) < 1.0:
+            specialcase = True
+            pe1ab_connectionstyle = "arc3,rad=0"
+            pe1ab_connectionstyle = "bar,fraction=0"
+
+        if np.abs(anglediff) < 1.0:
+            specialcase = False
+            pe1ab_connectionstyle = "arc3,rad=0"
+
+    # shift lines slightly to allow for reciprocal connections
+    # offset = 0.007
+    dpos1 = np.array([offset*np.sin(angleA*np.pi/180.0), offset*np.cos(angleA*np.pi/180.0)])
+    pe0 += dpos1
+    pe1a += dpos1
+    if throughconnection:
+        dpos2 = np.array([offset*np.sin(angleB*np.pi/180.0), offset*np.cos(angleB*np.pi/180.0)])
+        pe1b += dpos2
+        pe2 += dpos2
+    else:
+        pe1b = np.array([0,0])
+        pe2 = np.array([0,0])
 
     return pe0, pe1a, pe1b, pe2, pe1ab_connectionstyle, specialcase
 
@@ -5235,9 +5324,6 @@ def parse_connection_name(connection, regionlist):
 
 def draw_sapm_plot(results_file, sheetname, regionnames, regions, statname, figurenumber, scalefactor, cnums, thresholdtext = 'abs>0', writefigure = False):
     # plot diagram is written to a figure window and saved
-
-   # templatename, clusterdataname = []
-
     #
     xls = pd.ExcelFile(results_file, engine='openpyxl')
     df1 = pd.read_excel(xls, sheetname)
@@ -5484,76 +5570,46 @@ def draw_sapm_plot_SO(results_file, sheetname, regionnames, regions, statname, f
             else:
                 linecolor = 'r'
             rlist,ilist = parse_connection_name(c1,regionlist_trunc)
-            # if rlist[2] == 'none':
-            #     throughconnection = False
-            # else:
-            #     throughconnection = True
 
             # get positions of ends of lines,arrows, etc... for one connection
             p0 = regions[ilist[0]]['pos']
             p1 = regions[ilist[1]]['pos']
-            # if ilist[2] >= 0:
-            #     p2 = regions[ilist[2]]['pos']
-            # else:
-            #     p2 = [0,0]
+            outputangle1 = regions[ilist[0]]['outputangle']
+            outputangle2 = []
 
-            # if p0 != p1  and  p1 != p2:
+            # pe0, pe1a = points_on_ellipses1(p0,p1,ovalsize)
+            pe0, pe1a, pe1b, pe2, pe1ab_connectionstyle, specialcase = points_on_ellipses_SO(p0, p1, [], ovalsize, offset = 0.0, outputangle1 = outputangle1, outputangle2 = outputangle2)
 
-                # pe0, pe1a, pe1b, pe2, pe1ab_connectionstyle, specialcase = points_on_ellipses2(p0,p1,p2,ovalsize)
-            pe0, pe1a = points_on_ellipses1(p0,p1,ovalsize)
-                # print('{}  {}'.format(c1,pe1ab_connectionstyle))
+            connection_type1 = {'con':'{}-{}'.format(rlist[0],rlist[1]), 'type':'input', 'rlist':rlist, 'ilist':ilist, 'p0':p0, 'p1':p1, 'linecolor':linecolor, 'outputangle':outputangle1}
 
-            connection_type1 = {'con':'{}-{}'.format(rlist[0],rlist[1]), 'type':'input'}
-                # if throughconnection:
-                #     connection_type2 = {'con':'{}-{}'.format(rlist[1],rlist[2]), 'type':'output'}
-                #     connection_joiner = {'con':'{}-{}'.format(rlist[1],rlist[1]), 'type':'joiner'}
-
-                # if specialcase:
-                #     print('special case...')
-                #     an1 = ax.annotate('',xy=pe1a,xytext = pe0, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
-                #     acount+= 1
-                #     an_list.append(an1)
-                #     connection_list.append(connection_type1)
-                #     # if throughconnection:
-                #     #     an1 = ax.annotate('',xy=pe2,xytext = pe1b, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
-                #     #     acount+= 1
-                #     #     an_list.append(an1)
-                #     #     connection_list.append(connection_type2)
-                # else:
             an1 = ax.annotate('',xy=pe1a,xytext = pe0, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
             acount+= 1
             an_list.append(an1)
             connection_list.append(connection_type1)
-                    # if throughconnection:
-                    #     an1 = ax.annotate('',xy=pe2,xytext = pe1b, arrowprops=dict(arrowstyle="->", connectionstyle='arc3', linewidth = linethick, color = linecolor, shrinkA = 0.01, shrinkB = 0.01))
-                    #     acount+= 1
-                    #     an_list.append(an1)
-                    #     connection_list.append(connection_type2)
-                    #     an1 = ax.annotate('',xy=pe1b,xytext = pe1a, arrowprops=dict(arrowstyle="->", connectionstyle=pe1ab_connectionstyle, linewidth = linethick/2.0, color = linecolor, shrinkA = 0.0, shrinkB = 0.0))
-                    #     acount+= 1
-                    #     an_list.append(an1)
-                    #     connection_list.append(connection_joiner)
-            # else:
-            #     print('ambiguous connection not drawn:  {}'.format(c1))
 
-    # look for inputs and outputs drawn for the same connection.  If both exist, only show the input
-    # conlist = [connection_list[x]['con'] for x in range(len(connection_list))]
-    # typelist = [connection_list[x]['type'] for x in range(len(connection_list))]
-    # for nn in range(len(connection_list)):
-    #     con = conlist[nn]
-    #     c = np.where([conlist[x] == con for x in range(len(conlist))])[0]
-    #     if len(c) > 1:
-    #         t = [typelist[x] for x in c]
-    #         if 'input' in t:   # if some of the connections are inputs, do not draw outputs at the same place
-    #             c2 = np.where([typelist[x] == 'output' for x in c])[0]
-    #             if len(c2) > 0:
-    #                 redundant_c = c[c2]
-    #                 # remove the redundant connections
-    #                 for c3 in redundant_c:
-    #                     a = an_list[c3]
-    #                     a.remove()
-    #                     typelist[c3] = 'removed'
-    #                     connection_list[c3]['type'] = 'removed'
+    # after the connections are drawn, look for through connections that can be added
+    for nn in range(len(connection_list)):
+        # see if a region is plotted as both an input and an output
+        rlist_in = connection_list[nn]['rlist']
+        p0 = connection_list[nn]['p0']
+        p1 = connection_list[nn]['p1']
+        outputangle1 = connection_list[nn]['outputangle']
+        linecolor = connection_list[nn]['linecolor']
+        for mm in range(len(connection_list)):
+            rlist_out = connection_list[mm]['rlist']
+
+            if rlist_in[1] == rlist_out[0]:
+                print('need a joiner betweeen {}-{} and {}-{}'.format(rlist_in[0],rlist_in[1],rlist_out[0],rlist_out[1]))
+
+                p1 = connection_list[mm]['p0']
+                p2 = connection_list[mm]['p1']
+                outputangle2 = connection_list[mm]['outputangle']
+
+                # pe0, pe1a, pe1b, pe2, pe1ab_connectionstyle, specialcase = points_on_ellipses2(p0, p1, p2, ovalsize, offset = 0)
+                pe0, pe1a, pe1b, pe2, pe1ab_connectionstyle, specialcase = points_on_ellipses_SO(p0, p1, p2, ovalsize, offset = 0.0, outputangle1 = outputangle1, outputangle2 = outputangle2)
+                an1 = ax.annotate('', xy=pe1b, xytext=pe1a,
+                                  arrowprops=dict(arrowstyle="->", connectionstyle=pe1ab_connectionstyle,
+                                                  linewidth=linethick / 2.0, color=linecolor, shrinkA=0.0, shrinkB=0.0))
 
     svgname = 'none'
     if writefigure:

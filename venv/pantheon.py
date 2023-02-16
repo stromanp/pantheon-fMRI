@@ -7311,8 +7311,6 @@ class SAPMResultsFrame:
     def SRupdatevaluesclick(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
-        # load required values from previous pages: networkmodel, SAPMresultsname, SAPMparamsname, DBname
-        settings = np.load(settingsfile, allow_pickle = True).flat[0]
         self.SAPMcnums = settings['SAPMcnums']
         self.SAPMresultsdir = copy.deepcopy(settings['SAPMresultsdir'])
         self.SAPMresultsname = copy.deepcopy(settings['SAPMresultsname'])
@@ -7367,6 +7365,19 @@ class SAPMResultsFrame:
         self.SRresultsnametext.set(self.SRresultsname)
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
         settings['SRresultsname'] = self.SRresultsname
+
+        try:
+            results = np.load(self.SRresultsname,allow_pickle=True)
+            params = np.load(self.SRparamsname,allow_pickle=True).flat[0]
+            nclusterlist = params['nclusterlist']
+            full_rnum_base = [np.sum(nclusterlist[:x]) for x in range(len(nclusterlist))]
+            clusterlist = results[0]['clusterlist']
+            self.SAPMcnums = (np.array(clusterlist) - np.array(full_rnum_base)).astype(int)
+            settings['SAPMcnums'] = copy.deepcopy(list(self.SAPMcnums))
+            self.SRcnumtext.set(self.SAPMcnums)
+        except:
+            print('cluster numbers could not be updated based on filenames set for results and parameters')
+
         np.save(settingsfile, settings)
         return self
 
@@ -7380,6 +7391,19 @@ class SAPMResultsFrame:
         self.SRparamsnametext.set(self.SRparamsname)
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
         settings['SRparamsname'] = self.SRparamsname
+
+        try:
+            results = np.load(self.SRresultsname, allow_pickle=True)
+            params = np.load(self.SRparamsname, allow_pickle=True).flat[0]
+            nclusterlist = params['nclusterlist']
+            full_rnum_base = [np.sum(nclusterlist[:x]) for x in range(len(nclusterlist))]
+            clusterlist = results[0]['clusterlist']
+            self.SAPMcnums = (np.array(clusterlist) - np.array(full_rnum_base)).astype(int)
+            settings['SAPMcnums'] = copy.deepcopy(list(self.SAPMcnums))
+            self.SRcnumtext.set(self.SAPMcnums)
+        except:
+            print('cluster numbers could not be updated based on filenames set for results and parameters')
+
         np.save(settingsfile, settings)
         return self
 
