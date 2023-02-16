@@ -3578,7 +3578,7 @@ def mod_tplist_for_bootstrap(tplist_full, epoch, modtype, percent_replace = 0, t
 
 # gradient descent method to find best clusters------------------------------------
 def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, networkfile, DBname, regiondataname,
-                        clusterdataname, samplesplit, samplestart=0, initial_clusters=[], timepoint='all', epoch='all', betascale=0.0):
+                        clusterdataname, samplesplit, samplestart=0, initial_clusters=[], timepoint='all', epoch='all', betascale=0.1):
     overall_start_time_text = time.ctime()
     overall_start_time = time.time()
 
@@ -3655,9 +3655,18 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
     print('starting step descent search of clusters at {}'.format(time.ctime()))
     converging = True
 
+    if betascale == 0:
+        nitermax = 50
+        initial_nitermax_stage1 = 1
+        initial_nsteps_stage1 = 10
+    else:
+        nitermax = 30
+        initial_nitermax_stage1 = 10
+        initial_nsteps_stage1 = 10
+
     output = sem_physio_model2(cluster_numbers+full_rnum_base, paradigm_centered, SAPMresultsname, SAPMparametersname,
-                               fixed_beta_vals=[], betascale=betascale, nitermax = 30, verbose=False,
-                               initial_nitermax_stage1=20, initial_nsteps_stage1=10)
+                               fixed_beta_vals=[], betascale=betascale, nitermax = nitermax, verbose=False,
+                               initial_nitermax_stage1=initial_nitermax_stage1, initial_nsteps_stage1=initial_nsteps_stage1)
 
     SAPMresults = np.load(output,allow_pickle=True)
 
@@ -3689,8 +3698,8 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
                     else:
                         test_clusters[nnn] = ccc
                         output = sem_physio_model2(test_clusters+full_rnum_base, paradigm_centered, SAPMresultsname, SAPMparametersname,
-                                                        fixed_beta_vals=[], betascale=betascale, nitermax=30, verbose=False,
-                                                        initial_nitermax_stage1=20, initial_nsteps_stage1=10)
+                                                        fixed_beta_vals=[], betascale=betascale, nitermax=nitermax, verbose=False,
+                                                        initial_nitermax_stage1=initial_nitermax_stage1, initial_nsteps_stage1=initial_nsteps_stage1)
                         SAPMresults = np.load(output, allow_pickle=True)
 
                         # SAPMresults = sem_physio_model2_fast(tcdata, test_clusters+full_rnum_base, paradigm_centered, SAPMresultsname,
