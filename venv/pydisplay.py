@@ -669,8 +669,8 @@ def display_whisker_plots(filename1, filename2, connectiondata, field_to_plot, T
         nb = connectiondata['nb']
 
         # 2-source SEM data
-        nclusterlist = [data1['cluster_properties'][nn]['nclusters'] for nn in range(len(data1))]
-        namelist = [data1['cluster_properties'][nn]['rname'] for nn in range(len(data1))]
+        nclusterlist = [data1['cluster_properties'][nn]['nclusters'] for nn in range(len(data1['cluster_properties']))]
+        namelist = [data1['cluster_properties'][nn]['rname'] for nn in range(len(data1['cluster_properties']))]
 
         pdata1 = data1[field_to_plot]
         if twogroup:  pdata2 = data2[field_to_plot]
@@ -855,8 +855,8 @@ def display_correlation_plots(filename1, filename2, connectiondata, field_to_plo
         nb = connectiondata['nb'][0]
 
         # 2-source SEM data
-        nclusterlist = [data1['cluster_properties'][nn]['nclusters'] for nn in range(len(data1))]
-        namelist = [data1['cluster_properties'][nn]['rname'] for nn in range(len(data1))]
+        nclusterlist = [data1['cluster_properties'][nn]['nclusters'] for nn in range(len(data1['cluster_properties']))]
+        namelist = [data1['cluster_properties'][nn]['rname'] for nn in range(len(data1['cluster_properties']))]
 
         pdata1 = data1[field_to_plot]
         if twogroup:  pdata2 = data2[field_to_plot]
@@ -1071,8 +1071,8 @@ def display_anatomical_figure(filename, connectiondata, templatename, regioncolo
         nb = connectiondata['nb'][0]
 
         # 2-source SEM data
-        nclusterlist = [data1['cluster_properties'][nn]['nclusters'] for nn in range(len(data1))]
-        namelist = [data1['cluster_properties'][nn]['rname'] for nn in range(len(data1))]
+        nclusterlist = [data1['cluster_properties'][nn]['nclusters'] for nn in range(len(data1['cluster_properties']))]
+        namelist = [data1['cluster_properties'][nn]['rname'] for nn in range(len(data1['cluster_properties']))]
 
         if nb == 0:
             s = s1
@@ -1187,10 +1187,16 @@ def draw_sem_plot(results_file, sheetname, rownumbers, drawregionsfile, statname
     df1 = pd.read_excel(xls, sheetname)
 
     comparisontext, absval, threshold = parse_threshold_text(thresholdtext)
-    if statname[0] == 'T':
-        statvals = df1['Tvalue']
-    else:
-        statvals = df1['v1']
+
+    if statname == 'auto':   # find the stat value based on the results type
+        keylist = df1.keys()
+        statname = 'notfound'
+        if 'Tvalue' in keylist: statname = 'Tvalue'
+        if 'Zregression' in keylist: statname = 'Zregression'
+        if 'Zcorr' in keylist: statname = 'Zcorr'
+        if statname == 'notfound': statname = 'v1'
+
+    statvals = df1[statname]
 
     # set rownumbers if not set
     if isinstance(rownumbers,str):

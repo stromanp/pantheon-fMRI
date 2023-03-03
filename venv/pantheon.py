@@ -4222,7 +4222,8 @@ class SEMFrame:
         DBname = region_data['DBname']   # keep the values that were saved with the data
         DBnum = region_data['DBnum']
         # save the results somehow
-        results = {'type':'2source','CCrecord':CCrecord, 'beta2':beta2, 'beta1':beta1, 'Zgrid2':Zgrid2, 'Zgrid1_1':Zgrid1_1,'Zgrid1_2':Zgrid1_2, 'DBname':DBname, 'DBnum':DBnum, 'cluster_properties':cluster_properties}
+        results = {'type':'2source','CCrecord':CCrecord, 'beta2':beta2, 'beta1':beta1, 'Zgrid2':Zgrid2, 'Zgrid1_1':Zgrid1_1,
+                   'Zgrid1_2':Zgrid1_2, 'DBname':DBname, 'DBnum':DBnum, 'cluster_properties':cluster_properties, 'clustername':self.SEMclustername, 'template_img':template_img}
         resultsrecordname = os.path.join(self.SEMresultsdir, 'SEMresults_2source_record_' + self.SEMsavetag + '.npy')
         np.save(resultsrecordname, results)
 
@@ -6035,7 +6036,8 @@ class DisplayFrame:
             else:
                 print('plotting data in rows: {}'.format(self.DISPexcelentrynums))
             print('plotting with definition in {}'.format(self.DISPconndefnamefull))
-            statname = 'T value'
+
+            statname = 'auto'
             scalefactor = 'auto'
             results_file = self.DISPexcelnameinput
             sheetname = self.DISPexcelsheetinput
