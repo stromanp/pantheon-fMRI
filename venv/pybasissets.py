@@ -95,7 +95,7 @@ def HRF(TR=2, length=32, peak_delay=6, under_delay=16,
             if v <= 0]):
         raise ValueError("delays and dispersions must be > 0")
     # gamma.pdf only defined for t > 0
-    hrf = np.zeros(t.shape, dtype=np.float)
+    hrf = np.zeros(t.shape, dtype=float)
     pos_t = t[t > 0]
     peak = sps.gamma.pdf(pos_t,
                          peak_delay / peak_disp,

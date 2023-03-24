@@ -216,7 +216,9 @@ def check_settings_file(settingsfile):
                     'GLMdataname': '',
                     'SAPMbetascale': 0.01,
                     'SRvariant': 0,
-                    'DISPconndefnamefull': ''}
+                    'DISPconndefnamefull': '',
+                    'CLcrazythreshold':3.0,
+                    'CLvarcheckmethod':'median'}
 
     if os.path.isfile(settingsfile):
         print('name of the settings file is : ', settingsfile)
@@ -713,8 +715,17 @@ class DBFrame:
 
 
         # add a button to convert database entries for different operating systems
-        self.DBrunconvertosbutton = tk.Button(self.parent, text = "Convert DB for OS", width = smallbuttonsize, bg = fgcol1, fg = fgletter1, command = self.DBrunconvertOS, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.DBrunconvertosbutton = tk.Button(self.parent, text = "Convert DB for OS", width = bigbuttonsize, bg = fgcol1, fg = fgletter1, command = self.DBrunconvertOS, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.DBrunconvertosbutton.grid(row = 7, column = 2)
+
+
+        # put some text information about the selected data
+        # self.info_text1 = 'info about data to be written here'
+        # self.info_text2 = '   ...   '
+        self.DBinfo1 = tk.Label(self.parent, text='info about data to be written here', fg='gray')
+        self.DBinfo1.grid(row=8, column=0, columnspan = 3, sticky='W')
+        self.DBinfo2 = tk.Label(self.parent, text='   ...   ', fg='gray')
+        self.DBinfo2.grid(row=9, column=0, columnspan = 3, sticky='W')
 
 
     # define functions before they are used in the database frame------------------------------------------
@@ -834,6 +845,11 @@ class DBFrame:
         save_folder = os.path.dirname(file_path)
         settings['last_folder'] = save_folder
         np.save(settingsfile,settings)
+
+        infotext = 'Selected data for {} runs'.format(len(dbnumlist))
+        # self.info_text1.set(infotext)
+        self.DBinfo1.configure(text = infotext)
+        return self
 
 
     def DBnumlistsave(self):
@@ -981,6 +997,12 @@ class DBFrame:
         # save the updated settings file again
         np.save(settingsfile,settings)
 
+        infotext = 'Selected data for {} runs'.format(len(entered_values))
+        self.DBinfo1.configure(text = infotext)
+        # self.info_text1.set(infotext)
+
+        return self
+
 
     # action when the button is pressed to clear the DB entry number list
     def DBnumclear(self):
@@ -1000,6 +1022,10 @@ class DBFrame:
         searchtext = ''
         self.searchterm_text.set(searchtext)
         self.DBsearchtext.configure(text = self.searchterm_text.get())
+
+        # self.info_text2.set('')
+        self.DBinfo2.configure(text = ' ')
+
         return self
 
 
@@ -1053,7 +1079,82 @@ class DBFrame:
         fieldvalue_menu.grid(row=4, column=3, sticky='EW')
         self.fieldvaluesearch_opt = fieldvalue_menu   # save this way so that values are not cleared
 
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        DBname = settings['DBname']
+        DBnum = settings['DBnum']
+
+        dbvals = pydatabase.get_dbfieldvalues_by_dbnum(DBname, DBnum, [self.field_var.get()])
+        vals = dbvals[0]['values']
+        fieldname = dbvals[0]['field']
+        NP = dbvals[0]['NP']
+        dbnum_per_person = dbvals[0]['dbnum_per_person']
+        person_vals = dbvals[0]['person_values']
+
+        summary_text = self.summarize_value_list(fieldname, person_vals)
+
+        infotext = 'Selected data for {} runs'.format(len(DBnum))
+        # self.info_text1.set(infotext)
+        # self.info_text2.set(summary_text)
+        self.DBinfo1.configure(text = infotext)
+        self.DBinfo2.configure(text = summary_text)
+
         return self
+
+
+    def summarize_value_list(self, field, vals):
+        nvals = len(vals)
+        uvals = np.unique(vals)
+
+        if len(uvals) > nvals/2:   # expect continuous values, or unique values per person
+            datatype = 'continuous'
+        else:
+            datatype = 'discrete'
+
+        if isinstance(vals[0],str):   # determine type of values
+            try:
+                numvals = float(vals)
+                dataformat = 'numeric'
+            except:
+                dataformat = 'string'
+        else:
+            dataformat = 'numeric'
+            try:
+                numvals = float(vals)
+            except:
+                numvals = vals.astype(float)
+
+        if dataformat == 'numeric':
+            avg_vals = np.mean(numvals)
+            std_vals = np.std(numvals)
+
+        if datatype == 'discrete':
+            count = np.zeros(len(uvals)).astype(int)
+            for n,v in enumerate(uvals):
+                c = np.where(vals == v)[0]
+                count[n] = int(len(c))
+
+            if dataformat == 'numeric':
+                if len(uvals) > 3:
+                    summarytext = '{}: {} numeric values from {} data sets,\naverage {:.3f} {} {:.3f}'.format(field, len(uvals), nvals, avg_vals, chr(177), std_vals)
+                else:
+                    summarytext = '{}: {} numeric values from {} data sets: {}'.format(field, len(uvals), nvals, uvals)
+                    for n, v in enumerate(uvals):
+                        summarytext += '\n{} {}'.format(count[n],v)
+            else:
+                if len(uvals) > 3:
+                    summarytext = '{}: {} text values from {} data sets'.format(field, len(uvals), nvals)
+                else:
+                    summarytext = '{}: {} text values from {} data sets'.format(field, len(uvals), nvals)
+                    for n, v in enumerate(uvals):
+                        summarytext += '\n{} {}'.format(count[n],v)
+
+        if datatype == 'continuous':
+            if dataformat == 'numeric':
+                summarytext = '{}: {} data sets, average {:.3f} {} {:.3f}'.format(field, nvals, avg_vals, chr(177), std_vals)
+            else:
+                summarytext = '{}: {} text values from {} data sets'.format(field, len(uvals), nvals)
+
+        return summarytext
 
 
     def DBfieldvaluechoice(self,value):
@@ -2969,6 +3070,7 @@ class GLMFrame:
 
         GLMoptions = ['group_average', 'group_concatenate', 'group_concatenate_by_avg_person', 'per_person_avg',
                         'per_person_concatenate_runs']
+
         # per_person_modes = ['per_person_avg', 'per_person_concatenate_runs']
 
         self.GLMoptionlabel1 = tk.Label(self.parent, text="GLM Method:", font = labelfont).grid(row=0, column=1, sticky='E')
@@ -3718,6 +3820,40 @@ class CLFrame:
         self.CLupdate_network_info()
 
 
+
+    def CLsetcrazytype(self):
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+
+        self.CLvarcheckmethod = settings['CLvarcheckmethod']
+
+        value = self.CLcrazycheckmethod.get()
+        if value == 1:
+            self.CLvarcheckmethod = 'median'
+
+        if value == 2:
+            self.CLvarcheckmethod = 'mean'
+
+        settings['CLvarcheckmethod'] = self.CLvarcheckmethod
+        np.save(settingsfile,settings)
+
+        print('Method for checking for high variance set to: ',self.CLvarcheckmethod)
+        return self
+
+
+    def CLcrazythreshsubmitaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        self.CLcrazythreshold = float(self.CLcrazythreshbox.get())
+
+        settings['CLcrazythreshold'] = self.CLcrazythreshold
+
+        # write the result to the label box for display
+        self.CLcrazythreshbox.delete(0, 'end')
+        self.CLcrazythreshbox.insert(0, self.CLcrazythreshold)
+
+        np.save(settingsfile, settings)
+
+
     def CLdefineandload(self):
         # define the clusters and load the data
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
@@ -3727,6 +3863,9 @@ class CLFrame:
         self.networkmodel = settings['networkmodel']
         self.CLclustername = settings['CLclustername']
         self.CLregionname = settings['CLregionname']
+
+        self.CLcrazythreshold = settings['CLcrazythreshold']
+        self.CLvarcheckmethod = settings['CLvarcheckmethod']
 
         xls = pd.ExcelFile(self.DBname, engine = 'openpyxl')
         df1 = pd.read_excel(xls, 'datarecord')
@@ -3750,7 +3889,8 @@ class CLFrame:
             regionmap_img = i3d.convert_affine_matrices_nearest(regionmap_img, template_affine, img_data_affine, hdr['dim'][1:4])
 
         cluster_properties, region_properties = \
-            pyclustering.define_clusters_and_load_data(self.DBname, self.DBnum, self.CLprefix, self.networkmodel, regionmap_img, anatlabels)
+            pyclustering.define_clusters_and_load_data(self.DBname, self.DBnum, self.CLprefix, self.networkmodel,
+                                        regionmap_img, anatlabels, varcheckmethod = self.CLvarcheckmethod, varcheckthresh = self.CLcrazythreshold)
 
         cluster_definition = {'cluster_properties':cluster_properties, 'template_img':template_img,'regionmap_img':regionmap_img}
         region_data = {'region_properties':region_properties, 'DBname':self.DBname, 'DBnum':self.DBnum}
@@ -3774,11 +3914,15 @@ class CLFrame:
         self.CLprefix = settings['CLprefix']
         self.networkmodel = settings['networkmodel']
 
+        self.CLcrazythreshold = settings['CLcrazythreshold']
+        self.CLvarcheckmethod = settings['CLvarcheckmethod']
+
         cluster_data = np.load(self.CLclustername, allow_pickle=True).flat[0]
         cluster_properties = cluster_data['cluster_properties']
 
         print('CLload:  DBname = ', self.DBname)
-        region_properties = pyclustering.load_cluster_data(cluster_properties, self.DBname, self.DBnum, self.CLprefix, self.networkmodel)
+        region_properties = pyclustering.load_cluster_data(cluster_properties, self.DBname, self.DBnum, self.CLprefix,
+                    self.networkmodel, varcheckmethod = self.CLvarcheckmethod, varcheckthresh = self.CLcrazythreshold)
         region_data = {'region_properties':region_properties, 'DBname':self.DBname, 'DBnum':self.DBnum}
 
         np.save(self.CLregionname,region_data)
@@ -3811,6 +3955,9 @@ class CLFrame:
         self.networkmodel = settings['networkmodel']
         self.CLclustername = settings['CLclustername']
         self.CLregionname = settings['CLregionname']
+
+        self.CLcrazythreshold = settings['CLcrazythreshold']
+        self.CLvarcheckmethod = settings['CLvarcheckmethod']
 
         # put some text as a place-holder
         self.CLabel1 = tk.Label(self.parent, text = "1) Select clustering options", fg = 'gray', justify = 'left')
@@ -3856,52 +4003,79 @@ class CLFrame:
         self.CLprefixsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.CLprefixsubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.CLprefixsubmit.grid(row=2, column=3, sticky='N')
 
+        # give options for how to define "crazy" voxels with high variance
+        # radioboxes to indicate stats correction choices
+        self.CLlabel3 = tk.Label(self.parent, text="Method for excluding\nhigh variance voxels:", font = labelfont)
+        self.CLlabel3.grid(row=3, column=1, sticky='W')
+        if self.CLvarcheckmethod == 'median':
+            startval = 1
+        else:
+            startval = 2
+        self.CLcrazycheckmethod = tk.IntVar(None,startval)
+        self.CLmethod1 = tk.Radiobutton(self.parent, text = 'median', width = smallbuttonsize, fg = fgletter2, font = radiofont,
+                                          command = self.CLsetcrazytype, variable = self.CLcrazycheckmethod, value = 1, highlightbackground = widgetbg)
+        self.CLmethod1.grid(row = 3, column = 2, sticky="E")
+        self.CLmethod2 = tk.Radiobutton(self.parent, text = 'mean', width = smallbuttonsize, fg = fgletter2, font = radiofont,
+                                          command = self.CLsetcrazytype, variable = self.CLcrazycheckmethod, value = 2, highlightbackground = widgetbg)
+        self.CLmethod2.grid(row = 3, column = 3, sticky="E")
+
+        # need an input for the crazy check threshold value - save to it, or read from it
+        self.CLcrazythreshlabel = tk.Label(self.parent, text = 'Var. multiple (threshold for exclusion):', font = labelfont)
+        self.CLcrazythreshlabel.grid(row=4, column=1, sticky='N')
+        self.CLcrazythreshbox = tk.Entry(self.parent, width = 15, bg="white",justify = 'right')
+        self.CLcrazythreshbox.grid(row=4, column=2, sticky='N')
+        self.CLcrazythreshbox.insert(0,self.CLcrazythreshold)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.CLcrazythreshsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.CLcrazythreshsubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.CLcrazythreshsubmit.grid(row=4, column=3, sticky='N')
+
         # need an input for the cluster definition name - save to it, or read from it
         self.CLclusternamelabel = tk.Label(self.parent, text = 'Cluster definition name:', font = labelfont)
-        self.CLclusternamelabel.grid(row=3, column=1, sticky='N')
+        self.CLclusternamelabel.grid(row=5, column=1, sticky='N')
         self.CLclusternamebox = tk.Entry(self.parent, width = 30, bg="white",justify = 'right')
-        self.CLclusternamebox.grid(row=3, column=2, sticky='N')
+        self.CLclusternamebox.grid(row=5, column=2, sticky='N')
         self.CLclusternamebox.insert(0,self.CLclustername)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
         self.CLclusternamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.CLclusternamesubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
-        self.CLclusternamesubmit.grid(row=3, column=3, sticky='N')
+        self.CLclusternamesubmit.grid(row=5, column=3, sticky='N')
         # the entry boxes need a "browse" button to allow selection of existing cluster definition file
         self.CLclusternamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.CLclusternamebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
-        self.CLclusternamebrowse.grid(row=3, column=4, sticky='N')
+        self.CLclusternamebrowse.grid(row=5, column=4, sticky='N')
+
 
         # box etc for entering the name for saving the region data
         self.CLregionnamelabel = tk.Label(self.parent, text = 'Region/cluster data name:', font = labelfont)
-        self.CLregionnamelabel.grid(row=4, column=1, sticky='N')
+        self.CLregionnamelabel.grid(row=6, column=1, sticky='N')
         self.CLregionnamebox = tk.Entry(self.parent, width = 30, bg="white",justify = 'right')
-        self.CLregionnamebox.grid(row=4, column=2, sticky='N')
+        self.CLregionnamebox.grid(row=6, column=2, sticky='N')
         self.CLregionnamebox.insert(0,self.CLregionname)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
         self.CLregionnamesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.CLregionnamesubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
-        self.CLregionnamesubmit.grid(row=4, column=3, sticky='N')
+        self.CLregionnamesubmit.grid(row=6, column=3, sticky='N')
         # the entry boxes need a "browse" button to allow selection of existing cluster definition file
         self.CLregionnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.CLregionnamebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
-        self.CLregionnamebrowse.grid(row=4, column=4, sticky='N')
+        self.CLregionnamebrowse.grid(row=6, column=4, sticky='N')
 
 
         # label, button, for running the definition of clusters, and loading data
         self.CLdefineandloadbutton = tk.Button(self.parent, text="Define Clusters", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
                                         command=self.CLdefineandload, relief='raised', bd=5, highlightbackground = widgetbg)
-        self.CLdefineandloadbutton.grid(row=5, column=2)
+        self.CLdefineandloadbutton.grid(row=7, column=2)
 
         self.CLdefinebuttontext = tk.StringVar()
         self.CLdefinebuttonlabel = tk.Label(self.parent, textvariable=self.CLdefinebuttontext, bg=bgcol, fg="#4B4B4B", font = labelfont,
                                      wraplength=200, justify='left')
-        self.CLdefinebuttonlabel.grid(row=5, column=3, sticky='N')
+        self.CLdefinebuttonlabel.grid(row=7, column=3, sticky='N')
 
         # label, button, for running the definition of clusters, and loading data
         self.CLloadbutton = tk.Button(self.parent, text="Load Data", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
                                         command=self.CLload, relief='raised', bd=5, highlightbackground = widgetbg)
-        self.CLloadbutton.grid(row=6, column=2)
+        self.CLloadbutton.grid(row=8, column=2)
 
         self.CLloadbuttontext = tk.StringVar()
         self.CLloadbuttonlabel = tk.Label(self.parent, textvariable=self.CLloadbuttontext, bg=bgcol, fg="#4B4B4B", font = labelfont,
                                      wraplength=200, justify='left')
-        self.CLloadbuttonlabel.grid(row=6, column=3, sticky='N')
+        self.CLloadbuttonlabel.grid(row=8, column=3, sticky='N')
 
 
 # inputs needed:   network model definition, existing cluster definition (if needed), run buttons
@@ -5107,6 +5281,9 @@ class GRPFrame:
                     outputfilename = py2ndlevelanalysis.single_group_ANOVA(datafile1, covariates1, pthreshold, mode='ANOVA', covariate_names=covname)
 
 
+            if datafiletype1 == 3:  # GLM results
+                print(' ... ANOVA based on voxel-by-voxel GLM results is not available ...')
+
         if GRPanalysistype == 'ANCOVA':
             if datafiletype1 == 1:  # SEM data
                 if datafiletype2 == 1:
@@ -5117,6 +5294,7 @@ class GRPFrame:
                     covariates2 = GRPcharacteristicsvalues2[0,:]
                     covname = GRPcharacteristicslist[0]
                     outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, datafile2, covariates1, covariates2, pthreshold, mode = 'ANCOVA', covariate_name = covname)
+                    print('ANCOVA results written to: {}'.format(outputfilename))
                 else:
                     # apply ANOVA analysis to beta-values in the first data file named,
                     # with the first two personal characteristics used as one discrete and one continuous variable
@@ -5125,7 +5303,7 @@ class GRPFrame:
                     covname = GRPcharacteristicslist[:2]
                     # outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, 'none', covariates1, 'none', pthreshold, mode = 'ANCOVA', covariate_name = covname)
                     outputfilename = py2ndlevelanalysis.single_group_ANOVA(datafile1, covariates1, pthreshold, mode='ANCOVA', covariate_names=covname)
-
+                    print('ANCOVA results written to: {}'.format(outputfilename))
 
             if datafiletype1 == 2:  # BOLD data
                 if datafiletype2 == 2:
@@ -5136,6 +5314,7 @@ class GRPFrame:
                     covariates2 = GRPcharacteristicsvalues2[0,:]
                     covname = GRPcharacteristicslist[0]
                     outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, datafile2, covariates1, covariates2, pthreshold, mode = 'ANCOVA', covariate_name = covname)
+                    print('ANCOVA results written to: {}'.format(outputfilename))
                 else:
                     # apply ANOVA analysis to beta-values in the first data file named,
                     # with the first two personal characteristics used as one discrete and one continuous variable
@@ -5144,7 +5323,10 @@ class GRPFrame:
                     covname = GRPcharacteristicslist[:2]
                     # outputfilename = py2ndlevelanalysis.group_comparison_ANOVA(datafile1, 'none', covariates1, 'none', pthreshold, mode = 'ANCOVA', covariate_name = covname)
                     outputfilename = py2ndlevelanalysis.single_group_ANOVA(datafile1, covariates1, pthreshold, mode='ANCOVA', covariate_names=covname)
+                    print('ANCOVA results written to: {}'.format(outputfilename))
 
+            if datafiletype1 == 3:  # GLM results
+                print(' ... ANCOVA based on voxel-by-voxel GLM results is not available ...')
 
     def GRPmake2groups(self):
         # split data file into two groups

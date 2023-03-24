@@ -157,7 +157,7 @@ def load_network_model(networkmodel, exclude_latent = False):
 
 
 
-def define_clusters_and_load_data(DBname, DBnum, prefix, networkmodel, regionmap_img, anatlabels):
+def define_clusters_and_load_data(DBname, DBnum, prefix, networkmodel, regionmap_img, anatlabels, varcheckmethod = 'median', varcheckthresh = 3.0):
     '''
     Function to load data from a group, and define clusters based on voxel time-course properties
     define_clusters_and_load_data in pyclustering.py
@@ -328,8 +328,13 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, networkmodel, regionmap
         tsize = int(ts/nruns_total)
         rdtemp = regiondata.reshape(nvox, tsize, nruns_total, order = 'F').copy()
         varcheck2 = np.var(rdtemp, axis = 1)
-        typicalvar2 = np.mean(varcheck2)
-        varlimit = 5.0 * typicalvar2
+
+        if varcheckmethod == 'median':
+            typicalvar2 = np.median(varcheck2)
+        else:
+            typicalvar2 = np.mean(varcheck2)
+        varlimit = varcheckthresh * typicalvar2
+
         cv,cp = np.where(varcheck2 > varlimit)  # voxels with crazy variance
         if len(cv) > 0:
             for vv in range(len(cv)):
@@ -443,7 +448,7 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, networkmodel, regionmap
     return cluster_properties, region_properties
 
 
-def load_cluster_data(cluster_properties, DBname, DBnum, prefix, networkmodel):
+def load_cluster_data(cluster_properties, DBname, DBnum, prefix, networkmodel, varcheckmethod = 'median', varcheckthresh = 3.0):
     '''
     Function to load data from a group, using a predefined cluster definition
     load_cluster_data in pyclustering.py
@@ -521,8 +526,17 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, networkmodel):
             nvox = len(cx)
             rdtemp = regiondata.reshape(nvox, tsize, nruns_total, order='F').copy()
             varcheck2 = np.var(rdtemp, axis=1)
-            typicalvar2 = np.mean(varcheck2)
-            varlimit = 5.0 * typicalvar2
+
+            # options for identifying voxels with inordinately high variance
+            # mean or median?
+            # multiple of typical variance?
+            # make these inputs?
+            if varcheckmethod == 'median':
+                typicalvar2 = np.median(varcheck2)
+            else:
+                typicalvar2 = np.mean(varcheck2)
+            varlimit = varcheckthresh * typicalvar2
+
             cv, cp = np.where(varcheck2 > varlimit)  # voxels with crazy variance
             if len(cv) > 0:
                 for vv in range(len(cv)):

@@ -154,13 +154,13 @@ def sapm_error_function(Sinput,fit,Lweight,betavals,beta_int1, Mintrinsic):
 
     error = np.sum( np.sum((Sinput - fit)**2, axis=1) / np.var(Sinput, axis=1))
 
-    all_bvals = np.append(betavals,beta_int1)
-    cost = np.mean(np.abs(all_bvals)) # L1 regularization
+    # all_bvals = np.append(betavals,beta_int1)
+    cost = np.mean(betavals**2) # L2 regularization
     cost2 = np.abs(R2avg-R2total)   # ideally, want R2avg and R2total to be similar
     cost3 = np.mean(np.abs(Mintrinsic))
     # cost = np.mean(all_bvals**2) # L2 regularization
 
-    ssqd = error + Lweight * (cost+cost2+cost3)
+    ssqd = error + Lweight * cost + 0.1*Lweight*cost3
     return ssqd
 
 
@@ -176,19 +176,36 @@ def gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dv
     dssq_db = np.zeros(nbetavals)
     for nn in range(nbetavals):
         b = copy.deepcopy(betavals)
-        b[nn] += dval
+        b[nn] += dval/2.0
         Mconn[ctarget, csource] = copy.deepcopy(b)
         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
         ssqdp = sapm_error_function(Sinput, fit, Lweight, b, beta_int1, Mintrinsic)
-        dssq_db[nn] = (ssqdp - ssqd) / dval
+
+        b = copy.deepcopy(betavals)
+        b[nn] -= dval/2.0
+        Mconn[ctarget, csource] = copy.deepcopy(b)
+        fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
+        ssqdp2 = sapm_error_function(Sinput, fit, Lweight, b, beta_int1, Mintrinsic)
+
+        # dssq_db[nn] = (ssqdp - ssqd) /( -dval)
+        dssq_db[nn] = (ssqdp - ssqdp2) /( dval)
 
     # gradients for beta_int1
     b = copy.deepcopy(beta_int1)
-    b += dval
+    b += dval/2.0
     Mconn[ctarget, csource] = copy.deepcopy(betavals)
     fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, b, fintrinsic1)
     ssqdp = sapm_error_function(Sinput, fit, Lweight, betavals, b, Mintrinsic)
-    dssq_dbeta1 = (ssqdp - ssqd) / dval
+
+    b = copy.deepcopy(beta_int1)
+    b -= dval/2.0
+    Mconn[ctarget, csource] = copy.deepcopy(betavals)
+    fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, b, fintrinsic1)
+    ssqdp2 = sapm_error_function(Sinput, fit, Lweight, betavals, b, Mintrinsic)
+
+
+    # dssq_dbeta1 = (ssqdp - ssqd) / (dval)
+    dssq_dbeta1 = (ssqdp - ssqdp2) / (dval)
 
     return dssq_db, ssqd, dssq_dbeta1
 
@@ -268,7 +285,7 @@ def update_betavals_sequentially(Sinput, Minput, Mconn, betavals, ctarget, csour
 
 
 
-def update_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight, alpha, alphabint, latent_flag = []):
+def update_betavals(Sinput, Minput, Mconn, betavals, betalimit, ctarget, csource, dval, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight, alpha, alphabint, latent_flag = []):
     # calculate change in error term with small changes in betavalues
     # include beta_int1
     if len(latent_flag) < len(betavals): latent_flag = np.zeros(len(betavals))
@@ -283,7 +300,11 @@ def update_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval, fin
     # gradients in beta vals
     dssq_db, ssqd, dssq_dbeta1 = gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval,
                                         fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight)
+    # dssq_db[latent_flag > 0] = 0.0
     betavals -= alpha * dssq_db
+    betavals[betavals > betalimit] = copy.deepcopy(betalimit)
+    betavals[betavals < -betalimit] = copy.deepcopy(-betalimit)
+    # betavals[latent_flag > 0] = 1.0
     beta_int1 -= alphabint * dssq_dbeta1
     # print('    after update ssqd: {:.3f}'.format(ssqd))
 
@@ -349,7 +370,7 @@ def update_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval, fin
 #     return fit, Sconn_working
 
 
-def network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1):
+def network_eigenvector_method_original(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1):
     # # Sinput[:nregions,:] = Minput @ Meigv @ Mintrinsic   #  [nr x tsize] = [nr x ncon] @ [ncon x Nint] @ [Nint x tsize]
     # # Mintrinsic = np.linalg.inv(Meigv.T @ Minput.T @ Minput @ Meigv) @ Meigv.T @ Minput.T @ Sin
     # fit based on eigenvectors alone, with intrinsic values calculated
@@ -360,7 +381,17 @@ def network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrins
     # scale to make the term corresponding to each intrinsic = 1
     for aa in range(Nintrinsic):
         Meigv[:,aa] = Meigv[:,aa]/Meigv[(-Nintrinsic+aa),aa]
+
+
+    # get the indices for the regions with latent inputs
+    c_intrinsic = np.zeros(vintrinsic_count)
+    for aa in range(vintrinsic_count):
+        c = np.where(Minput[:,-aa-1] == 1)[0]
+        c_intrinsic[aa] = c[0]
+    c_intrinsic = (c_intrinsic[::-1]).astype(int)
+
     M1 = Minput @ Meigv
+    # M1 = Minput[c_intrinsic,:] @ Meigv  # base the latent fits on only the regions receiving direct latent input
 
     # Sinput = M1 @ Mintrinsic
     # Mintrinsic = inv(M1.T @ M1) @ M1.T @ Sinput
@@ -372,6 +403,53 @@ def network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrins
         Mintrinsic[0,:] = Mint_fixed
         Mintrinsic[1:,:] = Mint_variable
     else:
+        Mintrinsic = np.linalg.inv(M1.T @ M1) @ M1.T @ Sinput
+
+    fit = Minput @ Meigv @ Mintrinsic
+    err = np.sum((Sinput - fit)**2)
+
+    return fit, Mintrinsic, Meigv, err
+
+
+def network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1):
+    # # Sinput[:nregions,:] = Minput @ Meigv @ Mintrinsic   #  [nr x tsize] = [nr x ncon] @ [ncon x Nint] @ [Nint x tsize]
+    # # Mintrinsic = np.linalg.inv(Meigv.T @ Minput.T @ Minput @ Meigv) @ Meigv.T @ Minput.T @ Sin
+    # fit based on eigenvectors alone, with intrinsic values calculated
+    nregions,tsize_total = np.shape(Sinput)
+    Nintrinsic = fintrinsic_count + vintrinsic_count
+    e,v = np.linalg.eig(Mconn)    # Mconn is nbeta x nbeta   where nbeta = ncon + Nintrinsic
+    Meigv = np.real(v[:,-Nintrinsic:])
+    # scale to make the term corresponding to each intrinsic = 1
+    for aa in range(Nintrinsic):
+        Meigv[:,aa] = Meigv[:,aa]/Meigv[(-Nintrinsic+aa),aa]
+
+    # get the indices for the regions with latent inputs
+    c_intrinsic = np.zeros(vintrinsic_count)
+    for aa in range(vintrinsic_count):
+        c = np.where(Minput[:,-aa-1] == 1)[0]
+        c_intrinsic[aa] = c[0]
+    c_intrinsic = (c_intrinsic[::-1]).astype(int)
+
+    # M1 = Minput[c_intrinsic,:] @ Meigv  # base the latent fits on only the regions receiving direct latent input
+
+    # Sinput = M1 @ Mintrinsic
+    # Mintrinsic = inv(M1.T @ M1) @ M1.T @ Sinput
+    if fintrinsic_count > 0:
+        # fit the fixed intrinsic, remove it, and then fit the variable intrinsics to the remainder
+        Mintrinsic = np.zeros((Nintrinsic, tsize_total))
+
+        # Mint_variable = np.linalg.inv(M1[:,1:].T @ M1[:,1:]) @ M1[:,1:].T @ Sinput
+        Mint_fixed = beta_int1*fintrinsic1[np.newaxis,:]
+
+        partial_fit = (Minput @ Meigv[:,0])[:,np.newaxis] @ Mint_fixed
+        residual = Sinput-partial_fit
+        M1r = Minput @ Meigv[:,1:]
+        Mint_variable = np.linalg.inv(M1r.T @ M1r) @ M1r.T @ residual
+
+        Mintrinsic[0,:] = Mint_fixed
+        Mintrinsic[1:,:] = Mint_variable
+    else:
+        M1 = Minput @ Meigv
         Mintrinsic = np.linalg.inv(M1.T @ M1) @ M1.T @ Sinput
 
     fit = Minput @ Meigv @ Mintrinsic
@@ -1370,7 +1448,7 @@ def sem_physio_model2(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamet
 
     # initialize gradient-descent parameters--------------------------------------------------------------
     initial_alpha = 1e-2
-    initial_Lweight = 10.0
+    initial_Lweight = 1.0
     initial_dval = 0.01
     # nitermax = 300
     alpha_limit = 1.0e-5
@@ -1487,11 +1565,11 @@ def sem_physio_model2(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamet
                 beta_initial = beta_initial[np.newaxis,:]
                 nitermax_stage1 = 0
             nsteps_stage1 = 1
-            beta_initial[0,latent_flag > 0] = 1.0
+            # beta_initial[0,latent_flag > 0] = 1.0
         else:
             nsteps_stage1 = copy.deepcopy(initial_nsteps_stage1)
             beta_initial = betascale*np.random.randn(nsteps_stage1,nbeta)
-            beta_initial[:,latent_flag > 0] = 1.0
+            # beta_initial[:,latent_flag > 0] = 1.0
             nitermax_stage1 = copy.deepcopy(initial_nitermax_stage1)
 
         # initialize
@@ -1669,11 +1747,11 @@ def sem_physio_model1(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamet
     starttime = time.ctime()
 
     # initialize gradient-descent parameters--------------------------------------------------------------
-    initial_alpha = 1e-3
+    initial_alpha = 1e-2
     initial_Lweight = 1.0
-    initial_dval = 0.01
+    initial_dval = 0.05
     # nitermax = 300
-    alpha_limit = 1.0e-6
+    alpha_limit = 1.0e-5
     repeat_limit = 2
 
     SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
@@ -1787,11 +1865,11 @@ def sem_physio_model1(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamet
                 beta_initial = beta_initial[np.newaxis,:]
                 nitermax_stage1 = 0
             nsteps_stage1 = 1
-            beta_initial[0,latent_flag > 0] = 1.0
+            # beta_initial[0,latent_flag > 0] = 1.0
         else:
             nsteps_stage1 = copy.deepcopy(initial_nsteps_stage1)
             beta_initial = betascale*np.random.randn(nsteps_stage1,nbeta)
-            beta_initial[:,latent_flag > 0] = 1.0
+            # beta_initial[:,latent_flag > 0] = 1.0
             nitermax_stage1 = copy.deepcopy(initial_nitermax_stage1)
 
         # initialize
@@ -1838,8 +1916,8 @@ def sem_physio_model1(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamet
                 #                                         alphalist, alphabint, latent_flag)
 
                 betavals, beta_int1, fit, dssq_db, dssq_dbeta1, ssqd, alpha, alphabint = update_betavals(Sinput, Minput, Mconn, betavals,
-                                                    ctarget, csource, dval,fintrinsic_count, vintrinsic_count, beta_int1,
-                                                    fintrinsic1, Lweight, alpha,alphabint, latent_flag=[])
+                                                    betalimit, ctarget, csource, dval,fintrinsic_count, vintrinsic_count, beta_int1,
+                                                    fintrinsic1, Lweight, alpha,alphabint, latent_flag=latent_flag)
 
                 ssqd_record_stage1 += [ssqd]
 
@@ -1904,8 +1982,8 @@ def sem_physio_model1(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamet
             #                                  alphalist, alphabint, latent_flag)
 
             betavals, beta_int1, fit, dssq_db, dssq_dbeta1, ssqd, alpha, alphabint = update_betavals(Sinput, Minput,
-                                     Mconn, betavals,ctarget, csource,dval,fintrinsic_count,vintrinsic_count,
-                                     beta_int1,fintrinsic1,Lweight, alpha, alphabint,latent_flag=[])
+                                     Mconn, betavals, betalimit,ctarget, csource,dval,fintrinsic_count,vintrinsic_count,
+                                     beta_int1,fintrinsic1,Lweight, alpha, alphabint,latent_flag=latent_flag)
 
             # print('iter {}  ssqd = {:.3f}'.format(iter,ssqd))
 
@@ -4867,7 +4945,7 @@ def betavalue_labels(csource, ctarget, rnamelist, betanamelist, beta_list, Mconn
     nregions = len(rnamelist)
     nbeta = len(csource)
     sources_per_target = np.zeros(nbeta)
-    intrinsic_flag = np.zeros(nbeta)
+    latent_flag = np.zeros(nbeta)
     for nn in range(nbeta):
         n1 = ctarget[nn]
         n2 = csource[nn]
@@ -4881,7 +4959,7 @@ def betavalue_labels(csource, ctarget, rnamelist, betanamelist, beta_list, Mconn
         tpair = beta_list[n1]['pair']
         if tpair[0] >= nregions:
             ts = 'int{}'.format(tpair[0]-nregions)
-            intrinsic_flag[nn] = 1
+            latent_flag[nn] = 1
         else:
             ts = rnamelist[tpair[0]]
             if len(ts) > 4:  ts = ts[:4]
@@ -4892,7 +4970,7 @@ def betavalue_labels(csource, ctarget, rnamelist, betanamelist, beta_list, Mconn
         spair = beta_list[n2]['pair']
         if spair[0] >= nregions:
             ss = 'int{}'.format(spair[0] - nregions)
-            intrinsic_flag[nn] = 1
+            latent_flag[nn] = 1
         else:
             ss = rnamelist[spair[0]]
             if len(ss) > 4:  ss = ss[:4]
@@ -4902,7 +4980,7 @@ def betavalue_labels(csource, ctarget, rnamelist, betanamelist, beta_list, Mconn
 
         labeltext_record += [labeltext]
 
-    return labeltext_record, sources_per_target, intrinsic_flag
+    return labeltext_record, sources_per_target, latent_flag
 
 
 
@@ -4969,7 +5047,6 @@ def regress_signal_features_with_cov(target, covariates, Minput, Sinput_total, f
                    'Z thresh': np.array(Zthresh_list)[si], 'p thresh': np.array(pthresh_list)[si]}
     # p, f = os.path.split(SAPMresultsname)
     df1 = pd.DataFrame(textoutputs)
-
 
     print('size of Sinput_var is {}'.format(np.shape(Sinput_std)))
     print('Sinput_feature_reg:')

@@ -227,3 +227,53 @@ def convert_database_OS(databasename):
         df1.to_excel(writer, sheet_name='datarecord')
 
     return databasename
+
+
+def get_dbfieldvalues_by_dbnum(databasename, dbnumlist, fieldlist):
+    xls = pd.ExcelFile(databasename, engine='openpyxl')
+    df1 = pd.read_excel(xls, 'datarecord')
+    keylist = df1.keys()
+
+    dataname_list, dbnum_list_per_person, NP = get_datanames_by_person(databasename, dbnumlist, '')
+    pidlist = list(dbnum_list_per_person.keys())
+
+    output = []
+    for fieldname in fieldlist:
+        val = []
+        vals_per_person = []
+        for pnum in range(NP):
+            dbnum_person = dbnum_list_per_person[pidlist[pnum]]
+            pvals = []
+            for snum in dbnum_person:
+                val += [df1.loc[snum, fieldname]]
+                pvals += [df1.loc[snum, fieldname]]
+            pvals = np.array(pvals)
+
+            # check data type
+            if isinstance(pvals[0], str):  # determine type of values
+                try:
+                    numvals = float(pvals)
+                    dataformat = 'numeric'
+                except:
+                    dataformat = 'string'
+            else:
+                dataformat = 'numeric'
+                try:
+                    numvals = float(pvals)
+                except:
+                    numvals = pvals.astype(float)
+            if dataformat == 'numeric':
+                pvals = np.mean(pvals)
+            else:
+                temp = np.unique(pvals)
+                pvals = temp[0]
+
+            vals_per_person += [pvals]
+
+        val = np.array(val)
+        vals_per_person = np.array(vals_per_person)
+
+        entry = {'field':fieldname, 'values':val, 'person_values':vals_per_person, 'NP':NP, 'dbnum_per_person':dbnum_list_per_person}
+        output.append(entry)
+
+    return output

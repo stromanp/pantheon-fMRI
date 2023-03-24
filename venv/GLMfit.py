@@ -6,6 +6,7 @@ import pandas as pd
 import nibabel as nib
 import pybasissets
 import pydatabase
+import copy
 
 
 #----------------GLMfit------------------------------------------
@@ -282,7 +283,7 @@ def compile_data_sets(DBname, dbnumlist, prefix, mode = 'group_concatenate', nvo
                     input_data = 100.0*(input_data - mean_data)/(mean_data + 1.0e-20)
 
                 if runnum == 0:
-                    person_data = input_data
+                    person_data = copy.deepcopy(input_data)
                     divisor += 1
                 else:
                     if mode in person_avg_options:
@@ -294,12 +295,26 @@ def compile_data_sets(DBname, dbnumlist, prefix, mode = 'group_concatenate', nvo
                         person_data = np.concatenate((person_data,input_data), axis = 3)
             person_data = person_data/divisor # average
 
+            # check that concatenated runs all have the same number of volumes
+            if pnum == 0:
+                big_fixed_ts = np.shape(person_data)[3]  # set the number of volumes to be constant
+            else:
+                ts = np.shape(person_data)[3]
+                if ts < big_fixed_ts:
+                    mean_data = np.mean(person_data, axis=3)
+                    temp_data = np.repeat(mean_data[:, :, :, np.newaxis], big_fixed_ts, axis=3)
+                    temp_data[:, :, :, :ts] = person_data  # pad the missing data points with the
+                    # time-series mean value for each voxel
+                    person_data = copy.deepcopy(temp_data)
+                if ts > fixed_ts:
+                    person_data = person_data[:, :, :, :big_fixed_ts]
+
             # group level
-            options_list = ['group_concatenate', 'group_concatenate_by_avg_person', 'per_person_avg',
-                'per_person_concatenate_runs', 'group_average']
+            options_list = ['group_average', 'group_concatenate', 'group_concatenate_by_avg_person', 'per_person_avg',
+             'per_person_concatenate_runs']
 
             if pnum == 0:
-                group_data = person_data
+                group_data = copy.deepcopy(person_data)
                 group_divisor += 1
             else:
                 if mode == 'group_average':

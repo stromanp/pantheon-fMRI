@@ -10,6 +10,8 @@ import pandas as pd
 import scipy.stats as stats
 
 # comparison type - choices are:  'ancova', 'unpaired_difference', 'paired_difference'
+#                  'paired_difference_correlation_w_cov1', 'paired_difference_correlation_w_delta_cov'
+
 #specify the type of analysis
 comparison_type = 'paired_difference'
 pthresh = 0.05 / 32.0
@@ -150,6 +152,8 @@ if comparison_type == 'paired_difference':
 		dBmean = np.mean(B1-B2, axis=0)
 		dBsem = np.std(B1-B2, axis=0)/np.sqrt(NP1)
 		T = dBmean/(dBsem + 1.0e-20)
+		valuetext1 = ['{:.3f} {} {:.3f}'.format(B1mean[x],chr(177), np.sqrt(B1var[x]/NP1)) for x in range(nconnections)]
+		valuetext2 = ['{:.3f} {} {:.3f}'.format(B2mean[x],chr(177), np.sqrt(B2var[x]/NP1)) for x in range(nconnections)]
 
 		si = np.argsort(T)
 		si = si[::-1]
@@ -186,6 +190,119 @@ if comparison_type == 'paired_difference':
 
 	else:
 		print('NP1 = {} and NP2 = {}.   A paired comparison is not possible with unequal group sizes'.format(NP1,NP2))
+
+
+#-----------------------------------------------------------------------------------
+# 2.5) paired group difference
+#-----------------------------------------------------------------------------------
+if comparison_type == 'paired_difference_correlation_w_cov1':
+	if NP1 == NP2:
+		dB = B1-B2
+		dC = cov1-cov2
+
+		dBmean = np.mean(dB,axis=0)
+		dBvar = np.var(dB,axis=0)
+
+		Z = np.zeros(nconnections)
+		for nn in range(nconnections):
+			rr = np.corrcoef(dB[:,nn],cov1)
+			Z[nn] = np.arctanh(rr[0,1])*np.sqrt(NP1-3)
+
+		valuetext1 = ['{:.3f} {} {:.3f}'.format(dBmean[x],chr(177), np.sqrt(dBvar[x]/NP1)) for x in range(nconnections)]
+		# valuetext2 = ['{:.3f}'.format(cov1[x]) for x in range(nconnections)]
+
+		si = np.argsort(np.abs(Z))
+		si = si[::-1]
+		Zs = copy.deepcopy(Z[si])
+		valuetext1s = copy.deepcopy(np.array(valuetext1)[si])
+		# valuetext2s = copy.deepcopy(np.array(valuetext2)[si])
+		cname_lists = copy.deepcopy(np.array(cname_list)[si])
+
+		Zthresh = stats.norm.ppf(1 - pthresh)
+		if np.isnan(Zthresh):  Zthresh = 0.0
+		ps = 1 - stats.norm.cdf(Zs)
+
+		pthresh_list = np.repeat(pthresh, nconnections)
+		Tthresh_list = np.repeat(Zthresh, nconnections)
+
+		c = np.where(np.abs(Zs) > Zthresh)[0]
+		if len(c) > 0:
+			textoutputs = {'connection': np.array(cname_lists)[c], 'dB avg': np.array(valuetext1s)[c],
+						   'Z': np.array(Zs)[c], 'Zthresh': np.array(Zthresh_list)[c], 'p': np.array(ps)[c], 'p thresh': np.array(pthresh_list)[c]}
+
+			df = pd.DataFrame(textoutputs)
+			xlname = os.path.join(datadir, descriptor + '.xlsx')
+			if os.path.isfile(xlname):
+				mode = 'a'
+			else:
+				mode = 'w'
+			with pd.ExcelWriter(xlname, engine='openpyxl', mode=mode) as writer:
+				df.to_excel(writer, sheet_name='paired_diff_corr')
+			outputname = xlname
+			print('wrote {} values to paired_diff_corr sheet in {}'.format(len(c), xlname))
+		else:
+			print('no significant paired differences detected')
+
+	else:
+		print('NP1 = {} and NP2 = {}.   A paired comparison is not possible with unequal group sizes'.format(NP1,NP2))
+
+
+#-----------------------------------------------------------------------------------
+# 2.75) paired group difference 3
+#-----------------------------------------------------------------------------------
+if comparison_type == 'paired_difference_correlation_w_delta_cov':
+	if NP1 == NP2:
+		dB = B1-B2
+		dC = cov1-cov2
+
+		dBmean = np.mean(dB,axis=0)
+		dBvar = np.var(dB,axis=0)
+
+		Z = np.zeros(nconnections)
+		for nn in range(nconnections):
+			rr = np.corrcoef(dB[:,nn],dC)
+			Z[nn] = np.arctanh(rr[0,1])*np.sqrt(NP1-3)
+
+		valuetext1 = ['{:.3f} {} {:.3f}'.format(dBmean[x],chr(177), np.sqrt(dBvar[x]/NP1)) for x in range(nconnections)]
+		valuetext2 = ['{:.3f} {} {:.3f}'.format(dC,chr(177), np.sqrt(dC/NP1))]
+
+		si = np.argsort(np.abs(Z))
+		si = si[::-1]
+		Zs = copy.deepcopy(Z[si])
+		valuetext1s = copy.deepcopy(np.array(valuetext1)[si])
+		# valuetext2s = copy.deepcopy(np.array(valuetext2)[si])
+		cname_lists = copy.deepcopy(np.array(cname_list)[si])
+
+		Zthresh = stats.norm.ppf(1 - pthresh)
+		if np.isnan(Zthresh):  Zthresh = 0.0
+		ps = 1 - stats.norm.cdf(Zs)
+
+		pthresh_list = np.repeat(pthresh, nconnections)
+		Tthresh_list = np.repeat(Zthresh, nconnections)
+
+		c = np.where(np.abs(Zs) > Zthresh)[0]
+		if len(c) > 0:
+			textoutputs = {'connection': np.array(cname_lists)[c], 'dB avg': np.array(valuetext1s)[c],
+						   'dcov avg': np.array(valuetext2),
+						   'Z': np.array(Zs)[c], 'Zthresh': np.array(Zthresh_list)[c], 'p': np.array(ps)[c], 'p thresh': np.array(pthresh_list)[c]}
+
+			df = pd.DataFrame(textoutputs)
+			xlname = os.path.join(datadir, descriptor + '.xlsx')
+			if os.path.isfile(xlname):
+				mode = 'a'
+			else:
+				mode = 'w'
+			with pd.ExcelWriter(xlname, engine='openpyxl', mode=mode) as writer:
+				df.to_excel(writer, sheet_name='paired_diff_vs_dcov')
+			outputname = xlname
+			print('wrote {} values to paired_diff_vs_dcov sheet in {}'.format(len(c), xlname))
+		else:
+			print('no significant paired differences detected')
+
+	else:
+		print('NP1 = {} and NP2 = {}.   A paired comparison is not possible with unequal group sizes'.format(NP1,NP2))
+
+
 
 #-----------------------------------------------------------------------------------
 # 3) ANCOVA

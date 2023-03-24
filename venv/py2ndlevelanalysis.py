@@ -26,6 +26,7 @@ import statsmodels.api as sm
 from statsmodels.formula.api import ols
 import warnings
 import matplotlib
+from statsmodels.stats.anova import AnovaRM
 
 # 2-source SEM results
 # save the results somehow
@@ -2553,6 +2554,37 @@ def run_ANOVA_or_ANCOVA2(beta1, beta2, cov1, cov2, covname, formula_key1, formul
         p_intGC = 1.0
 
     return anova_table, p_MeoG, p_MeoC, p_intGC
+
+
+# repeated measures
+def run_repeated_measures_ANCOVA(beta1, beta2, cov1, cov2, covname, formula_key1, formula_key2, formula_key3, atype):
+    # Create the data
+    # make up test values
+    NP1 = len(beta1)
+    NP2 = len(beta2)
+
+    beta = np.concatenate((beta1, beta2))
+    people = np.repeat(np.array(range(NP1))+1,2)
+    condition = np.tile(['con1','con2'],NP1)
+    covariates = np.concatenate((cov1, cov2))
+    covariates += 0.1*np.random.rand(len(covariates))
+    df = pd.DataFrame({'beta':beta, 'people': people,
+                              'condition': condition,
+                              'covariates': covariates})
+
+    print(df)
+
+    try:
+        anova_table = AnovaRM(df,
+                            depvar='beta',
+                            subject='people',
+                            within=['condition','covariates']
+                              ).fit()
+    except:
+        print('this doesn\'t work....')
+        anova_table = []
+
+    return anova_table
 
 
 
