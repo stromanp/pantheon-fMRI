@@ -6694,7 +6694,7 @@ class SAPMFrame:
         self.SAPMnetnametext.set(nfname)
         self.SAPMnetdirtext.set(npname)
 
-        network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count = pysapm.load_network_model_w_intrinsics(self.networkmodel)
+        network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base = pysapm.load_network_model_w_intrinsics(self.networkmodel)
         # update cnums to have the correct number of entries for the selected network
         nregions = len(network)
         if 'SAPMcnums' in settings.keys():
@@ -6980,7 +6980,7 @@ class SAPMFrame:
 
         network = []
         try:
-            network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count = pysapm.load_network_model_w_intrinsics(self.networkmodel)
+            network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base = pysapm.load_network_model_w_intrinsics(self.networkmodel)
             # update cnums to have the correct number of entries for the selected network
             nregions = len(network)
             if len(self.SAPMcnums) < nregions:
@@ -7217,7 +7217,7 @@ class SAPMFrame:
         SAPMparamsname = os.path.join(self.SAPMresultsdir, self.SAPMparamsname)
 
         multiple_output = False
-        pysapm.SAPMrun(self.SAPMcnums, self.SAPMregionname, self.SAPMclustername,
+        pysapm.SAPMrun_V2(self.SAPMcnums, self.SAPMregionname, self.SAPMclustername,
                        SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, self.SAPMtimepoint,
                        self.SAPMepoch, self.SAPMbetascale, reload_existing=False, multiple_output = multiple_output)
 
@@ -7226,7 +7226,7 @@ class SAPMFrame:
             # settings['SAPMbetascale'] = self.SAPMbetascale
             # settings['SAPMsavebetainit'] = self.SAPMsavebetainit
             results = np.load(SAPMresultsname, allow_pickle=True)
-            betavals = np.array([results[x][0]['betavals'] for x in range(len(results))])
+            betavals = np.array([results[x]['betavals'] for x in range(len(results))])
             beta_initial = np.mean(betavals,axis=0)
             p,f = os.path.split(SAPMresultsname)
             betascale_name = os.path.join(p,'beta_initial_values.npy')
@@ -7276,29 +7276,6 @@ class SAPMFrame:
         if 'SAPMsavebetainit' not in list(settings.keys()): settings['SAPMsavebetainit'] = False
         self.SAPMsavebetainit = settings['SAPMsavebetainit']
         # settings['SAPMsavebetainit'] = self.SAPMsavebetainit
-
-
-        # self.SAPMsavetag = settings['SAPMsavetag']
-        # else:
-        #     self.DBname = settings['DBname']
-        #     self.DBnum = settings['DBnum']
-        #     self.SAPMcnums = [0,0,0,0,0,0,0,0,0,0]   # need a function to initialize this
-        #     self.SAPMresultsdir = ''
-        #     self.SAPMresultsname = ''
-        #     self.SAPMparamsname = ''
-        #     self.networkmodel = ''
-        #     self.SAPMclustername = ''
-        #     self.SAPMregionname = ''
-        #     self.SAPMbetascale = 0.0
-        #     self.SAPMtimepoint = 'all'
-        #     self.SAPMepoch = 'all'
-            # self.SAPMsavetag = ''
-
-        # self.SAPMtimepoint = 'all'
-        # self.SAPMepoch = 'all'
-        # settings['SAPMtimepoint'] = self.SAPMtimepoint
-        # settings['SAPMepoch'] = self.SAPMepoch
-        # self.SAPMtimetext = str(self.SAPMtimepoint)
 
         self.SAPMsavebetainit = False
         settings['SAPMsavebetainit'] = self.SAPMsavebetainit
@@ -7414,7 +7391,6 @@ class SAPMFrame:
         self.SAPMtimesubmit.grid(row=rownum, column=3)
 
 
-
         # SAPM results name --------------------------------------------------------------
         rownum = 9
         # box etc for entering the name used in labeling the results files
@@ -7512,7 +7488,7 @@ class SAPMResultsFrame:
         # update network
         self.SRtargetregion_opt.destroy()  # remove it
         try:
-            network, nclusterlist, sapm_region_list, fintrinsic_count, vintrinsic_count \
+            network, nclusterlist, sapm_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base \
                 = pysapm.load_network_model_w_intrinsics(self.networkmodel)
             region_list = [x for x in sapm_region_list if 'intrinsic' not in x]
         except:
@@ -7755,7 +7731,6 @@ class SAPMResultsFrame:
         np.save(settingsfile, settings)
         return self
 
-
     def SRnametagsubmit(self):
         self.SRnametag = self.SRnametagbox.get()
         print('output name base for saving SAPM results ',self.SRnametag)
@@ -7763,7 +7738,6 @@ class SAPMResultsFrame:
         settings['SRnametag'] = self.SRnametag
         np.save(settingsfile, settings)
         return self
-
 
     def SRgenerateoutput(self):
         print('covariates:  {} values'.format(len(self.covariatesvalues)))
@@ -7778,11 +7752,6 @@ class SAPMResultsFrame:
         print('SRvariant:  {}'.format(self.SRvariant))
 
         multiple_output = False
-
-        # print('running pysapm.display_SAPM_results ...')
-        # print('SRCanvas = {}'.format(self.SRCanvas))
-        # print('  SRCanvas is a string:  {}'.format(isinstance(self.SRCanvas,str)))
-        # print('  SRCanvas type:  {}'.format(type(self.SRCanvas)))
 
         # self.SRPlotFigure = 123
         outputname = pysapm.display_SAPM_results(123, self.SRnametag, self.covariatesvalues, self.SRoptionvalue,
@@ -7833,7 +7802,7 @@ class SAPMResultsFrame:
         if  'DrawAnatomy' in self.SRoptionvalue:
             clusterdataname = self.SAPMclustername
             targetcluster_list = self.SAPMcnums
-            network, nclusterlist, region_list, fintrinsic_count, vintrinsic_count = pysapm.load_network_model_w_intrinsics(self.networkmodel)
+            network, nclusterlist, region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base = pysapm.load_network_model_w_intrinsics(self.networkmodel)
             rnamelist = [r for r in region_list if 'intrinsic' not in r]
 
             xls = pd.ExcelFile(self.DBname, engine='openpyxl')
@@ -8198,7 +8167,7 @@ class SAPMResultsFrame:
         # specify target region for generating outputs (if applicable)
         rownum = 8
         try:
-            network, nclusterlist, sapm_region_list, fintrinsic_count, vintrinsic_count \
+            network, nclusterlist, sapm_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base \
                 = pysapm.load_network_model_w_intrinsics(self.networkmodel)
             region_list = [x for x in sapm_region_list if 'intrinsic' not in x]
         except:
