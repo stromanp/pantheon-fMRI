@@ -7129,9 +7129,10 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
 
         DBrecord[:, :, nperson] = Mconn
         Drecord[:ncon, :, nperson] = Minput
-        Brecord[:ncon, :, nperson] = Mconn[:ncon,:]/(Minput + 1.0e-20)
+        Brecord[:ncon, :, nperson] = Mconn[:ncon,:]/(Minput + 1.0e-3)
         R2totalrecord[nperson] = R2total
 
+    Brecord[np.abs(Brecord) > 1e2] = 0.0
     #----------------------------------------------------------------------------------
     # compare groups with T-tests------------------------------------------------------
     # or compare group average results to zero---------------------------------------
@@ -7256,7 +7257,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
     if outputtype == 'B_Regression':
 
         # regression of B values with covariate-----------------------------------
-        print('generating results for B_Regression...')
+        print('\n\ngenerating results for B_Regression...')
         descriptor = outputnametag + '_Breg'
         Mregression = np.zeros((nbeta,nbeta,3))
         for aa in range(nbeta):
@@ -7271,7 +7272,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         Rthresh = np.tanh(Zthresh/np.sqrt(NP-1))
         R2thresh = Rthresh**2
 
-        print('\n\nB regression with continuous covariate values')
+        print('B regression with continuous covariate values')
         labeltext, inttext, slopetext, R2text, R2, R2thresh = write_Mreg_values(Mregression[:,:,0], Mregression[:,:,1],
                                             Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f',
                                             R2thresh=R2thresh, multiple_output = multiple_output)
@@ -7300,7 +7301,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         print('finished generating results for B_Regression...')
 
         # regression of D values with covariate-----------------------------------
-        print('generating results for D_Regression...')
+        print('\n\ngenerating results for D_Regression...')
         descriptor = outputnametag + '_Breg'
         Mregression = np.zeros((nbeta, nbeta, 3))
         for aa in range(nbeta):
@@ -7315,7 +7316,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         Rthresh = np.tanh(Zthresh / np.sqrt(NP - 1))
         R2thresh = Rthresh ** 2
 
-        print('\n\nD regression with continuous covariate values')
+        print('D regression with continuous covariate values')
         labeltext, inttext, slopetext, R2text, R2, R2thresh = write_Mreg_values(Mregression[:, :, 0],
                                             Mregression[:, :, 1], Mregression[:, :, 2], betanamelist, rnamelist,
                                             beta_list, format='f', R2thresh=R2thresh, multiple_output=multiple_output)
@@ -7343,7 +7344,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
 
 
         # regression of DB values with covariate-----------------------------------
-        print('generating results for DB_Regression...')
+        print('\n\ngenerating results for DB_Regression...')
         descriptor = outputnametag + '_DBreg'
         Mregression = np.zeros((nbeta, nbeta, 3))
         for aa in range(nbeta):
@@ -7358,7 +7359,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         Rthresh = np.tanh(Zthresh / np.sqrt(NP - 1))
         R2thresh = Rthresh ** 2
 
-        print('\n\nD regression with continuous covariate values')
+        print('DB regression with continuous covariate values')
         labeltext, inttext, slopetext, R2text, R2, R2thresh = write_Mreg_values(Mregression[:, :, 0],
                                             Mregression[:, :, 1], Mregression[:, :, 2], betanamelist, rnamelist,
                                             beta_list, format='f', R2thresh=R2thresh, multiple_output=multiple_output)
@@ -7384,7 +7385,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
             print('Regression of DB values with covariate ... no significant values found at p < {}'.format(pthresh))
         outputname = xlname
 
-        print('finished generating results for DB_Regression...')
+        print('finished generating regression results ...\n')
 
         # testing other regression options
         # target = []
