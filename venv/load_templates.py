@@ -124,12 +124,12 @@ def load_template(region_name, resolution, verbose = False):
     regionmap_file = os.path.join(template_folder, regionmap_file)
     
     template_data = nib.load(template_file)
-    template_img = template_data.get_data()
+    template_img = template_data.get_fdata()
     template_size = np.shape(template_img)
     template_affine = template_data.affine
     
     regionmap_data = nib.load(regionmap_file)
-    regionmap_img = regionmap_data.get_data()
+    regionmap_img = regionmap_data.get_fdata()
 #    regionmap_size = np.shape(regionmap_img)
     regionmap_affine = regionmap_data.affine
 
@@ -347,7 +347,7 @@ def load_template_and_masks(region_name, resolution, verbose=False):
     if region_name.lower() != 'brain':
         gm_wm_mask_file = os.path.join(template_folder, gm_wm_mask_file)
         gmwm_data = nib.load(gm_wm_mask_file)
-        gmwm_img = gmwm_data.get_data()
+        gmwm_img = gmwm_data.get_fdata()
         gmwm_size = np.shape(gmwm_img)
         gmwm_affine = gmwm_data.affine
     else:
@@ -574,22 +574,22 @@ def load_wm_maps(region_name, resolution, verbose=False):
     wmmap_file = os.path.join(template_folder, wmmap_file)
 
     template_data = nib.load(template_file)
-    template_img = template_data.get_data()
+    template_img = template_data.get_fdata()
     template_size = np.shape(template_img)
     template_affine = template_data.affine
 
     regionmap_data = nib.load(regionmap_file)
-    regionmap_img = regionmap_data.get_data()
+    regionmap_img = regionmap_data.get_fdata()
     regionmap_affine = regionmap_data.affine
 
     wmmap_data = nib.load(wmmap_file)
-    wmmap_img = wmmap_data.get_data()
+    wmmap_img = wmmap_data.get_fdata()
     wmmap_affine = wmmap_data.affine
 
     if region_name.lower() != 'brain':
         gm_wm_mask_file = os.path.join(template_folder, gm_wm_mask_file)
         gmwm_data = nib.load(gm_wm_mask_file)
-        gmwm_img = gmwm_data.get_data()
+        gmwm_img = gmwm_data.get_fdata()
         gmwm_size = np.shape(gmwm_img)
         gmwm_affine = gmwm_data.affine
     else:
