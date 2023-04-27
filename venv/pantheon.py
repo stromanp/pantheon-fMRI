@@ -6718,6 +6718,26 @@ class SAPMFrame:
         np.save(settingsfile,settings)
 
 
+
+    # action when the button to browse for a DB fie is pressed
+    def SAPMtestnetclick(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+
+        nsims = 100
+        networkmodel = copy.deepcopy(settings['networkmodel'])
+        cnums = copy.deepcopy(settings['SAPMcnums'])
+        regiondataname = copy.deepcopy(settings['SAPMregionname'])
+        clusterdataname = copy.deepcopy(settings['SAPMclustername'])
+        timepoint = copy.deepcopy(settings['SAPMtimepoint'])
+        epoch = copy.deepcopy(settings['SAPMepoch'])
+        betascale = copy.deepcopy(settings['SAPMbetascale'])
+
+        output = pysapm.run_null_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterdataname, timepoint=timepoint,
+                                epoch=epoch, betascale=betascale)
+        print('results of network null test written to {}'.format(output))
+
+
     def SAPMprefixsubmitaction(self):
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         SAPMprefix = self.SAPMprefixbox.get()
@@ -7218,7 +7238,7 @@ class SAPMFrame:
 
         multiple_output = False
         pysapm.SAPMrun_V2(self.SAPMcnums, self.SAPMregionname, self.SAPMclustername,
-                       SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, self.SAPMtimepoint,
+                       SAPMresultsname, SAPMparamsname, self.networkmodel, self.SAPMtimepoint,
                        self.SAPMepoch, self.SAPMbetascale, reload_existing=False, multiple_output = multiple_output)
 
         # get beta values and save for future betascale (initializing beta values)
@@ -7316,6 +7336,11 @@ class SAPMFrame:
         self.SAPMnetworkbrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont,
                                   command=self.SAPMnetbrowseclick, relief='raised', bd=5, highlightbackground = widgetbg)
         self.SAPMnetworkbrowse.grid(row=0, column=3)
+
+        # give the option to run null tests on the network model
+        self.SAPMnetworktest = tk.Button(self.parent, text='Test', width=smallbuttonsize, bg = fgcol1, fg = fgletter1, font = widgetfont,
+                                  command=self.SAPMtestnetclick, relief='raised', bd=5, highlightbackground = widgetbg)
+        self.SAPMnetworktest.grid(row=0, column=4)
 
         # cluster definition name ---------------------------------------------
         # need an input for the cluster definition name - save to it, or read from it
@@ -7491,11 +7516,16 @@ class SAPMResultsFrame:
             network, nclusterlist, sapm_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base \
                 = pysapm.load_network_model_w_intrinsics(self.networkmodel)
             region_list = [x for x in sapm_region_list if 'intrinsic' not in x]
+            nregions = len(region_list)
+            region_list_full = copy.deepcopy(region_list)
+            if fintrinsic_count > 0: region_list_full += ['latent0']
+            for nn in range(vintrinsic_count): region_list_full += ['latent{}'.format(fintrinsic_count + nn)]
         except:
             region_list = 'not defined'
+            region_list_full = 'not defined'
         self.SRtargetregion_var = tk.StringVar()
         self.SRtargetregion_var.set('empty')
-        SRtargetregion_menu = tk.OptionMenu(self.parent, self.SRtargetregion_var, *region_list, command = self.SRtargetregionvalue_choice)
+        SRtargetregion_menu = tk.OptionMenu(self.parent, self.SRtargetregion_var, *region_list_full, command = self.SRtargetregionvalue_choice)
         SRtargetregion_menu.config(bg=bgcol)
         SRtargetregion_menu.grid(row=8, column=4, sticky='EW')
         self.SRtargetregion_opt = SRtargetregion_menu   # save this way so that values are not cleared
@@ -8170,6 +8200,9 @@ class SAPMResultsFrame:
             network, nclusterlist, sapm_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base \
                 = pysapm.load_network_model_w_intrinsics(self.networkmodel)
             region_list = [x for x in sapm_region_list if 'intrinsic' not in x]
+            region_list_full = copy.deepcopy(region_list)
+            if fintrinsic_count > 0: region_list_full += ['latent0']
+            for nn in range(vintrinsic_count): region_list_full += ['latent{}'.format(fintrinsic_count + nn)]
         except:
             region_list = 'not defined'
 
@@ -8179,7 +8212,7 @@ class SAPMResultsFrame:
         # option pull-down menu
         self.SRtargetregion_var = tk.StringVar()
         self.SRtargetregion_var.set('empty')
-        SRtargetregion_menu = tk.OptionMenu(self.parent, self.SRtargetregion_var, *region_list, command = self.SRtargetregionvalue_choice)
+        SRtargetregion_menu = tk.OptionMenu(self.parent, self.SRtargetregion_var, *region_list_full, command = self.SRtargetregionvalue_choice)
         SRtargetregion_menu.config(bg=bgcol)
         SRtargetregion_menu.grid(row=rownum, column=4, sticky='EW')
         self.SRtargetregion_opt = SRtargetregion_menu   # save this way so that values are not cleared
