@@ -6724,7 +6724,7 @@ class SAPMFrame:
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
 
-        nsims = 100
+        nsims = 10
         networkmodel = copy.deepcopy(settings['networkmodel'])
         cnums = copy.deepcopy(settings['SAPMcnums'])
         regiondataname = copy.deepcopy(settings['SAPMregionname'])

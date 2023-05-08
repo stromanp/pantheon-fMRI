@@ -254,7 +254,7 @@ def sapm_error_function_V2(Sinput, fit, Lweight, betavals):  # , deltavals, beta
 
 
 
-def sapm_error_function_V3(Sinput, fit, loadings, loadings_fit, Lweight, betavals):  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+def sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals):  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
     nr, ncomponents_to_fit = np.shape(loadings_fit)
     nr,tsize = np.shape(Sinput)
 
@@ -266,7 +266,10 @@ def sapm_error_function_V3(Sinput, fit, loadings, loadings_fit, Lweight, betaval
     # error = tsize*np.mean((Sinput - fit) ** 2)  # multiply by tsize to keep a similar scale as the previous error function
     # error = np.mean(np.sum((Sinput - fit) ** 2, axis=1) / np.std(Sinput, axis=1))
 
-    error2 = np.sum( (loadings[:,:ncomponents_to_fit] - loadings_fit)**2)/ncomponents_to_fit
+    # error2 = np.sum( (loadings[:,:ncomponents_to_fit] - loadings_fit)**2)/ncomponents_to_fit
+
+    Mconn2 = Mconn @ Mconn  # Mconn2 = Mconn for idempotent matrix
+    error2 = np.sum((Mconn2.flatten() - Mconn.flatten())**2)
 
     cost = np.mean(np.abs(betavals))  # L1 regularization
     # cost2 = np.mean((kappavals)**2)  # L2 regularization
@@ -275,7 +278,7 @@ def sapm_error_function_V3(Sinput, fit, loadings, loadings_fit, Lweight, betaval
     # dR2 = (R2list - R2avg)
     # cost4 = np.mean(dR2 ** 2)
 
-    costfactor = Lweight*cost
+    costfactor = Lweight*(cost)
     ssqd = error + costfactor
     return ssqd, error, error2, costfactor
 
@@ -419,7 +422,7 @@ def gradients_for_betavals_V3(Sinput, components, loadings, Minput, Mconn, betav
     fit, loadings_fit, W, Mintrinsic, Meigv, err = network_eigenvector_method_V3(Sinput, components, loadings, Minput,
                                         Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, ncomponents_to_fit)
     # Soutput = Meigv @ Mintrinsic  # signalling over each connection
-    ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, fit, loadings, loadings_fit, Lweight, betavals)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+    ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
 
 
 
@@ -435,7 +438,7 @@ def gradients_for_betavals_V3(Sinput, components, loadings, Minput, Mconn, betav
         fit, loadings_fit, W, Mintrinsic, Meigv, err = network_eigenvector_method_V3(Sinput, components, loadings, Minput,
                                                 Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, ncomponents_to_fit)
         # Soutput = Meigv @ Mintrinsic  # signalling over each connection
-        ssqdp, error, error2, costfactor = sapm_error_function_V3(Sinput, fit, loadings, loadings_fit, Lweight, b)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+        ssqdp, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, b)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
 
 
         b = copy.deepcopy(betavals)
@@ -447,7 +450,7 @@ def gradients_for_betavals_V3(Sinput, components, loadings, Minput, Mconn, betav
         fit, loadings_fit, W, Mintrinsic, Meigv, err = network_eigenvector_method_V3(Sinput, components, loadings, Minput,
                                                 Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, ncomponents_to_fit)
         # Soutput = Meigv @ Mintrinsic  # signalling over each connection
-        ssqdp2, error, error2, costfactor = sapm_error_function_V3(Sinput, fit, loadings, loadings_fit, Lweight, b)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+        ssqdp2, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, b)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
 
         # dssq_db[nn] = (ssqdp - ssqd) /( -dval)
         dssq_db[nn] = (ssqdp - ssqdp2) /( dval)
@@ -466,7 +469,7 @@ def gradients_for_betavals_V3(Sinput, components, loadings, Minput, Mconn, betav
         fit, loadings_fit, W, Mintrinsic, Meigv, err = network_eigenvector_method_V3(Sinput, components, loadings, Minput,
                                                 Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, ncomponents_to_fit)
         # Soutput = Meigv @ Mintrinsic  # signalling over each connection
-        ssqdp, error, error2, costfactor = sapm_error_function_V3(Sinput, fit, loadings, loadings_fit, Lweight, betavals)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+        ssqdp, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
 
 
         d = copy.deepcopy(deltavals)
@@ -478,7 +481,7 @@ def gradients_for_betavals_V3(Sinput, components, loadings, Minput, Mconn, betav
         fit, loadings_fit, W, Mintrinsic, Meigv, err = network_eigenvector_method_V3(Sinput, components, loadings, Minput,
                                                 Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, ncomponents_to_fit)
         # Soutput = Meigv @ Mintrinsic  # signalling over each connection
-        ssqdp2, error, error2, costfactor = sapm_error_function_V3(Sinput, fit, loadings, loadings_fit, Lweight, betavals)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+        ssqdp2, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
 
         # dssq_db[nn] = (ssqdp - ssqd) /( -dval)
         dssq_dd[nn] = (ssqdp - ssqdp2) /( dval)
@@ -497,7 +500,7 @@ def gradients_for_betavals_V3(Sinput, components, loadings, Minput, Mconn, betav
     #     fit, loadings_fit, W, Mintrinsic, Meigv, err = network_eigenvector_method_V3(Sinput, components, loadings, Minput,
     #                                             Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, ncomponents_to_fit)
     #     # Soutput = Meigv @ Mintrinsic  # signalling over each connection
-    #     ssqdp, error, error2, costfactor = sapm_error_function_V3(Sinput, fit, loadings, loadings_fit, Lweight, betavals, d)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+    #     ssqdp, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals, d)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
     #
     #
     #     d = copy.deepcopy(kappavals)
@@ -509,7 +512,7 @@ def gradients_for_betavals_V3(Sinput, components, loadings, Minput, Mconn, betav
     #     fit, loadings_fit, W, Mintrinsic, Meigv, err = network_eigenvector_method_V3(Sinput, components, loadings, Minput,
     #                                             Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, ncomponents_to_fit)
     #     # Soutput = Meigv @ Mintrinsic  # signalling over each connection
-    #     ssqdp2, error, error2, costfactor = sapm_error_function_V3(Sinput, fit, loadings, loadings_fit, Lweight, betavals, d)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+    #     ssqdp2, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals, d)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
     #
     #     # dssq_db[nn] = (ssqdp - ssqd) /( -dval)
     #     dssq_dk[nn] = (ssqdp - ssqdp2) /( dval)
@@ -526,7 +529,7 @@ def gradients_for_betavals_V3(Sinput, components, loadings, Minput, Mconn, betav
     fit, loadings_fit, W, Mintrinsic, Meigv, err = network_eigenvector_method_V3(Sinput, components, loadings, Minput,
                                                 Mconn, fintrinsic_count, vintrinsic_count, b, fintrinsic1, ncomponents_to_fit)
     # Soutput = Meigv @ Mintrinsic  # signalling over each connection
-    ssqdp, error, error2, costfactor = sapm_error_function_V3(Sinput, fit, loadings, loadings_fit, Lweight, betavals)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+    ssqdp, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
 
     b = copy.deepcopy(beta_int1)
     b -= dval/2.0
@@ -538,7 +541,7 @@ def gradients_for_betavals_V3(Sinput, components, loadings, Minput, Mconn, betav
     fit, loadings_fit, W, Mintrinsic, Meigv, err = network_eigenvector_method_V3(Sinput, components, loadings, Minput,
                                                 Mconn, fintrinsic_count, vintrinsic_count, b, fintrinsic1, ncomponents_to_fit)
     # Soutput = Meigv @ Mintrinsic  # signalling over each connection
-    ssqdp2, error, error2, costfactor = sapm_error_function_V3(Sinput, fit, loadings, loadings_fit, Lweight, betavals)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+    ssqdp2, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
 
     # dssq_dbeta1 = (ssqdp - ssqd) / (dval)
     dssq_dbeta1 = (ssqdp - ssqdp2) / (dval)
@@ -788,7 +791,7 @@ def update_betavals_V3(Sinput, components, loadings, Minput, Mconn, betavals, de
                                                         Mconn, fintrinsic_count, vintrinsic_count, beta_int1,
                                                         fintrinsic1, ncomponents_to_fit)
     # Soutput = Meigv @ Mintrinsic  # signalling over each connection
-    ssqd_new, error, error2, costfactor = sapm_error_function_V3(Sinput, fit, loadings, loadings_fit, Lweight, betavals)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+    ssqd_new, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
 
     # print('     final ssqd: {:.3f}'.format(ssqd))
     return betavals, deltavals, beta_int1, fit, dssq_db, dssq_dd, dssq_dbeta1, ssqd, ssqd_new, alpha, alphabint
@@ -3551,7 +3554,7 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
             # Mconn[ktarget, ksource] = copy.deepcopy(kappavals)
             fit, loadings_fit, W, Mintrinsic, Meigv, err = network_eigenvector_method_V3(Sinput, components, loadings, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, ncomponents_to_fit)
             # Soutput = Meigv @ Mintrinsic  # signalling over each connection
-            ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, fit, loadings, loadings_fit, Lweight, betavals)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+            ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
 
             ssqd_starting = copy.deepcopy(ssqd)
             ssqd_old = copy.deepcopy(ssqd)
@@ -3600,7 +3603,7 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                                                     Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1,
                                                     ncomponents_to_fit)
                 # Soutput = Meigv @ Mintrinsic  # signalling over each connection
-                ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, fit, loadings, loadings_fit, Lweight, betavals)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+                ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
 
                 err_total = Sinput - fit
                 Smean = np.mean(Sinput)
@@ -3648,7 +3651,7 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                                                 Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1,
                                                 ncomponents_to_fit)
         # Soutput = Meigv @ Mintrinsic  # signalling over each connection
-        ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, fit, loadings, loadings_fit, Lweight, betavals)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+        ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
 
 
         ssqd_starting = copy.deepcopy(ssqd)
@@ -3698,7 +3701,7 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                                                 Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1,
                                                 ncomponents_to_fit)
             # Soutput = Meigv @ Mintrinsic  # signalling over each connection
-            ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, fit, loadings, loadings_fit, Lweight, betavals)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+            ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
 
             err_total = Sinput - fit
             Smean = np.mean(Sinput)
