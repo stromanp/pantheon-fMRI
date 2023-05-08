@@ -270,9 +270,9 @@ def sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, 
 
     Mconn2 = Mconn @ Mconn  # Mconn2 = Mconn for idempotent matrix
     error2 = np.sum((Mconn2.flatten() - Mconn.flatten())**2)
+    # most recent changes - May 8, 2023
 
     cost = np.mean(np.abs(betavals))  # L1 regularization
-    # cost2 = np.mean((kappavals)**2)  # L2 regularization
 
     # need to weight having equal R2 for every region as a priority
     # dR2 = (R2list - R2avg)
