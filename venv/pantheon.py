@@ -7253,8 +7253,6 @@ class SAPMFrame:
             betascale_name = os.path.join(p,'beta_initial_values.npy')
             np.save(betascale_name, {'beta_initial':beta_initial})
 
-
-
     def SAPMupdate_network_info(self):
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         self.networkmodel = settings['networkmodel']

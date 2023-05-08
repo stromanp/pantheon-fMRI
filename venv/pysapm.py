@@ -279,7 +279,7 @@ def sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, 
     # cost4 = np.mean(dR2 ** 2)
 
     costfactor = Lweight*(cost)
-    ssqd = error + costfactor
+    ssqd = error + error2 + costfactor
     return ssqd, error, error2, costfactor
 
 
