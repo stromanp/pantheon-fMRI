@@ -270,6 +270,7 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
             else:
                 datafiletype = 1   # SEM results
         if 'region_properties' in keylist: datafiletype = 2    # BOLD time-course data
+        if 'Sinput' in keylist: datafiletype = 4   # SAPM results
         print('group_significance:  datafiletype = ', datafiletype)
     except:
         print('group_significance:  input file does not appear to have the correct data structure')
@@ -1028,6 +1029,12 @@ def group_significance(filename, pthreshold, statstype = 'average', covariates =
 
         #---------------------------------------------------
         print('results written to {}'.format(outputimagename))
+        return outputimagename
+
+    if datafiletype == 4:
+        print('SAPM results loaded ...')
+        print('Use the SAPM Results page for 2nd level analysis of this type of data.')
+        outputimagename = 'SAPM data selected'
         return outputimagename
 
 #------------------------------------------------------------------------------------

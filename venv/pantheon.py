@@ -196,7 +196,8 @@ def check_settings_file(settingsfile):
                     'SAPMtimepoint': 'all',
                     'SAPMepoch': 'all',
                     'SRoptionvalue': 1,
-                    'SRcovname': 'none',
+                    'SRcovname': 'not defined',
+                    'SRcovname2': 'not defined',
                     'SRpvalue': 0.05,
                     'SRgroup': '',
                     'SRtargetregion': 'none',
@@ -207,10 +208,11 @@ def check_settings_file(settingsfile):
                     'SAPMsavetag': '',
                     'SRresultsdir': '',
                     'SRresultsname': '',
+                    'SRresultsname2': '',
                     'SRparamsname': '',
+                    'SRparamsname2': '',
                     'SAPMBsheet': '',
                     'SAPMBcolumn': '',
-                    'SRcovvalue': '',
                     'GLMbasisset': '',
                     'GLMparadigmnames': '',
                     'GLMdataname': '',
@@ -218,7 +220,20 @@ def check_settings_file(settingsfile):
                     'SRvariant': 0,
                     'DISPconndefnamefull': '',
                     'CLcrazythreshold':3.0,
-                    'CLvarcheckmethod':'median'}
+                    'CLvarcheckmethod':'median',
+                    'SAPMcharacteristicscount':0,
+                    'SAPMcharacteristicslist':[],
+                    'SAPMcharacteristicsvalues':[],
+                    'SAPMcharacteristicsvalues2':[],
+                    'SRcovvalue': [],
+                    'SRcovvalue2': [],
+                    'SRcovnamelist': [],
+                    'SRcovnamelist2': [],
+                    'SRallcovariatesvalues':[],
+                    'SRallcovariatesvalues2':[],
+                    'SRcovariatesvalues':[],
+                    'SRcovariatesvalues2':[]
+                        }
 
     if os.path.isfile(settingsfile):
         print('name of the settings file is : ', settingsfile)
@@ -4853,6 +4868,7 @@ class GRPFrame:
                 else:
                     datafiletype = 1
             if 'region_properties' in keylist: datafiletype = 2
+            if 'Sinput' in keylist: datafiletype = 4
         except:
             print('Error reading selected data file - unexpected contents or format')
             return
@@ -4861,12 +4877,15 @@ class GRPFrame:
         if datafiletype == 1:  print('found SEM results: for group comparisons be sure to select 2 results files')
         if datafiletype == 2:  print('found time-course data: select correlation as the analysis type in order to do Bayesian regression')
         if datafiletype == 3:  print('found GLM results')
+        if datafiletype == 4:  print('found SAPM results')
 
-        settings['GRPdatafiletype1'] = datafiletype
-        settings['DBname'] = data['DBname']
-        settings['DBnum'] = data['DBnum']
+        if datafiletype < 4:
+            settings['GRPdatafiletype1'] = datafiletype
+            settings['DBname'] = data['DBname']
+            settings['DBnum'] = data['DBnum']
         self.DBname = settings['DBname']
         self.DBnum = settings['DBnum']
+
         np.save(settingsfile, settings)
 
         # update Database information
@@ -4941,6 +4960,7 @@ class GRPFrame:
                 else:
                     datafiletype = 1
             if 'region_properties' in keylist: datafiletype = 2
+            if 'Sinput' in keylist: datafiletype = 4
         except:
             print('Error reading selected data file - unexpected contents or format')
             return
@@ -4949,10 +4969,12 @@ class GRPFrame:
         if datafiletype == 1:  print('found SEM results: for group comparisons be sure to select 2 results files')
         if datafiletype == 2:  print('found time-course data: select correlation as the analysis type in order to do Bayesian regression')
         if datafiletype == 3:  print('found GLM results')
+        if datafiletype == 4:  print('found SAPM results')
 
-        settings['GRPdatafiletype2'] = datafiletype
-        settings['DBname2'] = data['DBname']
-        settings['DBnum2'] = data['DBnum']
+        if datafiletype < 4:
+            settings['GRPdatafiletype2'] = datafiletype
+            settings['DBname2'] = data['DBname']
+            settings['DBnum2'] = data['DBnum']
         self.DBname2 = settings['DBname2']
         self.DBnum2 = settings['DBnum2']
         np.save(settingsfile,settings)  # get_DB_field_values will use the values in the settings file
@@ -5202,9 +5224,9 @@ class GRPFrame:
             #         print('hold this')
 
         if GRPanalysistype == 'Correlation':
-            pthreshold = GRPpvalue
-            covariates = GRPcharacteristicsvalues
-            covariatesnames = GRPcharacteristicslist
+            pthreshold = copy.deepcopy(GRPpvalue)
+            covariates = copy.deepcopy(GRPcharacteristicsvalues)
+            covariatesnames = copy.deepcopy(GRPcharacteristicslist)
             outputfilename = py2ndlevelanalysis.group_significance(datafile1, pthreshold, statstype='correlation', covariates=covariates, covnames=covariatesnames)
 
             # if datafiletype1 == 1:
@@ -7214,7 +7236,7 @@ class SAPMFrame:
 
         self.SAPMupdate_network_info()
 
-        SAPMresultsname = os.path.join(self.SAPMresultsdir, )
+        SAPMresultsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
         xls = pd.ExcelFile(self.DBname, engine='openpyxl')
         df1 = pd.read_excel(xls, 'datarecord')
 
@@ -7261,6 +7283,220 @@ class SAPMFrame:
         self.SAPMnetdirtext.set(npname)
 
 
+    # inputs to search database, and create/save dbnum lists
+    def get_DB_field_values(self, mode = 'average_per_person'):
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+
+        # DBname = settings['DBname']
+        # DBnum = settings['DBnum']
+        prefix = settings['CLprefix']
+
+        regionname = os.path.join(self.SAPMresultsdir, self.SAPMregionname)
+        regiondata = np.load(regionname, allow_pickle=True).flat[0]
+        DBname = copy.deepcopy(regiondata['DBname'])
+        DBnum = copy.deepcopy(regiondata['DBnum'])
+
+        if os.path.isfile(DBname):
+            xls = pd.ExcelFile(DBname, engine = 'openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
+            del df1['Unnamed: 0']  # get rid of the unwanted header column
+
+            print('SAPMcharacteristicslist = ',self.SAPMcharacteristicslist)
+            fieldname = self.SAPMcharacteristicslist[-1]
+            print('fieldname = ',fieldname)
+
+            if mode == 'average_per_person':  # average values over entries for the same person
+                filename_list, dbnum_person_list, NP = pydatabase.get_datanames_by_person(DBname, DBnum, prefix, mode='list')
+                fieldvalues = []
+                for nn in range(NP):
+                    DBnum_person = dbnum_person_list[nn]
+                    fv1 = list(df1.loc[DBnum_person,fieldname])
+                    if type(fv1[0]) == str:
+                        # print('characteristic is {} value type ... using the first listed value'.format(type(fv1[0])))
+                        fieldvalues += [fv1[0]]
+                    else:
+                        # print('characteristic is {} value type ... using the average value for each participant'.format(type(fv1[0])))
+                        fieldvalues += [np.mean(fv1)]
+            else:
+                fieldvalues = list(df1.loc[DBnum,fieldname])
+        else:
+            fieldvalues = 'empty'
+        # print('get_DB_field_values: fieldvalues = ',fieldvalues)
+
+        #------------------------------------------------------------
+        # in case there are two sets of data to be loaded/compared
+        # DBname2 = settings['DBname2']
+        # DBnum2 = settings['DBnum2']
+        # prefix = settings['CLprefix']
+        #
+        # if os.path.isfile(DBname2):
+        #     xls = pd.ExcelFile(DBname2, engine = 'openpyxl')
+        #     df1 = pd.read_excel(xls, 'datarecord')
+        #     del df1['Unnamed: 0']  # get rid of the unwanted header column
+        #
+        #     print('SAPMcharacteristicslist2 = ',self.SAPMcharacteristicslist)
+        #     fieldname = self.SAPMcharacteristicslist[-1]
+        #     print('fieldname2 = ',fieldname)
+        #
+        #     if mode == 'average_per_person':  # average values over entries for the same person
+        #         filename_list2, dbnum_person_list2, NP2 = pydatabase.get_datanames_by_person(DBname2, DBnum2, prefix, mode='list')
+        #         fieldvalues2 = []
+        #         for nn in range(NP2):
+        #             DBnum_person2 = dbnum_person_list2[nn]
+        #             fv1 = list(df1.loc[DBnum_person2,fieldname])
+        #             if type(fv1[0]) == str:
+        #                 # print('characteristic is {} value type ... using the first listed value'.format(type(fv1[0])))
+        #                 fieldvalues2 += [fv1[0]]
+        #             else:
+        #                 # print('characteristic is {} value type ... using the average value for each participant'.format(type(fv1[0])))
+        #                 fieldvalues2 += [np.mean(fv1)]
+        #     else:
+        #         fieldvalues2 = list(df1.loc[DBnum2,fieldname])
+        # else:
+        #     fieldvalues2 = 'empty'
+        # # print('get_DB_field_values: fieldvalues = ',fieldvalues)
+
+        return fieldvalues
+
+    def SAPMfieldchoice(self, value):
+        # get the field value choices for the selected field
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        resultsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
+        results = np.load(resultsname, allow_pickle=True)
+
+        keylist = results[0].keys()
+        if 'DBname' in keylist:
+            self.DBname = copy.deepcopy(results[0]['DBname'])
+            self.DBnum = copy.deepcopy(results[0]['DBnum'])
+
+        # resultsname2 = os.path.join(self.SAPMresultsdir2, self.SAPMresultsname2)
+        # results2 = np.load(resultsname2, allow_pickle=True)
+        # self.DBname2 = copy.deepcopy(results2[0]['DBname'])
+        # self.DBnum2 = copy.deepcopy(results2[0]['DBnum'])
+
+        self.SAPMcharacteristicscount = settings['SAPMcharacteristicscount']
+
+        print('SAPMcharacteristicslist = ', self.SAPMcharacteristicslist)
+        fvalue = self.field_var.get()
+
+        print('fvalue = ', fvalue)
+
+        self.SAPMcharacteristicscount += 1
+
+        if self.SAPMcharacteristicscount == 1:
+            self.SAPMcharacteristicslist =  [fvalue]
+            fieldvalues = SAPMFrame.get_DB_field_values(self)
+            print('size of fieldvalues is ',np.shape(fieldvalues))
+            self.SAPMcharacteristicsvalues = np.array(fieldvalues)[np.newaxis,:]
+            print('size of SAPMcharacteristicsvalues is ',np.shape(self.SAPMcharacteristicsvalues))
+
+            # if os.path.isfile(self.DBname2):
+            #     print('size of fieldvalues2 is ',np.shape(fieldvalues2))
+            #     self.SAPMcharacteristicsvalues2 = np.array(fieldvalues2)[np.newaxis,:]
+            #     print('size of SAPMcharacteristicsvalues2 is ',np.shape(self.SAPMcharacteristicsvalues2))
+        else:
+            self.SAPMcharacteristicslist.append(value)
+            fieldvalues = SAPMFrame.get_DB_field_values(self)
+            print('size of fieldvalues is ',np.shape(fieldvalues))
+            print('size of SAPMcharacteristicsvalues is ',np.shape(self.SAPMcharacteristicsvalues))
+            self.SAPMcharacteristicsvalues = np.concatenate((self.SAPMcharacteristicsvalues,np.array(fieldvalues)[np.newaxis,:]),axis=0)
+            print('size of SAPMcharacteristicsvalues is ',np.shape(self.SAPMcharacteristicsvalues))
+
+            # if os.path.isfile(self.DBname2):
+            #     print('size of fieldvalues2 is ',np.shape(fieldvalues2))
+            #     print('size of SAPMcharacteristicsvalues2 is ',np.shape(self.SAPMcharacteristicsvalues2))
+            #     self.SAPMcharacteristicsvalues2 = np.concatenate((self.SAPMcharacteristicsvalues2,np.array(fieldvalues2)[np.newaxis,:]),axis=0)
+            #     print('size of SAPMcharacteristicsvalues2 is ',np.shape(self.SAPMcharacteristicsvalues2))
+
+        print('SAPMcharacteristicslist = ', self.SAPMcharacteristicslist)
+
+        chartext = ''
+        for names in self.SAPMcharacteristicslist:
+            chartext += names + ','
+        chartext = chartext[:-1]
+        print('text for group characteristics list is: ',chartext)
+        self.SAPMcharacteristicstext.set(chartext)
+
+        settings['SAPMcharacteristicscount'] = self.SAPMcharacteristicscount
+        settings['SAPMcharacteristicslist'] = self.SAPMcharacteristicslist
+        settings['SAPMcharacteristicsvalues'] = self.SAPMcharacteristicsvalues
+        # settings['SAPMcharacteristicsvalues2'] = self.SAPMcharacteristicsvalues2
+        np.save(settingsfile,settings)
+
+        # save a copy of the covariates list for other analyses
+        p, f = os.path.split(resultsname)
+        f2,e = os.path.splitext(f)
+        covsavename = os.path.join(p, f2 + '_covariates.npy')
+        # in the covariates file, use the names GRP... instead of SAPM... so the files can be used for other functions
+        np.save(covsavename, {'GRPcharacteristicsvalues': self.SAPMcharacteristicsvalues,
+                              'GRPcharacteristicslist': self.SAPMcharacteristicslist,
+                              'GRPcharacteristicscount': self.SAPMcharacteristicscount})
+        print('covariates saved in {}'.format(covsavename))
+
+        return self
+
+
+    # inputs to search database, and create/save dbnum lists
+    def get_DB_fields(self):
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+
+        regionname = os.path.join(self.SAPMresultsdir, self.SAPMregionname)
+        regiondata = np.load(regionname, allow_pickle=True).flat[0]
+        self.DBname = copy.deepcopy(regiondata['DBname'])
+        self.DBnum = copy.deepcopy(regiondata['DBnum'])
+
+        print('reading fields from ', self.DBname)
+        if os.path.isfile(self.DBname):
+            xls = pd.ExcelFile(self.DBname, engine = 'openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
+            del df1['Unnamed: 0']  # get rid of the unwanted header column
+            fields = list(df1.keys())
+        else:
+            fields = 'empty'
+        # print('fields are: ',fields)
+        return fields
+
+
+    def SAPMcharacteristicslistclear(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+
+        self.SAPMcharacteristicscount = 0
+        self.SAPMcharacteristicslist = []
+        self.SAPMcharacteristicstext.set('empty')
+        self.SAPMcharacteristicsvalues = []
+        self.SAPMcharacteristicsvalues2 = []
+
+        # in case the database has been updated
+        # destroy the old pulldown menu and create a new one with the new choices
+        print('Clearing the data base field choice list ....')
+        self.fields = self.get_DB_fields()
+
+        print('  new fields are:  ', self.fields)
+
+        self.SAPMfield_menu.destroy()
+        self.SAPMfieldsearch_opt.destroy()  # remove it
+
+        self.field_var = tk.StringVar()
+        if len(self.fields) > 0:
+            self.field_var.set(self.fields[0])
+        else:
+            self.field_var.set('empty')
+
+        rownum = 12
+        self.SAPMfield_menu = tk.OptionMenu(self.parent, self.field_var, *self.fields, command=self.SAPMfieldchoice)
+        self.SAPMfield_menu.config(bg=bgcol)
+        self.SAPMfield_menu.grid(row=rownum, column=2, sticky='EW')
+        self.SAPMfieldsearch_opt = self.SAPMfield_menu  # save this way so that values are not cleared
+
+        settings['SAPMcharacteristicscount'] = self.SAPMcharacteristicscount
+        settings['SAPMcharacteristicslist'] = self.SAPMcharacteristicslist
+        settings['SAPMcharacteristicsvalues'] = self.SAPMcharacteristicsvalues
+        settings['SAPMcharacteristicsvalues2'] = self.SAPMcharacteristicsvalues2
+        np.save(settingsfile,settings)
+
+        return self
+
+
     # initialize the values, keeping track of the frame this definition works on (parent), and
     # also the main window containing that frame (controller)
     def __init__(self, parent, controller):
@@ -7276,7 +7512,10 @@ class SAPMFrame:
         self.SAPMcnums = settings['SAPMcnums']
         self.SAPMresultsdir = settings['SAPMresultsdir']
         self.SAPMresultsname = settings['SAPMresultsname']
+        # self.SAPMresultsdir2 =  ''
+        self.SRresultsname2 = 'not defined'
         self.SAPMparamsname = settings['SAPMparamsname']
+        self.SRparamsname2 = 'not defined'
         self.DBname = settings['DBname']
         self.DBnum = settings['DBnum']
         self.networkmodel = settings['networkmodel']
@@ -7285,6 +7524,10 @@ class SAPMFrame:
         self.SAPMbetascale = settings['SAPMbetascale']
         self.SAPMtimepoint = settings['SAPMtimepoint']
         self.SAPMepoch = settings['SAPMepoch']
+
+        self.SAPMcharacteristicsvalues = settings['SAPMcharacteristicsvalues']
+        self.SAPMcharacteristicsvalues2 = settings['SAPMcharacteristicsvalues2']
+        self.SAPMcharacteristicslist = settings['SAPMcharacteristicslist']
 
         self.SAPMtimepoint = settings['SAPMtimepoint']
         self.SAPMepoch = settings['SAPMepoch']
@@ -7459,6 +7702,44 @@ class SAPMFrame:
 
 
         rownum = 12
+        # indicate which "personal characteristics" to use - selected from database
+        self.SAPMlabel6 = tk.Label(self.parent, text = "Select characteristic:", font = labelfont)
+        self.SAPMlabel6.grid(row=rownum,column=1, sticky='W')
+        self.fields = self.get_DB_fields()
+        self.field_var = tk.StringVar()
+        if len(self.fields) > 0:
+            self.field_var.set(self.fields[0])
+        else:
+            self.field_var.set('empty')
+
+        self.SAPMfield_menu = tk.OptionMenu(self.parent, self.field_var, *self.fields, command=self.SAPMfieldchoice)
+        self.SAPMfield_menu.config(bg=bgcol)
+        self.SAPMfield_menu.grid(row=rownum, column=2, columnspan = 1, sticky='EW')
+        self.SAPMfieldsearch_opt = self.SAPMfield_menu  # save this way so that values are not cleared
+
+        # label, button, for running the definition of clusters, and loading data
+        self.SAPMcharclearbutton = tk.Button(self.parent, text="Clear/Update", width=smallbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
+                                        command=self.SAPMcharacteristicslistclear, relief='raised', bd=5, highlightbackground = widgetbg)
+        self.SAPMcharclearbutton.grid(row=rownum, column=3)
+
+        self.SAPMlabel7 = tk.Label(self.parent, text = 'Characteristics list:', font = labelfont)
+        self.SAPMlabel7.grid(row=rownum+1, column=1, sticky='N')
+
+        # self.SAPMcharacteristicscount = 0
+        # self.SAPMcharacteristicslist = []
+        self.SAPMcharacteristicstext = tk.StringVar()
+        chartext = ''
+        for names in self.SAPMcharacteristicslist:
+            chartext += names + ','
+        chartext = chartext[:-1]
+        print('text for group characteristics list is: ',chartext)
+        self.SAPMcharacteristicstext.set(chartext)
+        self.SAPMcharacteristicsdisplay = tk.Label(self.parent, textvariable=self.SAPMcharacteristicstext, bg=bgcol, fg="#4B4B4B", font = labelfont,
+                                      wraplength=300, justify='left')
+        self.SAPMcharacteristicsdisplay.grid(row=rownum+1, column=2, columnspan=2, sticky='N')
+
+
+        rownum = 14
         self.varS1 = tk.IntVar()
         self.SAPMrandomcluster = tk.Checkbutton(self.parent, text = 'Random search start?', width = bigbigbuttonsize, fg = fgletter2,
                                           command = self.SAPMcheckboxes, variable = self.varS1)
@@ -7473,7 +7754,7 @@ class SAPMFrame:
         self.SAPMkeyinfo1.grid(row=rownum,column=3, sticky='W')
 
 
-        rownum = 13
+        rownum = 15
         self.varS2 = tk.IntVar()
         self.SAPMsavebetascale = tk.Checkbutton(self.parent, text = 'Save beta init?', width = bigbigbuttonsize, fg = fgletter2,
                                           command = self.SAPMbetainitcheckboxes, variable = self.varS2)
@@ -7496,7 +7777,7 @@ class SAPMResultsFrame:
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         self.SAPMcnums = settings['SAPMcnums']
-        self.SAPMresultsdir = copy.deepcopy(settings['SAPMresultsdir'])
+        self.SRresultsdir = copy.deepcopy(settings['SAPMresultsdir'])
         self.SAPMresultsname = copy.deepcopy(settings['SAPMresultsname'])
         self.SAPMparamsname = copy.deepcopy(settings['SAPMparamsname'])
         self.DBname = copy.deepcopy(settings['DBname'])
@@ -7507,7 +7788,9 @@ class SAPMResultsFrame:
         self.SRcnumtext.set(self.SAPMcnums)
         self.SRresultsdirtext.set(self.SRresultsdir)
         self.SRresultsnametext.set(self.SRresultsname)
+        self.SRresultsnametext2.set(self.SRresultsname2)
         self.SRparamsnametext.set(self.SRparamsname)
+        self.SRparamsnametext2.set(self.SRparamsname2)
 
         # update network
         self.SRtargetregion_opt.destroy()  # remove it
@@ -7536,7 +7819,7 @@ class SAPMResultsFrame:
         # browse for new name
         dirname = tkf.askdirectory(title="Select folder")
         print('SAPM results output directory = ',dirname)
-        self.SRresultsdir = dirname
+        self.SRresultsdir = copy.deepcopy(dirname)
         self.SRresultsdirtext.set(self.SRresultsdir)
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
         settings['SRresultsdir'] = self.SRresultsdir
@@ -7546,13 +7829,18 @@ class SAPMResultsFrame:
 
     def SRresultsnamebrowseaction(self):
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
-        self.SRresultsname = copy.deepcopy(settings['SAPMresultsname'])
+        self.SRresultsname = copy.deepcopy(settings['SRresultsname'])
+        self.SRresultsname2 = copy.deepcopy(settings['SRresultsname2'])
         # browse for new name
         filechoice =  tkf.askopenfilename(title = "Select file",filetypes = (("npy files","*.npy"),("all files","*.*")))
         print('SAPM results name = ',filechoice)
-        self.SRresultsname = filechoice
+
+        p,f = os.path.split(filechoice)
+        self.SAPMresultsname = copy.deepcopy(f)
+        self.SAPMresultsdir = copy.deepcopy(p)
+
+        self.SRresultsname = copy.deepcopy(filechoice)
         self.SRresultsnametext.set(self.SRresultsname)
-        settings = np.load(settingsfile, allow_pickle=True).flat[0]
         settings['SRresultsname'] = self.SRresultsname
 
         try:
@@ -7569,6 +7857,51 @@ class SAPMResultsFrame:
 
         np.save(settingsfile, settings)
         return self
+
+
+    def SRresultsnamebrowseaction2(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.SRresultsname2 = copy.deepcopy(settings['SRresultsname2'])
+        # browse for new name
+        filechoice =  tkf.askopenfilename(title = "Select file",filetypes = (("npy files","*.npy"),("all files","*.*")))
+        print('SAPM results name = ',filechoice)
+
+        self.SRresultsname2 = copy.deepcopy(filechoice)
+        self.SRresultsnametext2.set(self.SRresultsname2)
+        settings['SRresultsname2'] = self.SRresultsname2
+
+        p,f = os.path.split(self.SRresultsname2)
+        # settings['SAPMresultsname2'] = f
+        # settings['SAPMresultsdir2'] = p
+
+        np.save(settingsfile, settings)
+        return self
+
+
+    def SRresults2clearaction(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.SRresultsname2 = ''
+        settings['SRresultsname2'] = ''
+        settings['SRparamsname2'] = ''
+
+        self.SRresultsnametext2.set(self.SRresultsname2)
+
+        self.SRcovname2 = ''
+        self.SRcovnametext2.set(self.SRcovname2)
+
+        covariatesfile2 = ''
+        covariatesdata2 = []
+        self.SRcovname2 = ''
+        self.covnamelist2 = []
+        self.allcovariatesvalues2 = []
+        settings['SRcovname2'] = ''
+        settings['SRcovnamelist2'] = []
+        settings['SRallcovariatesvalues2'] = []
+        settings['SRcovariatesvalues2'] = ''
+
+        np.save(settingsfile, settings)
+        return self
+
 
     def SRparamsnamebrowseaction(self):
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
@@ -7597,6 +7930,21 @@ class SAPMResultsFrame:
         return self
 
 
+    def SRparamsnamebrowseaction2(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        # self.SRparamsname2 = copy.deepcopy(settings['SAPMparamsname2'])
+        # browse for new name
+        filechoice =  tkf.askopenfilename(title = "Select file",filetypes = (("npy files","*.npy"),("all files","*.*")))
+        print('SAPM parameters name 2 = ',filechoice)
+        self.SRparamsname2 = copy.deepcopy(filechoice)
+        self.SRparamsnametext2.set(self.SRparamsname2)
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        settings['SRparamsname2'] = self.SRparamsname2
+
+        np.save(settingsfile, settings)
+        return self
+
+
     def SRcovnamebrowseaction(self):
         # browse for new name
         filechoice =  tkf.askopenfilename(title = "Select file",filetypes = (("npy files","*.npy"),("all files","*.*")))
@@ -7617,8 +7965,35 @@ class SAPMResultsFrame:
         SRcovfieldvalue_menu = tk.OptionMenu(self.parent, self.SRcovfield_var, *fieldvalues,
                                         command=self.SRcovfieldvaluechoice)
         SRcovfieldvalue_menu.config(bg=bgcol)
-        SRcovfieldvalue_menu.grid(row=7, column=2, sticky='EW')
+        SRcovfieldvalue_menu.grid(row=8, column=2, sticky='EW')
         self.SRcovfieldvaluesearch_opt = SRcovfieldvalue_menu  # save this way so that values are not cleared
+
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        settings['SRcovname'] = self.SRcovname
+        settings['SRcovnamelist'] = copy.deepcopy(self.covnamelist)
+        settings['SRallcovariatesvalues'] = copy.deepcopy(self.allcovariatesvalues)
+        np.save(settingsfile, settings)
+
+        return self
+
+
+    def SRcovnamebrowseaction2(self):
+        # browse for new name
+        filechoice =  tkf.askopenfilename(title = "Select file",filetypes = (("npy files","*.npy"),("all files","*.*")))
+        print('covariates2 data name = ',filechoice)
+        self.SRcovname2 = filechoice
+        self.SRcovnametext2.set(self.SRcovname2)
+
+        covariatesfile2 = self.SRcovnametext2.get()
+        covariatesdata2 = np.load(covariatesfile2, allow_pickle=True).flat[0]
+        self.covnamelist2 = covariatesdata2['GRPcharacteristicslist']
+        self.allcovariatesvalues2 = covariatesdata2['GRPcharacteristicsvalues']
+
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        settings['SRcovname2'] = self.SRcovname2
+        settings['SRcovnamelist2'] = covariatesdata2['GRPcharacteristicslist']
+        settings['SRallcovariatesvalues2'] = covariatesdata2['GRPcharacteristicsvalues']
+        np.save(settingsfile, settings)
 
         return self
 
@@ -7628,16 +8003,34 @@ class SAPMResultsFrame:
         self.SRcovfield = self.SRcovfield_var.get()
         print('Selected covariate: {}'.format(self.SRcovfield))
 
-        # self.covnamelist = covariatesdata['GRPcharacteristicslist']
-        # self.allcovariatesvalues = covariatesdata['GRPcharacteristicsvalues']
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.SRresultsname = settings['SRresultsname']
+        self.SRresultsname2 = settings['SRresultsname2']
+
+        self.SRcovname = settings['SRcovname']
+        self.SRcovname2 = settings['SRcovname2']
+        self.covnamelist = settings['SRcovnamelist']
+        self.allcovariatesvalues = settings['SRallcovariatesvalues']
+        self.covnamelist2 = settings['SRcovnamelist2']
+        self.allcovariatesvalues2 = settings['SRallcovariatesvalues2']
+
         if self.SRcovfield == 'R2total':
             # load selected results file and get R2total values
             results = np.load(self.SRresultsname,allow_pickle=True)
             R2total_list = [results[x]['R2total'] for x in range(len(results))]
             self.covariatesvalues = np.array(R2total_list)
+
+            if os.path.isfile(self.SRresultsname2):
+                results2 = np.load(self.SRresultsname2,allow_pickle=True)
+                R2total_list2 = [results2[x]['R2total'] for x in range(len(results2))]
+                self.covariatesvalues2 = np.array(R2total_list2)
         else:
             c = np.where(np.array(self.covnamelist) == self.SRcovfield)
             self.covariatesvalues = self.allcovariatesvalues[c[0],:][0]
+            if os.path.isfile(self.SRcovname2):
+                print('SRcovname2 = {}'.format(self.SRcovname2))
+                c = np.where(np.array(self.covnamelist2) == self.SRcovfield)
+                self.covariatesvalues2 = self.allcovariatesvalues2[c[0],:][0]
 
         uniquevals = np.unique(self.covariatesvalues)
         uniquecheck = len(uniquevals)
@@ -7645,6 +8038,10 @@ class SAPMResultsFrame:
             self.SRcovcategorical = True
             print('Selected covariate appears to be a categorical variable')
             print('    values are:  {}'.format(uniquevals))
+
+            if os.path.isfile(self.SRresultsname2):
+                uniquevals2 = np.unique(self.covariatesvalues2)
+                print('    group2 values are:  {}'.format(uniquevals2))
         else:
             self.SRcovcategorical = False
             # expect continuous values to be numeric
@@ -7653,6 +8050,13 @@ class SAPMResultsFrame:
             print('    average value {} std dev:  {:.2f} {} {:.2f}'.format(chr(177),np.mean(self.covariatesvalues),chr(177),np.std(self.covariatesvalues)))
             print('    median value {} std dev:  {:.2f} {} {:.2f}'.format(chr(177),np.median(self.covariatesvalues),chr(177),np.std(self.covariatesvalues)))
             print('    value range  {:.2f} to {:.2f}'.format(np.min(self.covariatesvalues),np.max(self.covariatesvalues)))
+
+            if os.path.isfile(self.SRcovname2):
+                self.covariatesvalues2 = self.covariatesvalues2.astype(float)
+                print('\ngroup2:')
+                print('    average value {} std dev:  {:.2f} {} {:.2f}'.format(chr(177), np.mean(self.covariatesvalues2),chr(177), np.std(self.covariatesvalues2)))
+                print('    median value {} std dev:  {:.2f} {} {:.2f}'.format(chr(177), np.median(self.covariatesvalues2),chr(177), np.std(self.covariatesvalues2)))
+                print('    value range  {:.2f} to {:.2f}'.format(np.min(self.covariatesvalues2),np.max(self.covariatesvalues2)))
 
         # update value selection pull-down menu
 
@@ -7672,9 +8076,11 @@ class SAPMResultsFrame:
         SRcovvalue_menu = tk.OptionMenu(self.parent, self.SRcovvalue_var, *fieldvalues,
                                         command=self.SRcovvaluechoice)
         SRcovvalue_menu.config(bg=bgcol)
-        SRcovvalue_menu.grid(row=7, column=3, sticky='EW')
+        SRcovvalue_menu.grid(row=8, column=3, sticky='EW')
         self.SRcovvaluesearch_opt = SRcovvalue_menu  # save this way so that values are not cleared
-
+        settings['SRcovariatesvalues'] = copy.deepcopy(self.covariatesvalues)
+        settings['SRcovariatesvalues2'] = copy.deepcopy(self.covariatesvalues2)
+        np.save(settingsfile, settings)
         return self
 
 
@@ -7722,18 +8128,19 @@ class SAPMResultsFrame:
 
         if self.SRoptionvalue == 'DrawSAPMdiagram':
             self.SRdrawfilebox['state'] = tk.NORMAL
-            self.SAPMBfilebox['state'] = tk.NORMAL
-            self.SAPMBsheetfield_search_opt.config(state = tk.NORMAL)
-            self.SAPMBcolumnfield_search_opt.config(state = tk.NORMAL)
+            self.SRBfilebox['state'] = tk.NORMAL
+            self.SRBsheetfield_search_opt.config(state = tk.NORMAL)
+            self.SRBcolumnfield_search_opt.config(state = tk.NORMAL)
             self.SRthresholdbox['state'] = tk.NORMAL
         else:
             self.SRdrawfilebox['state'] = tk.DISABLED
-            self.SAPMBfilebox['state'] = tk.DISABLED
-            self.SAPMBsheetfield_search_opt.config(state = tk.DISABLED)
-            self.SAPMBcolumnfield_search_opt.config(state = tk.DISABLED)
+            self.SRBfilebox['state'] = tk.DISABLED
+            self.SRBsheetfield_search_opt.config(state = tk.DISABLED)
+            self.SRBcolumnfield_search_opt.config(state = tk.DISABLED)
             self.SRthresholdbox['state'] = tk.DISABLED
 
         return self
+
 
     def SRtargetregionvalue_choice(self,value):
         # get the field value choices for the selected field
@@ -7752,6 +8159,7 @@ class SAPMResultsFrame:
         np.save(settingsfile, settings)
         return self
 
+
     def SRvariantvaluesubmit(self):
         self.SRvariant = int(self.SRvariantvaluebox.get())
         print('p-value for SAPM results display is set to ',self.SRvariant)
@@ -7768,12 +8176,30 @@ class SAPMResultsFrame:
         np.save(settingsfile, settings)
         return self
 
+
     def SRgenerateoutput(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.SRresultsname = settings['SRresultsname']
+        self.SRresultsname2 = settings['SRresultsname2']
+        self.SRcovname = settings['SRcovname']
+        self.SRcovname2 = settings['SRcovname2']
+        self.covnamelist = settings['SRcovnamelist']
+        self.allcovariatesvalues = settings['SRallcovariatesvalues']
+        self.covnamelist2 = settings['SRcovnamelist2']
+        self.allcovariatesvalues2 = settings['SRallcovariatesvalues2']
+        self.covariatesvalues = copy.deepcopy(settings['SRcovariatesvalues'])
+        self.covariatesvalues2 = copy.deepcopy(settings['SRcovariatesvalues2'])
+        self.SRresultsdir = copy.deepcopy(settings['SRresultsdir'])
+
+
         print('covariates:  {} values'.format(len(self.covariatesvalues)))
+        print('covariates2:  {} values'.format(len(self.covariatesvalues2)))
         print('option:  {}'.format(self.SRoptionvalue))
         print('SAPMresultsdir:  {}'.format(self.SRresultsdir))
-        print('SAPMparamsname:  {}'.format(self.SRparamsname))
         print('SAPMresultsname:  {}'.format(self.SRresultsname))
+        print('SAPMparamsname:  {}'.format(self.SRparamsname))
+        print('SRresultsname2:  {}'.format(self.SRresultsname2))
+        print('SAPMparamsname2:  {}'.format(self.SRparamsname2))
         print('group:  {} values'.format(len(self.SRgroup)))
         print('SRtargetregion:  {}'.format(self.SRtargetregion))
         print('SRpvalue:  {}'.format(self.SRpvalue))
@@ -7785,13 +8211,15 @@ class SAPMResultsFrame:
         # self.SRPlotFigure = 123
         outputname = pysapm.display_SAPM_results(123, self.SRnametag, self.covariatesvalues, self.SRoptionvalue,
                             self.SRresultsdir, self.SRparamsname, self.SRresultsname, self.SRvariant,
-                            self.SRgroup, self.SRtargetregion, self.SRpvalue, [], self.SRCanvas, True, multiple_output = multiple_output)
+                            self.SRgroup, self.SRtargetregion, self.SRpvalue, [], self.SRCanvas, True, multiple_output,
+                            self.SRresultsname2, self.SRparamsname2, self.covariatesvalues2)
 
         if ('Plot' in self.SRoptionvalue):     # or ('Draw' in self.SRoptionvalue)
             print('generating figures to save as svg files ...')
             outputname = pysapm.display_SAPM_results(124, self.SRnametag, self.covariatesvalues, self.SRoptionvalue,
                                 self.SRresultsdir, self.SRparamsname, self.SRresultsname, self.SRvariant,
-                                self.SRgroup, self.SRtargetregion, self.SRpvalue, [], 'none', False, multiple_output = multiple_output)
+                                self.SRgroup, self.SRtargetregion, self.SRpvalue, [], 'none', False, multiple_output = multiple_output,
+                                SRresultsname2 = '', SRparametersname2 = '', covariates2 = [])
 
         if self.SRoptionvalue == 'DrawSAPMdiagram':
             # need:
@@ -7863,7 +8291,7 @@ class SAPMResultsFrame:
         np.save(settingsfile, settings)
         return self
 
-    def SAPMBfilebrowseaction(self):
+    def SRBfilebrowseaction(self):
         # browse for new name
         filechoice =  tkf.askopenfilename(title = "Select file",filetypes = (("xlsx files","*.xlsx"),("all files","*.*")))
         print('file containing B values etc from SAPM results = ',filechoice)
@@ -7884,12 +8312,13 @@ class SAPMResultsFrame:
         self.SAPMBsheetfield_var.set(fieldvalues[0])
         self.SAPMBsheetfield_search_opt.destroy()  # remove it
         SAPMBsheet_menu = tk.OptionMenu(self.parent, self.SAPMBsheetfield_var, *fieldvalues,
-                                        command=self.SAPMBsheetfieldvaluechoice)
+                                        command=self.SRBsheetfieldvaluechoice)
         SAPMBsheet_menu.config(bg=bgcol)
         SAPMBsheet_menu.grid(row=rownum, column=columnum, sticky='EW')
         self.SAPMBsheetfield_search_opt = SAPMBsheet_menu  # save this way so that values are not cleared
 
         return self
+
 
     def SRthresholdsubmit(self):
         self.SRthresholdtext = self.SRthresholdbox.get()
@@ -7901,7 +8330,7 @@ class SAPMResultsFrame:
         return self
 
 
-    def SAPMBsheetfieldvaluechoice(self,value):
+    def SRBsheetfieldvaluechoice(self,value):
         # get the field value choices for the selected field
         self.SAPMBsheet = self.SAPMBsheetfield_var.get()
         print('Selected sheet: {}'.format(self.SAPMBsheet))
@@ -7919,18 +8348,18 @@ class SAPMResultsFrame:
         rownum = 12
         columnum = 5
         fieldvalues = copy.deepcopy(self.SRcolumnnames)
-        self.SAPMBcolumnfield_var = tk.StringVar()
-        self.SAPMBcolumnfield_var.set(fieldvalues[0])
-        self.SAPMBcolumnfield_search_opt.destroy()  # remove it
-        SAPMBcolumn_menu = tk.OptionMenu(self.parent, self.SAPMBcolumnfield_var, *fieldvalues,
-                                        command=self.SAPMBcolumnfieldvaluechoice)
-        SAPMBcolumn_menu.config(bg=bgcol)
-        SAPMBcolumn_menu.grid(row=rownum, column=columnum, sticky='EW')
-        self.SAPMBcolumnfield_search_opt = SAPMBcolumn_menu  # save this way so that values are not cleared
+        self.SRBcolumnfield_var = tk.StringVar()
+        self.SRBcolumnfield_var.set(fieldvalues[0])
+        self.SRBcolumnfield_search_opt.destroy()  # remove it
+        SRBcolumn_menu = tk.OptionMenu(self.parent, self.SRBcolumnfield_var, *fieldvalues,
+                                        command=self.SRBcolumnfieldvaluechoice)
+        SRBcolumn_menu.config(bg=bgcol)
+        SRBcolumn_menu.grid(row=rownum, column=columnum, sticky='EW')
+        self.SRBcolumnfield_search_opt = SRBcolumn_menu  # save this way so that values are not cleared
         return self
 
 
-    def SAPMBcolumnfieldvaluechoice(self, value):
+    def SRBcolumnfieldvaluechoice(self, value):
         # get the field value choices for the selected field
         self.SAPMBcolumn = self.SAPMBcolumnfield_var.get()
         print('Selected column: {}'.format(self.SAPMBcolumn))
@@ -7954,8 +8383,11 @@ class SAPMResultsFrame:
         keylist = settings.keys()
         self.SAPMcnums = settings['SAPMcnums']
         self.SAPMresultsdir = settings['SAPMresultsdir']
+        # self.SAPMresultsdir2 = settings['SAPMresultsdir2']
         self.SAPMresultsname = settings['SAPMresultsname']
+        self.SRresultsname2 = settings['SRresultsname2']
         self.SAPMparamsname = settings['SAPMparamsname']
+        self.SRparamsname2 = settings['SRparamsname2']
         self.DBname = settings['DBname']
         self.DBnum = settings['DBnum']
         self.networkmodel = settings['networkmodel']
@@ -7963,7 +8395,8 @@ class SAPMResultsFrame:
         self.SAPMregionname = settings['SAPMregionname']
         self.SRvariant = 0
         self.SRoptionvalue = settings['SRoptionvalue']
-        self.SRcovname = settings['SRcovname']
+        self.SRcovname = 'not defined'
+        self.SRcovname2 = 'not defined'
         self.SRpvalue = settings['SRpvalue']
         self.SRgroup = settings['SRgroup']
         self.SRtargetregion = settings['SRtargetregion']
@@ -7972,48 +8405,17 @@ class SAPMResultsFrame:
         self.SRthresholdtext = settings['SRthresholdtext']
         self.SAPMBfile = settings['SAPMBfile']
 
-        # initialize some values
-        # if 'SRoptionvalue' in keylist: # expect that if one value for this section is
-        #                                 # in settings, then they all are
-        #     self.SRoptionvalue = settings['SRoptionvalue']
-        #     self.SRcovname = settings['SRcovname']
-        #     self.SRpvalue = settings['SRpvalue']
-        #     self.SRgroup = settings['SRgroup']
-        #     self.SRtargetregion = settings['SRtargetregion']
-        #     self.SRnametag = settings['SRnametag']
-        #     self.SRdrawfile = settings['SRdrawfile']
-        #     self.SRthresholdtext = settings['SRthresholdtext']
-        #     self.SAPMBfile = settings['SAPMBfile']
-        # else:
-        #     self.SRoptionvalue = 'not defined'
-        #     self.SRcovname = 'not defined'
-        #     self.SRpvalue = 0.05
-        #     self.SRgroup = []
-        #     self.SRtargetregion = []
-        #     self.SRnametag = ''
-        #     self.SRdrawfile = ''
-        #     self.SRthresholdtext = 'abs>0'
-        #     self.SAPMBfile = ''
-        #     self.SAPMBsheet = 'sheet'
-        #     self.SRcolumnnames = 'stat'
-        #
-        #     settings['SRoptionvalue'] = self.SRoptionvalue
-        #     settings['SRcovname'] = self.SRcovname
-        #     settings['SRpvalue'] = self.SRpvalue
-        #     settings['SRgroup'] = self.SRgroup
-        #     settings['SRtargetregion'] = self.SRtargetregion
-        #     settings['SRnametag'] = self.SRnametag
-        #     settings['SRvariant'] = self.SRvariant
+        self.covnamelist = []
+        self.allcovariatesvalues = []
+        self.covnamelist2 = []
+        self.allcovariatesvalues2 = []
 
-        # if 'SRdrawfile' in settings.keys():
-        #     self.SRdrawfile = settings['SRdrawfile']
-        # else:
-        #     self.SRdrawfile = ''
-
-        # if 'SRthresholdtext' in settings.keys():
-        #     self.SRthresholdtext = settings['SRthresholdtext']
-        # else:
-        #     self.SRthresholdtext = '>0'
+        settings['SRcovname'] = 'not defined'
+        settings['SRcovname2'] = 'not defined'
+        settings['SRcovnamelist'] = []
+        settings['SRallcovariatesvalues'] = []
+        settings['SRcovnamelist2'] = []
+        settings['SRallcovariatesvalues2'] = []
 
         # initialize sheet and column names, if possible
         try:
@@ -8030,13 +8432,15 @@ class SAPMResultsFrame:
             self.SRcolumnnames = 'stat'
             self.SRsheetnames = ['not set']
 
-
         self.SRresultsdir = copy.deepcopy(self.SAPMresultsdir)
         self.SRresultsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
+        # self.SRresultsname2 = os.path.join(self.SAPMresultsdir2, self.SAPMresultsname2)
         self.SRparamsname = os.path.join(self.SAPMresultsdir, self.SAPMparamsname)
         settings['SRresultsdir'] = self.SRresultsdir
         settings['SRresultsname'] = self.SRresultsname
+        settings['SRresultsname2'] = self.SRresultsname2
         settings['SRparamsname'] = self.SRparamsname
+        settings['SRparamsname2'] = self.SRparamsname2
         settings['SRdrawfile'] = self.SRdrawfile
         np.save(settingsfile, settings)
 
@@ -8048,43 +8452,42 @@ class SAPMResultsFrame:
         self.SRLabel3 = tk.Label(self.parent, text = "3) For DrawSAPMdiagram you must choose xlsx files \ndefining plot parameters and results to plot", fg = 'gray', justify = 'left', font = infofont)
         self.SRLabel3.grid(row=2,column=0, sticky='W')
 
-        rownum = 0
+        rownum = 4
+        columnum = 0
         # define a button to browse and select an existing network definition file, and write out the selected name
         # also, define the function for what to do when this button is pressed
         self.SRupdatevalues = tk.Button(self.parent, text='Update', width=smallbuttonsize, bg = fgcol1, fg = fgletter1, font = widgetfont,
                                   command=self.SRupdatevaluesclick, relief='raised', bd=5, highlightbackground = widgetbg)
-        self.SRupdatevalues.grid(row = rownum, column=4, rowspan = 2)
+        self.SRupdatevalues.grid(row = rownum, column=columnum, rowspan = 1)
 
 
         # cnums--------------------------------------------------
         # display the cluster numbers from the SAPM analysis page
         self.SRL0 = tk.Label(self.parent, text="Cluster numbers:", font = labelfont)
-        self.SRL0.grid(row=rownum, column=1, sticky='E')
+        self.SRL0.grid(row=rownum+1, column=columnum, sticky='W')
         # make a label to show the current setting of the network definition file name
         self.SRcnumtext = tk.StringVar()
         self.SRcnumtext.set(self.SAPMcnums)
         self.SRcnumtextbox = tk.Label(self.parent, textvariable=self.SRcnumtext, bg=bgcol, fg="#4B4B4B", font = infofont,
                                      wraplength=300, justify='left')
-        self.SRcnumtextbox.grid(row=rownum, column=2, columnspan=2, sticky='W')
+        self.SRcnumtextbox.grid(row=rownum+2, column=columnum, columnspan=1, sticky='W')
 
-
-        rownum = 1
         # network file--------------------------------------------------
         # display the network file from the SAPM analysis page
         self.SRL1 = tk.Label(self.parent, text="Network Model:", font = labelfont)
-        self.SRL1.grid(row=rownum, column=1, sticky='E')
+        self.SRL1.grid(row=rownum+3, column=columnum, sticky='W')
         # make a label to show the current setting of the network definition file name
         npname, nfname = os.path.split(self.networkmodel)
         self.SRnetnametext = tk.StringVar()
         self.SRnetnametext.set(nfname)
         self.SRnetnametextbox = tk.Label(self.parent, textvariable=self.SRnetnametext, bg=bgcol, fg="#4B4B4B", font = infofont,
                                      wraplength=300, justify='left')
-        self.SRnetnametextbox.grid(row=rownum, column=2, columnspan=2, sticky='W')
+        self.SRnetnametextbox.grid(row=rownum+4, column=columnum, columnspan=1, sticky='W')
 
         # outputdir ----------------------------------------------------------------------
         # box etc for entering the name of the directory for saving the results
         # make a label to show the current setting of the network definition file directory name
-        rownum = 2
+        rownum = 0
         self.SRresultsdirlabel = tk.Label(self.parent, text = 'Results save folder:', font = labelfont)
         self.SRresultsdirlabel.grid(row=rownum, column=1, sticky='E')
         self.SRresultsdirtext = tk.StringVar()
@@ -8097,7 +8500,7 @@ class SAPMResultsFrame:
         self.SRresultsdirbrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRresultsdirbrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRresultsdirbrowse.grid(row=rownum, column=4, sticky='N')
 
-        rownum = 3
+        rownum = 1
         # put in base name for output files
         self.SRL9 = tk.Label(self.parent, text = 'Output name base:', font = labelfont).grid(row=rownum, column=1, sticky='NSEW')
         self.SRnametagbox = tk.Entry(self.parent, width = 30, bg="white")
@@ -8110,7 +8513,7 @@ class SAPMResultsFrame:
 
 
         # SAPM results name --------------------------------------------------------------
-        rownum = 4
+        rownum = 2
         # box etc for entering the name used in labeling the results files
         self.SRresultsnamelabel = tk.Label(self.parent, text = 'SAPM results file:', font = labelfont)
         self.SRresultsnamelabel.grid(row=rownum, column=1, sticky='E')
@@ -8125,7 +8528,7 @@ class SAPMResultsFrame:
 
 
         # SAPM parameters name --------------------------------------------------------------
-        rownum = 5
+        rownum = 3
         # box etc for entering the name used in labeling the parameters file
         self.SRparamsnamelabel = tk.Label(self.parent, text = 'SAPM parameters file:', font = labelfont)
         self.SRparamsnamelabel.grid(row=rownum, column=1, sticky='E')
@@ -8139,7 +8542,7 @@ class SAPMResultsFrame:
         self.SRparamsnamebrowse.grid(row=rownum, column=4, sticky='N')
 
         # covariates file name --------------------------------------------------------------
-        rownum = 6
+        rownum = 4
         # box etc for entering the file name that contains information about covariates ...
         self.SRcovlabel = tk.Label(self.parent, text = 'Covariates file:', font = labelfont)
         self.SRcovlabel.grid(row=rownum, column=1, sticky='E')
@@ -8152,7 +8555,58 @@ class SAPMResultsFrame:
         self.SRcovnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRcovnamebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRcovnamebrowse.grid(row=rownum, column=4, sticky='N')
 
+        # options for group comparisons
+
+        # SAPM results name 2--------------------------------------------------------------
+        rownum = 5
+        # box etc for entering the name used in labeling the results files
+        self.SRresultsnamelabel2 = tk.Label(self.parent, text = 'SAPM results file 2:', font = labelfont, fg="#4B4B4B")
+        self.SRresultsnamelabel2.grid(row=rownum, column=1, sticky='E')
+        self.SRresultsnametext2 = tk.StringVar()
+        self.SRresultsnametext2.set(self.SRresultsname2)
+        self.SRresultsnamebox2 = tk.Label(self.parent, textvariable=self.SRresultsnametext2, bg=bgcol, fg="#4B4B4B", font = infofont,
+                                     wraplength=300, justify='left')
+        self.SRresultsnamebox2.grid(row=rownum, column=2, columnspan=2, sticky='W')
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SRresultsnamesubmit2 = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRresultsnamebrowseaction2, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.SRresultsnamesubmit2.grid(row=rownum, column=4, sticky='N')
+
+        # add a button for removing 2nd results file
+        self.SRresults2clearbutton = tk.Button(self.parent, text = "Clear", width = smallbuttonsize, bg = fgcol1, fg = fgletter1,
+                                font = widgetfont, command = self.SRresults2clearaction, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.SRresults2clearbutton.grid(row=rownum, column=5)
+
+
+        # SAPM parameters name --------------------------------------------------------------
+        rownum = 6
+        # box etc for entering the name used in labeling the parameters file
+        self.SRparamsnamelabel2 = tk.Label(self.parent, text = 'SAPM parameters file 2:', font = labelfont, fg="#4B4B4B")
+        self.SRparamsnamelabel2.grid(row=rownum, column=1, sticky='E')
+        self.SRparamsnametext2 = tk.StringVar()
+        self.SRparamsnametext2.set(self.SRparamsname2)
+        self.SRparamsnamebox2 = tk.Label(self.parent, textvariable=self.SRparamsnametext2, bg=bgcol, fg="#4B4B4B", font = infofont,
+                                     wraplength=300, justify='left')
+        self.SRparamsnamebox2.grid(row=rownum, column=2, columnspan=2, sticky='W')
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SRparamsnamebrowse2 = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRparamsnamebrowseaction2, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.SRparamsnamebrowse2.grid(row=rownum, column=4, sticky='N')
+
+        # covariates file name --------------------------------------------------------------
         rownum = 7
+        # box etc for entering the file name that contains information about covariates ...
+        self.SRcovlabel2 = tk.Label(self.parent, text = 'Covariates file 2:', font = labelfont, fg="#4B4B4B")
+        self.SRcovlabel2.grid(row=rownum, column=1, sticky='E')
+        self.SRcovnametext2 = tk.StringVar()
+        self.SRcovnametext2.set(self.SRcovname2)
+        self.SRcovnamebox2 = tk.Label(self.parent, textvariable=self.SRcovnametext2, bg=bgcol, fg="#4B4B4B", font = infofont,
+                                     wraplength=300, justify='left')
+        self.SRcovnamebox2.grid(row=rownum, column=2, columnspan=2, sticky='W')
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SRcovnamebrowse2 = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRcovnamebrowseaction2, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.SRcovnamebrowse2.grid(row=rownum, column=4, sticky='N')
+
+
+        rownum = 8
         # add label, and pull-down menu for selected covariate values for searching
         self.SRL3 = tk.Label(self.parent, text = "Covariate term:", font = labelfont)
         self.SRL3.grid(row=rownum,column=1, sticky='W')
@@ -8161,12 +8615,14 @@ class SAPMResultsFrame:
         # fieldvalues = DBFrame.get_DB_field_values(self)
         self.covnamelist = ['empty']
         self.covariatesvalues = []
+        self.covnamelist2 = ['empty']
+        self.covariatesvalues2 = []
         self.SRcovfield_var = tk.StringVar()
         self.SRcovfield_var.set('empty')
         fieldvalues = 'empty'
         SRcovfieldvalue_menu = tk.OptionMenu(self.parent, self.SRcovfield_var, *fieldvalues, command = self.SRcovfieldvaluechoice)
         SRcovfieldvalue_menu.config(bg=bgcol)
-        SRcovfieldvalue_menu.grid(row=7, column=2, sticky='EW')
+        SRcovfieldvalue_menu.grid(row=rownum, column=2, sticky='EW')
         self.SRcovfieldvaluesearch_opt = SRcovfieldvalue_menu   # save this way so that values are not cleared
 
         # covariate pull-down menu
@@ -8180,8 +8636,8 @@ class SAPMResultsFrame:
         self.SRcovvaluesearch_opt = SRcovvalue_menu   # save this way so that values are not cleared
 
         # specific which outputs to generate...
-        rownum = 8
-        outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel','Plot_SourceModel', 'DrawSAPMdiagram', 'DrawAnatomy_axial', 'DrawAnatomy_sagittal' ]
+        rownum = 9
+        outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel','Plot_SourceModel', 'DrawSAPMdiagram', 'DrawAnatomy_axial', 'DrawAnatomy_sagittal', 'Group_Diff' , 'Paired_Diff' ]
         # add label, and pull-down menu for selected covariate values for searching
         self.SRL5 = tk.Label(self.parent, text = "Output: ", font = labelfont)
         self.SRL5.grid(row=rownum,column=1, sticky='W')
@@ -8194,7 +8650,7 @@ class SAPMResultsFrame:
         self.SRoptionvalue_opt = SRoptionvalue_menu   # save this way so that values are not cleared
 
         # specify target region for generating outputs (if applicable)
-        rownum = 8
+        rownum = 9
         try:
             network, nclusterlist, sapm_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base \
                 = pysapm.load_network_model_w_intrinsics(self.networkmodel)
@@ -8216,7 +8672,7 @@ class SAPMResultsFrame:
         SRtargetregion_menu.grid(row=rownum, column=4, sticky='EW')
         self.SRtargetregion_opt = SRtargetregion_menu   # save this way so that values are not cleared
 
-        rownum = 9
+        rownum = 10
         # put in choices for statistical threshold
         self.SRL7 = tk.Label(self.parent, text = 'p-value:', font = labelfont).grid(row=rownum, column=1, sticky='NSEW')
         self.SRpvaluebox = tk.Entry(self.parent, width = 8, bg="white")
@@ -8238,7 +8694,7 @@ class SAPMResultsFrame:
                                 font = widgetfont, command = self.SRvariantvaluesubmit, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRvariantvaluesubmitbut.grid(row=rownum, column=6)
 
-        rownum = 10
+        rownum = 11
         # button to launch the generation of outputs with the selected options/values
         self.SRrunoutputbutton = tk.Button(self.parent, text = "GO", width = smallbuttonsize, bg = fgcol1, fg = fgletter1, font = widgetfont, command = self.SRgenerateoutput, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRrunoutputbutton.grid(row=rownum, column=0, sticky='N')
@@ -8255,7 +8711,7 @@ class SAPMResultsFrame:
         # box etc for entering the name of the directory for saving the results
         # make a label to show the current setting of the network definition file directory name
 
-        rownum = 10
+        rownum = 11
         columnum = 4
         self.SRdrawfilelabel = tk.Label(self.parent, text = 'Draw params:', font = labelfont)
         self.SRdrawfilelabel.grid(row=rownum, column=columnum, sticky='E')
@@ -8268,45 +8724,45 @@ class SAPMResultsFrame:
         self.SRdrawfilebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRdrawfilebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRdrawfilebrowse.grid(row=rownum, column=columnum+2, sticky='W')
 
-        rownum = 11
+        rownum = 12
         # SAPMBfile
         columnum = 4
-        self.SAPMBfilelabel = tk.Label(self.parent, text = 'SAPM B file:', font = labelfont)
-        self.SAPMBfilelabel.grid(row=rownum, column=columnum, sticky='E')
-        self.SAPMBfiletext = tk.StringVar()
-        self.SAPMBfiletext.set(self.SAPMBfile[-30:])
-        self.SAPMBfilebox = tk.Label(self.parent, textvariable=self.SAPMBfiletext, bg=bgcol, fg="#4B4B4B", font = infofont,
+        self.SRBfilelabel = tk.Label(self.parent, text = 'SAPM B file:', font = labelfont)
+        self.SRBfilelabel.grid(row=rownum, column=columnum, sticky='E')
+        self.SRBfiletext = tk.StringVar()
+        self.SRBfiletext.set(self.SAPMBfile[-30:])
+        self.SRBfilebox = tk.Label(self.parent, textvariable=self.SRBfiletext, bg=bgcol, fg="#4B4B4B", font = infofont,
                                      wraplength=150, justify='left', state = tk.DISABLED)
-        self.SAPMBfilebox.grid(row=rownum, column=columnum+1, sticky='W')
+        self.SRBfilebox.grid(row=rownum, column=columnum+1, sticky='W')
         # the entry boxes need a "browse" button to allow selection of existing cluster definition file
-        self.SAPMBfilebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMBfilebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
-        self.SAPMBfilebrowse.grid(row=rownum, column=columnum+2, sticky='W')
+        self.SRBfilebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRBfilebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.SRBfilebrowse.grid(row=rownum, column=columnum+2, sticky='W')
 
-        rownum = 12
+        rownum = 13
         columnum = 4
         # option pull-down menu
         # initialchoice = 'sheet'
-        self.SAPMBsheetfield_var = tk.StringVar()
-        self.SAPMBsheetfield_var.set('sheet')
-        SAPMBsheet_menu = tk.OptionMenu(self.parent, self.SAPMBsheetfield_var, *self.SRsheetnames, command = self.SAPMBsheetfieldvaluechoice)
-        SAPMBsheet_menu.config(bg=bgcol)
-        SAPMBsheet_menu.grid(row=rownum, column=columnum, sticky='EW')
-        SAPMBsheet_menu.config(state = tk.DISABLED)
-        self.SAPMBsheetfield_search_opt = SAPMBsheet_menu   # save this way so that values are not cleared
+        self.SRBsheetfield_var = tk.StringVar()
+        self.SRBsheetfield_var.set('sheet')
+        SRBsheet_menu = tk.OptionMenu(self.parent, self.SRBsheetfield_var, *self.SRsheetnames, command = self.SRBsheetfieldvaluechoice)
+        SRBsheet_menu.config(bg=bgcol)
+        SRBsheet_menu.grid(row=rownum, column=columnum, sticky='EW')
+        SRBsheet_menu.config(state = tk.DISABLED)
+        self.SRBsheetfield_search_opt = SRBsheet_menu   # save this way so that values are not cleared
 
-        rownum = 12
+        rownum = 13
         columnum = 5
         # option pull-down menu
         # initialchoice = 'stat'
-        self.SAPMBcolumnfield_var = tk.StringVar()
-        self.SAPMBcolumnfield_var.set('stat')
-        SAPMBcolumn_menu = tk.OptionMenu(self.parent, self.SAPMBcolumnfield_var, *self.SRcolumnnames, command = self.SAPMBcolumnfieldvaluechoice)
-        SAPMBcolumn_menu.config(bg=bgcol)
-        SAPMBcolumn_menu.grid(row=rownum, column=columnum, sticky='EW')
-        SAPMBcolumn_menu.config(state = tk.DISABLED)
-        self.SAPMBcolumnfield_search_opt = SAPMBcolumn_menu   # save this way so that values are not cleared
+        self.SRBcolumnfield_var = tk.StringVar()
+        self.SRBcolumnfield_var.set('stat')
+        SRBcolumn_menu = tk.OptionMenu(self.parent, self.SRBcolumnfield_var, *self.SRcolumnnames, command = self.SRBcolumnfieldvaluechoice)
+        SRBcolumn_menu.config(bg=bgcol)
+        SRBcolumn_menu.grid(row=rownum, column=columnum, sticky='EW')
+        SRBcolumn_menu.config(state = tk.DISABLED)
+        self.SRBcolumnfield_search_opt = SRBcolumn_menu   # save this way so that values are not cleared
 
-        rownum = 13
+        rownum = 14
         columnum = 4
         # put in base name for output files
         self.SRL11 = tk.Label(self.parent, text = 'Threshold:', font = labelfont).grid(row=rownum, column=columnum, sticky='NSEW')

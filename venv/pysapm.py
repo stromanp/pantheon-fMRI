@@ -1593,7 +1593,9 @@ def prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdatanam
                 fintrinsic_region = network[nn]['targetnum']  # only one region should have this input
 
     region_data1 = np.load(regiondataname, allow_pickle=True).flat[0]
-    region_properties = region_data1['region_properties']
+    region_properties = copy.deepcopy(region_data1['region_properties'])
+    DBname = copy.deepcopy(region_data1['DBname'])
+    DBnum = copy.deepcopy(region_data1['DBnum'])
 
     cluster_data = np.load(clusterdataname, allow_pickle=True).flat[0]
     # cluster_properties = cluster_data['cluster_properties']
@@ -1848,7 +1850,7 @@ def prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdatanam
                  'tcdata_centered': tcdata_centered, 'tcdata_centered_original': tcdata_centered_original,
                   'ctarget':ctarget ,'csource':csource, 'dtarget':dtarget ,'dsource':dsource,
                  'Mconn':Mconn, 'Minput':Minput, 'timepoint':timepoint, 'epoch':epoch, 'latent_flag':latent_flag,
-                  'reciprocal_flag':reciprocal_flag, 'fintrinsic_base':fintrinsic_base}  # , 'ktarget':ktarget ,'ksource':ksource
+                  'reciprocal_flag':reciprocal_flag, 'fintrinsic_base':fintrinsic_base, 'DBname':DBname, 'DBnum':DBnum}  # , 'ktarget':ktarget ,'ksource':ksource
     if normalizevar:
         SAPMparams['tcdata_std'] = tcdata_std
         SAPMparams['std_scale'] = std_scale
@@ -3392,6 +3394,8 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
     epoch = SAPMparams['epoch']
     latent_flag = SAPMparams['latent_flag']
     reciprocal_flag = SAPMparams['reciprocal_flag']
+    DBname = SAPMparams['DBname']
+    DBnum = SAPMparams['DBnum']
 
     ntime, NP = np.shape(tplist_full)
     Nintrinsics = vintrinsic_count + fintrinsic_count
@@ -3757,7 +3761,7 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                  'fit':fit, 'loadings_fit':loadings_fit, 'W':W, 'loadings':loadings, 'components':components,
                  'R2total':R2total, 'R2avg':R2avg, 'Mintrinsic':Mintrinsic, 'fintrinsic_count':fintrinsic_count, 'vintrinsic_count':vintrinsic_count,
                  'Meigv':Meigv, 'betavals':betavals, 'deltavals':deltavals, 'fintrinsic1':fintrinsic1, 'clusterlist':clusterlist,
-                 'fintrinsic_base':fintrinsic_base, 'Sinput_original':Sinput_original}
+                 'fintrinsic_base':fintrinsic_base, 'Sinput_original':Sinput_original, 'DBname':DBname, 'DBnum':DBnum}
 
         # person_results.append(entry)
         SAPMresults.append(copy.deepcopy(entry))
@@ -3771,6 +3775,20 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
         print('     results written to {}'.format(SAPMresultsname))
     return SAPMresultsname
 
+
+def add_dbinfo_to_SAPMresults(SAPMresultsname, regiondataname):
+    results = np.load(SAPMresultsname, allow_pickle=True)
+    regiondata = np.load(regiondataname, allow_pickle=True).flat[0]
+
+    DBname = copy.deepcopy(regiondata['DBname'])
+    DBnum = copy.deepcopy(regiondata['DBnum'])
+
+    NP = len(results)
+    for nn in range(NP):
+        results[nn]['DBname'] = copy.deepcopy(DBname)
+        results[nn]['DBnum'] = copy.deepcopy(DBnum)
+
+    np.save(SAPMresultsname, results)
 
 
 #----------------------------------------------------------------------------------
@@ -6695,12 +6713,6 @@ def write_Mconn_values2(Mconn, Mconn_sem, NP, betanamelist, rnamelist, beta_list
     Tthresh = stats.t.ppf(1 - pthresh, NP - 1)
     if np.isnan(Tthresh):  Tthresh = 0.0
 
-
-    # if nr1 < len(betanamelist):
-    #     single_output = True
-    # else:
-    #     single_output = False
-
     if multiple_output:
         labeltext_record = []
         valuetext_record = []
@@ -7153,13 +7165,15 @@ def regress_signal_features_with_cov(target, covariates, Minput, Sinput_total, f
 
 def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdir, SAPMparametersname, SAPMresultsname,
                          variation_number, group, target = '', pthresh = 0.05, setylimits = [], TargetCanvas = [],
-                         display_in_GUI = False, multiple_output = False):
+                         display_in_GUI = False, multiple_output = False,
+                         SRresultsname2 = '', SRparametersname2 = '', covariates2 = []):
+
     # options of results to display:
     # 1) average input time-courses compared with model input
     # 2) modelled input signaling with corresponding source time-courses (outputs from source regions)
     # 3) t-test comparisons between groups, or w.r.t. zero (outputs to excel files)
     # 4) regression with continuous covariate
-    # outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel', 'Plot_SourceModel', 'DrawSAPMdiagram']
+    # outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel', 'Plot_SourceModel', 'DrawSAPMdiagram', 'Paired_diff']
 
     # load SAPM parameters
     VN = variation_number
@@ -7188,6 +7202,13 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
 
     # load the SEM results
     SAPMresults_load = np.load(SAPMresultsname, allow_pickle=True)
+    if os.path.isfile(SRresultsname2):
+        two_group_comparison = True
+        SAPMresults_load2 = np.load(SRresultsname2, allow_pickle=True)
+        SAPMparams2 = np.load(SRparametersname2, allow_pickle=True).flat[0]
+    else:
+        two_group_comparison = False
+
     # NP,nvariations = np.shape(SAPMresults_load)
     NP = len(SAPMresults_load)
 
@@ -7304,7 +7325,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
 
     #-------------------------------------------------------------------------------------
     # significance of average Mconn values -----------------------------------------------
-    # outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel', 'Plot_SourceModel', 'DrawSAPMdiagram']
+    # outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel', 'Plot_SourceModel', 'DrawSAPMdiagram', 'Paired_diff']
     DB_avg = np.mean(DBrecord[:, :, g1], axis=2)
     DB_sem = np.std(DBrecord[:, :, g1], axis=2) / np.sqrt(len(g1))
 
@@ -7313,6 +7334,85 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
 
     B_avg = np.mean(Brecord[:, :, g1], axis=2)
     B_sem = np.std(Brecord[:, :, g1], axis=2) / np.sqrt(len(g1))
+
+    if two_group_comparison:
+        nruns_per_person2 = SAPMparams2['nruns_per_person']
+        NP2 = len(SAPMresults_load2)
+        DBrecord2 = np.zeros((nbeta, nbeta, NP2))
+        Brecord2 = np.zeros((nbeta, nbeta, NP2))
+        Drecord2 = np.zeros((nbeta, nbeta, NP2))
+        R2totalrecord2 = np.zeros(NP2)
+        for nperson in range(NP2):
+            Sinput2 = SAPMresults_load2[nperson]['Sinput']
+            Sconn2 = SAPMresults_load2[nperson]['Sconn']
+            Minput2 = SAPMresults_load2[nperson]['Minput']
+            Mconn2 = SAPMresults_load2[nperson]['Mconn']
+            Mintrinsic2 = SAPMresults_load2[nperson]['Mintrinsic']
+            beta_int12 = SAPMresults_load2[nperson]['beta_int1']
+            R2total2 = SAPMresults_load2[nperson]['R2total']
+            Meigv2 = SAPMresults_load2[nperson]['Meigv']
+            betavals2 = SAPMresults_load2[nperson]['betavals']
+
+            nruns = nruns_per_person2[nperson]
+            fintrinsic1 = np.array(list(ftemp) * nruns_per_person2[nperson])
+
+            # ---------------------------------------------------
+            fit2, Mintrinsic2, Meigv2, err2 = network_eigenvector_method(Sinput2, Minput2, Mconn2, fintrinsic_count,
+                                                                     vintrinsic_count, beta_int1, fintrinsic1)
+            nr, tsize_total = np.shape(Sinput2)
+            tsize = (tsize_total / nruns).astype(int)
+            nbeta, tsize2 = np.shape(Sconn2)
+
+            if nperson == 0:
+                Sinput_total2 = np.zeros((nr, tsize, NP2))
+                Sconn_total2 = np.zeros((nbeta, tsize, NP2))
+                fit_total2 = np.zeros((nr, tsize, NP2))
+                Mintrinsic_total2 = np.zeros((Nintrinsic, tsize, NP2))
+
+            tc = Sinput2
+            tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
+            Sinput_total2[:, :, nperson] = tc1
+
+            tc = Sconn2
+            tc1 = np.mean(np.reshape(tc, (nbeta, nruns, tsize)), axis=1)
+            Sconn_total2[:, :, nperson] = tc1
+
+            tc = fit2
+            tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
+            fit_total2[:, :, nperson] = tc1
+
+            tc = Mintrinsic2
+            tc1 = np.mean(np.reshape(tc, (Nintrinsic, nruns, tsize)), axis=1)
+            Mintrinsic_total2[:, :, nperson] = tc1
+
+            DBrecord2[:, :, nperson] = Mconn2
+            Drecord2[:ncon, :, nperson] = Minput2
+            Brecord2[:ncon, :, nperson] = Mconn2[:ncon, :] / (Minput2 + 1.0e-3)
+            # Brecord[ktarget,ksource,nperson] = Mconn[ktarget,ksource]
+            R2totalrecord2[nperson] = R2total2
+
+        Brecord2[np.abs(Brecord2) > 1e2] = 0.0
+
+        # -------------------------------------------------------------------------------
+        # -------------prep for regression with continuous covariate------------------------------
+        p2 = covariates2[np.newaxis, :]
+        if continuouscov:  # use the mode determined for the first set of results
+            p2 -= np.mean(p2)
+            G2 = np.concatenate((np.ones((1, NP2)), p), axis=0)  # put the intercept term first
+
+        # -------------------------------------------------------------------------------------
+        # significance of average Mconn values -----------------------------------------------
+        # outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel', 'Plot_SourceModel', 'DrawSAPMdiagram', 'Paired_diff']
+        DB_avg2 = np.mean(DBrecord2, axis=2)
+        DB_sem2 = np.std(DBrecord2, axis=2) / np.sqrt(NP2)
+
+        D_avg2 = np.mean(Drecord2, axis=2)
+        D_sem2 = np.std(Drecord2, axis=2) / np.sqrt(NP2)
+
+        B_avg2 = np.mean(Brecord2, axis=2)
+        B_sem2 = np.std(Brecord2, axis=2) / np.sqrt(NP2)
+
+
     if outputtype == 'B_Significance':
 
         # significant B values-------------------------------------
@@ -7641,13 +7741,285 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         print('finished generating outputs for Plot_SourceModel...')
         return outputname
 
-    # Draw SAPM Diagram -----------------------------
-    # outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel', 'Plot_SourceModel', 'DrawSAPMdiagram']
-    # if outputtype == 'DrawSAPMdiagram':
-    #     print('getting ready to draw the SAPM network diagram ...')
-    #     outputname = 'NA'
-    #
-    #   return outputname
+
+    if outputtype == 'Group_Diff':
+        # significant B values-------------------------------------
+        descriptor = outputnametag + '_groupBdiff'
+        print('\n\nAverage difference of B values')
+
+        DBdiff_avg = np.mean(DBrecord, axis=2) - np.mean(DBrecord2, axis=2)
+        V1 = np.var(DBrecord,axis=2)
+        V2 = np.var(DBrecord2,axis=2)
+        Sp = np.sqrt( ((NP-1)*V1 + (NP-2)*V2)/(NP+NP2-2) )
+        DBdiff_sem = Sp*np.sqrt( 1/NP + 1/NP2 )
+
+        Ddiff_avg = np.mean(Drecord, axis=2) - np.mean(Drecord2, axis=2)
+        V1 = np.var(Drecord,axis=2)
+        V2 = np.var(Drecord2,axis=2)
+        Sp = np.sqrt( ((NP-1)*V1 + (NP-2)*V2)/(NP+NP2-2) )
+        Ddiff_sem = Sp*np.sqrt( 1/NP + 1/NP2 )
+
+        Bdiff_avg = np.mean(Brecord, axis=2) - np.mean(Brecord2, axis=2)
+        V1 = np.var(Brecord,axis=2)
+        V2 = np.var(Brecord2,axis=2)
+        Sp = np.sqrt( ((NP-1)*V1 + (NP-2)*V2)/(NP+NP2-2) )
+        Bdiff_sem = Sp*np.sqrt( 1/NP + 1/NP2 )
+
+        print('size of Bdiff_avg is {}'.format(np.shape(Bdiff_avg)))
+
+        DB_avg = np.mean(DBrecord, axis=2)
+        DB_sem = np.std(DBrecord, axis=2) / np.sqrt(NP)
+        DB_avg2 = np.mean(DBrecord2, axis=2)
+        DB_sem2 = np.std(DBrecord2, axis=2) / np.sqrt(NP2)
+
+        D_avg = np.mean(Drecord, axis=2)
+        D_sem = np.std(Drecord, axis=2) / np.sqrt(NP)
+        D_avg2 = np.mean(Drecord2, axis=2)
+        D_sem2 = np.std(Drecord2, axis=2) / np.sqrt(NP2)
+
+        B_avg = np.mean(Brecord, axis=2)
+        B_sem = np.std(Brecord, axis=2) / np.sqrt(NP)
+        B_avg2 = np.mean(Brecord2, axis=2)
+        B_sem2 = np.std(Brecord2, axis=2) / np.sqrt(NP2)
+
+        sigflag = np.ones(np.shape(Bdiff_avg))
+        labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(Bdiff_avg, Bdiff_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh,
+                                                                      sigflag = sigflag, multiple_output=multiple_output)
+
+        labeltext1, valuetext1, Ttext1, T1, Tthresh1 = write_Mconn_values2(B_avg, B_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh,
+                                                                      sigflag = sigflag, multiple_output=multiple_output)
+        labeltext2, valuetext2, Ttext2, T2, Tthresh2 = write_Mconn_values2(B_avg2, B_sem2, NP2, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh,
+                                                                      sigflag = sigflag, multiple_output=multiple_output)
+
+        # for pp in range(len(labeltext)):
+        #     print('{} {}  group1 {} {}   group2 {} {}'.format(labeltext[pp],valuetext[pp],labeltext1[pp],valuetext1[pp],labeltext2[pp],valuetext2[pp]))
+
+        pthresh_list = ['{:.3e}'.format(pthresh)] * len(Ttext)
+        Tthresh_list = ['{:.3f}'.format(Tthresh)] * len(Ttext)
+
+        Rtextlist = [' '] * 10
+        Rvallist = [0] * 10
+
+        # sort output by magnitude of T
+        si = np.argsort(np.abs(T))[::-1]
+        T = np.array(T)[si]
+        si2 = np.where((T < 1e3) & (np.abs(T) > Tthresh))  # dont write out values where B is always = 1
+        textoutputs = {'regions': np.array(labeltext)[si[si2]], 'B': np.array(valuetext)[si[si2]],
+                       'T': np.array(Ttext)[si[si2]],
+                       'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]],
+                       'B group1': np.array(valuetext1)[si[si2]], 'B group2': np.array(valuetext2)[si[si2]]}
+        df = pd.DataFrame(textoutputs)
+
+        xlname = os.path.join(outputdir, descriptor + '.xlsx')
+        with pd.ExcelWriter(xlname) as writer:
+            df.to_excel(writer, sheet_name='Bdiffsig')
+
+        # significant D values-------------------------------------
+        descriptor = outputnametag + '_groupDdiff'
+        print('\n\nAverage D values difference')
+        labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(Ddiff_avg, Ddiff_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh,
+                                                                      sigflag = sigflag, multiple_output=multiple_output)
+
+        labeltext1, valuetext1, Ttext1, T1, Tthresh1 = write_Mconn_values2(D_avg, D_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh,
+                                                                      sigflag = sigflag, multiple_output=multiple_output)
+        labeltext2, valuetext2, Ttext2, T2, Tthresh2 = write_Mconn_values2(D_avg2, D_sem2, NP2, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh,
+                                                                      sigflag = sigflag, multiple_output=multiple_output)
+
+        pthresh_list = ['{:.3e}'.format(pthresh)] * len(Ttext)
+        Tthresh_list = ['{:.3f}'.format(Tthresh)] * len(Ttext)
+
+        Rtextlist = [' '] * 10
+        Rvallist = [0] * 10
+
+        # sort output by magnitude of T
+        si = np.argsort(np.abs(T))[::-1]
+        T = np.array(T)[si]
+        si2 = np.where((T < 1e3) & (np.abs(T) > Tthresh))   # dont write out values where B is always = 1
+        textoutputs = {'regions': np.array(labeltext)[si[si2]], 'D': np.array(valuetext)[si[si2]],
+                       'T': np.array(Ttext)[si[si2]],
+                       'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]],
+                       'D group1': np.array(valuetext1)[si[si2]], 'D group2': np.array(valuetext2)[si[si2]]}
+
+        df = pd.DataFrame(textoutputs)
+
+        xlname = os.path.join(outputdir, descriptor + '.xlsx')
+        with pd.ExcelWriter(xlname) as writer:
+            df.to_excel(writer, sheet_name='Ddiffsig')
+
+        # significant DB values-------------------------------------
+        descriptor = outputnametag + '_groupDBdiff'
+        print('\n\nAverage DB values difference')
+        labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(DBdiff_avg, DBdiff_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh,
+                                                                      sigflag = sigflag, multiple_output=multiple_output)
+
+        labeltext1, valuetext1, Ttext1, T1, Tthresh1 = write_Mconn_values2(DB_avg, DB_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh,
+                                                                      sigflag = sigflag, multiple_output=multiple_output)
+        labeltext2, valuetext2, Ttext2, T2, Tthresh2 = write_Mconn_values2(DB_avg2, DB_sem2, NP2, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh,
+                                                                      sigflag = sigflag, multiple_output=multiple_output)
+
+        pthresh_list = ['{:.3e}'.format(pthresh)] * len(Ttext)
+        Tthresh_list = ['{:.3f}'.format(Tthresh)] * len(Ttext)
+
+        Rtextlist = [' '] * 10
+        Rvallist = [0] * 10
+
+        # sort output by magnitude of T
+        si = np.argsort(np.abs(T))[::-1]
+        T = np.array(T)[si]
+        si2 = np.where((T < 1e3) & (np.abs(T) > Tthresh))   # dont write out values where B is always = 1
+        textoutputs = {'regions': np.array(labeltext)[si[si2]], 'DB': np.array(valuetext)[si[si2]],
+                       'T': np.array(Ttext)[si[si2]],
+                       'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]],
+                       'DB group1': np.array(valuetext1)[si[si2]], 'DB group2': np.array(valuetext2)[si[si2]]}
+        df = pd.DataFrame(textoutputs)
+
+        xlname = os.path.join(outputdir, descriptor + '.xlsx')
+        with pd.ExcelWriter(xlname) as writer:
+            df.to_excel(writer, sheet_name='DBdiffsig')
+
+        return xlname
+
+
+    if outputtype == 'Paired_Diff':
+        # significant B values-------------------------------------
+        descriptor = outputnametag + '_pairedBdiff'
+        print('\n\nAverage difference of B values')
+
+        DBdiff_avg = np.mean(DBrecord-DBrecord2, axis=2)
+        DBdiff_sem = np.std(DBrecord-DBrecord2, axis=2) / np.sqrt(NP)
+
+        Ddiff_avg = np.mean(Drecord-Drecord2, axis=2)
+        Ddiff_sem = np.std(Drecord-Drecord2, axis=2) / np.sqrt(NP)
+
+        Bdiff_avg = np.mean(Brecord-Brecord2, axis=2)
+        Bdiff_sem = np.std(Brecord-Brecord2, axis=2) / np.sqrt(NP)
+
+
+        DB_avg = np.mean(DBrecord, axis=2)
+        DB_sem = np.std(DBrecord, axis=2) / np.sqrt(NP)
+        DB_avg2 = np.mean(DBrecord2, axis=2)
+        DB_sem2 = np.std(DBrecord2, axis=2) / np.sqrt(NP2)
+
+        D_avg = np.mean(Drecord, axis=2)
+        D_sem = np.std(Drecord, axis=2) / np.sqrt(NP)
+        D_avg2 = np.mean(Drecord2, axis=2)
+        D_sem2 = np.std(Drecord2, axis=2) / np.sqrt(NP2)
+
+        B_avg = np.mean(Brecord, axis=2)
+        B_sem = np.std(Brecord, axis=2) / np.sqrt(NP)
+        B_avg2 = np.mean(Brecord2, axis=2)
+        B_sem2 = np.std(Brecord2, axis=2) / np.sqrt(NP2)
+
+        sigflag = np.ones(np.shape(Bdiff_avg))
+        labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(Bdiff_avg, Bdiff_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh,
+                                                                      sigflag = sigflag, multiple_output=multiple_output)
+
+        labeltext1, valuetext1, Ttext1, T1, Tthresh1 = write_Mconn_values2(B_avg, B_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh,
+                                                                      sigflag = sigflag, multiple_output=multiple_output)
+        labeltext2, valuetext2, Ttext2, T2, Tthresh2 = write_Mconn_values2(B_avg2, B_sem2, NP2, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh,
+                                                                      sigflag = sigflag, multiple_output=multiple_output)
+
+        pthresh_list = ['{:.3e}'.format(pthresh)] * len(Ttext)
+        Tthresh_list = ['{:.3f}'.format(Tthresh)] * len(Ttext)
+
+        Rtextlist = [' '] * 10
+        Rvallist = [0] * 10
+
+        # sort output by magnitude of T
+        si = np.argsort(np.abs(T))[::-1]
+        T = np.array(T)[si]
+        si2 = np.where((T < 1e3) & (np.abs(T) > Tthresh))   # dont write out values where B is always = 1
+        textoutputs = {'regions': np.array(labeltext)[si[si2]], 'B': np.array(valuetext)[si[si2]],
+                       'T': np.array(Ttext)[si[si2]],
+                       'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]],
+                       'B group1': np.array(valuetext1)[si[si2]], 'B group2': np.array(valuetext2)[si[si2]]}
+        df = pd.DataFrame(textoutputs)
+
+        xlname = os.path.join(outputdir, descriptor + '.xlsx')
+        with pd.ExcelWriter(xlname) as writer:
+            df.to_excel(writer, sheet_name='Bdiffsig')
+
+        # significant D values-------------------------------------
+        descriptor = outputnametag + '_pairedDdiff'
+        print('\n\nAverage D values difference')
+        labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(Ddiff_avg, Ddiff_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh,
+                                                                      sigflag = sigflag, multiple_output=multiple_output)
+
+        labeltext1, valuetext1, Ttext1, T1, Tthresh1 = write_Mconn_values2(D_avg, D_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh,
+                                                                      sigflag = sigflag, multiple_output=multiple_output)
+        labeltext2, valuetext2, Ttext2, T2, Tthresh2 = write_Mconn_values2(D_avg2, D_sem2, NP2, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh,
+                                                                      sigflag = sigflag, multiple_output=multiple_output)
+        pthresh_list = ['{:.3e}'.format(pthresh)] * len(Ttext)
+        Tthresh_list = ['{:.3f}'.format(Tthresh)] * len(Ttext)
+
+        Rtextlist = [' '] * 10
+        Rvallist = [0] * 10
+
+        # sort output by magnitude of T
+        si = np.argsort(np.abs(T))[::-1]
+        T = np.array(T)[si]
+        si2 = np.where((T < 1e3) & (np.abs(T) > Tthresh))   # dont write out values where B is always = 1
+        textoutputs = {'regions': np.array(labeltext)[si[si2]], 'D': np.array(valuetext)[si[si2]],
+                       'T': np.array(Ttext)[si[si2]],
+                       'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]],
+                       'D group1': np.array(valuetext1)[si[si2]], 'D group2': np.array(valuetext2)[si[si2]]}
+        df = pd.DataFrame(textoutputs)
+
+        xlname = os.path.join(outputdir, descriptor + '.xlsx')
+        with pd.ExcelWriter(xlname) as writer:
+            df.to_excel(writer, sheet_name='Ddiffsig')
+
+        # significant DB values-------------------------------------
+        descriptor = outputnametag + '_pairedDBdiff'
+        print('\n\nAverage DB values difference')
+        labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(DBdiff_avg, DBdiff_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh,
+                                                                      sigflag = sigflag, multiple_output=multiple_output)
+
+        labeltext1, valuetext1, Ttext1, T1, Tthresh1 = write_Mconn_values2(DB_avg, DB_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh,
+                                                                      sigflag = sigflag, multiple_output=multiple_output)
+        labeltext2, valuetext2, Ttext2, T2, Tthresh2 = write_Mconn_values2(DB_avg2, DB_sem2, NP2, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh,
+                                                                      sigflag = sigflag, multiple_output=multiple_output)
+
+        pthresh_list = ['{:.3e}'.format(pthresh)] * len(Ttext)
+        Tthresh_list = ['{:.3f}'.format(Tthresh)] * len(Ttext)
+
+        Rtextlist = [' '] * 10
+        Rvallist = [0] * 10
+
+        # sort output by magnitude of T
+        si = np.argsort(np.abs(T))[::-1]
+        T = np.array(T)[si]
+        si2 = np.where((T < 1e3) & (np.abs(T) > Tthresh))   # dont write out values where B is always = 1
+        textoutputs = {'regions': np.array(labeltext)[si[si2]], 'DB': np.array(valuetext)[si[si2]],
+                       'T': np.array(Ttext)[si[si2]],
+                       'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]],
+                       'DB group1': np.array(valuetext1)[si[si2]], 'DB group2': np.array(valuetext2)[si[si2]]}
+        df = pd.DataFrame(textoutputs)
+
+        xlname = os.path.join(outputdir, descriptor + '.xlsx')
+        with pd.ExcelWriter(xlname) as writer:
+            df.to_excel(writer, sheet_name='DBdiffsig')
+
+        return xlname
+
 
 #-----------------------------------------------------------------------------------
 #   Functions for plotting SAPM network results
