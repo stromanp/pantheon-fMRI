@@ -8021,6 +8021,143 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         return xlname
 
 
+    if outputtype == 'Regress_diff_v_diff':
+        # significant B values-------------------------------------
+        descriptor = outputnametag + '_diff_v_Covdiff'
+        print('\n\nRegression of difference in B values with differences in covariate values')
+
+        DBdiff = DBrecord-DBrecord2
+        Ddiff = Drecord-Drecord2
+        Bdiff = Brecord-Brecord2
+
+        # -------------------------------------------------------------------------------
+        # -------------prep for regression with continuous covariate------------------------------
+        cov_diff = covariates - covariates2
+        p = cov_diff[np.newaxis, :]
+        p -= np.mean(p)
+        G = np.concatenate((np.ones((1, NP)), p), axis=0)  # put the intercept term first
+
+        # regression of B values with covariate-----------------------------------
+        print('\n\ngenerating results for B_Regression...')
+        descriptor = outputnametag + '_dB_v_dCreg'
+        Mregression = np.zeros((nbeta,nbeta,3))
+        for aa in range(nbeta):
+            for bb in range(nbeta):
+                m = Bdiff[aa,bb,g1]
+                if np.var(m) > 0:
+                    b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis,:], G)
+                    Mregression[aa,bb,:] = [b[0,0],b[0,1],R2]
+
+        Zthresh = stats.norm.ppf(1 - pthresh)
+        Rthresh = np.tanh(Zthresh / np.sqrt(NP - 1))
+        R2thresh = Rthresh ** 2
+
+        print('deltaB regression with delta covariate values')
+        labeltext, inttext, slopetext, R2text, R2, R2thresh = write_Mreg_values(Mregression[:, :, 0],
+                                            Mregression[:, :, 1], Mregression[:, :, 2], betanamelist, rnamelist,
+                                            beta_list, format='f', R2thresh=R2thresh, multiple_output=multiple_output)
+
+        if len(labeltext) > 0:
+            pthresh_list = ['{:.3e}'.format(pthresh)] * len(inttext)
+            R2thresh_list = ['{:.3f}'.format(R2thresh)] * len(inttext)
+
+            # sort output by magnitude of R2
+            si = np.argsort(np.abs(R2))[::-1]
+            R2 = np.array(R2)[si]
+            textoutputs = {'regions': np.array(labeltext)[si], 'int': np.array(inttext)[si],
+                           'slope': np.array(slopetext)[si], 'R2': np.array(R2text)[si],
+                           'R2 thresh': np.array(R2thresh_list)[si], 'p thresh': np.array(pthresh_list)[si]}
+            # p, f = os.path.split(SAPMresultsname)
+            df = pd.DataFrame(textoutputs)
+            xlname = os.path.join(outputdir, descriptor + '.xlsx')
+            with pd.ExcelWriter(xlname) as writer:
+                df.to_excel(writer, sheet_name='dB_v_dCreg')
+        else:
+            xlname = 'NA'
+            print('Regression of B values with covariate ... no significant values found at p < {}'.format(pthresh))
+
+
+        # regression of D values with covariate-----------------------------------
+        print('\n\ngenerating results for D_Regression...')
+        descriptor = outputnametag + '_dD_v_dCreg'
+        Mregression = np.zeros((nbeta, nbeta, 3))
+        for aa in range(nbeta):
+            for bb in range(nbeta):
+                m = Ddiff[aa, bb, g1]
+                if np.var(m) > 0:
+                    b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis, :], G)
+                    Mregression[aa, bb, :] = [b[0, 0], b[0, 1], R2]
+
+        Zthresh = stats.norm.ppf(1 - pthresh)
+        Rthresh = np.tanh(Zthresh / np.sqrt(NP - 1))
+        R2thresh = Rthresh ** 2
+
+        print('deltaD regression with delta covariate values')
+        labeltext, inttext, slopetext, R2text, R2, R2thresh = write_Mreg_values(Mregression[:, :, 0],
+                                Mregression[:, :, 1], Mregression[:, :, 2], betanamelist,  rnamelist,
+                                beta_list, format='f', R2thresh=R2thresh,  multiple_output=multiple_output)
+
+        if len(labeltext) > 0:
+            pthresh_list = ['{:.3e}'.format(pthresh)] * len(inttext)
+            R2thresh_list = ['{:.3f}'.format(R2thresh)] * len(inttext)
+
+            # sort output by magnitude of R2
+            si = np.argsort(np.abs(R2))[::-1]
+            R2 = np.array(R2)[si]
+            textoutputs = {'regions': np.array(labeltext)[si], 'int': np.array(inttext)[si],
+                           'slope': np.array(slopetext)[si], 'R2': np.array(R2text)[si],
+                           'R2 thresh': np.array(R2thresh_list)[si], 'p thresh': np.array(pthresh_list)[si]}
+            # p, f = os.path.split(SAPMresultsname)
+            df = pd.DataFrame(textoutputs)
+            xlname = os.path.join(outputdir, descriptor + '.xlsx')
+            with pd.ExcelWriter(xlname) as writer:
+                df.to_excel(writer, sheet_name='dD_v_dCreg')
+        else:
+            xlname = 'NA'
+            print('Regression of D values with covariate ... no significant values found at p < {}'.format(pthresh))
+
+        # regression of DB values with covariate-----------------------------------
+        print('\n\ngenerating results for DB_Regression...')
+        descriptor = outputnametag + '_dDB_v_dCreg'
+        Mregression = np.zeros((nbeta, nbeta, 3))
+        for aa in range(nbeta):
+            for bb in range(nbeta):
+                m = DBdiff[aa, bb, g1]
+                if np.var(m) > 0:
+                    b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis, :], G)
+                    Mregression[aa, bb, :] = [b[0, 0], b[0, 1], R2]
+
+        Zthresh = stats.norm.ppf(1 - pthresh)
+        Rthresh = np.tanh(Zthresh / np.sqrt(NP - 1))
+        R2thresh = Rthresh ** 2
+
+        print('deltaDB regression with delta covariate values')
+        labeltext, inttext, slopetext, R2text, R2, R2thresh = write_Mreg_values(Mregression[:, :, 0],
+                                    Mregression[:, :, 1], Mregression[:, :, 2], betanamelist, rnamelist,
+                                    beta_list, format='f', R2thresh=R2thresh,  multiple_output=multiple_output)
+
+        if len(labeltext) > 0:
+            pthresh_list = ['{:.3e}'.format(pthresh)] * len(inttext)
+            R2thresh_list = ['{:.3f}'.format(R2thresh)] * len(inttext)
+
+            # sort output by magnitude of R2
+            si = np.argsort(np.abs(R2))[::-1]
+            R2 = np.array(R2)[si]
+            textoutputs = {'regions': np.array(labeltext)[si], 'int': np.array(inttext)[si],
+                           'slope': np.array(slopetext)[si], 'R2': np.array(R2text)[si],
+                           'R2 thresh': np.array(R2thresh_list)[si], 'p thresh': np.array(pthresh_list)[si]}
+            # p, f = os.path.split(SAPMresultsname)
+            df = pd.DataFrame(textoutputs)
+            xlname = os.path.join(outputdir, descriptor + '.xlsx')
+            with pd.ExcelWriter(xlname) as writer:
+                df.to_excel(writer, sheet_name='dDB_v_dCreg')
+        else:
+            xlname = 'NA'
+            print('Regression of DB values with covariate ... no significant values found at p < {}'.format(pthresh))
+
+        return xlname
+
+
 #-----------------------------------------------------------------------------------
 #   Functions for plotting SAPM network results
 #-----------------------------------------------------------------------------------

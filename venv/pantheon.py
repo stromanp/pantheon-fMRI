@@ -8637,7 +8637,7 @@ class SAPMResultsFrame:
 
         # specific which outputs to generate...
         rownum = 9
-        outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel','Plot_SourceModel', 'DrawSAPMdiagram', 'DrawAnatomy_axial', 'DrawAnatomy_sagittal', 'Group_Diff' , 'Paired_Diff' ]
+        outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel','Plot_SourceModel', 'DrawSAPMdiagram', 'DrawAnatomy_axial', 'DrawAnatomy_sagittal', 'Group_Diff' , 'Paired_Diff', 'Regress_diff_v_diff' ]
         # add label, and pull-down menu for selected covariate values for searching
         self.SRL5 = tk.Label(self.parent, text = "Output: ", font = labelfont)
         self.SRL5.grid(row=rownum,column=1, sticky='W')
