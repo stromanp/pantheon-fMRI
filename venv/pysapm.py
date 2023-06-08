@@ -2743,8 +2743,10 @@ def sem_physio_model1(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamet
             if et1 < 0: et1 = 0
             if et2 > tsize: et2 = tsize
             epoch = et2 - et1
-
+            print('shape of fintrinsic_base = {}'.format(np.shape(fintrinsic_base)))
             ftemp = fintrinsic_base[0,et1:et2]
+            print('ftemp = {}'.format(ftemp))
+
             fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
             if np.var(ftemp) > 1.0e-3:
                 Sint = Sinput[fintrinsic_region,:]
@@ -3035,10 +3037,10 @@ def sem_physio_model1_V2(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
         else:
             Sinput_original = copy.deepcopy(Sinput)
 
-        print('--------setup stage-----------------------------------')
-        print('std of normalized data:  {}'.format(np.std(Sinput, axis=1)))
-        print('std of original data:  {}'.format(np.std(Sinput_original, axis=1)))
-        print('------------------------------------------------------')
+        # print('--------setup stage-----------------------------------')
+        # print('std of normalized data:  {}'.format(np.std(Sinput, axis=1)))
+        # print('std of original data:  {}'.format(np.std(Sinput_original, axis=1)))
+        # print('------------------------------------------------------')
 
         # get principal components of Sinput--------------------------
         # nr = np.shape(Sinput)[0]
@@ -3070,7 +3072,7 @@ def sem_physio_model1_V2(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
 
             ftemp = fintrinsic_base[0,et1:et2]
             fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
-            print('shape of fintrinsic1 is {}'.format(np.shape(fintrinsic1)))
+            # print('shape of fintrinsic1 is {}'.format(np.shape(fintrinsic1)))
             if np.var(ftemp) > 1.0e-3:
                 Sint = Sinput[fintrinsic_region,:]
                 Sint = Sint - np.mean(Sint)
@@ -3439,10 +3441,10 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
             Sinput_original.append(tc1)
         Sinput_original = np.array(Sinput_original)
 
-        print('--------setup stage-----------------------------------')
-        print('std of normalized data:  {}'.format(np.std(Sinput, axis=1)))
-        print('std of original data:  {}'.format(np.std(Sinput_original, axis=1)))
-        print('------------------------------------------------------')
+        # print('--------setup stage-----------------------------------')
+        # print('std of normalized data:  {}'.format(np.std(Sinput, axis=1)))
+        # print('std of original data:  {}'.format(np.std(Sinput_original, axis=1)))
+        # print('------------------------------------------------------')
 
         # get principal components of Sinput--------------------------
         nr = np.shape(Sinput)[0]
@@ -3474,7 +3476,7 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
 
             ftemp = fintrinsic_base[0,et1:et2]
             fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
-            print('shape of fintrinsic1 is {}'.format(np.shape(fintrinsic1)))
+            # print('shape of fintrinsic1 is {}'.format(np.shape(fintrinsic1)))
             if np.var(ftemp) > 1.0e-3:
                 Sint = Sinput[fintrinsic_region,:]
                 Sint = Sint - np.mean(Sint)
@@ -5897,41 +5899,67 @@ def mod_tplist_for_bootstrap(tplist_full, epoch, modtype, percent_replace = 0, t
 
 
 # gradient descent method to find best clusters------------------------------------
-def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, networkfile, DBname, regiondataname,
+def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, networkfile, regiondataname,
                         clusterdataname, samplesplit, samplestart=0, initial_clusters=[], timepoint='all', epoch='all', betascale=0.1):
+    # , DBname
     overall_start_time_text = time.ctime()
     overall_start_time = time.time()
 
     if not os.path.exists(outputdir): os.mkdir(outputdir)
 
     # load paradigm data--------------------------------------------------------------------
-    xls = pd.ExcelFile(DBname, engine='openpyxl')
-    df1 = pd.read_excel(xls, 'paradigm1_BOLD')
-    del df1['Unnamed: 0']  # get rid of the unwanted header column
-    fields = list(df1.keys())
-    paradigm = df1['paradigms_BOLD']
-    timevals = df1['time']
-    paradigm_centered = paradigm - np.mean(paradigm)
-    dparadigm = np.zeros(len(paradigm))
-    dparadigm[1:] = np.diff(paradigm_centered)
+    # xls = pd.ExcelFile(DBname, engine='openpyxl')
+    # df1 = pd.read_excel(xls, 'paradigm1_BOLD')
+    # del df1['Unnamed: 0']  # get rid of the unwanted header column
+    # fields = list(df1.keys())
+    # paradigm = df1['paradigms_BOLD']
+    # timevals = df1['time']
+    # paradigm_centered = paradigm - np.mean(paradigm)
+    # dparadigm = np.zeros(len(paradigm))
+    # dparadigm[1:] = np.diff(paradigm_centered)
+    #
+    # # get cluster info and setup for saving information later
+    # cluster_data = np.load(clusterdataname, allow_pickle=True).flat[0]
+    # # cluster_properties = cluster_data['cluster_properties']
+    # cluster_properties = load_filtered_cluster_properties(clusterdataname, networkfile)
+    # nregions = len(cluster_properties)
+    # nclusterlist = [cluster_properties[i]['nclusters'] for i in range(nregions)]
+    # rnamelist = [cluster_properties[i]['rname'] for i in range(nregions)]
+    # namelist_addon = ['R ' + n for n in rnamelist]
+    # namelist = rnamelist + namelist_addon
+    #
+    # network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base = load_network_model_w_intrinsics(networkfile)
 
-    # get cluster info and setup for saving information later
-    cluster_data = np.load(clusterdataname, allow_pickle=True).flat[0]
-    # cluster_properties = cluster_data['cluster_properties']
-    cluster_properties = load_filtered_cluster_properties(clusterdataname, networkfile)
-    nregions = len(cluster_properties)
-    nclusterlist = [cluster_properties[i]['nclusters'] for i in range(nregions)]
-    rnamelist = [cluster_properties[i]['rname'] for i in range(nregions)]
-    namelist_addon = ['R ' + n for n in rnamelist]
-    namelist = rnamelist + namelist_addon
+    #--------------temp----------------------------
+    # load some data, setup some parameters...
+    network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base = load_network_model_w_intrinsics(networkfile)
+    ncluster_list = np.array([nclusterlist[x]['nclusters'] for x in range(len(nclusterlist))])
+    cluster_name = [nclusterlist[x]['name'] for x in range(len(nclusterlist))]
+    not_latent = [x for x in range(len(cluster_name)) if 'intrinsic' not in cluster_name[x]]
+    ncluster_list = ncluster_list[not_latent]
+    full_rnum_base = [np.sum(ncluster_list[:x]) for x in range(len(ncluster_list))]
+    namelist = [cluster_name[x] for x in not_latent]
+    namelist += ['Rtotal']
+    namelist += ['R ' + cluster_name[x] for x in not_latent]
+
+    nregions = len(ncluster_list)
+
+    # full_rnum_base =  np.array([0,5,10,15,20,25,30,35,40,45])
+    #
+    # namelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC', 'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus',
+    #         'Rtotal', 'R C6RD',  'R DRt', 'R Hyp','R LC', 'R NGC', 'R NRM', 'R NTS', 'R PAG',
+    #         'R PBN', 'R Thal']
+    # =-------------end of temp---------------------
+
 
     # ---------------------
     # prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch)
-    prep_data_sem_physio_model_SO(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch,
+    # prep_data_sem_physio_model_SO(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch,
+    #                               fullgroup=False, normalizevar=True, filter_tcdata = False)
+
+    prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch,
                                   fullgroup=False, normalizevar=True, filter_tcdata = False)
-    print('-----------------------------------------------------------------------------------')
-    print('NOTE: data are being adjusted for normalized variance for the cluster search method')
-    print('-----------------------------------------------------------------------------------')
+
 
     SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
     tcdata = SAPMparams['tcdata_centered']  # data for all regions/clusters concatenated along time dimension for all runs
@@ -5948,7 +5976,7 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
     maxiter = 50
     subsample = [samplesplit,samplestart]  # [2,0] use every 2nd data set, starting with samplestart
 
-    full_rnum_base = np.array([np.sum(nclusterlist[:x]) for x in range(len(nclusterlist))]).astype(int)
+    full_rnum_base = np.array([np.sum(ncluster_list[:x]) for x in range(len(ncluster_list))]).astype(int)
     initial_clusters = np.array(initial_clusters)
     if (initial_clusters < 0).any():
         fixed_clusters = np.where(initial_clusters > 0)[0]
@@ -5959,7 +5987,7 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
         # pick random starting clusters
         cluster_numbers = np.zeros(nregions)
         for nn in range(nregions):
-            cnum = np.random.choice(range(nclusterlist[nn]))
+            cnum = np.random.choice(range(ncluster_list[nn]))
             cluster_numbers[nn] = cnum
         cluster_numbers = np.array(cluster_numbers).astype(int)
         if len(fixed_clusters) > 0:
@@ -5988,9 +6016,17 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
     #                            fixed_beta_vals=[], betascale=betascale, nitermax = nitermax, verbose=False,
     #                            initial_nitermax_stage1=initial_nitermax_stage1, initial_nsteps_stage1=initial_nsteps_stage1)
 
-    output = sem_physio_model1(cluster_numbers+full_rnum_base, paradigm_centered, SAPMresultsname, SAPMparametersname,
-                               fixed_beta_vals=[], betascale=betascale, nitermax = nitermax, verbose=False,
-                               initial_nitermax_stage1=initial_nitermax_stage1, initial_nsteps_stage1=initial_nsteps_stage1)
+    # output = sem_physio_model1(cluster_numbers+full_rnum_base, paradigm_centered, SAPMresultsname, SAPMparametersname,
+    #                            fixed_beta_vals=[], betascale=betascale, nitermax = nitermax, verbose=False,
+    #                            initial_nitermax_stage1=initial_nitermax_stage1, initial_nsteps_stage1=initial_nsteps_stage1)
+
+
+    output = sem_physio_model1_V3(cluster_numbers+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
+                               fixed_beta_vals = [], betascale = betascale, nitermax = nitermax, verbose=False, normalizevar=False)
+
+
+    # now, correct the results for normalizing the variance
+    output = sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, verbose = True)
 
     SAPMresults = np.load(output,allow_pickle=True)
 
@@ -6009,12 +6045,12 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
         random_region_order = list(range(nregions))
         np.random.shuffle(random_region_order)
         for nnn in random_region_order:
-            cost_values = np.zeros(nclusterlist[nnn])
+            cost_values = np.zeros(ncluster_list[nnn])
             print('testing region {}'.format(nnn))
             if nnn in fixed_clusters:
                 print('cluster for region {} is fixed at {}'.format(nnn,cluster_numbers[nnn]))
             else:
-                for ccc in range(nclusterlist[nnn]):
+                for ccc in range(ncluster_list[nnn]):
                     test_clusters = copy.deepcopy(cluster_numbers)
                     if test_clusters[nnn] == ccc:   # no change in cluster number from last run
                         cost_values[ccc] = lastcost
@@ -6025,9 +6061,13 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
                         #                                 fixed_beta_vals=[], betascale=betascale, nitermax=nitermax, verbose=False,
                         #                                 initial_nitermax_stage1=initial_nitermax_stage1, initial_nsteps_stage1=initial_nsteps_stage1)
 
-                        output = sem_physio_model1(test_clusters+full_rnum_base, paradigm_centered, SAPMresultsname, SAPMparametersname,
-                                                        fixed_beta_vals=[], betascale=betascale, nitermax=nitermax, verbose=False,
-                                                        initial_nitermax_stage1=initial_nitermax_stage1, initial_nsteps_stage1=initial_nsteps_stage1)
+                        # output = sem_physio_model1(test_clusters+full_rnum_base, paradigm_centered, SAPMresultsname, SAPMparametersname,
+                        #                                 fixed_beta_vals=[], betascale=betascale, nitermax=nitermax, verbose=False,
+                        #                                 initial_nitermax_stage1=initial_nitermax_stage1, initial_nsteps_stage1=initial_nsteps_stage1)
+
+                        output = sem_physio_model1_V3(test_clusters+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
+                                                        fixed_beta_vals=[], betascale=betascale, nitermax=nitermax, verbose=False, normalizevar=False,
+                                                        initial_nitermax_stage1 = initial_nitermax_stage1, initial_nsteps_stage1 = initial_nsteps_stage1)
 
                         SAPMresults = np.load(output, allow_pickle=True)
 

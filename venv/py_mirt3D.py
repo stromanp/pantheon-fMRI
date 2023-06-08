@@ -1067,6 +1067,34 @@ def py_mirt3D_transform(refim, res):
     return im
 
 
+# function im=mirt3D_transform(refim, res)
+def py_mirt3D_transform_nearest(refim, res):
+    # return im
+
+    dimen = np.shape(refim)
+
+    # Precompute the matrix B-spline basis functions
+    F = py_mirt3D_F(res['okno'])
+
+    # obtaine the position of all image voxels (Xx,Xy,Xz) from the positions
+    # of B-spline control points (res.X)
+    Xx, Xy, Xz = py_mirt3D_nodes2grid(res['X'], F, res['okno'])
+
+    # interpolate the image refim at Xx, Xy, Xz
+    #    newim=mirt3D_mexinterp(refim, Xx, Xy,Xz); newim(isnan(newim))=0;
+    #    newim = nd.map_coordinates(refim, [Xx, Xy,Xz])   # original method
+
+    newim = i3d.warp_image_nearest(refim, Xx, Xy, Xz)  # use this to be consistent with other functions
+
+    # cut the interpolated image size to the original size
+    # the image produced by B-splines has an additional black border,
+    # these lines remove that border.
+    im = np.zeros(dimen)
+    M, N, K = np.shape(newim)
+    im[:np.min([dimen[0], M]), :np.min([dimen[1], N]), :np.min([dimen[2], K])] = newim[:np.min([dimen[0], M]), :np.min([dimen[1], N]), :np.min([dimen[2], K])]
+
+    return im
+
 
 
 def new_coreg_method(refimage, image, stepsizes, similaritymethod, optimweight_init, optimlimit, regularizationweight, tol,maxiter):

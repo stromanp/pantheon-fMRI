@@ -7175,44 +7175,45 @@ class SAPMFrame:
                                    'networkmodel':self.networkmodel, 'DBname':self.DBname, 'SAPMregionname':self.SAPMregionname,
                                     'SAPMclustername':self.SAPMclustername, 'initial_clusters':clusterstart, 'betascale':self.SAPMbetascale})
 
-        use_parallel_processing = False
-        if use_parallel_processing:
-            message_text = 'Run the cluster search method from the \ncommand line. Follow the instructions \nwritten to the command window.'
-            self.SAPMkeyinfo1.config(text = message_text, fg = 'red')
+        # use_parallel_processing = False
+        # if use_parallel_processing:
+        #     message_text = 'Run the cluster search method from the \ncommand line. Follow the instructions \nwritten to the command window.'
+        #     self.SAPMkeyinfo1.config(text = message_text, fg = 'red')
+        #
+        #     # print out command line to use parallel processing ...
+        #     print('\n\nIt is much faster to run the cluster search from the python command line\nusing the following commands...')
+        #     print('  Note: if you get an error saying \'pantheon_command_line\' cannot be found, you need to add the folder containing '
+        #           'panthon_command_line.py to your path by entering the command sys.path.append( ...complete folder name... ) at the command line\n')
+        #     print('Enter the following commands at the command line. Change the values of nprocessors, samplesplit, and samplestart if needed:  ')
+        #     print('\nimport pantheon_command_line as pp')
+        #     print('import multiprocessing as mp')
+        #     print('max_processors = mp.cpu_count()')
+        #     print('print(\'maximum number of processors is {}\'.format(max_processors))')
+        #     print('nprocessors = 8  # ...choose the number to use, using the max available is not always the fastest')
+        #     print('samplesplit = 1  # ...choose how to divide the sample, 1 for all data, 2 for 1/2, 3 for 1/3 etc...')
+        #     print('samplestart = 0  # ...if the sample is split, which number to start with, i.e. for 1/2 use 0,2,4... or 1,3,5...')
+        #     print('# ...optional inputs that can be added after "samplestart" are: ,timepoint, epoch')
+        #     print('#    timepoint is the volume number at the center of the range of data you want to use (default is "all")')
+        #     print('#    epoch is the volume span of the range of data you want to use (default is "all")')
+        #     print('pp.SAPM_cluster_search_commandline(r\'{}\',nprocessors, samplesplit,samplestart)'.format(search_data_file))
+        # else:
 
-            # print out command line to use parallel processing ...
-            print('\n\nIt is much faster to run the cluster search from the python command line\nusing the following commands...')
-            print('  Note: if you get an error saying \'pantheon_command_line\' cannot be found, you need to add the folder containing '
-                  'panthon_command_line.py to your path by entering the command sys.path.append( ...complete folder name... ) at the command line\n')
-            print('Enter the following commands at the command line. Change the values of nprocessors, samplesplit, and samplestart if needed:  ')
-            print('\nimport pantheon_command_line as pp')
-            print('import multiprocessing as mp')
-            print('max_processors = mp.cpu_count()')
-            print('print(\'maximum number of processors is {}\'.format(max_processors))')
-            print('nprocessors = 8  # ...choose the number to use, using the max available is not always the fastest')
-            print('samplesplit = 1  # ...choose how to divide the sample, 1 for all data, 2 for 1/2, 3 for 1/3 etc...')
-            print('samplestart = 0  # ...if the sample is split, which number to start with, i.e. for 1/2 use 0,2,4... or 1,3,5...')
-            print('# ...optional inputs that can be added after "samplestart" are: ,timepoint, epoch')
-            print('#    timepoint is the volume number at the center of the range of data you want to use (default is "all")')
-            print('#    epoch is the volume span of the range of data you want to use (default is "all")')
-            print('pp.SAPM_cluster_search_commandline(r\'{}\',nprocessors, samplesplit,samplestart)'.format(search_data_file))
-        else:
-            nprocessors = 1
-            samplesplit = 1
-            samplestart = 0
-            # best_clusters = pysapm.SAPM_cluster_search(self.SAPMresultsdir, SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, self.SAPMregionname,
-            #                     self.SAPMclustername, nprocessors, samplesplit, samplestart, initial_clusters=clusterstart)
+        nprocessors = 1
+        samplesplit = 1
+        samplestart = 0
+        # best_clusters = pysapm.SAPM_cluster_search(self.SAPMresultsdir, SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, self.SAPMregionname,
+        #                     self.SAPMclustername, nprocessors, samplesplit, samplestart, initial_clusters=clusterstart)
 
-            best_clusters = pysapm.SAPM_cluster_stepsearch(self.SAPMresultsdir, SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, self.SAPMregionname,
-                        self.SAPMclustername, samplesplit, samplestart, initial_clusters=clusterstart)
+        best_clusters = pysapm.SAPM_cluster_stepsearch(self.SAPMresultsdir, SAPMresultsname, SAPMparamsname, self.networkmodel, self.SAPMregionname,
+                    self.SAPMclustername, samplesplit, samplestart, initial_clusters=clusterstart)
 
-            self.SAPMcnums = copy.deepcopy(list(best_clusters))
-            self.SAPMcnumsbox.delete(0, 'end')
-            self.SAPMcnumsbox.insert(0, self.SAPMcnums)
-            message_text = 'Best clusters appear to be\n{}\nstarting clusters were\n{}'.format(self.SAPMcnums,clusterstart)
-            self.SAPMkeyinfo1.config(text = message_text, fg = 'red')
-            settings['SAPMcnums'] = self.SAPMcnums
-            np.save(settingsfile,settings)
+        self.SAPMcnums = copy.deepcopy(list(best_clusters))
+        self.SAPMcnumsbox.delete(0, 'end')
+        self.SAPMcnumsbox.insert(0, self.SAPMcnums)
+        message_text = 'Best clusters appear to be\n{}\nstarting clusters were\n{}'.format(self.SAPMcnums,clusterstart)
+        self.SAPMkeyinfo1.config(text = message_text, fg = 'red')
+        settings['SAPMcnums'] = self.SAPMcnums
+        np.save(settingsfile,settings)
 
     def SAPMrunnetwork(self):
         # define the clusters and load the data
