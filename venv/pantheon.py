@@ -6746,7 +6746,7 @@ class SAPMFrame:
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
 
-        nsims = 10
+        nsims = 1000
         networkmodel = copy.deepcopy(settings['networkmodel'])
         cnums = copy.deepcopy(settings['SAPMcnums'])
         regiondataname = copy.deepcopy(settings['SAPMregionname'])
@@ -7483,7 +7483,7 @@ class SAPMFrame:
         else:
             self.field_var.set('empty')
 
-        rownum = 12
+        rownum = 13
         self.SAPMfield_menu = tk.OptionMenu(self.parent, self.field_var, *self.fields, command=self.SAPMfieldchoice)
         self.SAPMfield_menu.config(bg=bgcol)
         self.SAPMfield_menu.grid(row=rownum, column=2, sticky='EW')
@@ -8238,9 +8238,9 @@ class SAPMResultsFrame:
 
             drawregionsfile = self.SRdrawfile
             results_file = self.SAPMBfile
-            sheetname = self.SAPMBsheet
+            sheetname = self.SRBsheet
             regionnames = 'regions'
-            statname = self.SAPMBcolumn
+            statname = self.SRBcolumn
             figurenumber = 200
             scalefactor = 'auto'
             cnums = self.SAPMcnums
@@ -8297,7 +8297,7 @@ class SAPMResultsFrame:
         filechoice =  tkf.askopenfilename(title = "Select file",filetypes = (("xlsx files","*.xlsx"),("all files","*.*")))
         print('file containing B values etc from SAPM results = ',filechoice)
         self.SAPMBfile = filechoice
-        self.SAPMBfiletext.set(self.SAPMBfile[-30:])
+        self.SRBfiletext.set(self.SAPMBfile[-30:])
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
         settings['SAPMBfile'] = self.SAPMBfile
         np.save(settingsfile, settings)
@@ -8306,17 +8306,17 @@ class SAPMResultsFrame:
         self.SRsheetnames = xls.sheet_names
 
         # destroy the old pulldown menu and create a new one with the new choices
-        rownum = 12
+        rownum = 13
         columnum = 4
         fieldvalues = copy.deepcopy(self.SRsheetnames)
-        self.SAPMBsheetfield_var = tk.StringVar()
-        self.SAPMBsheetfield_var.set(fieldvalues[0])
-        self.SAPMBsheetfield_search_opt.destroy()  # remove it
-        SAPMBsheet_menu = tk.OptionMenu(self.parent, self.SAPMBsheetfield_var, *fieldvalues,
+        self.SRBsheetfield_var = tk.StringVar()
+        self.SRBsheetfield_var.set(fieldvalues[0])
+        self.SRBsheetfield_search_opt.destroy()  # remove it
+        SRBsheet_menu = tk.OptionMenu(self.parent, self.SRBsheetfield_var, *fieldvalues,
                                         command=self.SRBsheetfieldvaluechoice)
-        SAPMBsheet_menu.config(bg=bgcol)
-        SAPMBsheet_menu.grid(row=rownum, column=columnum, sticky='EW')
-        self.SAPMBsheetfield_search_opt = SAPMBsheet_menu  # save this way so that values are not cleared
+        SRBsheet_menu.config(bg=bgcol)
+        SRBsheet_menu.grid(row=rownum, column=columnum, sticky='EW')
+        self.SRBsheetfield_search_opt = SRBsheet_menu  # save this way so that values are not cleared
 
         return self
 
@@ -8333,20 +8333,20 @@ class SAPMResultsFrame:
 
     def SRBsheetfieldvaluechoice(self,value):
         # get the field value choices for the selected field
-        self.SAPMBsheet = self.SAPMBsheetfield_var.get()
-        print('Selected sheet: {}'.format(self.SAPMBsheet))
+        self.SRBsheet = self.SRBsheetfield_var.get()
+        print('Selected sheet: {}'.format(self.SRBsheet))
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
-        settings['SAPMBsheet'] = self.SAPMBsheet
+        settings['SAPMBsheet'] = self.SRBsheet
         np.save(settingsfile, settings)
 
         xls = pd.ExcelFile(self.SAPMBfile, engine='openpyxl') # get the sheetnames
-        df1 = pd.read_excel(xls, self.SAPMBsheet)
+        df1 = pd.read_excel(xls, self.SRBsheet)
         del df1['Unnamed: 0']  # get rid of the unwanted header column
         columnnames = list(df1.keys())
         self.SRcolumnnames = [x for x in columnnames if 'Unnamed' not in x]
 
         # destroy the old pulldown menu and create a new one with the new choices
-        rownum = 12
+        rownum = 13
         columnum = 5
         fieldvalues = copy.deepcopy(self.SRcolumnnames)
         self.SRBcolumnfield_var = tk.StringVar()
@@ -8362,10 +8362,10 @@ class SAPMResultsFrame:
 
     def SRBcolumnfieldvaluechoice(self, value):
         # get the field value choices for the selected field
-        self.SAPMBcolumn = self.SAPMBcolumnfield_var.get()
-        print('Selected column: {}'.format(self.SAPMBcolumn))
+        self.SRBcolumn = self.SRBcolumnfield_var.get()
+        print('Selected column: {}'.format(self.SRBcolumn))
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
-        settings['SAPMBcolumn'] = self.SAPMBcolumn
+        settings['SAPMBcolumn'] = self.SRBcolumn
         np.save(settingsfile, settings)
         return self
 

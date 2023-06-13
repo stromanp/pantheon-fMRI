@@ -6020,13 +6020,12 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
     #                            fixed_beta_vals=[], betascale=betascale, nitermax = nitermax, verbose=False,
     #                            initial_nitermax_stage1=initial_nitermax_stage1, initial_nsteps_stage1=initial_nsteps_stage1)
 
-
-    output = sem_physio_model1_V3(cluster_numbers+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
-                               fixed_beta_vals = [], betascale = betascale, nitermax = nitermax, verbose=False, normalizevar=False)
-
+    output = sem_physio_model1_V3(test_clusters+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
+                                  fixed_beta_vals=[], betascale=betascale, nitermax=nitermax, verbose=False,normalizevar=False,
+                                  initial_nitermax_stage1=initial_nitermax_stage1, initial_nsteps_stage1=initial_nsteps_stage1)
 
     # now, correct the results for normalizing the variance
-    output = sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, verbose = True)
+    output = sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, verbose = False)
 
     SAPMresults = np.load(output,allow_pickle=True)
 
