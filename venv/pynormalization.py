@@ -1459,7 +1459,7 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
     save_data = True   # turn this on for error-checking
     if save_data:
         wdir = os.path.dirname(os.path.realpath(__file__))
-        savename = os.path.join(wdir,'auto_normalize_data_check2.npy')
+        savename = os.path.join(wdir, 'test_functions/auto_normalize_data_check2.npy')
         results_record = {'T':T, 'reverse_map_image':reverse_map_image, 'forward_map_image':forward_map_image, 'warpdata':warpdata, 'result':result}
         np.save(savename, results_record)
 
@@ -2183,7 +2183,7 @@ def py_load_modified_normalization(niiname, normtemplatename, new_result):   # ,
     save_data = True   # turn this on for error-checking
     if save_data:
         wdir = os.path.dirname(os.path.realpath(__file__))
-        savename = os.path.join(wdir,'auto_normalize_data_check2.npy')
+        savename = os.path.join(wdir, 'test_functions/auto_normalize_data_check2.npy')
         result = new_result
         results_record = {'T':T, 'reverse_map_image':reverse_map_image, 'forward_map_image':forward_map_image, 'warpdata':warpdata, 'result':result}
         np.save(savename, results_record)
