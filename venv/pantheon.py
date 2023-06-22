@@ -6757,7 +6757,7 @@ class SAPMFrame:
 
         output = pysapm.run_null_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterdataname, timepoint=timepoint,
                                 epoch=epoch, betascale=betascale)
-        print('results of network null test written to {}'.format(output))
+        print('results of network null test ({} samples) written to {}'.format(nsims, output))
 
 
     def SAPMprefixsubmitaction(self):
@@ -7581,7 +7581,7 @@ class SAPMFrame:
         self.SAPMnetworkbrowse.grid(row=0, column=3)
 
         # give the option to run null tests on the network model
-        self.SAPMnetworktest = tk.Button(self.parent, text='Test', width=smallbuttonsize, bg = fgcol1, fg = fgletter1, font = widgetfont,
+        self.SAPMnetworktest = tk.Button(self.parent, text='Null Test', width=smallbuttonsize, bg = fgcol1, fg = fgletter1, font = widgetfont,
                                   command=self.SAPMtestnetclick, relief='raised', bd=5, highlightbackground = widgetbg)
         self.SAPMnetworktest.grid(row=0, column=4)
 
@@ -7810,7 +7810,7 @@ class SAPMResultsFrame:
         self.SRtargetregion_var.set('empty')
         SRtargetregion_menu = tk.OptionMenu(self.parent, self.SRtargetregion_var, *region_list_full, command = self.SRtargetregionvalue_choice)
         SRtargetregion_menu.config(bg=bgcol)
-        SRtargetregion_menu.grid(row=8, column=4, sticky='EW')
+        SRtargetregion_menu.grid(row=9, column=4, sticky='EW')
         self.SRtargetregion_opt = SRtargetregion_menu   # save this way so that values are not cleared
 
         return self
