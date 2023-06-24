@@ -91,67 +91,67 @@ def GLMfit(image_data, basis_set, contrast='None', add_constant = False, ndrop =
 
 #----------------GLMfit_and_subtract------------------------------------------
 # function to fit a basis set to data, then subtract the result from the data
-def GLMfit_and_subtract(image_data, basis_set, add_constant = False, ndrop = 2):
-    # this function fits the image data to the basis set, and
-    # subtracts the fit from the data to give only the residual
-    # but the output needs to be the same shape as the input, so pad to replace the dropped values
-    xs,ys,zs,ts = np.shape(image_data[:,:,:,ndrop:])
-    nvox = xs*ys*zs
-    S = np.reshape(image_data[:,:,:,ndrop:], (nvox,ts))
-    # S = BG (matrix multiplication)
-    # so B = S*G'*inv(G*G')
-    # S is nvox X ts,  so the basis set needs to be nbasis x ts
-    G = basis_set[:,ndrop:]
-    if add_constant:
-        # first check if there is already a constant value
-        varcheck = np.var(G,axis=1)
-        c = np.where(varcheck < 1.0e-6)
-        if np.size(c) == 0:
-            # add the constant to the basis set
-            constant = np.ones((1,ts))
-            G = np.concatenate((G, constant), axis=0)
-            constant_index = np.shape(G)[0]
-        else:
-            # there is already a constant in the basis set
-            # constant_index = c[0][0]
-
-            # there is already one or more constants in the basis set
-            # remove them first, and add the constant at the end
-            c2 = np.where(varcheck >= 1.0e-6)
-            Gtemp = G[c2,:]
-            constant = np.ones((1,ts))
-            G = np.concatenate((Gtemp, constant), axis=0)
-            constant_index = np.shape(G)[0]
-
-
-    nb = np.shape(G)[0]   # number of basis elements
-    # B = S*G*inv(G*G')
-    iGG = np.linalg.inv(np.dot(G,G.T))
-    # calculate the fit paraamters
-    B = np.dot(np.dot(S,G.T),iGG)
-
-    # calculate the resulting fit values, using all data points
-    xs,ys,zs,ts = np.shape(image_data)
-    nvox = xs*ys*zs
-    S = np.reshape(image_data, (nvox,ts))
-    G = basis_set
-    if add_constant:
-        if np.size(c) == 0:
-            # add the constant to the basis set again
-            constant = np.ones((1,ts))
-            G = np.concatenate((G, constant), axis=0)
-
-    fit = np.dot(B,G)
-    # subtract fit from the original
-    residual = S-fit
-    # put it back to original shape
-    residual = np.reshape(residual,(xs,ys,zs,ts))
-
-    # pad to replace the dropped values - replace with the time-series average
-    npad = ((0,0),(0,0),(0,0),(ndrop,0))
-    residual2 = np.pad(residual, npad, mode = 'mean')
-
-    return residual2
+# def GLMfit_and_subtract(image_data, basis_set, add_constant = False, ndrop = 2):
+#     # this function fits the image data to the basis set, and
+#     # subtracts the fit from the data to give only the residual
+#     # but the output needs to be the same shape as the input, so pad to replace the dropped values
+#     xs,ys,zs,ts = np.shape(image_data[:,:,:,ndrop:])
+#     nvox = xs*ys*zs
+#     S = np.reshape(image_data[:,:,:,ndrop:], (nvox,ts))
+#     # S = BG (matrix multiplication)
+#     # so B = S*G'*inv(G*G')
+#     # S is nvox X ts,  so the basis set needs to be nbasis x ts
+#     G = basis_set[:,ndrop:]
+#     if add_constant:
+#         # first check if there is already a constant value
+#         varcheck = np.var(G,axis=1)
+#         c = np.where(varcheck < 1.0e-6)
+#         if np.size(c) == 0:
+#             # add the constant to the basis set
+#             constant = np.ones((1,ts))
+#             G = np.concatenate((G, constant), axis=0)
+#             constant_index = np.shape(G)[0]
+#         else:
+#             # there is already a constant in the basis set
+#             # constant_index = c[0][0]
+#
+#             # there is already one or more constants in the basis set
+#             # remove them first, and add the constant at the end
+#             c2 = np.where(varcheck >= 1.0e-6)
+#             Gtemp = G[c2,:]
+#             constant = np.ones((1,ts))
+#             G = np.concatenate((Gtemp, constant), axis=0)
+#             constant_index = np.shape(G)[0]
+#
+#
+#     nb = np.shape(G)[0]   # number of basis elements
+#     # B = S*G*inv(G*G')
+#     iGG = np.linalg.inv(np.dot(G,G.T))
+#     # calculate the fit paraamters
+#     B = np.dot(np.dot(S,G.T),iGG)
+#
+#     # calculate the resulting fit values, using all data points
+#     xs,ys,zs,ts = np.shape(image_data)
+#     nvox = xs*ys*zs
+#     S = np.reshape(image_data, (nvox,ts))
+#     G = basis_set
+#     if add_constant:
+#         if np.size(c) == 0:
+#             # add the constant to the basis set again
+#             constant = np.ones((1,ts))
+#             G = np.concatenate((G, constant), axis=0)
+#
+#     fit = np.dot(B,G)
+#     # subtract fit from the original
+#     residual = S-fit
+#     # put it back to original shape
+#     residual = np.reshape(residual,(xs,ys,zs,ts))
+#
+#     # pad to replace the dropped values - replace with the time-series average
+#     npad = ((0,0),(0,0),(0,0),(ndrop,0))
+#     residual2 = np.pad(residual, npad, mode = 'mean')
+#
+#     return residual2
 
 
 #----------------GLMfit_subtract_and_separate------------------------------------------

@@ -122,76 +122,76 @@ def unique_in_list(input_list):
     return unique_list, unique_index, original_index
 
 
-def convert_matlab_database(matlabfilename, database_inputfields, database_outputfields, DBdir):
-    # function to read a matlab ".mat" file and convert the database to an excel file that cna be read in python
-    # "inputfields" must list the database fields to read, and convert to excel
-    # "outputfields" must list the corresponding fields, in matching order to inputfields
-    # "DBdir" is the full path name of where the database will be saved
-
-    # database_inputfields = ['patientid','studygroup','pname','seriesnumber','niftiname','normdataname','normtemplatename',
-    #                   'painrating','gender','age', 'temperature','studygroup2', 'TR']
-
-    # database_inputfields = ['dbdir', 'patientid','studygroup','pname','seriesnumber','niftiname','TR','normdataname','normtemplatename','paradigms',
-    #             'painrating','unpleasantness','temperature','age','gender']
-    #
-    # paradigm_inputfields = ['paradigms', 'dt']
-    #
-    # outputfields = ['datadir', 'patientid', 'studygroup', 'pname', 'seriesnumber', 'niftiname', 'TR', 'normdataname',
-    #                       'normtemplatename', 'paradigms', 'painrating','unpleasantness','temperature','age','gender']
-
-    outputfields = database_outputfields
-
-    p,f = os.path.split(matlabfilename)
-    f2,e = os.path.splitext(f)
-    outputname = os.path.join(DBdir, f2 + '.xlsx')
-
-    databaseinfo = scipy.io.loadmat(matlabfilename)
-    input_datarecord = databaseinfo['datarecord']
-    nentries = len(input_datarecord[database_inputfields[0]][0])
-
-    # required_db_sheets = ['datarecord', 'paradigm']
-    # required_db_fields = ['datadir', 'patientid', 'studygroup', 'pname', 'seriesnumber', 'niftiname', 'TR', 'normdataname',
-    #                       'normtemplatename', 'paradigms']
-
-    # datarecord sheet
-    output_datarecord = []
-    for ii in range(nentries):
-        for nn in range(len(outputfields)):
-            if outputfields[nn] == 'paradigms':
-                value = 'paradigm1'
-            else:
-                try:
-                    value = (input_datarecord[database_inputfields[nn]][0][ii].flatten())[0]
-                except:
-                    value = (input_datarecord[database_inputfields[nn]][0][ii].flatten())
-            if nn == 0:
-                entry = {outputfields[nn]:value}
-            else:
-                entry[outputfields[nn]] = value
-        output_datarecord.append(entry)
-
-    # write it to the database by appending a sheet to the excel file
-    dataf = pd.DataFrame(output_datarecord)
-    with pd.ExcelWriter(outputname, mode='w', engine='openpyxl') as writer:
-        dataf.to_excel(writer, sheet_name='datarecord')
-
-    # df1 = pd.DataFrame(columns=outputfields, data=[])
-    # for aa, colname in enumerate(outputfields):
-    #     df1.loc[0, colname] = db_entries[aa]
-
-    # paradigm1 sheet
-    pdata = []
-    paradigm = (input_datarecord['paradigms'][0][ii].flatten())
-    dt = (input_datarecord['dt'][0][0].flatten())[0]
-    np = len(paradigm)
-    for ii in range(np):
-        entry = {'dt':dt, 'paradigms':paradigm[ii]}
-        pdata.append(entry)
-
-    # write it to the database by appending a sheet to the excel file
-    datap = pd.DataFrame(pdata)
-    with pd.ExcelWriter(outputname, mode='a', engine='openpyxl') as writer:
-        datap.to_excel(writer, sheet_name='paradigm1')
+# def convert_matlab_database(matlabfilename, database_inputfields, database_outputfields, DBdir):
+#     # function to read a matlab ".mat" file and convert the database to an excel file that cna be read in python
+#     # "inputfields" must list the database fields to read, and convert to excel
+#     # "outputfields" must list the corresponding fields, in matching order to inputfields
+#     # "DBdir" is the full path name of where the database will be saved
+#
+#     # database_inputfields = ['patientid','studygroup','pname','seriesnumber','niftiname','normdataname','normtemplatename',
+#     #                   'painrating','gender','age', 'temperature','studygroup2', 'TR']
+#
+#     # database_inputfields = ['dbdir', 'patientid','studygroup','pname','seriesnumber','niftiname','TR','normdataname','normtemplatename','paradigms',
+#     #             'painrating','unpleasantness','temperature','age','gender']
+#     #
+#     # paradigm_inputfields = ['paradigms', 'dt']
+#     #
+#     # outputfields = ['datadir', 'patientid', 'studygroup', 'pname', 'seriesnumber', 'niftiname', 'TR', 'normdataname',
+#     #                       'normtemplatename', 'paradigms', 'painrating','unpleasantness','temperature','age','gender']
+#
+#     outputfields = database_outputfields
+#
+#     p,f = os.path.split(matlabfilename)
+#     f2,e = os.path.splitext(f)
+#     outputname = os.path.join(DBdir, f2 + '.xlsx')
+#
+#     databaseinfo = scipy.io.loadmat(matlabfilename)
+#     input_datarecord = databaseinfo['datarecord']
+#     nentries = len(input_datarecord[database_inputfields[0]][0])
+#
+#     # required_db_sheets = ['datarecord', 'paradigm']
+#     # required_db_fields = ['datadir', 'patientid', 'studygroup', 'pname', 'seriesnumber', 'niftiname', 'TR', 'normdataname',
+#     #                       'normtemplatename', 'paradigms']
+#
+#     # datarecord sheet
+#     output_datarecord = []
+#     for ii in range(nentries):
+#         for nn in range(len(outputfields)):
+#             if outputfields[nn] == 'paradigms':
+#                 value = 'paradigm1'
+#             else:
+#                 try:
+#                     value = (input_datarecord[database_inputfields[nn]][0][ii].flatten())[0]
+#                 except:
+#                     value = (input_datarecord[database_inputfields[nn]][0][ii].flatten())
+#             if nn == 0:
+#                 entry = {outputfields[nn]:value}
+#             else:
+#                 entry[outputfields[nn]] = value
+#         output_datarecord.append(entry)
+#
+#     # write it to the database by appending a sheet to the excel file
+#     dataf = pd.DataFrame(output_datarecord)
+#     with pd.ExcelWriter(outputname, mode='w', engine='openpyxl') as writer:
+#         dataf.to_excel(writer, sheet_name='datarecord')
+#
+#     # df1 = pd.DataFrame(columns=outputfields, data=[])
+#     # for aa, colname in enumerate(outputfields):
+#     #     df1.loc[0, colname] = db_entries[aa]
+#
+#     # paradigm1 sheet
+#     pdata = []
+#     paradigm = (input_datarecord['paradigms'][0][ii].flatten())
+#     dt = (input_datarecord['dt'][0][0].flatten())[0]
+#     np = len(paradigm)
+#     for ii in range(np):
+#         entry = {'dt':dt, 'paradigms':paradigm[ii]}
+#         pdata.append(entry)
+#
+#     # write it to the database by appending a sheet to the excel file
+#     datap = pd.DataFrame(pdata)
+#     with pd.ExcelWriter(outputname, mode='a', engine='openpyxl') as writer:
+#         datap.to_excel(writer, sheet_name='paradigm1')
 
 
 

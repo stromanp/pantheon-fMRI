@@ -44,29 +44,29 @@ import multiprocessing as mp
 import parallel_functions as pf
 
 
-def sub2ind(vsize, indices):
-    # give all the combinations for the values that are allowed to vary
-    ndims = len(vsize)
-    w = 0
-    for nn in range(ndims):
-        w += indices[nn]*np.prod(vsize[:nn])
-    return w
+# def sub2ind(vsize, indices):
+#     # give all the combinations for the values that are allowed to vary
+#     ndims = len(vsize)
+#     w = 0
+#     for nn in range(ndims):
+#         w += indices[nn]*np.prod(vsize[:nn])
+#     return w
 
 
-def all_flat_indices_nfixed(vsize, fixedindices, fixedvals):
-    # give all the combinations for the values that are allowed to vary
-    ndims = len(vsize)
-    vsize2 = copy.deepcopy(vsize)
-    vsize2[fixedindices] = 1
-    nc = np.prod(vsize2)
-    w = np.zeros(nc).astype(int)
-    # convert to original vsize indices
-    for nn in range(nc):
-        # x = np.array(np.unravel_index(nn,vsize2))
-        x = ind2sub_ndims(vsize2, nn)
-        x[fixedindices] = fixedvals
-        w[nn] = sub2ind(vsize, x)
-    return w
+# def all_flat_indices_nfixed(vsize, fixedindices, fixedvals):
+#     # give all the combinations for the values that are allowed to vary
+#     ndims = len(vsize)
+#     vsize2 = copy.deepcopy(vsize)
+#     vsize2[fixedindices] = 1
+#     nc = np.prod(vsize2)
+#     w = np.zeros(nc).astype(int)
+#     # convert to original vsize indices
+#     for nn in range(nc):
+#         # x = np.array(np.unravel_index(nn,vsize2))
+#         x = ind2sub_ndims(vsize2, nn)
+#         x[fixedindices] = fixedvals
+#         w[nn] = sub2ind(vsize, x)
+#     return w
 
 
 def load_network_model_w_intrinsics(networkmodel):
@@ -118,95 +118,95 @@ def load_network_model_w_intrinsics(networkmodel):
     return network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count
 
 
-def gradients_in_vintrinsics(Sinput, Sconn, fintrinsic1, vintrinsics, beta_int1,
-                             Minput, Mconn, dvali, fintrinsic_count, vintrinsic_count):
-    nregions, tsize_full = np.shape(Sinput)
-    ncon, tsize_full = np.shape(Sconn)
-    nv,nt = np.shape(vintrinsics)
-    nI = nv*nt
-    dssq_dI = np.zeros((nv,nt))
+# def gradients_in_vintrinsics(Sinput, Sconn, fintrinsic1, vintrinsics, beta_int1,
+#                              Minput, Mconn, dvali, fintrinsic_count, vintrinsic_count):
+#     nregions, tsize_full = np.shape(Sinput)
+#     ncon, tsize_full = np.shape(Sconn)
+#     nv,nt = np.shape(vintrinsics)
+#     nI = nv*nt
+#     dssq_dI = np.zeros((nv,nt))
+#
+#     II = copy.deepcopy(vintrinsics)
+#     Sinput_full = np.array(Sinput)
+#     Sconn_full = np.array(Sconn)
+#     if fintrinsic_count > 0:
+#         Sinput_full = np.concatenate((Sinput_full, beta_int1 * fintrinsic1[np.newaxis, :]), axis=0)
+#         Sconn_full = np.concatenate((Sconn_full, beta_int1 * fintrinsic1[np.newaxis, :]), axis=0)
+#     if vintrinsic_count > 0:
+#         Sinput_full = np.concatenate((Sinput_full, vintrinsics), axis=0)
+#         Sconn_full = np.concatenate((Sconn_full, vintrinsics), axis=0)
+#
+#     fit, Sconn_full = network_eigenvalue_method(Sconn_full, Minput, Mconn, ncon)
+#     Sconn = Sconn_full[:ncon,:]
+#
+#     err = Sinput_full[:nregions, :] - fit[:nregions, :]
+#     cost = np.sum(np.abs(beta_int1)) + np.sum(np.abs(II)) + np.sum(np.abs(betavals))
+#     ssqd = np.sum(err ** 2) + Lweight * cost  # L1 regularization
+#
+#     for nn in range(nI):
+#         II = copy.deepcopy(vintrinsics)
+#         aa,bb = np.unravel_index(nn, (nv,nt))
+#         II[aa,bb] += dvali
+#
+#         Sin_full = np.array(Sinput)
+#         S_full = np.array(Sconn)
+#         if fintrinsic_count > 0:
+#             Sin_full = np.concatenate((Sin_full, beta_int1 * fintrinsic1[np.newaxis, :]), axis=0)
+#             S_full = np.concatenate((S_full, beta_int1 * fintrinsic1[np.newaxis, :]), axis=0)
+#         Sin_full = np.concatenate((Sin_full, II), axis=0)
+#         S_full = np.concatenate((S_full, II), axis=0)
+#
+#         fit, S_full = network_eigenvalue_method(S_full, Minput, Mconn, ncon)
+#
+#         err = Sin_full[:nregions, :] - fit[:nregions, :]
+#         cost = np.sum(np.abs(beta_int1)) + np.sum(np.abs(II)) + np.sum(np.abs(betavals))
+#         ssqdp = np.sum(err ** 2) + Lweight * cost  # L1 regularization
+#         dssq_dI[aa,bb] = (ssqdp - ssqd) / dvali
+#
+#     return dssq_dI, ssqd
 
-    II = copy.deepcopy(vintrinsics)
-    Sinput_full = np.array(Sinput)
-    Sconn_full = np.array(Sconn)
-    if fintrinsic_count > 0:
-        Sinput_full = np.concatenate((Sinput_full, beta_int1 * fintrinsic1[np.newaxis, :]), axis=0)
-        Sconn_full = np.concatenate((Sconn_full, beta_int1 * fintrinsic1[np.newaxis, :]), axis=0)
-    if vintrinsic_count > 0:
-        Sinput_full = np.concatenate((Sinput_full, vintrinsics), axis=0)
-        Sconn_full = np.concatenate((Sconn_full, vintrinsics), axis=0)
 
-    fit, Sconn_full = network_eigenvalue_method(Sconn_full, Minput, Mconn, ncon)
-    Sconn = Sconn_full[:ncon,:]
-
-    err = Sinput_full[:nregions, :] - fit[:nregions, :]
-    cost = np.sum(np.abs(beta_int1)) + np.sum(np.abs(II)) + np.sum(np.abs(betavals))
-    ssqd = np.sum(err ** 2) + Lweight * cost  # L1 regularization
-
-    for nn in range(nI):
-        II = copy.deepcopy(vintrinsics)
-        aa,bb = np.unravel_index(nn, (nv,nt))
-        II[aa,bb] += dvali
-
-        Sin_full = np.array(Sinput)
-        S_full = np.array(Sconn)
-        if fintrinsic_count > 0:
-            Sin_full = np.concatenate((Sin_full, beta_int1 * fintrinsic1[np.newaxis, :]), axis=0)
-            S_full = np.concatenate((S_full, beta_int1 * fintrinsic1[np.newaxis, :]), axis=0)
-        Sin_full = np.concatenate((Sin_full, II), axis=0)
-        S_full = np.concatenate((S_full, II), axis=0)
-
-        fit, S_full = network_eigenvalue_method(S_full, Minput, Mconn, ncon)
-
-        err = Sin_full[:nregions, :] - fit[:nregions, :]
-        cost = np.sum(np.abs(beta_int1)) + np.sum(np.abs(II)) + np.sum(np.abs(betavals))
-        ssqdp = np.sum(err ** 2) + Lweight * cost  # L1 regularization
-        dssq_dI[aa,bb] = (ssqdp - ssqd) / dvali
-
-    return dssq_dI, ssqd
-
-
-def gradients_in_beta1(Sinput, Sconn, fintrinsic1, vintrinsics, beta_int1, Minput, Mconn,
-                       dval, fintrinsic_count, vintrinsic_count):
-    nregions,tsize_full = np.shape(Sinput)
-    ncon,tsize_full = np.shape(Sconn)
-    dint = copy.deepcopy(beta_int1)
-
-    Sin_full = np.array(Sinput)
-    S_full = np.array(Sconn)
-    if fintrinsic_count > 0:
-        Sin_full = np.concatenate((Sin_full, dint * fintrinsic1[np.newaxis, :]), axis=0)
-        S_full = np.concatenate((S_full, dint * fintrinsic1[np.newaxis, :]), axis=0)
-    if vintrinsic_count > 0:
-        Sin_full = np.concatenate((Sin_full, vintrinsics), axis=0)
-        S_full = np.concatenate((S_full, vintrinsics), axis=0)
-
-    fit, S_full = network_eigenvalue_method(S_full, Minput, Mconn, ncon)
-    Soutput = S_full[:ncon,:]
-
-    err = Sin_full[:nregions, :] - fit[:nregions, :]
-    cost = np.sum(np.abs(dint)) + np.sum(np.abs(vintrinsics)) + np.sum(np.abs(betavals))
-    ssqd = np.sum(err ** 2) + Lweight * cost  # L1 regularization
-
-    dint += dval
-    Sin_full = np.array(Sinput)
-    S_full = np.array(Sconn)
-    if fintrinsic_count > 0:
-        Sin_full = np.concatenate((Sin_full, dint * fintrinsic1[np.newaxis, :]), axis=0)
-        S_full = np.concatenate((S_full, dint * fintrinsic1[np.newaxis, :]), axis=0)
-    if vintrinsic_count > 0:
-        Sin_full = np.concatenate((Sin_full, vintrinsics), axis=0)
-        S_full = np.concatenate((S_full, vintrinsics), axis=0)
-
-    fit, S_full = network_eigenvalue_method(S_full, Minput, Mconn, ncon)
-
-    err = Sin_full[:nregions, :] - fit[:nregions, :]
-    # cost = np.sum(np.abs(beta_int1)) + np.sum(np.abs(betavals)) + np.sum(np.abs(intrinsic2))
-    cost = np.sum(np.abs(dint)) + np.sum(np.abs(vintrinsics)) + np.sum(np.abs(betavals))
-    ssqdp = np.sum(err ** 2) + Lweight * cost  # L1 regularization
-    dssq_dbeta1 = (ssqdp - ssqd) / dval
-
-    return dssq_dbeta1, ssqd
+# def gradients_in_beta1(Sinput, Sconn, fintrinsic1, vintrinsics, beta_int1, Minput, Mconn,
+#                        dval, fintrinsic_count, vintrinsic_count):
+#     nregions,tsize_full = np.shape(Sinput)
+#     ncon,tsize_full = np.shape(Sconn)
+#     dint = copy.deepcopy(beta_int1)
+#
+#     Sin_full = np.array(Sinput)
+#     S_full = np.array(Sconn)
+#     if fintrinsic_count > 0:
+#         Sin_full = np.concatenate((Sin_full, dint * fintrinsic1[np.newaxis, :]), axis=0)
+#         S_full = np.concatenate((S_full, dint * fintrinsic1[np.newaxis, :]), axis=0)
+#     if vintrinsic_count > 0:
+#         Sin_full = np.concatenate((Sin_full, vintrinsics), axis=0)
+#         S_full = np.concatenate((S_full, vintrinsics), axis=0)
+#
+#     fit, S_full = network_eigenvalue_method(S_full, Minput, Mconn, ncon)
+#     Soutput = S_full[:ncon,:]
+#
+#     err = Sin_full[:nregions, :] - fit[:nregions, :]
+#     cost = np.sum(np.abs(dint)) + np.sum(np.abs(vintrinsics)) + np.sum(np.abs(betavals))
+#     ssqd = np.sum(err ** 2) + Lweight * cost  # L1 regularization
+#
+#     dint += dval
+#     Sin_full = np.array(Sinput)
+#     S_full = np.array(Sconn)
+#     if fintrinsic_count > 0:
+#         Sin_full = np.concatenate((Sin_full, dint * fintrinsic1[np.newaxis, :]), axis=0)
+#         S_full = np.concatenate((S_full, dint * fintrinsic1[np.newaxis, :]), axis=0)
+#     if vintrinsic_count > 0:
+#         Sin_full = np.concatenate((Sin_full, vintrinsics), axis=0)
+#         S_full = np.concatenate((S_full, vintrinsics), axis=0)
+#
+#     fit, S_full = network_eigenvalue_method(S_full, Minput, Mconn, ncon)
+#
+#     err = Sin_full[:nregions, :] - fit[:nregions, :]
+#     # cost = np.sum(np.abs(beta_int1)) + np.sum(np.abs(betavals)) + np.sum(np.abs(intrinsic2))
+#     cost = np.sum(np.abs(dint)) + np.sum(np.abs(vintrinsics)) + np.sum(np.abs(betavals))
+#     ssqdp = np.sum(err ** 2) + Lweight * cost  # L1 regularization
+#     dssq_dbeta1 = (ssqdp - ssqd) / dval
+#
+#     return dssq_dbeta1, ssqd
 
 
 def gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight):
@@ -316,16 +316,16 @@ def network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrins
     return fit, Mintrinsic, Meigv, err
 
 
-def get_overall_num(nclusterlist, regionnum, clusternum):
-    if isinstance(regionnum,list):
-        number = [np.sum(nclusterlist[:regionnum[aa]]) + clusternum[aa] for aa in range(len(regionnum))]
-    if isinstance(regionnum,np.ndarray):
-        number = [np.sum(nclusterlist[:regionnum[aa]]) + clusternum[aa] for aa in range(len(regionnum))]
-    if isinstance(regionnum,int):
-        number = np.sum(nclusterlist[:regionnum]) + clusternum
-    return number
+# def get_overall_num(nclusterlist, regionnum, clusternum):
+#     if isinstance(regionnum,list):
+#         number = [np.sum(nclusterlist[:regionnum[aa]]) + clusternum[aa] for aa in range(len(regionnum))]
+#     if isinstance(regionnum,np.ndarray):
+#         number = [np.sum(nclusterlist[:regionnum[aa]]) + clusternum[aa] for aa in range(len(regionnum))]
+#     if isinstance(regionnum,int):
+#         number = np.sum(nclusterlist[:regionnum]) + clusternum
+#     return number
 
-#-----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------------
 def ind2sub_ndims(vsize,index):
     # mlist = ind2sub_ndims(vsize, ind)
@@ -964,323 +964,323 @@ def sem_physio_model(clusterlist, fintrinsic_base, SEMresultsname, SEMparameters
 
 #----------------------------------------------------------------------------------
 # primary function--------------------------------------------------------------------
-def sem_physio_model_PCAclusters(PCparams, PCloadings, fintrinsic_base, SEMresultsname,
-                                 SEMparametersname, nitermax = 250, alpha_limit = 1e-5,
-                                 subsample = [1,0], fixed_beta_vals = [], verbose = False,
-                                 nprocessors = 8):
-    starttime = time.ctime()
-
-    # instead of working with specific clusters, this version uses a mix of clusters
-    # as a continuum, in order to find the optimal clusters
-    # principal components information about clusters are contained in:
-    # PCparams = {'components': component_data, 'loadings': original_loadings}
-    # how the components are mixed for each region are contained in PCloadings
-
-    # initialize gradient-descent parameters--------------------------------------------------------------
-    initial_alpha = 1e-3
-    initial_Lweight = 1e-4
-    initial_dval = 0.01
-    betascale = 0.0
-
-    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
-    # load the data values
-    betanamelist = SEMparams['betanamelist']
-    beta_list = SEMparams['beta_list']
-    nruns_per_person = SEMparams['nruns_per_person']
-    nclusterstotal = SEMparams['nclusterstotal']
-    rnamelist = SEMparams['rnamelist']
-    nregions = SEMparams['nregions']
-    cluster_properties = SEMparams['cluster_properties']
-    cluster_data = SEMparams['cluster_data']
-    network = SEMparams['network']
-    fintrinsic_count = SEMparams['fintrinsic_count']
-    vintrinsic_count = SEMparams['vintrinsic_count']
-    sem_region_list = SEMparams['sem_region_list']
-    nclusterlist = SEMparams['nclusterlist']
-    tsize = SEMparams['tsize']
-    tplist_full = SEMparams['tplist_full']
-    tcdata_centered = SEMparams['tcdata_centered']
-    ctarget = SEMparams['ctarget']
-    csource = SEMparams['csource']
-    fintrinsic_region = SEMparams['fintrinsic_region']
-    Mconn = SEMparams['Mconn']
-    Minput = SEMparams['Minput']
-    timepoint = SEMparams['timepoint']
-    epoch = SEMparams['epoch']
-    latent_flag = SEMparams['latent_flag']
-
-    tplist_full = SEMparams['tplist_full']
-    ntime, NP = np.shape(tplist_full)
-    #---------------------------------------------------------------------------------------------------------
-    #---------------------------------------------------------------------------------------------------------
-    # repeat the process for each participant-----------------------------------------------------------------
-    betalimit = 3.0
-    epochnum = 0
-    SEMresults = []
-    beta_init_record = []
-
-    # parallel processing
-    # nprocessors = mp.cpu_count()
-    # nprocessors = 4
-    # pool = mp.Pool(nprocessors)
-
-    # data for gradient_descent_per_person
-    ntime, NP = np.shape(SEMparams['tplist_full'])
-    fixed_beta_vals = []
-    verbose = False
-
-    data = {'nperson':0,
-            'tsize':SEMparams['tsize'],
-            'tplist_full':SEMparams['tplist_full'],
-            'nruns_per_person':SEMparams['nruns_per_person'],
-            'nclusterlist':SEMparams['nclusterlist'],
-            'Minput':SEMparams['Minput'],
-            'fintrinsic_count':SEMparams['fintrinsic_count'],
-            'fintrinsic_region':SEMparams['fintrinsic_region'],
-            'vintrinsic_count':SEMparams['vintrinsic_count'],
-            'epoch':SEMparams['epoch'],
-            'timepoint':SEMparams['timepoint'],
-            'tcdata_centered':SEMparams['tcdata_centered'],
-            'ctarget':SEMparams['ctarget'],
-            'csource':SEMparams['csource'],
-            'latent_flag':SEMparams['latent_flag'],
-            'Mconn':SEMparams['Mconn'],
-            'ntime':ntime,
-            'NP':NP,
-            'component_data':PCparams['components'],
-            'average_data':PCparams['average'],
-            'epochnum' :epochnum,
-            'fintrinsic_base' :fintrinsic_base,
-            'PCloadings' :PCloadings,
-            'initial_alpha' :initial_alpha,
-            'initial_Lweight' :initial_Lweight,
-            'initial_dval' :initial_dval,
-            'alpha_limit' :alpha_limit,
-            'nitermax' :nitermax,
-            'fixed_beta_vals' :fixed_beta_vals,
-            'verbose' :verbose }
-
-    # setup iterable input parameters
-    input_data = []
-    for nperson in range(subsample[1], NP, subsample[0]):
-        oneval = copy.deepcopy(data)
-        oneval['nperson'] = nperson
-        input_data.append(oneval)
-
-    startpool = time.time()
-    pool = mp.Pool(nprocessors)
-    SEMresults = pool.map(pf.gradient_descent_per_person, input_data)
-
-    pool.close()
-    donepool = time.time()
-    # print('time to run gradient-descent with {} processors:  {:.1f} sec'.format(nprocessors, donepool-startpool))
-
-
-    # original method-----------------------------------------
-    # for nperson in range(subsample[1],NP,subsample[0]):
-    #     if verbose: print('starting person {} at {}'.format(nperson,time.ctime()))
-    #     tp = tplist_full[epochnum][nperson]['tp']
-    #     tsize_total = len(tp)
-    #     nruns = nruns_per_person[nperson]
-    #
-    #     # get tc data for each region/cluster
-    #     # rnumlist = []
-    #     # clustercount = np.cumsum(nclusterlist)
-    #     # for aa in range(len(clusterlist)):
-    #     #     x = np.where(clusterlist[aa] < clustercount)[0]
-    #     #     rnumlist += [x[0]]
-    #
-    #     # # original
-    #     # Sinput = []
-    #     # for cval in clusterlist:
-    #     #     tc1 = tcdata_centered[cval, tp]
-    #     #     Sinput.append(tc1)
-    #
-    #     # PCparams = {'components': component_data, 'loadings': original_loadings}
-    #     Sinput = []
-    #     for rval in range(len(nclusterlist)):
-    #         r1 = np.sum(nclusterlist[:rval]).astype(int)
-    #         r2 = np.sum(nclusterlist[:(rval+1)]).astype(int)
-    #         L = PCloadings[r1:r2]
-    #         L = np.repeat(L[:,np.newaxis],tsize_total,axis=1)
-    #         C = component_data[r1:r2,tp]
-    #         tc1 = np.sum(L*C,axis = 0) + average_data[r1,tp]
-    #         Sinput.append(tc1)
-    #
-    #     Sinput = np.array(Sinput)
-    #     # Sinput is size:  nregions x tsize_total
-    #
-    #     # setup fixed intrinsic based on the model paradigm
-    #     # need to account for timepoint and epoch....
-    #     if fintrinsic_count > 0:
-    #         if epoch >= tsize:
-    #             et1 = 0
-    #             et2 = tsize
-    #         else:
-    #             et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
-    #             et2 = (timepoint + np.floor(epoch / 2)).astype(int)
-    #
-    #         ftemp = fintrinsic_base[et1:et2]
-    #         fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
-    #         if np.var(ftemp) > 1.0e-3:
-    #             Sint = Sinput[fintrinsic_region,:]
-    #             Sint = Sint - np.mean(Sint)
-    #             # need to add constant to fit values
-    #             G = np.concatenate((fintrinsic1[np.newaxis, :],np.ones((1,tsize_total))),axis=0)
-    #             b, fit, R2, total_var, res_var = pysem.general_glm(Sint, G)
-    #             beta_int1 = b[0]
-    #         else:
-    #             beta_int1 = 0.0
-    #     else:
-    #         beta_int1 = 0.0
-    #
-    #     lastgood_beta_int1 = copy.deepcopy(beta_int1)
-    #
-    #     # initialize beta values-----------------------------------
-    #     beta_initial = np.zeros(len(csource))
-    #     # beta_initial = np.random.randn(len(csource))
-    #     beta_initial = betascale*np.ones(len(csource))
-    #
-    #     # limit the beta values related to intrinsic inputs to positive values
-    #     for aa in range(len(beta_initial)):
-    #         if latent_flag[aa] > 0:
-    #             # if beta_initial[aa] < 0:  beta_initial[aa] = 0.0
-    #             beta_initial[aa] = 1.0
-    #
-    #     beta_init_record.append({'beta_initial':beta_initial})
-    #
-    #     # initalize Sconn
-    #     betavals = copy.deepcopy(beta_initial) # initialize beta values at zero
-    #     lastgood_betavals = copy.deepcopy(betavals)
-    #
-    #     results_record = []
-    #     ssqd_record = []
-    #
-    #     alpha = initial_alpha
-    #     Lweight = initial_Lweight
-    #     dval = initial_dval
-    #
-    #     Mconn[ctarget,csource] = betavals
-    #
-    #     # # starting point for optimizing intrinsics with given betavals----------------------------------------------------
-    #     # fit, Sconn_full = network_eigenvalue_method(Sconn_full, Minput, Mconn, ncon)
-    #
-    #     fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-    #     # cost = np.sum(np.abs(betavals**2)) # L2 regularization
-    #     cost = np.sum(np.abs(betavals))  # L1 regularization
-    #     ssqd = err + Lweight * cost
-    #     ssqd_starting = ssqd
-    #     ssqd_record += [ssqd]
-    #
-    #     # nitermax = 100
-    #     # alpha_limit = 1.0e-4
-    #
-    #     iter = 0
-    #     # vintrinsics_record = []
-    #     converging = True
-    #     dssq_record = np.ones(3)
-    #     dssq_count = 0
-    #     sequence_count = 0
-    #     while alpha > alpha_limit and iter < nitermax and converging:
-    #         iter += 1
-    #         # gradients in betavals and beta_int1
-    #         Mconn[ctarget, csource] = betavals
-    #         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
-    #                                                                  vintrinsic_count, beta_int1, fintrinsic1)
-    #         dssq_db, ssqd, dssq_dbeta1 = gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval,
-    #                                                             fintrinsic_count, vintrinsic_count, beta_int1,
-    #                                                             fintrinsic1, Lweight)
-    #         ssqd_record += [ssqd]
-    #
-    #         # fix some beta values at zero, if specified
-    #         if len(fixed_beta_vals) > 0:
-    #             dssq_db[fixed_beta_vals] = 0
-    #
-    #         # apply the changes
-    #         betavals -= alpha * dssq_db
-    #         beta_int1 -= alpha * dssq_dbeta1
-    #
-    #         # limit the beta values related to intrinsic inputs to positive values
-    #         for aa in range(len(betavals)):
-    #             if latent_flag[aa] > 0:
-    #                 # if betavals[aa] < 0:  betavals[aa] = 0.0
-    #                 betavals[aa] = 1.0
-    #
-    #         # betavals[betavals >= betalimit] = betalimit
-    #         # betavals[betavals <= -betalimit] = -betalimit
-    #
-    #         Mconn[ctarget, csource] = betavals
-    #         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
-    #                                                                  vintrinsic_count, beta_int1, fintrinsic1)
-    #         # cost = np.sum(np.abs(betavals**2))  # L2 regularization
-    #         cost = np.sum(np.abs(betavals))  # L1 regularization
-    #         ssqd_new = err + Lweight * cost
-    #
-    #         err_total = Sinput - fit
-    #         Smean = np.mean(Sinput)
-    #         errmean = np.mean(err_total)
-    #         R2total = 1 - np.sum((err_total - errmean) ** 2) / np.sum((Sinput - Smean) ** 2)
-    #
-    #         # Sinput_sim, Soutput_sim = network_sim(Sinput_full, Soutput_full, Minput, Moutput)
-    #         results_record.append({'Sinput': fit, 'Mintrinsic': Mintrinsic, 'Meigv': Meigv})
-    #
-    #         if ssqd_new >= ssqd:
-    #             alpha *= 0.5
-    #             # revert back to last good values
-    #             betavals = copy.deepcopy(lastgood_betavals)
-    #             beta_int1 = copy.deepcopy(lastgood_beta_int1)
-    #             dssqd = ssqd - ssqd_new
-    #             dssq_record = np.ones(3)  # reset the count
-    #             dssq_count = 0
-    #             sequence_count = 0
-    #             if verbose: print('beta vals:  iter {} alpha {:.3e}  delta ssq > 0  - no update'.format(iter, alpha))
-    #         else:
-    #             # save the good values
-    #             lastgood_betavals = copy.deepcopy(betavals)
-    #             lastgood_beta_int1 = copy.deepcopy(beta_int1)
-    #
-    #             dssqd = ssqd - ssqd_new
-    #             ssqd = ssqd_new
-    #
-    #             sequence_count += 1
-    #             if sequence_count > 5:
-    #                 alpha *= 1.5
-    #                 sequence_count = 0
-    #
-    #             dssq_count += 1
-    #             dssq_count = np.mod(dssq_count, 3)
-    #             # dssq_record[dssq_count] = 100.0 * dssqd / ssqd_starting
-    #             dssq_record[dssq_count] = dssqd
-    #             if np.max(dssq_record) < 0.1:  converging = False
-    #
-    #         if verbose: print('beta vals:  iter {} alpha {:.3e}  delta ssq {:.4f}  relative: {:.1f} percent  '
-    #               'R2 {:.3f}'.format(iter, alpha, -dssqd, 100.0 * ssqd / ssqd_starting, R2total))
-    #         # now repeat it ...
-    #
-    #     # fit the results now to determine output signaling from each region
-    #     Mconn[ctarget, csource] = betavals
-    #     fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-    #     Sconn = Meigv @ Mintrinsic    # signalling over each connection
-    #
-    #     # regionlist = [0, 7]
-    #     # if verbose:
-    #     #     results_text = display_SEM_results_1person(nperson, Sinput, fit, regionlist, nruns, epoch, windowlist=[24, 25])
-    #     # else:
-    #     #     results_text = ['silent mode','silent mode']
-    #
-    #     entry = {'Sinput':Sinput, 'Sconn':Sconn, 'beta_int1':beta_int1, 'Mconn':Mconn, 'Minput':Minput,
-    #              'R2total':R2total, 'Mintrinsic':Mintrinsic, 'Meigv':Meigv, 'betavals':betavals,
-    #              'fintrinsic1':fintrinsic1, 'PCloadings':PCloadings, 'fintrinsic_base':fintrinsic_base}
-    #
-    #     SEMresults.append(copy.deepcopy(entry))
-
-    stoptime = time.ctime()
-
-    if verbose:
-        print('finished SEM at {}'.format(time.ctime()))
-        print('     started at {}'.format(starttime))
-
-    return SEMresults
+# def sem_physio_model_PCAclusters(PCparams, PCloadings, fintrinsic_base, SEMresultsname,
+#                                  SEMparametersname, nitermax = 250, alpha_limit = 1e-5,
+#                                  subsample = [1,0], fixed_beta_vals = [], verbose = False,
+#                                  nprocessors = 8):
+#     starttime = time.ctime()
+#
+#     # instead of working with specific clusters, this version uses a mix of clusters
+#     # as a continuum, in order to find the optimal clusters
+#     # principal components information about clusters are contained in:
+#     # PCparams = {'components': component_data, 'loadings': original_loadings}
+#     # how the components are mixed for each region are contained in PCloadings
+#
+#     # initialize gradient-descent parameters--------------------------------------------------------------
+#     initial_alpha = 1e-3
+#     initial_Lweight = 1e-4
+#     initial_dval = 0.01
+#     betascale = 0.0
+#
+#     SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+#     # load the data values
+#     betanamelist = SEMparams['betanamelist']
+#     beta_list = SEMparams['beta_list']
+#     nruns_per_person = SEMparams['nruns_per_person']
+#     nclusterstotal = SEMparams['nclusterstotal']
+#     rnamelist = SEMparams['rnamelist']
+#     nregions = SEMparams['nregions']
+#     cluster_properties = SEMparams['cluster_properties']
+#     cluster_data = SEMparams['cluster_data']
+#     network = SEMparams['network']
+#     fintrinsic_count = SEMparams['fintrinsic_count']
+#     vintrinsic_count = SEMparams['vintrinsic_count']
+#     sem_region_list = SEMparams['sem_region_list']
+#     nclusterlist = SEMparams['nclusterlist']
+#     tsize = SEMparams['tsize']
+#     tplist_full = SEMparams['tplist_full']
+#     tcdata_centered = SEMparams['tcdata_centered']
+#     ctarget = SEMparams['ctarget']
+#     csource = SEMparams['csource']
+#     fintrinsic_region = SEMparams['fintrinsic_region']
+#     Mconn = SEMparams['Mconn']
+#     Minput = SEMparams['Minput']
+#     timepoint = SEMparams['timepoint']
+#     epoch = SEMparams['epoch']
+#     latent_flag = SEMparams['latent_flag']
+#
+#     tplist_full = SEMparams['tplist_full']
+#     ntime, NP = np.shape(tplist_full)
+#     #---------------------------------------------------------------------------------------------------------
+#     #---------------------------------------------------------------------------------------------------------
+#     # repeat the process for each participant-----------------------------------------------------------------
+#     betalimit = 3.0
+#     epochnum = 0
+#     SEMresults = []
+#     beta_init_record = []
+#
+#     # parallel processing
+#     # nprocessors = mp.cpu_count()
+#     # nprocessors = 4
+#     # pool = mp.Pool(nprocessors)
+#
+#     # data for gradient_descent_per_person
+#     ntime, NP = np.shape(SEMparams['tplist_full'])
+#     fixed_beta_vals = []
+#     verbose = False
+#
+#     data = {'nperson':0,
+#             'tsize':SEMparams['tsize'],
+#             'tplist_full':SEMparams['tplist_full'],
+#             'nruns_per_person':SEMparams['nruns_per_person'],
+#             'nclusterlist':SEMparams['nclusterlist'],
+#             'Minput':SEMparams['Minput'],
+#             'fintrinsic_count':SEMparams['fintrinsic_count'],
+#             'fintrinsic_region':SEMparams['fintrinsic_region'],
+#             'vintrinsic_count':SEMparams['vintrinsic_count'],
+#             'epoch':SEMparams['epoch'],
+#             'timepoint':SEMparams['timepoint'],
+#             'tcdata_centered':SEMparams['tcdata_centered'],
+#             'ctarget':SEMparams['ctarget'],
+#             'csource':SEMparams['csource'],
+#             'latent_flag':SEMparams['latent_flag'],
+#             'Mconn':SEMparams['Mconn'],
+#             'ntime':ntime,
+#             'NP':NP,
+#             'component_data':PCparams['components'],
+#             'average_data':PCparams['average'],
+#             'epochnum' :epochnum,
+#             'fintrinsic_base' :fintrinsic_base,
+#             'PCloadings' :PCloadings,
+#             'initial_alpha' :initial_alpha,
+#             'initial_Lweight' :initial_Lweight,
+#             'initial_dval' :initial_dval,
+#             'alpha_limit' :alpha_limit,
+#             'nitermax' :nitermax,
+#             'fixed_beta_vals' :fixed_beta_vals,
+#             'verbose' :verbose }
+#
+#     # setup iterable input parameters
+#     input_data = []
+#     for nperson in range(subsample[1], NP, subsample[0]):
+#         oneval = copy.deepcopy(data)
+#         oneval['nperson'] = nperson
+#         input_data.append(oneval)
+#
+#     startpool = time.time()
+#     pool = mp.Pool(nprocessors)
+#     SEMresults = pool.map(pf.gradient_descent_per_person, input_data)
+#
+#     pool.close()
+#     donepool = time.time()
+#     # print('time to run gradient-descent with {} processors:  {:.1f} sec'.format(nprocessors, donepool-startpool))
+#
+#
+#     # original method-----------------------------------------
+#     # for nperson in range(subsample[1],NP,subsample[0]):
+#     #     if verbose: print('starting person {} at {}'.format(nperson,time.ctime()))
+#     #     tp = tplist_full[epochnum][nperson]['tp']
+#     #     tsize_total = len(tp)
+#     #     nruns = nruns_per_person[nperson]
+#     #
+#     #     # get tc data for each region/cluster
+#     #     # rnumlist = []
+#     #     # clustercount = np.cumsum(nclusterlist)
+#     #     # for aa in range(len(clusterlist)):
+#     #     #     x = np.where(clusterlist[aa] < clustercount)[0]
+#     #     #     rnumlist += [x[0]]
+#     #
+#     #     # # original
+#     #     # Sinput = []
+#     #     # for cval in clusterlist:
+#     #     #     tc1 = tcdata_centered[cval, tp]
+#     #     #     Sinput.append(tc1)
+#     #
+#     #     # PCparams = {'components': component_data, 'loadings': original_loadings}
+#     #     Sinput = []
+#     #     for rval in range(len(nclusterlist)):
+#     #         r1 = np.sum(nclusterlist[:rval]).astype(int)
+#     #         r2 = np.sum(nclusterlist[:(rval+1)]).astype(int)
+#     #         L = PCloadings[r1:r2]
+#     #         L = np.repeat(L[:,np.newaxis],tsize_total,axis=1)
+#     #         C = component_data[r1:r2,tp]
+#     #         tc1 = np.sum(L*C,axis = 0) + average_data[r1,tp]
+#     #         Sinput.append(tc1)
+#     #
+#     #     Sinput = np.array(Sinput)
+#     #     # Sinput is size:  nregions x tsize_total
+#     #
+#     #     # setup fixed intrinsic based on the model paradigm
+#     #     # need to account for timepoint and epoch....
+#     #     if fintrinsic_count > 0:
+#     #         if epoch >= tsize:
+#     #             et1 = 0
+#     #             et2 = tsize
+#     #         else:
+#     #             et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
+#     #             et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+#     #
+#     #         ftemp = fintrinsic_base[et1:et2]
+#     #         fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
+#     #         if np.var(ftemp) > 1.0e-3:
+#     #             Sint = Sinput[fintrinsic_region,:]
+#     #             Sint = Sint - np.mean(Sint)
+#     #             # need to add constant to fit values
+#     #             G = np.concatenate((fintrinsic1[np.newaxis, :],np.ones((1,tsize_total))),axis=0)
+#     #             b, fit, R2, total_var, res_var = pysem.general_glm(Sint, G)
+#     #             beta_int1 = b[0]
+#     #         else:
+#     #             beta_int1 = 0.0
+#     #     else:
+#     #         beta_int1 = 0.0
+#     #
+#     #     lastgood_beta_int1 = copy.deepcopy(beta_int1)
+#     #
+#     #     # initialize beta values-----------------------------------
+#     #     beta_initial = np.zeros(len(csource))
+#     #     # beta_initial = np.random.randn(len(csource))
+#     #     beta_initial = betascale*np.ones(len(csource))
+#     #
+#     #     # limit the beta values related to intrinsic inputs to positive values
+#     #     for aa in range(len(beta_initial)):
+#     #         if latent_flag[aa] > 0:
+#     #             # if beta_initial[aa] < 0:  beta_initial[aa] = 0.0
+#     #             beta_initial[aa] = 1.0
+#     #
+#     #     beta_init_record.append({'beta_initial':beta_initial})
+#     #
+#     #     # initalize Sconn
+#     #     betavals = copy.deepcopy(beta_initial) # initialize beta values at zero
+#     #     lastgood_betavals = copy.deepcopy(betavals)
+#     #
+#     #     results_record = []
+#     #     ssqd_record = []
+#     #
+#     #     alpha = initial_alpha
+#     #     Lweight = initial_Lweight
+#     #     dval = initial_dval
+#     #
+#     #     Mconn[ctarget,csource] = betavals
+#     #
+#     #     # # starting point for optimizing intrinsics with given betavals----------------------------------------------------
+#     #     # fit, Sconn_full = network_eigenvalue_method(Sconn_full, Minput, Mconn, ncon)
+#     #
+#     #     fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
+#     #     # cost = np.sum(np.abs(betavals**2)) # L2 regularization
+#     #     cost = np.sum(np.abs(betavals))  # L1 regularization
+#     #     ssqd = err + Lweight * cost
+#     #     ssqd_starting = ssqd
+#     #     ssqd_record += [ssqd]
+#     #
+#     #     # nitermax = 100
+#     #     # alpha_limit = 1.0e-4
+#     #
+#     #     iter = 0
+#     #     # vintrinsics_record = []
+#     #     converging = True
+#     #     dssq_record = np.ones(3)
+#     #     dssq_count = 0
+#     #     sequence_count = 0
+#     #     while alpha > alpha_limit and iter < nitermax and converging:
+#     #         iter += 1
+#     #         # gradients in betavals and beta_int1
+#     #         Mconn[ctarget, csource] = betavals
+#     #         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
+#     #                                                                  vintrinsic_count, beta_int1, fintrinsic1)
+#     #         dssq_db, ssqd, dssq_dbeta1 = gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval,
+#     #                                                             fintrinsic_count, vintrinsic_count, beta_int1,
+#     #                                                             fintrinsic1, Lweight)
+#     #         ssqd_record += [ssqd]
+#     #
+#     #         # fix some beta values at zero, if specified
+#     #         if len(fixed_beta_vals) > 0:
+#     #             dssq_db[fixed_beta_vals] = 0
+#     #
+#     #         # apply the changes
+#     #         betavals -= alpha * dssq_db
+#     #         beta_int1 -= alpha * dssq_dbeta1
+#     #
+#     #         # limit the beta values related to intrinsic inputs to positive values
+#     #         for aa in range(len(betavals)):
+#     #             if latent_flag[aa] > 0:
+#     #                 # if betavals[aa] < 0:  betavals[aa] = 0.0
+#     #                 betavals[aa] = 1.0
+#     #
+#     #         # betavals[betavals >= betalimit] = betalimit
+#     #         # betavals[betavals <= -betalimit] = -betalimit
+#     #
+#     #         Mconn[ctarget, csource] = betavals
+#     #         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
+#     #                                                                  vintrinsic_count, beta_int1, fintrinsic1)
+#     #         # cost = np.sum(np.abs(betavals**2))  # L2 regularization
+#     #         cost = np.sum(np.abs(betavals))  # L1 regularization
+#     #         ssqd_new = err + Lweight * cost
+#     #
+#     #         err_total = Sinput - fit
+#     #         Smean = np.mean(Sinput)
+#     #         errmean = np.mean(err_total)
+#     #         R2total = 1 - np.sum((err_total - errmean) ** 2) / np.sum((Sinput - Smean) ** 2)
+#     #
+#     #         # Sinput_sim, Soutput_sim = network_sim(Sinput_full, Soutput_full, Minput, Moutput)
+#     #         results_record.append({'Sinput': fit, 'Mintrinsic': Mintrinsic, 'Meigv': Meigv})
+#     #
+#     #         if ssqd_new >= ssqd:
+#     #             alpha *= 0.5
+#     #             # revert back to last good values
+#     #             betavals = copy.deepcopy(lastgood_betavals)
+#     #             beta_int1 = copy.deepcopy(lastgood_beta_int1)
+#     #             dssqd = ssqd - ssqd_new
+#     #             dssq_record = np.ones(3)  # reset the count
+#     #             dssq_count = 0
+#     #             sequence_count = 0
+#     #             if verbose: print('beta vals:  iter {} alpha {:.3e}  delta ssq > 0  - no update'.format(iter, alpha))
+#     #         else:
+#     #             # save the good values
+#     #             lastgood_betavals = copy.deepcopy(betavals)
+#     #             lastgood_beta_int1 = copy.deepcopy(beta_int1)
+#     #
+#     #             dssqd = ssqd - ssqd_new
+#     #             ssqd = ssqd_new
+#     #
+#     #             sequence_count += 1
+#     #             if sequence_count > 5:
+#     #                 alpha *= 1.5
+#     #                 sequence_count = 0
+#     #
+#     #             dssq_count += 1
+#     #             dssq_count = np.mod(dssq_count, 3)
+#     #             # dssq_record[dssq_count] = 100.0 * dssqd / ssqd_starting
+#     #             dssq_record[dssq_count] = dssqd
+#     #             if np.max(dssq_record) < 0.1:  converging = False
+#     #
+#     #         if verbose: print('beta vals:  iter {} alpha {:.3e}  delta ssq {:.4f}  relative: {:.1f} percent  '
+#     #               'R2 {:.3f}'.format(iter, alpha, -dssqd, 100.0 * ssqd / ssqd_starting, R2total))
+#     #         # now repeat it ...
+#     #
+#     #     # fit the results now to determine output signaling from each region
+#     #     Mconn[ctarget, csource] = betavals
+#     #     fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
+#     #     Sconn = Meigv @ Mintrinsic    # signalling over each connection
+#     #
+#     #     # regionlist = [0, 7]
+#     #     # if verbose:
+#     #     #     results_text = display_SEM_results_1person(nperson, Sinput, fit, regionlist, nruns, epoch, windowlist=[24, 25])
+#     #     # else:
+#     #     #     results_text = ['silent mode','silent mode']
+#     #
+#     #     entry = {'Sinput':Sinput, 'Sconn':Sconn, 'beta_int1':beta_int1, 'Mconn':Mconn, 'Minput':Minput,
+#     #              'R2total':R2total, 'Mintrinsic':Mintrinsic, 'Meigv':Meigv, 'betavals':betavals,
+#     #              'fintrinsic1':fintrinsic1, 'PCloadings':PCloadings, 'fintrinsic_base':fintrinsic_base}
+#     #
+#     #     SEMresults.append(copy.deepcopy(entry))
+#
+#     stoptime = time.ctime()
+#
+#     if verbose:
+#         print('finished SEM at {}'.format(time.ctime()))
+#         print('     started at {}'.format(starttime))
+#
+#     return SEMresults
 
 
 
@@ -2049,208 +2049,208 @@ def display_SEM_results(covariatesfile, SEMparametersname, SEMresultsname, perso
 
 #--------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------
-def show_Mconn_properties(covariatesfile, SEMparametersname, SEMresultsname):
-    # settings = np.load(settingsfile, allow_pickle=True).flat[0]
-    # covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
-    # covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
-
-    covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
-    if 'gender' in covariatesdata['GRPcharacteristicslist']:
-        x = covariatesdata['GRPcharacteristicslist'].index('gender')
-        covariates1 = covariatesdata['GRPcharacteristicsvalues'][x]
-    else:
-        covariates1 = []
-    if 'painrating' in covariatesdata['GRPcharacteristicslist']:
-        x = covariatesdata['GRPcharacteristicslist'].index('painrating')
-        covariates2 = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
-    else:
-        covariates2 = []
-
-    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
-    network = SEMparams['network']
-    beta_list = SEMparams['beta_list']
-    betanamelist = SEMparams['betanamelist']
-    nruns_per_person = SEMparams['nruns_per_person']
-    rnamelist = SEMparams['rnamelist']
-    fintrinsic_count = SEMparams['fintrinsic_count']
-    vintrinsic_count = SEMparams['vintrinsic_count']
-    nclusterlist = SEMparams['nclusterlist']
-    tplist_full = SEMparams['tplist_full']
-    tcdata_centered = SEMparams['tcdata_centered']
-    Nintrinsic = fintrinsic_count + vintrinsic_count
-    # end of reloading parameters-------------------------------------------------------
-
-    # load the SEM results
-    SEMresults_load = np.load(SEMresultsname, allow_pickle=True)
-
-    # for nperson in range(NP)
-    NP = len(SEMresults_load)
-    resultscheck = np.zeros((NP, 4))
-    nbeta, tsize_full = np.shape(SEMresults_load[0]['Sconn'])
-    ncon = nbeta - Nintrinsic
-
-    Mrecord = np.zeros((nbeta, nbeta, NP))
-    R2totalrecord = np.zeros(NP)
-    for nperson in range(NP):
-        Sinput = SEMresults_load[nperson]['Sinput']
-        Sconn = SEMresults_load[nperson]['Sconn']
-        Minput = SEMresults_load[nperson]['Minput']
-        Mconn = SEMresults_load[nperson]['Mconn']
-        R2total = SEMresults_load[nperson]['R2total']
-        fintrinsic1 = SEMresults_load[nperson]['fintrinsic1']
-        Mrecord[:, :, nperson] = Mconn
-        R2totalrecord[nperson] = R2total
-
-    Mrecord_mean = np.mean(Mrecord, axis=2)
-    Mrecord_sem = np.std(Mrecord, axis=2) / np.sqrt(NP)
-    M_T = np.mean(Mrecord, axis=2) / (Mrecord_sem + 1e-20)
-    M_T[np.abs(M_T) > 1e10] = 0
-
-    mpos = np.zeros((nbeta, nbeta, NP))
-    mneg = np.zeros((nbeta, nbeta, NP))
-    mpos[Mrecord > 0] = 1
-    mneg[Mrecord < 0] = 1
-    mpos = np.sum(mpos, axis=2)
-    mneg = np.sum(mneg, axis=2)
-    Mcount = mpos - mneg
-    x = np.argmax(np.abs(Mcount[:ncon, :ncon]))
-    aa, bb = np.unravel_index(x, np.shape(Mcount[:ncon, :ncon]))
-
-    # separate by sex
-    g1 = np.where(covariates1 == 'Female')[0]
-    g2 = np.where(covariates1 == 'Male')[0]
-
-    M1 = Mrecord[:, :, g1]
-    M2 = Mrecord[:, :, g2]
-    Tsexdiff = np.zeros((nbeta, nbeta))
-    psexdiff = np.zeros((nbeta, nbeta))
-    for aa in range(ncon):
-        for bb in range(ncon):
-            a = M1[aa, bb, :]
-            b = M2[aa, bb, :]
-            if (np.var(a) > 0) & (np.var(b) > 0):
-                t, p = stats.ttest_ind(a, b, equal_var=False)
-                Tsexdiff[aa, bb] = t
-                psexdiff[aa, bb] = p
-
-    aa, bb = np.where(np.abs(Tsexdiff) > 2.0)
-    for xx in range(len(aa)):
-        c1 = betanamelist[aa[xx]]
-        c2 = betanamelist[bb[xx]]
-        conn1 = beta_list[aa[xx]]['pair']
-        conn2 = beta_list[bb[xx]]['pair']
-        T = Tsexdiff[aa[xx], bb[xx]]
-        print('difference in {}-{} effect on {}-{}   T = {:.2f}'.format(rnamelist[conn2[0]], rnamelist[conn2[1]],
-                                                                        rnamelist[conn1[0]], rnamelist[conn1[1]],
-                                                                        T))
-    Rrecord = np.zeros((nbeta, nbeta))
-    R2record = np.zeros((nbeta, nbeta))
-    for aa in range(ncon):
-        for bb in range(ncon):
-            m = Mrecord[aa, bb, :]
-            if np.var(m) > 0:
-                R = np.corrcoef(covariates2[g1], m[g1])
-                Rrecord[aa, bb] = R[0, 1]
-                G = np.concatenate((covariates2[np.newaxis, g1], np.ones((1,len(g1)))), axis = 0)
-                b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis, g1], G)
-                R2record[aa, bb] = R2
-
-    x = np.argsort(-np.abs(Rrecord.flatten()))
-    number = 0
-    aa, bb = np.unravel_index(x[number], np.shape(Rrecord))
-    # aa,bb = (6,7)
-    m = Mrecord[aa, bb, :]
-    plt.close(35)
-    fig = plt.figure(35), plt.plot(covariates2, m, 'ob')
-    G = np.concatenate((covariates2[np.newaxis, :], np.ones((1,NP))), axis = 0)
-    b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis, :], G)
-    plt.plot(covariates2, fit[0, :], '-b')
-
-    plt.close(36)
-    fig = plt.figure(36), plt.plot(covariates2[g1], m[g1], 'or')
-    G = np.concatenate((covariates2[np.newaxis, g1], np.ones((1,len(g1)))), axis = 0)
-    bf, fitf, R2f, total_var, res_var = pysem.general_glm(m[np.newaxis, g1], G)
-    plt.plot(covariates2[g1], fitf[0, :], '-r')
-
-    plt.plot(covariates2[g2], m[g2], 'ob')
-    G = np.concatenate((covariates2[np.newaxis, g2], np.ones((1,len(g2)))), axis = 0)
-    bm, fitm, R2m, total_var, res_var = pysem.general_glm(m[np.newaxis, g2], G)
-    plt.plot(covariates2[g2], fitm[0, :], '-b')
-
-    columns = [name + ' in' for name in betanamelist]
-    rows = [name for name in betanamelist]
-    pd.set_option('display.max_rows', None)
-    pd.set_option('display.max_columns', None)
-    pd.set_option('display.width', None)
-    pd.set_option('display.max_colwidth', None)
-    pd.options.display.float_format = '{:.2f}'.format
-
-    # write out Mrecord_mean, Mrecord_sem, M_T, Tsexdiff, R2record
-    # text_mean = write_Mconn_values(Mrecord_mean, Mrecord_sem, betanamelist, rnamelist, beta_list)
-
-    labeltext, valuetext, Ttext = write_Mconn_values2(Mrecord_mean, Mrecord_sem, NP, betanamelist, rnamelist, beta_list, format='f', pthresh=0.05)
-
-    text_T = write_Mconn_values(M_T, [], betanamelist, rnamelist, beta_list)
-    text_SD = write_Mconn_values(Tsexdiff, [], betanamelist, rnamelist, beta_list)
-    text_R2pain = write_Mconn_values(R2record, [], betanamelist, rnamelist, beta_list)
-
-    p, f = os.path.split(SEMresultsname)
-
-    df = pd.DataFrame(Mrecord_mean, columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mrecord_mean.xlsx')
-    df.to_excel(xlname)
-
-    df = pd.DataFrame(Mrecord_sem, columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mrecord_sem.xlsx')
-    df.to_excel(xlname)
-
-    df = pd.DataFrame(M_T, columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mrecord_T.xlsx')
-    df.to_excel(xlname)
-
-    df = pd.DataFrame(Tsexdiff, columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mrecord_Tsexdiffs.xlsx')
-    df.to_excel(xlname)
-
-    df = pd.DataFrame(R2record, columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mrecord_R2pain.xlsx')
-    df.to_excel(xlname)
-
-    # ANCOVA group vs pain rating
-    statstype = 'ANCOVA'
-    formula_key1 = 'C(Group)'
-    formula_key2 = 'pain'
-    formula_key3 = 'C(Group):' + 'pain'
-    atype = 2
-
-    cov1 = covariates2[g1]
-    cov2 = covariates2[g2]
-    ancova_p = np.ones((nbeta,nbeta,3))
-    for aa in range(ncon):
-        for bb in range(ncon):
-            m = Mrecord[aa, bb, :]
-            if np.var(m) > 0:
-                b1 = m[g1]
-                b2 = m[g2]
-                anova_table, p_MeoG, p_MeoC, p_intGC = py2ndlevelanalysis.run_ANOVA_or_ANCOVA2(b1, b2, cov1, cov2, 'pain', formula_key1,
-                                                                            formula_key2, formula_key3, atype)
-                ancova_p[aa,bb, :] = np.array([p_MeoG, p_MeoC, p_intGC])
-
-
-    pd.options.display.float_format = '{:.2e}'.format
-    df = pd.DataFrame(ancova_p[:,:,0], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mancova_MeoG.xlsx')
-    df.to_excel(xlname)
-    df = pd.DataFrame(ancova_p[:,:,1], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mancova_MeoP.xlsx')
-    df.to_excel(xlname)
-    df = pd.DataFrame(ancova_p[:,:,2], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mancova_IntGP.xlsx')
-    df.to_excel(xlname)
-
-    text_MeoG = write_Mconn_values(ancova_p[:,:,0], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-    text_MeoP = write_Mconn_values(ancova_p[:,:,1], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-    text_IntGP = write_Mconn_values(ancova_p[:,:,2], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
+# def show_Mconn_properties(covariatesfile, SEMparametersname, SEMresultsname):
+#     # settings = np.load(settingsfile, allow_pickle=True).flat[0]
+#     # covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
+#     # covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
+#
+#     covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
+#     if 'gender' in covariatesdata['GRPcharacteristicslist']:
+#         x = covariatesdata['GRPcharacteristicslist'].index('gender')
+#         covariates1 = covariatesdata['GRPcharacteristicsvalues'][x]
+#     else:
+#         covariates1 = []
+#     if 'painrating' in covariatesdata['GRPcharacteristicslist']:
+#         x = covariatesdata['GRPcharacteristicslist'].index('painrating')
+#         covariates2 = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
+#     else:
+#         covariates2 = []
+#
+#     SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+#     network = SEMparams['network']
+#     beta_list = SEMparams['beta_list']
+#     betanamelist = SEMparams['betanamelist']
+#     nruns_per_person = SEMparams['nruns_per_person']
+#     rnamelist = SEMparams['rnamelist']
+#     fintrinsic_count = SEMparams['fintrinsic_count']
+#     vintrinsic_count = SEMparams['vintrinsic_count']
+#     nclusterlist = SEMparams['nclusterlist']
+#     tplist_full = SEMparams['tplist_full']
+#     tcdata_centered = SEMparams['tcdata_centered']
+#     Nintrinsic = fintrinsic_count + vintrinsic_count
+#     # end of reloading parameters-------------------------------------------------------
+#
+#     # load the SEM results
+#     SEMresults_load = np.load(SEMresultsname, allow_pickle=True)
+#
+#     # for nperson in range(NP)
+#     NP = len(SEMresults_load)
+#     resultscheck = np.zeros((NP, 4))
+#     nbeta, tsize_full = np.shape(SEMresults_load[0]['Sconn'])
+#     ncon = nbeta - Nintrinsic
+#
+#     Mrecord = np.zeros((nbeta, nbeta, NP))
+#     R2totalrecord = np.zeros(NP)
+#     for nperson in range(NP):
+#         Sinput = SEMresults_load[nperson]['Sinput']
+#         Sconn = SEMresults_load[nperson]['Sconn']
+#         Minput = SEMresults_load[nperson]['Minput']
+#         Mconn = SEMresults_load[nperson]['Mconn']
+#         R2total = SEMresults_load[nperson]['R2total']
+#         fintrinsic1 = SEMresults_load[nperson]['fintrinsic1']
+#         Mrecord[:, :, nperson] = Mconn
+#         R2totalrecord[nperson] = R2total
+#
+#     Mrecord_mean = np.mean(Mrecord, axis=2)
+#     Mrecord_sem = np.std(Mrecord, axis=2) / np.sqrt(NP)
+#     M_T = np.mean(Mrecord, axis=2) / (Mrecord_sem + 1e-20)
+#     M_T[np.abs(M_T) > 1e10] = 0
+#
+#     mpos = np.zeros((nbeta, nbeta, NP))
+#     mneg = np.zeros((nbeta, nbeta, NP))
+#     mpos[Mrecord > 0] = 1
+#     mneg[Mrecord < 0] = 1
+#     mpos = np.sum(mpos, axis=2)
+#     mneg = np.sum(mneg, axis=2)
+#     Mcount = mpos - mneg
+#     x = np.argmax(np.abs(Mcount[:ncon, :ncon]))
+#     aa, bb = np.unravel_index(x, np.shape(Mcount[:ncon, :ncon]))
+#
+#     # separate by sex
+#     g1 = np.where(covariates1 == 'Female')[0]
+#     g2 = np.where(covariates1 == 'Male')[0]
+#
+#     M1 = Mrecord[:, :, g1]
+#     M2 = Mrecord[:, :, g2]
+#     Tsexdiff = np.zeros((nbeta, nbeta))
+#     psexdiff = np.zeros((nbeta, nbeta))
+#     for aa in range(ncon):
+#         for bb in range(ncon):
+#             a = M1[aa, bb, :]
+#             b = M2[aa, bb, :]
+#             if (np.var(a) > 0) & (np.var(b) > 0):
+#                 t, p = stats.ttest_ind(a, b, equal_var=False)
+#                 Tsexdiff[aa, bb] = t
+#                 psexdiff[aa, bb] = p
+#
+#     aa, bb = np.where(np.abs(Tsexdiff) > 2.0)
+#     for xx in range(len(aa)):
+#         c1 = betanamelist[aa[xx]]
+#         c2 = betanamelist[bb[xx]]
+#         conn1 = beta_list[aa[xx]]['pair']
+#         conn2 = beta_list[bb[xx]]['pair']
+#         T = Tsexdiff[aa[xx], bb[xx]]
+#         print('difference in {}-{} effect on {}-{}   T = {:.2f}'.format(rnamelist[conn2[0]], rnamelist[conn2[1]],
+#                                                                         rnamelist[conn1[0]], rnamelist[conn1[1]],
+#                                                                         T))
+#     Rrecord = np.zeros((nbeta, nbeta))
+#     R2record = np.zeros((nbeta, nbeta))
+#     for aa in range(ncon):
+#         for bb in range(ncon):
+#             m = Mrecord[aa, bb, :]
+#             if np.var(m) > 0:
+#                 R = np.corrcoef(covariates2[g1], m[g1])
+#                 Rrecord[aa, bb] = R[0, 1]
+#                 G = np.concatenate((covariates2[np.newaxis, g1], np.ones((1,len(g1)))), axis = 0)
+#                 b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis, g1], G)
+#                 R2record[aa, bb] = R2
+#
+#     x = np.argsort(-np.abs(Rrecord.flatten()))
+#     number = 0
+#     aa, bb = np.unravel_index(x[number], np.shape(Rrecord))
+#     # aa,bb = (6,7)
+#     m = Mrecord[aa, bb, :]
+#     plt.close(35)
+#     fig = plt.figure(35), plt.plot(covariates2, m, 'ob')
+#     G = np.concatenate((covariates2[np.newaxis, :], np.ones((1,NP))), axis = 0)
+#     b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis, :], G)
+#     plt.plot(covariates2, fit[0, :], '-b')
+#
+#     plt.close(36)
+#     fig = plt.figure(36), plt.plot(covariates2[g1], m[g1], 'or')
+#     G = np.concatenate((covariates2[np.newaxis, g1], np.ones((1,len(g1)))), axis = 0)
+#     bf, fitf, R2f, total_var, res_var = pysem.general_glm(m[np.newaxis, g1], G)
+#     plt.plot(covariates2[g1], fitf[0, :], '-r')
+#
+#     plt.plot(covariates2[g2], m[g2], 'ob')
+#     G = np.concatenate((covariates2[np.newaxis, g2], np.ones((1,len(g2)))), axis = 0)
+#     bm, fitm, R2m, total_var, res_var = pysem.general_glm(m[np.newaxis, g2], G)
+#     plt.plot(covariates2[g2], fitm[0, :], '-b')
+#
+#     columns = [name + ' in' for name in betanamelist]
+#     rows = [name for name in betanamelist]
+#     pd.set_option('display.max_rows', None)
+#     pd.set_option('display.max_columns', None)
+#     pd.set_option('display.width', None)
+#     pd.set_option('display.max_colwidth', None)
+#     pd.options.display.float_format = '{:.2f}'.format
+#
+#     # write out Mrecord_mean, Mrecord_sem, M_T, Tsexdiff, R2record
+#     # text_mean = write_Mconn_values(Mrecord_mean, Mrecord_sem, betanamelist, rnamelist, beta_list)
+#
+#     labeltext, valuetext, Ttext = write_Mconn_values2(Mrecord_mean, Mrecord_sem, NP, betanamelist, rnamelist, beta_list, format='f', pthresh=0.05)
+#
+#     text_T = write_Mconn_values(M_T, [], betanamelist, rnamelist, beta_list)
+#     text_SD = write_Mconn_values(Tsexdiff, [], betanamelist, rnamelist, beta_list)
+#     text_R2pain = write_Mconn_values(R2record, [], betanamelist, rnamelist, beta_list)
+#
+#     p, f = os.path.split(SEMresultsname)
+#
+#     df = pd.DataFrame(Mrecord_mean, columns=columns, index=rows)
+#     xlname = os.path.join(p, 'Mrecord_mean.xlsx')
+#     df.to_excel(xlname)
+#
+#     df = pd.DataFrame(Mrecord_sem, columns=columns, index=rows)
+#     xlname = os.path.join(p, 'Mrecord_sem.xlsx')
+#     df.to_excel(xlname)
+#
+#     df = pd.DataFrame(M_T, columns=columns, index=rows)
+#     xlname = os.path.join(p, 'Mrecord_T.xlsx')
+#     df.to_excel(xlname)
+#
+#     df = pd.DataFrame(Tsexdiff, columns=columns, index=rows)
+#     xlname = os.path.join(p, 'Mrecord_Tsexdiffs.xlsx')
+#     df.to_excel(xlname)
+#
+#     df = pd.DataFrame(R2record, columns=columns, index=rows)
+#     xlname = os.path.join(p, 'Mrecord_R2pain.xlsx')
+#     df.to_excel(xlname)
+#
+#     # ANCOVA group vs pain rating
+#     statstype = 'ANCOVA'
+#     formula_key1 = 'C(Group)'
+#     formula_key2 = 'pain'
+#     formula_key3 = 'C(Group):' + 'pain'
+#     atype = 2
+#
+#     cov1 = covariates2[g1]
+#     cov2 = covariates2[g2]
+#     ancova_p = np.ones((nbeta,nbeta,3))
+#     for aa in range(ncon):
+#         for bb in range(ncon):
+#             m = Mrecord[aa, bb, :]
+#             if np.var(m) > 0:
+#                 b1 = m[g1]
+#                 b2 = m[g2]
+#                 anova_table, p_MeoG, p_MeoC, p_intGC = py2ndlevelanalysis.run_ANOVA_or_ANCOVA2(b1, b2, cov1, cov2, 'pain', formula_key1,
+#                                                                             formula_key2, formula_key3, atype)
+#                 ancova_p[aa,bb, :] = np.array([p_MeoG, p_MeoC, p_intGC])
+#
+#
+#     pd.options.display.float_format = '{:.2e}'.format
+#     df = pd.DataFrame(ancova_p[:,:,0], columns=columns, index=rows)
+#     xlname = os.path.join(p, 'Mancova_MeoG.xlsx')
+#     df.to_excel(xlname)
+#     df = pd.DataFrame(ancova_p[:,:,1], columns=columns, index=rows)
+#     xlname = os.path.join(p, 'Mancova_MeoP.xlsx')
+#     df.to_excel(xlname)
+#     df = pd.DataFrame(ancova_p[:,:,2], columns=columns, index=rows)
+#     xlname = os.path.join(p, 'Mancova_IntGP.xlsx')
+#     df.to_excel(xlname)
+#
+#     text_MeoG = write_Mconn_values(ancova_p[:,:,0], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
+#     text_MeoP = write_Mconn_values(ancova_p[:,:,1], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
+#     text_IntGP = write_Mconn_values(ancova_p[:,:,2], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
 
 
 
@@ -2709,683 +2709,683 @@ def show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsnam
 
 
 
-def show_SAPM_timecourses_covariates(discrete_covariate, continuous_covariate, SEMparametersname, SEMresultsname, paradigm_centered, regionlists_for_display, inputs_to_display, group='all', windowoffset = 0, yrange = [], yrange2 = []):
-    covariates1 = discrete_covariate
-    covariates2 = continuous_covariate
-
-    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
-    network = SEMparams['network']
-    beta_list = SEMparams['beta_list']
-    betanamelist = SEMparams['betanamelist']
-    nruns_per_person = SEMparams['nruns_per_person']
-    rnamelist = SEMparams['rnamelist']
-    fintrinsic_count = SEMparams['fintrinsic_count']
-    fintrinsic_region = SEMparams['fintrinsic_region']
-    vintrinsic_count = SEMparams['vintrinsic_count']
-    nclusterlist = SEMparams['nclusterlist']
-    tplist_full = SEMparams['tplist_full']
-    tcdata_centered = SEMparams['tcdata_centered']
-    ctarget = SEMparams['ctarget']
-    csource = SEMparams['csource']
-    tsize = SEMparams['tsize']
-    timepoint = SEMparams['timepoint']
-    epoch = SEMparams['epoch']
-    Nintrinsic = fintrinsic_count + vintrinsic_count
-    # end of reloading parameters-------------------------------------------------------
-
-    # load the SEM results
-    SEMresults_load = np.load(SEMresultsname, allow_pickle=True)
-
-    # for nperson in range(NP)
-    NP = len(SEMresults_load)
-    resultscheck = np.zeros((NP, 4))
-    nbeta, tsize_full = np.shape(SEMresults_load[0]['Sconn'])
-    ncon = nbeta - Nintrinsic
-
-    if epoch >= tsize:
-        et1 = 0
-        et2 = tsize
-    else:
-        et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
-        et2 = (timepoint + np.floor(epoch / 2)).astype(int)
-    ftemp = paradigm_centered[et1:et2]
-
-    Mrecord = np.zeros((nbeta, nbeta, NP))
-    R2totalrecord = np.zeros(NP)
-    for nperson in range(NP):
-        Sinput = SEMresults_load[nperson]['Sinput']
-        Sconn = SEMresults_load[nperson]['Sconn']
-        Minput = SEMresults_load[nperson]['Minput']
-        Mconn = SEMresults_load[nperson]['Mconn']
-        beta_int1 = SEMresults_load[nperson]['beta_int1']
-        R2total = SEMresults_load[nperson]['R2total']
-        Meigv = SEMresults_load[nperson]['Meigv']
-        betavals = SEMresults_load[nperson]['betavals']
-        # fintrinsic1 = SEMresults_load[nperson]['fintrinsic1']
-
-        nruns = nruns_per_person[nperson]
-        fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
-
-        # ---------------------------------------------------
-        fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
-                                                                 vintrinsic_count, beta_int1, fintrinsic1)
-
-        nr, tsize_total = np.shape(Sinput)
-        tsize = (tsize_total / nruns).astype(int)
-        nbeta,tsize2 = np.shape(Sconn)
-
-        if nperson == 0:
-            Sinput_total = np.zeros((nr,tsize, NP))
-            Sconn_total = np.zeros((nbeta,tsize, NP))
-            fit_total = np.zeros((nr,tsize, NP))
-
-        tc = Sinput
-        tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
-        Sinput_total[:,:,nperson] = tc1
-
-        tc = Sconn
-        tc1 = np.mean(np.reshape(tc, (nbeta, nruns, tsize)), axis=1)
-        Sconn_total[:,:,nperson] = tc1
-
-        tc = fit
-        tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
-        fit_total[:,:,nperson] = tc1
-
-        Mrecord[:, :, nperson] = Mconn
-        R2totalrecord[nperson] = R2total
-
-
-
-    # ancova sex x pain rating---------------------------------------
-    # ANCOVA group vs pain rating
-    statstype = 'ANCOVA'
-    formula_key1 = 'C(COV1)'
-    formula_key2 = 'COV2'
-    formula_key3 = 'C(COV1):' + 'COV2'
-    atype = 2
-
-    c1groups = np.unique(covariates1)
-    # separate by category
-    g1 = np.where(covariates1 == c1groups[0])[0]
-    g2 = np.where(covariates1 == c1groups[1])[0]
-
-    cov1 = covariates2[g1]
-    cov2 = covariates2[g2]
-    ancova_p = np.ones((nbeta,nbeta,3))
-    ttest_p = np.ones((nbeta,nbeta,2))
-    for aa in range(ncon):
-        for bb in range(ncon):
-            m = Mrecord[aa, bb, :]
-            if np.var(m) > 0:
-                b1 = m[g1]
-                b2 = m[g2]
-                anova_table, p_MeoG, p_MeoC, p_intGC = py2ndlevelanalysis.run_ANOVA_or_ANCOVA2(b1, b2, cov1, cov2, 'pain', formula_key1,
-                                                                            formula_key2, formula_key3, atype)
-                ancova_p[aa,bb, :] = np.array([p_MeoG, p_MeoC, p_intGC])
-
-                if (np.var(b1) > 0) & (np.var(b2) > 0):
-                    t, p = stats.ttest_ind(b1, b2, equal_var=False)
-                    ttest_p[aa,bb,:] = np.array([p,t])
-
-    columns = [name[:3] + ' in' for name in betanamelist]
-    rows = [name[:3] for name in betanamelist]
-
-    p, f = os.path.split(SEMresultsname)
-    pd.options.display.float_format = '{:.2e}'.format
-    df = pd.DataFrame(ancova_p[:,:,0], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mancova_MeoG.xlsx')
-    df.to_excel(xlname)
-    df = pd.DataFrame(ancova_p[:,:,1], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mancova_MeoP.xlsx')
-    df.to_excel(xlname)
-    df = pd.DataFrame(ancova_p[:,:,2], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mancova_IntGP.xlsx')
-    df.to_excel(xlname)
-    df = pd.DataFrame(ttest_p[:,:,0], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Ttest_groupdiffs.xlsx')
-    df.to_excel(xlname)
-
-
-    print('\nMain effect of COV1:')
-    text_MeoG = write_Mconn_values(ancova_p[:,:,0], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-    print('\nMain effect of COV2:')
-    text_MeoP = write_Mconn_values(ancova_p[:,:,1], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-    print('\nInteraction COV1 x COV2:')
-    text_IntGP = write_Mconn_values(ancova_p[:,:,2], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-    print('\n\n')
-
-    print('\nT-test group differences:')
-    text_T = write_Mconn_values(ttest_p[:,:,0], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
-    print('\n\n')
-
-
-    # compare groups with T-tests
-
-    # set the group
-    g = list(range(NP))
-    gtag = '_'+group
-
-    if group.lower() == c1groups[1]:
-        g = g2
-        gtag = '_' + c1groups[1]
-
-    if group.lower() == c1groups[0]:
-        g = g1
-        gtag = '_' + c1groups[0]
-
-    Sinput_avg = np.mean(Sinput_total[:,:,g], axis = 2)
-    Sinput_sem = np.std(Sinput_total[:,:,g], axis = 2)/np.sqrt(len(g))
-    Sconn_avg = np.mean(Sconn_total[:,:,g], axis = 2)
-    Sconn_sem = np.std(Sconn_total[:,:,g], axis = 2)/np.sqrt(len(g))
-    fit_avg = np.mean(fit_total[:,:,g], axis = 2)
-    fit_sem = np.std(fit_total[:,:,g], axis = 2)/np.sqrt(len(g))
-
-    # regression based on COV2 (separate by group?)
-    p = covariates2[np.newaxis, g]
-    p -= np.mean(p)
-    pmax = np.max(np.abs(p))
-    p /= pmax
-    G = np.concatenate((np.ones((1, len(g))),p), axis=0) # put the intercept term first
-    Sinput_reg = np.zeros((nr,tsize,4))
-    fit_reg = np.zeros((nr,tsize,4))
-    Sconn_reg = np.zeros((nbeta,tsize,4))
-    # Sinput_R2 = np.zeros((nr,tsize,2))
-    # fit_R2 = np.zeros((nr,tsize,2))
-    # Sconn_R2 = np.zeros((nbeta,tsize,2))
-    for tt in range(tsize):
-        for nn in range(nr):
-            m = Sinput_total[nn,tt,g]
-            b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-            Sinput_reg[nn,tt,:2] = b
-            Sinput_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
-
-            m = fit_total[nn,tt,g]
-            b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-            fit_reg[nn,tt,:2] = b
-            fit_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
-
-        for nn in range(nbeta):
-            m = Sconn_total[nn,tt,g]
-            b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
-            Sconn_reg[nn,tt,:2] = b
-            Sconn_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
-
-    # need to save Sinput_reg, Sinput_R2, etc., somewhere for later use....
-
-    # regression of Mrecord with pain ratings
-    # glm_fit
-    Mregression = np.zeros((nbeta,nbeta,3))
-    # Mregression1 = np.zeros((nbeta,nbeta,3))
-    # Mregression2 = np.zeros((nbeta,nbeta,3))
-    p = covariates2[np.newaxis, g]
-    p -= np.mean(p)
-    pmax = np.max(np.abs(p))
-    p /= pmax
-    G = np.concatenate((np.ones((1, len(g))), p), axis=0)  # put the intercept term first
-    for aa in range(nbeta):
-        for bb in range(nbeta):
-            m = Mrecord[aa,bb,g]
-            if np.var(m) > 0:
-                b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis,:], G)
-                Mregression[aa,bb,:] = [b[0,0],b[0,1],R2]
-
-    print('\n\nMconn regression with COV2')
-    # rtext = write_Mconn_values(Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', minthresh=0.0001, maxthresh=0.0)
-    labeltext, valuetext, Rtext = write_Mreg_values(Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', Rthresh=0.1)
-
-    # average Mconn values
-    Mconn_avg = np.mean(Mrecord[:,:,g],axis = 2)
-    Mconn_sem = np.std(Mrecord[:,:,g],axis = 2)/np.sqrt(len(g))
-    # rtext = write_Mconn_values(Mconn_avg, Mconn_sem, betanamelist, rnamelist, beta_list,
-    #                            format='f', minthresh=0.0001, maxthresh=0.0)
-
-
-    pthresh = 0.05
-    Tthresh = stats.t.ppf(1 - pthresh, NP - 1)
-
-    print('\n\nAverage Mconn values')
-    labeltext, valuetext, Ttext = write_Mconn_values2(Mconn_avg, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format='f', pthresh=0.05)
-
-    Rtextlist = [' ']*10
-    Rvallist = [0]*10
-
-    # plot timecourses for selected regions
-    n_to_display = len(regionlists_for_display)
-    Nplots = np.ceil(n_to_display/3).astype(int)
-    RL = np.concatenate((regionlists_for_display,regionlists_for_display))
-
-    for np in range(Nplots):
-        outputdir, f = os.path.split(SEMresultsname)
-        # only show 3 regions in each plot for consistency in sizing
-        # show some regions
-        window1 = windowoffset + np
-        regionlist = RL[np*3:(np+1)*3]
-        nametag = rnamelist[regionlist[0]] + '_' + rnamelist[regionlist[1]]  + '_' + rnamelist[regionlist[2]]
-        nametag += gtag
-        svgname, Rtext, Rvals = plot_region_fits(window1, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange)
-        for n,x in enumerate(regionlist):
-            print('Rtext = {}  Rvals = {}'.format(Rtext[n],Rvals[n]))
-            Rtextlist[x] = Rtext[n]
-            Rvallist[x] = Rvals[n]
-
-    # plot inputs to selected regions
-    n_to_display = len(inputs_to_display)
-    for np in range(n_to_display):
-        window1 = windowoffset + np + 50
-        target = inputs_to_display[np]
-        nametag1 = target + 'input' + gtag
-
-        if len(yrange2) > 0:
-            ylim = yrange2[0]
-            yrangethis = [-ylim,ylim]
-        else:
-            yrangethis = []
-        plot_region_inputs_regression(window1, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-        plot_region_inputs_average(window1+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                                   Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    return Rtextlist, Rvallist
-
-
-def show_SAPM_timecourses(SEMparametersname, SEMresultsname, paradigm_centered, regionlists_for_display, inputs_to_display, windowoffset = 0, yrange = [], yrange2 = []):
-    import numpy as np
-
-    print('testing  sqrt of 5 is {}'.format(np.sqrt(5)))
-
-    # show the results
-    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
-    network = SEMparams['network']
-    beta_list = SEMparams['beta_list']
-    betanamelist = SEMparams['betanamelist']
-    nruns_per_person = SEMparams['nruns_per_person']
-    rnamelist = SEMparams['rnamelist']
-    fintrinsic_count = SEMparams['fintrinsic_count']
-    fintrinsic_region = SEMparams['fintrinsic_region']
-    vintrinsic_count = SEMparams['vintrinsic_count']
-    nclusterlist = SEMparams['nclusterlist']
-    tplist_full = SEMparams['tplist_full']
-    tcdata_centered = SEMparams['tcdata_centered']
-    ctarget = SEMparams['ctarget']
-    csource = SEMparams['csource']
-    tsize = SEMparams['tsize']
-    timepoint = SEMparams['timepoint']
-    epoch = SEMparams['epoch']
-    Nintrinsic = fintrinsic_count + vintrinsic_count
-    # end of reloading parameters-------------------------------------------------------
-
-    # load the SEM results
-    SEMresults_load = np.load(SEMresultsname, allow_pickle=True)
-
-    # for nperson in range(NP)
-    NP = len(SEMresults_load)
-    resultscheck = np.zeros((NP, 4))
-    nbeta, tsize_full = np.shape(SEMresults_load[0]['Sconn'])
-    ncon = nbeta - Nintrinsic
-
-    if epoch >= tsize:
-        et1 = 0
-        et2 = tsize
-    else:
-        et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
-        et2 = (timepoint + np.floor(epoch / 2)).astype(int)
-    ftemp = paradigm_centered[et1:et2]
-
-    Mrecord = np.zeros((nbeta, nbeta, NP))
-    R2totalrecord = np.zeros(NP)
-    for nperson in range(NP):
-        Sinput = SEMresults_load[nperson]['Sinput']
-        Sconn = SEMresults_load[nperson]['Sconn']
-        Minput = SEMresults_load[nperson]['Minput']
-        Mconn = SEMresults_load[nperson]['Mconn']
-        beta_int1 = SEMresults_load[nperson]['beta_int1']
-        R2total = SEMresults_load[nperson]['R2total']
-        Meigv = SEMresults_load[nperson]['Meigv']
-        betavals = SEMresults_load[nperson]['betavals']
-        # fintrinsic1 = SEMresults_load[nperson]['fintrinsic1']
-
-        nruns = nruns_per_person[nperson]
-        fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
-
-        # ---------------------------------------------------
-        fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
-                                                                 vintrinsic_count, beta_int1, fintrinsic1)
-
-        nr, tsize_total = np.shape(Sinput)
-        tsize = (tsize_total / nruns).astype(int)
-        nbeta,tsize2 = np.shape(Sconn)
-
-        if nperson == 0:
-            Sinput_total = np.zeros((nr,tsize, NP))
-            Sconn_total = np.zeros((nbeta,tsize, NP))
-            fit_total = np.zeros((nr,tsize, NP))
-
-        tc = Sinput
-        tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
-        Sinput_total[:,:,nperson] = tc1
-
-        tc = Sconn
-        tc1 = np.mean(np.reshape(tc, (nbeta, nruns, tsize)), axis=1)
-        Sconn_total[:,:,nperson] = tc1
-
-        tc = fit
-        tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
-        fit_total[:,:,nperson] = tc1
-
-        Mrecord[:, :, nperson] = Mconn
-        R2totalrecord[nperson] = R2total
-
-    Sinput_avg = np.mean(Sinput_total,axis=2)
-    Sinput_sem = np.std(Sinput_total,axis=2)/np.sqrt(NP)
-
-    Sconn_avg = np.mean(Sconn_total,axis=2)
-    Sconn_sem = np.std(Sconn_total,axis=2)/np.sqrt(NP)
-
-    fit_avg = np.mean(fit_total,axis=2)
-    fit_sem = np.std(fit_total,axis=2)/np.sqrt(NP)
-
-    Mconn_avg = np.mean(Mrecord,axis=2)
-    Mconn_sem = np.std(Mrecord,axis=2)/np.sqrt(NP)
-
-    pthresh = 0.05
-    Tthresh = stats.t.ppf(1 - pthresh, NP - 1)
-
-    print('\n\nAverage Mconn values')
-    labeltext, valuetext, Ttext = write_Mconn_values2(Mconn_avg, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format='f', pthresh=0.05)
-
-    Rtextlist = [' ']*len(rnamelist)
-    Rvallist = [0]*len(rnamelist)
-
-    # plot timecourses for selected regions
-    n_to_display = len(regionlists_for_display)
-    Nplots = np.ceil(n_to_display/3).astype(int)
-    RL = np.concatenate((regionlists_for_display,regionlists_for_display))
-
-    for np in range(Nplots):
-        outputdir, f = os.path.split(SEMresultsname)
-        # only show 3 regions in each plot for consistency in sizing
-        # show some regions
-        window1 = windowoffset + np
-        regionlist = RL[np*3:(np+1)*3]
-        nametag = rnamelist[regionlist[0]] + '_' + rnamelist[regionlist[1]]  + '_' + rnamelist[regionlist[2]]
-        svgname, Rtext, Rvals = plot_region_fits(window1, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange)
-        for n,x in enumerate(regionlist):
-            print('Rtext = {}  Rvals = {}'.format(Rtext[n],Rvals[n]))
-            Rtextlist[x] = Rtext[n]
-            Rvallist[x] = Rvals[n]
-
-    # plot inputs to selected regions
-    n_to_display = len(inputs_to_display)
-    for np in range(n_to_display):
-        window1 = windowoffset + np + 50
-        target = inputs_to_display[np]
-        nametag1 = rnamelist[target] + 'input'
-
-        if len(yrange2) > 0:
-            ylim = yrange2[0]
-            yrangethis = [-ylim,ylim]
-        else:
-            yrangethis = []
-
-        plot_region_inputs_average(window1, rnamelist[target],nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
-                                   Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
-
-    return Rtextlist, Rvallist
-
+# def show_SAPM_timecourses_covariates(discrete_covariate, continuous_covariate, SEMparametersname, SEMresultsname, paradigm_centered, regionlists_for_display, inputs_to_display, group='all', windowoffset = 0, yrange = [], yrange2 = []):
+#     covariates1 = discrete_covariate
+#     covariates2 = continuous_covariate
+#
+#     SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+#     network = SEMparams['network']
+#     beta_list = SEMparams['beta_list']
+#     betanamelist = SEMparams['betanamelist']
+#     nruns_per_person = SEMparams['nruns_per_person']
+#     rnamelist = SEMparams['rnamelist']
+#     fintrinsic_count = SEMparams['fintrinsic_count']
+#     fintrinsic_region = SEMparams['fintrinsic_region']
+#     vintrinsic_count = SEMparams['vintrinsic_count']
+#     nclusterlist = SEMparams['nclusterlist']
+#     tplist_full = SEMparams['tplist_full']
+#     tcdata_centered = SEMparams['tcdata_centered']
+#     ctarget = SEMparams['ctarget']
+#     csource = SEMparams['csource']
+#     tsize = SEMparams['tsize']
+#     timepoint = SEMparams['timepoint']
+#     epoch = SEMparams['epoch']
+#     Nintrinsic = fintrinsic_count + vintrinsic_count
+#     # end of reloading parameters-------------------------------------------------------
+#
+#     # load the SEM results
+#     SEMresults_load = np.load(SEMresultsname, allow_pickle=True)
+#
+#     # for nperson in range(NP)
+#     NP = len(SEMresults_load)
+#     resultscheck = np.zeros((NP, 4))
+#     nbeta, tsize_full = np.shape(SEMresults_load[0]['Sconn'])
+#     ncon = nbeta - Nintrinsic
+#
+#     if epoch >= tsize:
+#         et1 = 0
+#         et2 = tsize
+#     else:
+#         et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
+#         et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+#     ftemp = paradigm_centered[et1:et2]
+#
+#     Mrecord = np.zeros((nbeta, nbeta, NP))
+#     R2totalrecord = np.zeros(NP)
+#     for nperson in range(NP):
+#         Sinput = SEMresults_load[nperson]['Sinput']
+#         Sconn = SEMresults_load[nperson]['Sconn']
+#         Minput = SEMresults_load[nperson]['Minput']
+#         Mconn = SEMresults_load[nperson]['Mconn']
+#         beta_int1 = SEMresults_load[nperson]['beta_int1']
+#         R2total = SEMresults_load[nperson]['R2total']
+#         Meigv = SEMresults_load[nperson]['Meigv']
+#         betavals = SEMresults_load[nperson]['betavals']
+#         # fintrinsic1 = SEMresults_load[nperson]['fintrinsic1']
+#
+#         nruns = nruns_per_person[nperson]
+#         fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
+#
+#         # ---------------------------------------------------
+#         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
+#                                                                  vintrinsic_count, beta_int1, fintrinsic1)
+#
+#         nr, tsize_total = np.shape(Sinput)
+#         tsize = (tsize_total / nruns).astype(int)
+#         nbeta,tsize2 = np.shape(Sconn)
+#
+#         if nperson == 0:
+#             Sinput_total = np.zeros((nr,tsize, NP))
+#             Sconn_total = np.zeros((nbeta,tsize, NP))
+#             fit_total = np.zeros((nr,tsize, NP))
+#
+#         tc = Sinput
+#         tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
+#         Sinput_total[:,:,nperson] = tc1
+#
+#         tc = Sconn
+#         tc1 = np.mean(np.reshape(tc, (nbeta, nruns, tsize)), axis=1)
+#         Sconn_total[:,:,nperson] = tc1
+#
+#         tc = fit
+#         tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
+#         fit_total[:,:,nperson] = tc1
+#
+#         Mrecord[:, :, nperson] = Mconn
+#         R2totalrecord[nperson] = R2total
+#
+#
+#
+#     # ancova sex x pain rating---------------------------------------
+#     # ANCOVA group vs pain rating
+#     statstype = 'ANCOVA'
+#     formula_key1 = 'C(COV1)'
+#     formula_key2 = 'COV2'
+#     formula_key3 = 'C(COV1):' + 'COV2'
+#     atype = 2
+#
+#     c1groups = np.unique(covariates1)
+#     # separate by category
+#     g1 = np.where(covariates1 == c1groups[0])[0]
+#     g2 = np.where(covariates1 == c1groups[1])[0]
+#
+#     cov1 = covariates2[g1]
+#     cov2 = covariates2[g2]
+#     ancova_p = np.ones((nbeta,nbeta,3))
+#     ttest_p = np.ones((nbeta,nbeta,2))
+#     for aa in range(ncon):
+#         for bb in range(ncon):
+#             m = Mrecord[aa, bb, :]
+#             if np.var(m) > 0:
+#                 b1 = m[g1]
+#                 b2 = m[g2]
+#                 anova_table, p_MeoG, p_MeoC, p_intGC = py2ndlevelanalysis.run_ANOVA_or_ANCOVA2(b1, b2, cov1, cov2, 'pain', formula_key1,
+#                                                                             formula_key2, formula_key3, atype)
+#                 ancova_p[aa,bb, :] = np.array([p_MeoG, p_MeoC, p_intGC])
+#
+#                 if (np.var(b1) > 0) & (np.var(b2) > 0):
+#                     t, p = stats.ttest_ind(b1, b2, equal_var=False)
+#                     ttest_p[aa,bb,:] = np.array([p,t])
+#
+#     columns = [name[:3] + ' in' for name in betanamelist]
+#     rows = [name[:3] for name in betanamelist]
+#
+#     p, f = os.path.split(SEMresultsname)
+#     pd.options.display.float_format = '{:.2e}'.format
+#     df = pd.DataFrame(ancova_p[:,:,0], columns=columns, index=rows)
+#     xlname = os.path.join(p, 'Mancova_MeoG.xlsx')
+#     df.to_excel(xlname)
+#     df = pd.DataFrame(ancova_p[:,:,1], columns=columns, index=rows)
+#     xlname = os.path.join(p, 'Mancova_MeoP.xlsx')
+#     df.to_excel(xlname)
+#     df = pd.DataFrame(ancova_p[:,:,2], columns=columns, index=rows)
+#     xlname = os.path.join(p, 'Mancova_IntGP.xlsx')
+#     df.to_excel(xlname)
+#     df = pd.DataFrame(ttest_p[:,:,0], columns=columns, index=rows)
+#     xlname = os.path.join(p, 'Ttest_groupdiffs.xlsx')
+#     df.to_excel(xlname)
+#
+#
+#     print('\nMain effect of COV1:')
+#     text_MeoG = write_Mconn_values(ancova_p[:,:,0], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
+#     print('\nMain effect of COV2:')
+#     text_MeoP = write_Mconn_values(ancova_p[:,:,1], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
+#     print('\nInteraction COV1 x COV2:')
+#     text_IntGP = write_Mconn_values(ancova_p[:,:,2], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
+#     print('\n\n')
+#
+#     print('\nT-test group differences:')
+#     text_T = write_Mconn_values(ttest_p[:,:,0], [], betanamelist, rnamelist, beta_list, format = 'e', minthresh = 0.0, maxthresh = 0.05)
+#     print('\n\n')
+#
+#
+#     # compare groups with T-tests
+#
+#     # set the group
+#     g = list(range(NP))
+#     gtag = '_'+group
+#
+#     if group.lower() == c1groups[1]:
+#         g = g2
+#         gtag = '_' + c1groups[1]
+#
+#     if group.lower() == c1groups[0]:
+#         g = g1
+#         gtag = '_' + c1groups[0]
+#
+#     Sinput_avg = np.mean(Sinput_total[:,:,g], axis = 2)
+#     Sinput_sem = np.std(Sinput_total[:,:,g], axis = 2)/np.sqrt(len(g))
+#     Sconn_avg = np.mean(Sconn_total[:,:,g], axis = 2)
+#     Sconn_sem = np.std(Sconn_total[:,:,g], axis = 2)/np.sqrt(len(g))
+#     fit_avg = np.mean(fit_total[:,:,g], axis = 2)
+#     fit_sem = np.std(fit_total[:,:,g], axis = 2)/np.sqrt(len(g))
+#
+#     # regression based on COV2 (separate by group?)
+#     p = covariates2[np.newaxis, g]
+#     p -= np.mean(p)
+#     pmax = np.max(np.abs(p))
+#     p /= pmax
+#     G = np.concatenate((np.ones((1, len(g))),p), axis=0) # put the intercept term first
+#     Sinput_reg = np.zeros((nr,tsize,4))
+#     fit_reg = np.zeros((nr,tsize,4))
+#     Sconn_reg = np.zeros((nbeta,tsize,4))
+#     # Sinput_R2 = np.zeros((nr,tsize,2))
+#     # fit_R2 = np.zeros((nr,tsize,2))
+#     # Sconn_R2 = np.zeros((nbeta,tsize,2))
+#     for tt in range(tsize):
+#         for nn in range(nr):
+#             m = Sinput_total[nn,tt,g]
+#             b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
+#             Sinput_reg[nn,tt,:2] = b
+#             Sinput_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
+#
+#             m = fit_total[nn,tt,g]
+#             b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
+#             fit_reg[nn,tt,:2] = b
+#             fit_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
+#
+#         for nn in range(nbeta):
+#             m = Sconn_total[nn,tt,g]
+#             b, fit, R2, total_var, res_var = pysem.general_glm(m, G)
+#             Sconn_reg[nn,tt,:2] = b
+#             Sconn_reg[nn,tt,-2:] = [R2, np.sign(R2)*np.arctanh(np.sqrt(np.abs(R2)))*np.sqrt(len(g)-3)]
+#
+#     # need to save Sinput_reg, Sinput_R2, etc., somewhere for later use....
+#
+#     # regression of Mrecord with pain ratings
+#     # glm_fit
+#     Mregression = np.zeros((nbeta,nbeta,3))
+#     # Mregression1 = np.zeros((nbeta,nbeta,3))
+#     # Mregression2 = np.zeros((nbeta,nbeta,3))
+#     p = covariates2[np.newaxis, g]
+#     p -= np.mean(p)
+#     pmax = np.max(np.abs(p))
+#     p /= pmax
+#     G = np.concatenate((np.ones((1, len(g))), p), axis=0)  # put the intercept term first
+#     for aa in range(nbeta):
+#         for bb in range(nbeta):
+#             m = Mrecord[aa,bb,g]
+#             if np.var(m) > 0:
+#                 b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis,:], G)
+#                 Mregression[aa,bb,:] = [b[0,0],b[0,1],R2]
+#
+#     print('\n\nMconn regression with COV2')
+#     # rtext = write_Mconn_values(Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', minthresh=0.0001, maxthresh=0.0)
+#     labeltext, valuetext, Rtext = write_Mreg_values(Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', Rthresh=0.1)
+#
+#     # average Mconn values
+#     Mconn_avg = np.mean(Mrecord[:,:,g],axis = 2)
+#     Mconn_sem = np.std(Mrecord[:,:,g],axis = 2)/np.sqrt(len(g))
+#     # rtext = write_Mconn_values(Mconn_avg, Mconn_sem, betanamelist, rnamelist, beta_list,
+#     #                            format='f', minthresh=0.0001, maxthresh=0.0)
+#
+#
+#     pthresh = 0.05
+#     Tthresh = stats.t.ppf(1 - pthresh, NP - 1)
+#
+#     print('\n\nAverage Mconn values')
+#     labeltext, valuetext, Ttext = write_Mconn_values2(Mconn_avg, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format='f', pthresh=0.05)
+#
+#     Rtextlist = [' ']*10
+#     Rvallist = [0]*10
+#
+#     # plot timecourses for selected regions
+#     n_to_display = len(regionlists_for_display)
+#     Nplots = np.ceil(n_to_display/3).astype(int)
+#     RL = np.concatenate((regionlists_for_display,regionlists_for_display))
+#
+#     for np in range(Nplots):
+#         outputdir, f = os.path.split(SEMresultsname)
+#         # only show 3 regions in each plot for consistency in sizing
+#         # show some regions
+#         window1 = windowoffset + np
+#         regionlist = RL[np*3:(np+1)*3]
+#         nametag = rnamelist[regionlist[0]] + '_' + rnamelist[regionlist[1]]  + '_' + rnamelist[regionlist[2]]
+#         nametag += gtag
+#         svgname, Rtext, Rvals = plot_region_fits(window1, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange)
+#         for n,x in enumerate(regionlist):
+#             print('Rtext = {}  Rvals = {}'.format(Rtext[n],Rvals[n]))
+#             Rtextlist[x] = Rtext[n]
+#             Rvallist[x] = Rvals[n]
+#
+#     # plot inputs to selected regions
+#     n_to_display = len(inputs_to_display)
+#     for np in range(n_to_display):
+#         window1 = windowoffset + np + 50
+#         target = inputs_to_display[np]
+#         nametag1 = target + 'input' + gtag
+#
+#         if len(yrange2) > 0:
+#             ylim = yrange2[0]
+#             yrangethis = [-ylim,ylim]
+#         else:
+#             yrangethis = []
+#         plot_region_inputs_regression(window1, target,nametag1, Minput, Sinput_reg, fit_reg, Sconn_reg, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+#
+#         plot_region_inputs_average(window1+100, target,nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
+#                                    Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+#
+#     return Rtextlist, Rvallist
+
+
+# def show_SAPM_timecourses(SEMparametersname, SEMresultsname, paradigm_centered, regionlists_for_display, inputs_to_display, windowoffset = 0, yrange = [], yrange2 = []):
+#     import numpy as np
+#
+#     print('testing  sqrt of 5 is {}'.format(np.sqrt(5)))
+#
+#     # show the results
+#     SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+#     network = SEMparams['network']
+#     beta_list = SEMparams['beta_list']
+#     betanamelist = SEMparams['betanamelist']
+#     nruns_per_person = SEMparams['nruns_per_person']
+#     rnamelist = SEMparams['rnamelist']
+#     fintrinsic_count = SEMparams['fintrinsic_count']
+#     fintrinsic_region = SEMparams['fintrinsic_region']
+#     vintrinsic_count = SEMparams['vintrinsic_count']
+#     nclusterlist = SEMparams['nclusterlist']
+#     tplist_full = SEMparams['tplist_full']
+#     tcdata_centered = SEMparams['tcdata_centered']
+#     ctarget = SEMparams['ctarget']
+#     csource = SEMparams['csource']
+#     tsize = SEMparams['tsize']
+#     timepoint = SEMparams['timepoint']
+#     epoch = SEMparams['epoch']
+#     Nintrinsic = fintrinsic_count + vintrinsic_count
+#     # end of reloading parameters-------------------------------------------------------
+#
+#     # load the SEM results
+#     SEMresults_load = np.load(SEMresultsname, allow_pickle=True)
+#
+#     # for nperson in range(NP)
+#     NP = len(SEMresults_load)
+#     resultscheck = np.zeros((NP, 4))
+#     nbeta, tsize_full = np.shape(SEMresults_load[0]['Sconn'])
+#     ncon = nbeta - Nintrinsic
+#
+#     if epoch >= tsize:
+#         et1 = 0
+#         et2 = tsize
+#     else:
+#         et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
+#         et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+#     ftemp = paradigm_centered[et1:et2]
+#
+#     Mrecord = np.zeros((nbeta, nbeta, NP))
+#     R2totalrecord = np.zeros(NP)
+#     for nperson in range(NP):
+#         Sinput = SEMresults_load[nperson]['Sinput']
+#         Sconn = SEMresults_load[nperson]['Sconn']
+#         Minput = SEMresults_load[nperson]['Minput']
+#         Mconn = SEMresults_load[nperson]['Mconn']
+#         beta_int1 = SEMresults_load[nperson]['beta_int1']
+#         R2total = SEMresults_load[nperson]['R2total']
+#         Meigv = SEMresults_load[nperson]['Meigv']
+#         betavals = SEMresults_load[nperson]['betavals']
+#         # fintrinsic1 = SEMresults_load[nperson]['fintrinsic1']
+#
+#         nruns = nruns_per_person[nperson]
+#         fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
+#
+#         # ---------------------------------------------------
+#         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
+#                                                                  vintrinsic_count, beta_int1, fintrinsic1)
+#
+#         nr, tsize_total = np.shape(Sinput)
+#         tsize = (tsize_total / nruns).astype(int)
+#         nbeta,tsize2 = np.shape(Sconn)
+#
+#         if nperson == 0:
+#             Sinput_total = np.zeros((nr,tsize, NP))
+#             Sconn_total = np.zeros((nbeta,tsize, NP))
+#             fit_total = np.zeros((nr,tsize, NP))
+#
+#         tc = Sinput
+#         tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
+#         Sinput_total[:,:,nperson] = tc1
+#
+#         tc = Sconn
+#         tc1 = np.mean(np.reshape(tc, (nbeta, nruns, tsize)), axis=1)
+#         Sconn_total[:,:,nperson] = tc1
+#
+#         tc = fit
+#         tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
+#         fit_total[:,:,nperson] = tc1
+#
+#         Mrecord[:, :, nperson] = Mconn
+#         R2totalrecord[nperson] = R2total
+#
+#     Sinput_avg = np.mean(Sinput_total,axis=2)
+#     Sinput_sem = np.std(Sinput_total,axis=2)/np.sqrt(NP)
+#
+#     Sconn_avg = np.mean(Sconn_total,axis=2)
+#     Sconn_sem = np.std(Sconn_total,axis=2)/np.sqrt(NP)
+#
+#     fit_avg = np.mean(fit_total,axis=2)
+#     fit_sem = np.std(fit_total,axis=2)/np.sqrt(NP)
+#
+#     Mconn_avg = np.mean(Mrecord,axis=2)
+#     Mconn_sem = np.std(Mrecord,axis=2)/np.sqrt(NP)
+#
+#     pthresh = 0.05
+#     Tthresh = stats.t.ppf(1 - pthresh, NP - 1)
+#
+#     print('\n\nAverage Mconn values')
+#     labeltext, valuetext, Ttext = write_Mconn_values2(Mconn_avg, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format='f', pthresh=0.05)
+#
+#     Rtextlist = [' ']*len(rnamelist)
+#     Rvallist = [0]*len(rnamelist)
+#
+#     # plot timecourses for selected regions
+#     n_to_display = len(regionlists_for_display)
+#     Nplots = np.ceil(n_to_display/3).astype(int)
+#     RL = np.concatenate((regionlists_for_display,regionlists_for_display))
+#
+#     for np in range(Nplots):
+#         outputdir, f = os.path.split(SEMresultsname)
+#         # only show 3 regions in each plot for consistency in sizing
+#         # show some regions
+#         window1 = windowoffset + np
+#         regionlist = RL[np*3:(np+1)*3]
+#         nametag = rnamelist[regionlist[0]] + '_' + rnamelist[regionlist[1]]  + '_' + rnamelist[regionlist[2]]
+#         svgname, Rtext, Rvals = plot_region_fits(window1, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange)
+#         for n,x in enumerate(regionlist):
+#             print('Rtext = {}  Rvals = {}'.format(Rtext[n],Rvals[n]))
+#             Rtextlist[x] = Rtext[n]
+#             Rvallist[x] = Rvals[n]
+#
+#     # plot inputs to selected regions
+#     n_to_display = len(inputs_to_display)
+#     for np in range(n_to_display):
+#         window1 = windowoffset + np + 50
+#         target = inputs_to_display[np]
+#         nametag1 = rnamelist[target] + 'input'
+#
+#         if len(yrange2) > 0:
+#             ylim = yrange2[0]
+#             yrangethis = [-ylim,ylim]
+#         else:
+#             yrangethis = []
+#
+#         plot_region_inputs_average(window1, rnamelist[target],nametag1, Minput, Sinput_avg, Sinput_sem, fit_avg, fit_sem, Sconn_avg,
+#                                    Sconn_sem, beta_list, rnamelist, betanamelist, Mconn_avg, outputdir, yrangethis)
+#
+#     return Rtextlist, Rvallist
+#
 
 #-------------compare groups----------------------------------
 
-def show_SEM_timecourse_results_compare_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group='all',
-                                windowoffset=0, yrange = []):
-    if len(yrange) > 0:
-        setylim = True
-        ymin = yrange[0]
-        ymax = yrange[1]
-    else:
-        setylim = False
-
-    # settings = np.load(settingsfile, allow_pickle=True).flat[0]
-    # covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
-    # covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
-
-    covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
-    if 'gender' in covariatesdata['GRPcharacteristicslist']:
-        x = covariatesdata['GRPcharacteristicslist'].index('gender')
-        covariates1 = covariatesdata['GRPcharacteristicsvalues'][x]
-    else:
-        covariates1 = []
-    if 'painrating' in covariatesdata['GRPcharacteristicslist']:
-        x = covariatesdata['GRPcharacteristicslist'].index('painrating')
-        covariates2 = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
-    else:
-        covariates2 = []
-
-
-    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
-    network = SEMparams['network']
-    beta_list = SEMparams['beta_list']
-    betanamelist = SEMparams['betanamelist']
-    nruns_per_person = SEMparams['nruns_per_person']
-    rnamelist = SEMparams['rnamelist']
-    fintrinsic_count = SEMparams['fintrinsic_count']
-    fintrinsic_region = SEMparams['fintrinsic_region']
-    vintrinsic_count = SEMparams['vintrinsic_count']
-    nclusterlist = SEMparams['nclusterlist']
-    tplist_full = SEMparams['tplist_full']
-    tcdata_centered = SEMparams['tcdata_centered']
-    ctarget = SEMparams['ctarget']
-    csource = SEMparams['csource']
-    tsize = SEMparams['tsize']
-    timepoint = SEMparams['timepoint']
-    epoch = SEMparams['epoch']
-    Nintrinsic = fintrinsic_count + vintrinsic_count
-    # end of reloading parameters-------------------------------------------------------
-
-    # load the SEM results
-    SEMresults_load = np.load(SEMresultsname, allow_pickle=True)
-
-    # for nperson in range(NP)
-    NP = len(SEMresults_load)
-    resultscheck = np.zeros((NP, 4))
-    nbeta, tsize_full = np.shape(SEMresults_load[0]['Sconn'])
-    ncon = nbeta - Nintrinsic
-
-    if epoch >= tsize:
-        et1 = 0
-        et2 = tsize
-    else:
-        et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
-        et2 = (timepoint + np.floor(epoch / 2)).astype(int)
-    ftemp = paradigm_centered[et1:et2]
-
-    Mrecord = np.zeros((nbeta, nbeta, NP))
-    R2totalrecord = np.zeros(NP)
-    for nperson in range(NP):
-        Sinput = SEMresults_load[nperson]['Sinput']
-        Sconn = SEMresults_load[nperson]['Sconn']
-        Minput = SEMresults_load[nperson]['Minput']
-        Mconn = SEMresults_load[nperson]['Mconn']
-        beta_int1 = SEMresults_load[nperson]['beta_int1']
-        R2total = SEMresults_load[nperson]['R2total']
-        Meigv = SEMresults_load[nperson]['Meigv']
-        betavals = SEMresults_load[nperson]['betavals']
-        # fintrinsic1 = SEMresults_load[nperson]['fintrinsic1']
-
-        nruns = nruns_per_person[nperson]
-        fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
-
-        # ---------------------------------------------------
-        fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
-                                                                 vintrinsic_count, beta_int1, fintrinsic1)
-
-        nr, tsize_total = np.shape(Sinput)
-        tsize = (tsize_total / nruns).astype(int)
-        nbeta, tsize2 = np.shape(Sconn)
-
-        if nperson == 0:
-            Sinput_total = np.zeros((nr, tsize, NP))
-            Sconn_total = np.zeros((nbeta, tsize, NP))
-            fit_total = np.zeros((nr, tsize, NP))
-
-        tc = Sinput
-        tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
-        Sinput_total[:, :, nperson] = tc1
-
-        tc = Sconn
-        tc1 = np.mean(np.reshape(tc, (nbeta, nruns, tsize)), axis=1)
-        Sconn_total[:, :, nperson] = tc1
-
-        tc = fit
-        tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
-        fit_total[:, :, nperson] = tc1
-
-        Mrecord[:, :, nperson] = Mconn
-        R2totalrecord[nperson] = R2total
-
-    # ancova sex x pain rating---------------------------------------
-    # ANCOVA group vs pain rating
-    statstype = 'ANCOVA'
-    formula_key1 = 'C(Group)'
-    formula_key2 = 'pain'
-    formula_key3 = 'C(Group):' + 'pain'
-    atype = 2
-
-    # separate by sex
-    g1 = np.where(covariates1 == 'Female')[0]
-    g2 = np.where(covariates1 == 'Male')[0]
-
-    cov1 = covariates2[g1]
-    cov2 = covariates2[g2]
-    ancova_p = np.ones((nbeta, nbeta, 3))
-    for aa in range(ncon):
-        for bb in range(ncon):
-            m = Mrecord[aa, bb, :]
-            if np.var(m) > 0:
-                b1 = m[g1]
-                b2 = m[g2]
-                anova_table, p_MeoG, p_MeoC, p_intGC = py2ndlevelanalysis.run_ANOVA_or_ANCOVA2(b1, b2, cov1, cov2,
-                                                                                               'pain', formula_key1,
-                                                                                               formula_key2,
-                                                                                               formula_key3, atype)
-                ancova_p[aa, bb, :] = np.array([p_MeoG, p_MeoC, p_intGC])
-
-    columns = [name[:3] + ' in' for name in betanamelist]
-    rows = [name[:3] for name in betanamelist]
-
-    p, f = os.path.split(SEMresultsname)
-    pd.options.display.float_format = '{:.2e}'.format
-    df = pd.DataFrame(ancova_p[:, :, 0], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mancova_MeoG.xlsx')
-    df.to_excel(xlname)
-    df = pd.DataFrame(ancova_p[:, :, 1], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mancova_MeoP.xlsx')
-    df.to_excel(xlname)
-    df = pd.DataFrame(ancova_p[:, :, 2], columns=columns, index=rows)
-    xlname = os.path.join(p, 'Mancova_IntGP.xlsx')
-    df.to_excel(xlname)
-
-    print('\nMain effect of group:')
-    text_MeoG = write_Mconn_values(ancova_p[:, :, 0], [], betanamelist, rnamelist, beta_list, format='e', minthresh=0.0,
-                                   maxthresh=0.05)
-    print('\nMain effect of pain ratings:')
-    text_MeoP = write_Mconn_values(ancova_p[:, :, 1], [], betanamelist, rnamelist, beta_list, format='e', minthresh=0.0,
-                                   maxthresh=0.05)
-    print('\nInteraction group x pain:')
-    text_IntGP = write_Mconn_values(ancova_p[:, :, 2], [], betanamelist, rnamelist, beta_list, format='e',
-                                    minthresh=0.0, maxthresh=0.05)
-    print('\n\n')
-
-    # set the group
-    g = list(range(NP))
-    gtag = '_all'
-    g2tag = '_Male'
-    g1tag = '_Female'
-    Mdata = []
-
-    for gnum in range(3):
-        if gnum == 0:  gg = g
-        if gnum == 1:  gg = g1
-        if gnum == 2:  gg = g2
-        # do this for each group---------------------------
-        # regression of Mrecord with pain ratings
-        # glm_fit
-        Mregression = np.zeros((nbeta, nbeta, 3))
-        p = covariates2[np.newaxis, gg]
-        p -= np.mean(p)
-        pmax = np.max(np.abs(p))
-        p /= pmax
-        G = np.concatenate((np.ones((1, len(gg))), p), axis=0)  # put the intercept term first
-        for aa in range(nbeta):
-            for bb in range(nbeta):
-                m = Mrecord[aa, bb, gg]
-                if np.var(m) > 0:
-                    b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis, :], G)
-                    Mregression[aa, bb, :] = [b[0, 0], b[0, 1], R2]
-
-        # average Mconn values
-        Mconn_avg = np.mean(Mrecord[:, :, gg], axis=2)
-        Mconn_sem = np.std(Mrecord[:, :, gg], axis=2) / np.sqrt(len(gg))
-        # rtext = write_Mconn_values(Mconn_avg, Mconn_sem, betanamelist, rnamelist, beta_list,
-        #                            format='f', minthresh=0.0001, maxthresh=0.0)
-        Tvals = Mconn_avg/(Mconn_sem + 1.0e-10)
-        entry = {'Mreg':Mregression, 'Mconn_avg':Mconn_avg, 'Mconn_sem':Mconn_sem, 'Tvals':Tvals}
-
-        pthresh = 0.05
-        Tthresh = stats.t.ppf(1 - pthresh, NP - 1)
-        if gnum == 0:
-            Ttemp = np.abs(Tvals) > Tthresh
-            Tsigflag = copy.deepcopy(Ttemp)
-            Rtemp = np.abs(Mregression[:,:,2]) > 0.1
-            Rsigflag = copy.deepcopy(Rtemp)
-        else:
-            Ttemp = np.abs(Tvals) > Tthresh
-            Rtemp = np.abs(Mregression[:,:,2]) > 0.1
-            Tsigflag += Ttemp
-            Rsigflag += Rtemp
-
-        Mdata.append(entry)
-
-
-    for gnum in range(3):
-        if gnum == 0:  tag = gtag
-        if gnum == 1:  tag = g1tag
-        if gnum == 2:  tag = g2tag
-
-        Mregression = Mdata[gnum]['Mreg']
-        Mconn_avg = Mdata[gnum]['Mconn_avg']
-        Mconn_sem = Mdata[gnum]['Mconn_sem']
-
-        descriptor = '{} Mconn regression with pain ratings'.format(tag)
-        print('\n\n{}'.format(descriptor))
-        # rtext = write_Mconn_values(Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', minthresh=0.0001, maxthresh=0.0)
-
-        reg_pthresh = 0.0001
-        Zthresh = stats.norm.ppf(1 - reg_pthresh)
-        Rthresh = np.tanh(Zthresh/np.sqrt(NP-3))
-        R2thresh = Rthresh**2
-        print('for p = {:.2e}  Z = {:.2f}   R = {:.3f}  R2 = {:.3f} NP = {}'.format(reg_pthresh, Zthresh,Rthresh,R2thresh, NP))
-
-        R2thresh = 0.1
-        format = 'f'
-        labeltext, valuetext, Rtext = write_Mreg_values(Mregression[:, :, 1], Mregression[:, :, 2], betanamelist, rnamelist, beta_list,
-                                  format, R2thresh, Rsigflag > 0)
-        textoutputs = {'regions': labeltext, 'beta': valuetext, 'R2': Rtext}
-        p, f = os.path.split(SEMresultsname)
-        df = pd.DataFrame(textoutputs)
-        xlname = os.path.join(p, descriptor + '.xlsx')
-        df.to_excel(xlname)
-
-        descriptor = '{} Average Mconn values'.format(tag)
-        print('\n\n{}'.format(descriptor))
-        format = 'f'
-        pthresh = 0.05
-        labeltext, valuetext, Ttext = write_Mconn_values2(Mconn_avg, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format, pthresh, Tsigflag > 0)
-        textoutputs = {'regions':labeltext, 'beta':valuetext, 'T':Ttext}
-
-        p, f = os.path.split(SEMresultsname)
-        df = pd.DataFrame(textoutputs)
-        xlname = os.path.join(p, descriptor + '.xlsx')
-        df.to_excel(xlname)
+# def show_SEM_timecourse_results_compare_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group='all',
+#                                 windowoffset=0, yrange = []):
+#     if len(yrange) > 0:
+#         setylim = True
+#         ymin = yrange[0]
+#         ymax = yrange[1]
+#     else:
+#         setylim = False
+#
+#     # settings = np.load(settingsfile, allow_pickle=True).flat[0]
+#     # covariates1 = settings['GRPcharacteristicsvalues'][0]  # gender
+#     # covariates2 = settings['GRPcharacteristicsvalues'][1].astype(float)  # painrating
+#
+#     covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
+#     if 'gender' in covariatesdata['GRPcharacteristicslist']:
+#         x = covariatesdata['GRPcharacteristicslist'].index('gender')
+#         covariates1 = covariatesdata['GRPcharacteristicsvalues'][x]
+#     else:
+#         covariates1 = []
+#     if 'painrating' in covariatesdata['GRPcharacteristicslist']:
+#         x = covariatesdata['GRPcharacteristicslist'].index('painrating')
+#         covariates2 = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
+#     else:
+#         covariates2 = []
+#
+#
+#     SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+#     network = SEMparams['network']
+#     beta_list = SEMparams['beta_list']
+#     betanamelist = SEMparams['betanamelist']
+#     nruns_per_person = SEMparams['nruns_per_person']
+#     rnamelist = SEMparams['rnamelist']
+#     fintrinsic_count = SEMparams['fintrinsic_count']
+#     fintrinsic_region = SEMparams['fintrinsic_region']
+#     vintrinsic_count = SEMparams['vintrinsic_count']
+#     nclusterlist = SEMparams['nclusterlist']
+#     tplist_full = SEMparams['tplist_full']
+#     tcdata_centered = SEMparams['tcdata_centered']
+#     ctarget = SEMparams['ctarget']
+#     csource = SEMparams['csource']
+#     tsize = SEMparams['tsize']
+#     timepoint = SEMparams['timepoint']
+#     epoch = SEMparams['epoch']
+#     Nintrinsic = fintrinsic_count + vintrinsic_count
+#     # end of reloading parameters-------------------------------------------------------
+#
+#     # load the SEM results
+#     SEMresults_load = np.load(SEMresultsname, allow_pickle=True)
+#
+#     # for nperson in range(NP)
+#     NP = len(SEMresults_load)
+#     resultscheck = np.zeros((NP, 4))
+#     nbeta, tsize_full = np.shape(SEMresults_load[0]['Sconn'])
+#     ncon = nbeta - Nintrinsic
+#
+#     if epoch >= tsize:
+#         et1 = 0
+#         et2 = tsize
+#     else:
+#         et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
+#         et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+#     ftemp = paradigm_centered[et1:et2]
+#
+#     Mrecord = np.zeros((nbeta, nbeta, NP))
+#     R2totalrecord = np.zeros(NP)
+#     for nperson in range(NP):
+#         Sinput = SEMresults_load[nperson]['Sinput']
+#         Sconn = SEMresults_load[nperson]['Sconn']
+#         Minput = SEMresults_load[nperson]['Minput']
+#         Mconn = SEMresults_load[nperson]['Mconn']
+#         beta_int1 = SEMresults_load[nperson]['beta_int1']
+#         R2total = SEMresults_load[nperson]['R2total']
+#         Meigv = SEMresults_load[nperson]['Meigv']
+#         betavals = SEMresults_load[nperson]['betavals']
+#         # fintrinsic1 = SEMresults_load[nperson]['fintrinsic1']
+#
+#         nruns = nruns_per_person[nperson]
+#         fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
+#
+#         # ---------------------------------------------------
+#         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count,
+#                                                                  vintrinsic_count, beta_int1, fintrinsic1)
+#
+#         nr, tsize_total = np.shape(Sinput)
+#         tsize = (tsize_total / nruns).astype(int)
+#         nbeta, tsize2 = np.shape(Sconn)
+#
+#         if nperson == 0:
+#             Sinput_total = np.zeros((nr, tsize, NP))
+#             Sconn_total = np.zeros((nbeta, tsize, NP))
+#             fit_total = np.zeros((nr, tsize, NP))
+#
+#         tc = Sinput
+#         tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
+#         Sinput_total[:, :, nperson] = tc1
+#
+#         tc = Sconn
+#         tc1 = np.mean(np.reshape(tc, (nbeta, nruns, tsize)), axis=1)
+#         Sconn_total[:, :, nperson] = tc1
+#
+#         tc = fit
+#         tc1 = np.mean(np.reshape(tc, (nr, nruns, tsize)), axis=1)
+#         fit_total[:, :, nperson] = tc1
+#
+#         Mrecord[:, :, nperson] = Mconn
+#         R2totalrecord[nperson] = R2total
+#
+#     # ancova sex x pain rating---------------------------------------
+#     # ANCOVA group vs pain rating
+#     statstype = 'ANCOVA'
+#     formula_key1 = 'C(Group)'
+#     formula_key2 = 'pain'
+#     formula_key3 = 'C(Group):' + 'pain'
+#     atype = 2
+#
+#     # separate by sex
+#     g1 = np.where(covariates1 == 'Female')[0]
+#     g2 = np.where(covariates1 == 'Male')[0]
+#
+#     cov1 = covariates2[g1]
+#     cov2 = covariates2[g2]
+#     ancova_p = np.ones((nbeta, nbeta, 3))
+#     for aa in range(ncon):
+#         for bb in range(ncon):
+#             m = Mrecord[aa, bb, :]
+#             if np.var(m) > 0:
+#                 b1 = m[g1]
+#                 b2 = m[g2]
+#                 anova_table, p_MeoG, p_MeoC, p_intGC = py2ndlevelanalysis.run_ANOVA_or_ANCOVA2(b1, b2, cov1, cov2,
+#                                                                                                'pain', formula_key1,
+#                                                                                                formula_key2,
+#                                                                                                formula_key3, atype)
+#                 ancova_p[aa, bb, :] = np.array([p_MeoG, p_MeoC, p_intGC])
+#
+#     columns = [name[:3] + ' in' for name in betanamelist]
+#     rows = [name[:3] for name in betanamelist]
+#
+#     p, f = os.path.split(SEMresultsname)
+#     pd.options.display.float_format = '{:.2e}'.format
+#     df = pd.DataFrame(ancova_p[:, :, 0], columns=columns, index=rows)
+#     xlname = os.path.join(p, 'Mancova_MeoG.xlsx')
+#     df.to_excel(xlname)
+#     df = pd.DataFrame(ancova_p[:, :, 1], columns=columns, index=rows)
+#     xlname = os.path.join(p, 'Mancova_MeoP.xlsx')
+#     df.to_excel(xlname)
+#     df = pd.DataFrame(ancova_p[:, :, 2], columns=columns, index=rows)
+#     xlname = os.path.join(p, 'Mancova_IntGP.xlsx')
+#     df.to_excel(xlname)
+#
+#     print('\nMain effect of group:')
+#     text_MeoG = write_Mconn_values(ancova_p[:, :, 0], [], betanamelist, rnamelist, beta_list, format='e', minthresh=0.0,
+#                                    maxthresh=0.05)
+#     print('\nMain effect of pain ratings:')
+#     text_MeoP = write_Mconn_values(ancova_p[:, :, 1], [], betanamelist, rnamelist, beta_list, format='e', minthresh=0.0,
+#                                    maxthresh=0.05)
+#     print('\nInteraction group x pain:')
+#     text_IntGP = write_Mconn_values(ancova_p[:, :, 2], [], betanamelist, rnamelist, beta_list, format='e',
+#                                     minthresh=0.0, maxthresh=0.05)
+#     print('\n\n')
+#
+#     # set the group
+#     g = list(range(NP))
+#     gtag = '_all'
+#     g2tag = '_Male'
+#     g1tag = '_Female'
+#     Mdata = []
+#
+#     for gnum in range(3):
+#         if gnum == 0:  gg = g
+#         if gnum == 1:  gg = g1
+#         if gnum == 2:  gg = g2
+#         # do this for each group---------------------------
+#         # regression of Mrecord with pain ratings
+#         # glm_fit
+#         Mregression = np.zeros((nbeta, nbeta, 3))
+#         p = covariates2[np.newaxis, gg]
+#         p -= np.mean(p)
+#         pmax = np.max(np.abs(p))
+#         p /= pmax
+#         G = np.concatenate((np.ones((1, len(gg))), p), axis=0)  # put the intercept term first
+#         for aa in range(nbeta):
+#             for bb in range(nbeta):
+#                 m = Mrecord[aa, bb, gg]
+#                 if np.var(m) > 0:
+#                     b, fit, R2, total_var, res_var = pysem.general_glm(m[np.newaxis, :], G)
+#                     Mregression[aa, bb, :] = [b[0, 0], b[0, 1], R2]
+#
+#         # average Mconn values
+#         Mconn_avg = np.mean(Mrecord[:, :, gg], axis=2)
+#         Mconn_sem = np.std(Mrecord[:, :, gg], axis=2) / np.sqrt(len(gg))
+#         # rtext = write_Mconn_values(Mconn_avg, Mconn_sem, betanamelist, rnamelist, beta_list,
+#         #                            format='f', minthresh=0.0001, maxthresh=0.0)
+#         Tvals = Mconn_avg/(Mconn_sem + 1.0e-10)
+#         entry = {'Mreg':Mregression, 'Mconn_avg':Mconn_avg, 'Mconn_sem':Mconn_sem, 'Tvals':Tvals}
+#
+#         pthresh = 0.05
+#         Tthresh = stats.t.ppf(1 - pthresh, NP - 1)
+#         if gnum == 0:
+#             Ttemp = np.abs(Tvals) > Tthresh
+#             Tsigflag = copy.deepcopy(Ttemp)
+#             Rtemp = np.abs(Mregression[:,:,2]) > 0.1
+#             Rsigflag = copy.deepcopy(Rtemp)
+#         else:
+#             Ttemp = np.abs(Tvals) > Tthresh
+#             Rtemp = np.abs(Mregression[:,:,2]) > 0.1
+#             Tsigflag += Ttemp
+#             Rsigflag += Rtemp
+#
+#         Mdata.append(entry)
+#
+#
+#     for gnum in range(3):
+#         if gnum == 0:  tag = gtag
+#         if gnum == 1:  tag = g1tag
+#         if gnum == 2:  tag = g2tag
+#
+#         Mregression = Mdata[gnum]['Mreg']
+#         Mconn_avg = Mdata[gnum]['Mconn_avg']
+#         Mconn_sem = Mdata[gnum]['Mconn_sem']
+#
+#         descriptor = '{} Mconn regression with pain ratings'.format(tag)
+#         print('\n\n{}'.format(descriptor))
+#         # rtext = write_Mconn_values(Mregression[:,:,1], Mregression[:,:,2], betanamelist, rnamelist, beta_list, format='f', minthresh=0.0001, maxthresh=0.0)
+#
+#         reg_pthresh = 0.0001
+#         Zthresh = stats.norm.ppf(1 - reg_pthresh)
+#         Rthresh = np.tanh(Zthresh/np.sqrt(NP-3))
+#         R2thresh = Rthresh**2
+#         print('for p = {:.2e}  Z = {:.2f}   R = {:.3f}  R2 = {:.3f} NP = {}'.format(reg_pthresh, Zthresh,Rthresh,R2thresh, NP))
+#
+#         R2thresh = 0.1
+#         format = 'f'
+#         labeltext, valuetext, Rtext = write_Mreg_values(Mregression[:, :, 1], Mregression[:, :, 2], betanamelist, rnamelist, beta_list,
+#                                   format, R2thresh, Rsigflag > 0)
+#         textoutputs = {'regions': labeltext, 'beta': valuetext, 'R2': Rtext}
+#         p, f = os.path.split(SEMresultsname)
+#         df = pd.DataFrame(textoutputs)
+#         xlname = os.path.join(p, descriptor + '.xlsx')
+#         df.to_excel(xlname)
+#
+#         descriptor = '{} Average Mconn values'.format(tag)
+#         print('\n\n{}'.format(descriptor))
+#         format = 'f'
+#         pthresh = 0.05
+#         labeltext, valuetext, Ttext = write_Mconn_values2(Mconn_avg, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format, pthresh, Tsigflag > 0)
+#         textoutputs = {'regions':labeltext, 'beta':valuetext, 'T':Ttext}
+#
+#         p, f = os.path.split(SEMresultsname)
+#         df = pd.DataFrame(textoutputs)
+#         xlname = os.path.join(p, descriptor + '.xlsx')
+#         df.to_excel(xlname)
 
 
 
@@ -4092,203 +4092,203 @@ def write_Mreg_values(Mreg, R2, betanamelist, rnamelist, beta_list, format = 'f'
 
 
 
-def estimate_best_connections(Nintrinsics, nclusterlist, tplist_full, tcdata_centered, nruns_per_person):
-    # look for the combination of clusters that are best explained by Nintrinsics terms
-    nregions = len(nclusterlist)   # initial set to test
-    ncombo_set = np.floor(nregions/2).astype(int)
-    nleaveout = nregions-ncombo_set
-    nclusterlist = np.array(nclusterlist)
-
-    ntime, NP = np.shape(tplist_full)
-
-    list1 = list(range(ncombo_set))
-    ncombinations = np.prod(nclusterlist)
-    ncombinations1 = np.prod(nclusterlist[list1])
-
-    EVR1 = np.zeros((NP,ncombinations1,Nintrinsics))
-    EVR2 = np.zeros((NP,ncombinations,Nintrinsics))
-    nkeep = 100
-    xlist = np.zeros((NP,nkeep))  # keep a record of best 1st round picks for each person
-
-    epochnum = 0
-    for nperson in range(NP):
-        starttime = time.ctime()
-        print('starting person {} at {}'.format(nperson, time.ctime()))
-        tp = tplist_full[epochnum][nperson]['tp']
-        tcdata_centered_person = tcdata_centered[:, tp]
-        tsize_total = len(tp)
-        nruns = nruns_per_person[nperson]
-
-        # set 1
-        cnums = np.zeros(ncombo_set).astype(int)
-        full_rnum_base = get_overall_num(nclusterlist, list1, cnums)
-        full_rnum_base = np.array(full_rnum_base).astype(int)
-
-        print('     part 1 at {}'.format(time.ctime()))
-        for nc in range(ncombinations1):
-            cnums = ind2sub_ndims(nclusterlist[list1], nc)
-            clusterlist = np.array(cnums) + full_rnum_base
-            Sinput = tcdata_centered_person[clusterlist,:]
-
-            pca = PCA(n_components=3)
-            pca.fit(Sinput)
-            EVR1[nperson,nc,:] = pca.explained_variance_ratio_
-
-        # save a record of the best finds so far
-        evr_values = np.sum(EVR1[nperson,:,:],axis=1)
-        x = np.argsort(-evr_values)
-        xlist[nperson,:] = x[:nkeep]
-
-    print('collect the best starts for each person  {}'.format(time.ctime()))
-    x2 = xlist[:,0]
-
-    fixedindices = list1
-    full_rnum_base = get_overall_num(nclusterlist, list(range(nregions)), np.zeros(nregions))
-    full_rnum_base = np.array(full_rnum_base).astype(int)
-    for nperson in range(NP):
-        print('starting person {} at {}'.format(nperson, time.ctime()))
-        # search through the top starting combinations
-        tp = tplist_full[epochnum][nperson]['tp']
-        tcdata_centered_person = tcdata_centered[:, tp]
-        for ss, x in enumerate(x2):
-            cnums = ind2sub_ndims(nclusterlist[list1], x)
-            fixedvals = cnums
-            w = all_flat_indices_nfixed(nclusterlist, fixedindices, fixedvals)
-            for nc in w:
-                cnums = ind2sub_ndims(nclusterlist, nc)
-                clusterlist = np.array(cnums) + full_rnum_base
-                Sinput = tcdata_centered_person[clusterlist,:]
-
-                pca = PCA(n_components=Nintrinsics)
-                pca.fit(Sinput)
-                EVR2[nperson,nc,:] = pca.explained_variance_ratio_
-
-    # look for the best combination based on whole set
-    p,f = os.path.split(SEMresultsname)
-    EVRname = os.path.join(p,'explained_variance_PCA.npy')
-    np.save(EVRname, EVR2)
-
-    EVR2sum = np.sum(EVR2[:,:,:2], axis = 2)
-    count = np.count_nonzero(EVR2sum,axis=0)
-    totalval = np.sum(EVR2sum,axis=0)
-    x = np.where(count < 4)[0]
-    totalval[x] = 0    # exclude values with too few samples
-    nonzeroavg = totalval/(count + 1e-6)
-
-    x = np.argsort(-nonzeroavg)     # find where the average of the samples is the greatest value
-    cnums = ind2sub_ndims(nclusterlist, x[0])
-
-    # check cnums result------------------------
-    full_rnum_base = get_overall_num(nclusterlist, list(range(nregions)), np.zeros(nregions))
-    full_rnum_base = np.array(full_rnum_base).astype(int)
-    clusterlist = np.array(cnums) + full_rnum_base
-
-    EVRcheck = np.zeros((NP,Nintrinsics))
-    for nperson in range(NP):
-        tp = tplist_full[epochnum][nperson]['tp']
-        tcdata_centered_person = tcdata_centered[:, tp]
-        Sinput = tcdata_centered_person[clusterlist, :]
-        pca = PCA(n_components=Nintrinsics)
-        pca.fit(Sinput)
-        EVRcheck[nperson, :] = pca.explained_variance_ratio_
-
-    EVRname = os.path.join(p,'explained_variance_check.npy')
-    np.save(EVRname, EVRcheck)
-
-
-def display_Mconn_properties(SEMresultsname, rnamelist, betanamelist):
-    SEMresults_load = np.load(SEMresultsname, allow_pickle=True)
-    NP = len(SEMresults_load)
-    Mconn = SEMresults_load[0]['Mconn']
-    nr1, nr2 = np.shape(Mconn)
-    Mrecord = np.zeros((nr1,nr2,NP))
-    for nperson in range(NP):
-        Sinput = SEMresults_load[nperson]['Sinput']
-        Sconn= SEMresults_load[nperson]['Sconn']
-        Minput = SEMresults_load[nperson]['Minput']
-        Mconn = SEMresults_load[nperson]['Mconn']
-        Mrecord[:,:,nperson] = Mconn
-
-    Mpos = np.zeros(np.shape(Mrecord))
-    Mpos[Mrecord > 0] = 1
-    Mneg = np.zeros(np.shape(Mrecord))
-    Mneg[Mrecord < 0] = 1
-    Mposneg = np.sum(Mpos, axis = 2) - np.sum(Mneg, axis = 2)
-
-    columns = [name[:3] + ' in' for name in rnamelist]
-    columns += ['int1 in', 'int2 in']
-    rows = [name[:3] for name in rnamelist]
-    rows += ['int1', 'int2']
-
-    df = pd.DataFrame(Mposneg, columns=columns, index=rows)
-    pd.set_option('display.max_rows', None)
-    pd.set_option('display.max_columns', None)
-    pd.set_option('display.width', None)
-    pd.set_option('display.max_colwidth', None)
-
-    pd.options.display.float_format = '{:.0f}'.format
-    print(df)
-
-    p, f = os.path.split(SEMresultsname)
-    xlname = os.path.join(p, 'Moutput_pos_neg_counts.xlsx')
-    df.to_excel(xlname)
+# def estimate_best_connections(Nintrinsics, nclusterlist, tplist_full, tcdata_centered, nruns_per_person):
+#     # look for the combination of clusters that are best explained by Nintrinsics terms
+#     nregions = len(nclusterlist)   # initial set to test
+#     ncombo_set = np.floor(nregions/2).astype(int)
+#     nleaveout = nregions-ncombo_set
+#     nclusterlist = np.array(nclusterlist)
+#
+#     ntime, NP = np.shape(tplist_full)
+#
+#     list1 = list(range(ncombo_set))
+#     ncombinations = np.prod(nclusterlist)
+#     ncombinations1 = np.prod(nclusterlist[list1])
+#
+#     EVR1 = np.zeros((NP,ncombinations1,Nintrinsics))
+#     EVR2 = np.zeros((NP,ncombinations,Nintrinsics))
+#     nkeep = 100
+#     xlist = np.zeros((NP,nkeep))  # keep a record of best 1st round picks for each person
+#
+#     epochnum = 0
+#     for nperson in range(NP):
+#         starttime = time.ctime()
+#         print('starting person {} at {}'.format(nperson, time.ctime()))
+#         tp = tplist_full[epochnum][nperson]['tp']
+#         tcdata_centered_person = tcdata_centered[:, tp]
+#         tsize_total = len(tp)
+#         nruns = nruns_per_person[nperson]
+#
+#         # set 1
+#         cnums = np.zeros(ncombo_set).astype(int)
+#         full_rnum_base = get_overall_num(nclusterlist, list1, cnums)
+#         full_rnum_base = np.array(full_rnum_base).astype(int)
+#
+#         print('     part 1 at {}'.format(time.ctime()))
+#         for nc in range(ncombinations1):
+#             cnums = ind2sub_ndims(nclusterlist[list1], nc)
+#             clusterlist = np.array(cnums) + full_rnum_base
+#             Sinput = tcdata_centered_person[clusterlist,:]
+#
+#             pca = PCA(n_components=3)
+#             pca.fit(Sinput)
+#             EVR1[nperson,nc,:] = pca.explained_variance_ratio_
+#
+#         # save a record of the best finds so far
+#         evr_values = np.sum(EVR1[nperson,:,:],axis=1)
+#         x = np.argsort(-evr_values)
+#         xlist[nperson,:] = x[:nkeep]
+#
+#     print('collect the best starts for each person  {}'.format(time.ctime()))
+#     x2 = xlist[:,0]
+#
+#     fixedindices = list1
+#     full_rnum_base = get_overall_num(nclusterlist, list(range(nregions)), np.zeros(nregions))
+#     full_rnum_base = np.array(full_rnum_base).astype(int)
+#     for nperson in range(NP):
+#         print('starting person {} at {}'.format(nperson, time.ctime()))
+#         # search through the top starting combinations
+#         tp = tplist_full[epochnum][nperson]['tp']
+#         tcdata_centered_person = tcdata_centered[:, tp]
+#         for ss, x in enumerate(x2):
+#             cnums = ind2sub_ndims(nclusterlist[list1], x)
+#             fixedvals = cnums
+#             w = all_flat_indices_nfixed(nclusterlist, fixedindices, fixedvals)
+#             for nc in w:
+#                 cnums = ind2sub_ndims(nclusterlist, nc)
+#                 clusterlist = np.array(cnums) + full_rnum_base
+#                 Sinput = tcdata_centered_person[clusterlist,:]
+#
+#                 pca = PCA(n_components=Nintrinsics)
+#                 pca.fit(Sinput)
+#                 EVR2[nperson,nc,:] = pca.explained_variance_ratio_
+#
+#     # look for the best combination based on whole set
+#     p,f = os.path.split(SEMresultsname)
+#     EVRname = os.path.join(p,'explained_variance_PCA.npy')
+#     np.save(EVRname, EVR2)
+#
+#     EVR2sum = np.sum(EVR2[:,:,:2], axis = 2)
+#     count = np.count_nonzero(EVR2sum,axis=0)
+#     totalval = np.sum(EVR2sum,axis=0)
+#     x = np.where(count < 4)[0]
+#     totalval[x] = 0    # exclude values with too few samples
+#     nonzeroavg = totalval/(count + 1e-6)
+#
+#     x = np.argsort(-nonzeroavg)     # find where the average of the samples is the greatest value
+#     cnums = ind2sub_ndims(nclusterlist, x[0])
+#
+#     # check cnums result------------------------
+#     full_rnum_base = get_overall_num(nclusterlist, list(range(nregions)), np.zeros(nregions))
+#     full_rnum_base = np.array(full_rnum_base).astype(int)
+#     clusterlist = np.array(cnums) + full_rnum_base
+#
+#     EVRcheck = np.zeros((NP,Nintrinsics))
+#     for nperson in range(NP):
+#         tp = tplist_full[epochnum][nperson]['tp']
+#         tcdata_centered_person = tcdata_centered[:, tp]
+#         Sinput = tcdata_centered_person[clusterlist, :]
+#         pca = PCA(n_components=Nintrinsics)
+#         pca.fit(Sinput)
+#         EVRcheck[nperson, :] = pca.explained_variance_ratio_
+#
+#     EVRname = os.path.join(p,'explained_variance_check.npy')
+#     np.save(EVRname, EVRcheck)
 
 
-def SEM_dsource_dtarget(network, nclusterlist, tplist_full, nclusterstotal, tcdata_centered, nruns_per_person, tsize):
-    # compute grid of dSsource/dStarget--------------------------------------------------------------------
-    epochnum = 0
-    NP = len(nruns_per_person)
-    nclusterstotal, tsizetotal = np.shape(tcdata_centered)
-    dtcdata_centered = np.zeros((nclusterstotal, tsizetotal))
+# def display_Mconn_properties(SEMresultsname, rnamelist, betanamelist):
+#     SEMresults_load = np.load(SEMresultsname, allow_pickle=True)
+#     NP = len(SEMresults_load)
+#     Mconn = SEMresults_load[0]['Mconn']
+#     nr1, nr2 = np.shape(Mconn)
+#     Mrecord = np.zeros((nr1,nr2,NP))
+#     for nperson in range(NP):
+#         Sinput = SEMresults_load[nperson]['Sinput']
+#         Sconn= SEMresults_load[nperson]['Sconn']
+#         Minput = SEMresults_load[nperson]['Minput']
+#         Mconn = SEMresults_load[nperson]['Mconn']
+#         Mrecord[:,:,nperson] = Mconn
+#
+#     Mpos = np.zeros(np.shape(Mrecord))
+#     Mpos[Mrecord > 0] = 1
+#     Mneg = np.zeros(np.shape(Mrecord))
+#     Mneg[Mrecord < 0] = 1
+#     Mposneg = np.sum(Mpos, axis = 2) - np.sum(Mneg, axis = 2)
+#
+#     columns = [name[:3] + ' in' for name in rnamelist]
+#     columns += ['int1 in', 'int2 in']
+#     rows = [name[:3] for name in rnamelist]
+#     rows += ['int1', 'int2']
+#
+#     df = pd.DataFrame(Mposneg, columns=columns, index=rows)
+#     pd.set_option('display.max_rows', None)
+#     pd.set_option('display.max_columns', None)
+#     pd.set_option('display.width', None)
+#     pd.set_option('display.max_colwidth', None)
+#
+#     pd.options.display.float_format = '{:.0f}'.format
+#     print(df)
+#
+#     p, f = os.path.split(SEMresultsname)
+#     xlname = os.path.join(p, 'Moutput_pos_neg_counts.xlsx')
+#     df.to_excel(xlname)
+#
 
-    for nperson in range(NP):
-        tp = tplist_full[epochnum][nperson]['tp']
-        nruns = nruns_per_person[nperson]
-        for ee2 in range(nruns):
-            t1 = ee2*tsize
-            t2 = (ee2+1)*tsize
-            tp1 = tp[t1:t2]
-            dtcdata_centered[:, tp1[1:]] = np.diff(tcdata_centered[:, tp1])
-
-    dSdSgrid = np.zeros((nclusterstotal, nclusterstotal, NP, 2))
-    for nn in range(NP):
-        tp = tplist_full[epochnum][nn]['tp']
-        tsize_total = len(tp)
-        for ss in range(nclusterstotal):
-            dss = dtcdata_centered[ss, tp]
-            for tt in range(nclusterstotal):
-                dtt = dtcdata_centered[tt, tp]
-                dsdt = dss / (dtt + 1.0e-20)
-                stdval = np.std(dsdt)
-                dsdt[np.abs(dsdt) > 3.0 * stdval] = 0.0
-                dSsdSt = np.mean(dsdt)
-                dSsdSt_sem = np.std(dsdt) / np.sqrt(tsize_total)
-                dSdSgrid[ss, tt, nn, 0] = dSsdSt
-                dSdSgrid[ss, tt, nn, 1] = dSsdSt_sem
-    T = dSdSgrid[:, :, :, 0] / (dSdSgrid[:, :, :, 1] + 1.0e-20)
-
-    # network mask for T grid etc.--------------------------------------------------------------------
-    mask = np.zeros((nclusterstotal, nclusterstotal))
-    for nn in range(len(network)):
-        target = network[nn]['targetnum']
-        t1 = np.sum(nclusterlist[:target]).astype(int)
-        t2 = np.sum(nclusterlist[:(target + 1)])
-        sources = network[nn]['sourcenums']
-        for mm in range(len(sources)):
-            if sources[mm] < nregions:
-                s1 = np.sum(nclusterlist[:sources[mm]]).astype(int)
-                s2 = np.sum(nclusterlist[:(sources[mm] + 1)])
-                mask[s1:s2, t1:t2] = 1
-
-    for nn in range(NP):
-        dSdSgrid[:, :, nn, 0] *= mask
-        dSdSgrid[:, :, nn, 1] *= mask
-        T[:, :, nn] *= mask
-
-    Tlim = np.abs(T) > 2
-    Tcount = np.sum(Tlim, axis=2)  # count of how many people have significant estimated beta values for each connection
-
-    return dtcdata_centered, T, Tcount
+# def SEM_dsource_dtarget(network, nclusterlist, tplist_full, nclusterstotal, tcdata_centered, nruns_per_person, tsize):
+#     # compute grid of dSsource/dStarget--------------------------------------------------------------------
+#     epochnum = 0
+#     NP = len(nruns_per_person)
+#     nclusterstotal, tsizetotal = np.shape(tcdata_centered)
+#     dtcdata_centered = np.zeros((nclusterstotal, tsizetotal))
+#
+#     for nperson in range(NP):
+#         tp = tplist_full[epochnum][nperson]['tp']
+#         nruns = nruns_per_person[nperson]
+#         for ee2 in range(nruns):
+#             t1 = ee2*tsize
+#             t2 = (ee2+1)*tsize
+#             tp1 = tp[t1:t2]
+#             dtcdata_centered[:, tp1[1:]] = np.diff(tcdata_centered[:, tp1])
+#
+#     dSdSgrid = np.zeros((nclusterstotal, nclusterstotal, NP, 2))
+#     for nn in range(NP):
+#         tp = tplist_full[epochnum][nn]['tp']
+#         tsize_total = len(tp)
+#         for ss in range(nclusterstotal):
+#             dss = dtcdata_centered[ss, tp]
+#             for tt in range(nclusterstotal):
+#                 dtt = dtcdata_centered[tt, tp]
+#                 dsdt = dss / (dtt + 1.0e-20)
+#                 stdval = np.std(dsdt)
+#                 dsdt[np.abs(dsdt) > 3.0 * stdval] = 0.0
+#                 dSsdSt = np.mean(dsdt)
+#                 dSsdSt_sem = np.std(dsdt) / np.sqrt(tsize_total)
+#                 dSdSgrid[ss, tt, nn, 0] = dSsdSt
+#                 dSdSgrid[ss, tt, nn, 1] = dSsdSt_sem
+#     T = dSdSgrid[:, :, :, 0] / (dSdSgrid[:, :, :, 1] + 1.0e-20)
+#
+#     # network mask for T grid etc.--------------------------------------------------------------------
+#     mask = np.zeros((nclusterstotal, nclusterstotal))
+#     for nn in range(len(network)):
+#         target = network[nn]['targetnum']
+#         t1 = np.sum(nclusterlist[:target]).astype(int)
+#         t2 = np.sum(nclusterlist[:(target + 1)])
+#         sources = network[nn]['sourcenums']
+#         for mm in range(len(sources)):
+#             if sources[mm] < nregions:
+#                 s1 = np.sum(nclusterlist[:sources[mm]]).astype(int)
+#                 s2 = np.sum(nclusterlist[:(sources[mm] + 1)])
+#                 mask[s1:s2, t1:t2] = 1
+#
+#     for nn in range(NP):
+#         dSdSgrid[:, :, nn, 0] *= mask
+#         dSdSgrid[:, :, nn, 1] *= mask
+#         T[:, :, nn] *= mask
+#
+#     Tlim = np.abs(T) > 2
+#     Tcount = np.sum(Tlim, axis=2)  # count of how many people have significant estimated beta values for each connection
+#
+#     return dtcdata_centered, T, Tcount
 
 
 
@@ -4370,19 +4370,19 @@ def plot_correlated_results(SEMresultsname, SEMparametersname, connection_name, 
 
 
 
-def display_matrix(M,columntitles,rowtitles):
-
-    # columns = [name[:3] +' in' for name in betanamelist]
-    # rows = [name[:3] for name in betanamelist]
-
-    df = pd.DataFrame(M,columns = columntitles, index = rorowtitlesws)
-    pd.set_option('display.max_rows', None)
-    pd.set_option('display.max_columns', None)
-    pd.set_option('display.width', None)
-    pd.set_option('display.max_colwidth', None)
-
-    pd.options.display.float_format = '{:.2f}'.format
-    print(df)
+# def display_matrix(M,columntitles,rowtitles):
+#
+#     # columns = [name[:3] +' in' for name in betanamelist]
+#     # rows = [name[:3] for name in betanamelist]
+#
+#     df = pd.DataFrame(M,columns = columntitles, index = rorowtitlesws)
+#     pd.set_option('display.max_rows', None)
+#     pd.set_option('display.max_columns', None)
+#     pd.set_option('display.width', None)
+#     pd.set_option('display.max_colwidth', None)
+#
+#     pd.options.display.float_format = '{:.2f}'.format
+#     print(df)
 
 
 def display_anatomical_cluster(clusterdataname, targetnum, targetcluster, orientation = 'axial', regioncolor = [0,1,1]):
@@ -4520,497 +4520,497 @@ def noise_test():
 
 
 # main program
-def run_a_bunch_of_different_networks():
-    # main function
-    # settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
-    covariatesfile = r'D:\threat_safety_python\copy_of_covariates.npy'
-
-    outputdir = r'D:/threat_safety_python/SEMresults_Feb2022c'
-    if not os.path.exists(outputdir): os.mkdir(outputdir)
-    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model5.npy')
-    SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
-    networkfile = r'D:/threat_safety_python/network_model_5cluster_v5_w_3intrinsics.xlsx'
-
-    # load paradigm data--------------------------------------------------------------------
-    DBname = r'D:/threat_safety_python/threat_safety_database.xlsx'
-    xls = pd.ExcelFile(DBname, engine='openpyxl')
-    df1 = pd.read_excel(xls, 'paradigm1_BOLD')
-    del df1['Unnamed: 0']  # get rid of the unwanted header column
-    fields = list(df1.keys())
-    paradigm = df1['paradigms_BOLD']
-    timevals = df1['time']
-    paradigm_centered = paradigm - np.mean(paradigm)
-    dparadigm = np.zeros(len(paradigm))
-    dparadigm[1:] = np.diff(paradigm_centered)
-
-    regiondataname = r'D:/threat_safety_python/threat_safety_regiondata_allthreat55.npy'
-    clusterdataname = r'D:/threat_safety_python/threat_safety_clusterdata.npy'
-
-    # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
-    #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
-    full_rnum_base =  np.array([0,5,10,15,20,25,30,35,40,45])
-    # cluster set 1
-    cnums = [0, 0, 3, 0, 4, 3, 0, 3, 3, 3]
-    cnums = [0, 0, 3, 0, 0, 3, 0, 3, 3, 3]  # SEMmodel5
-    cnums = [3, 0, 3, 0, 0, 3, 0, 3, 3, 3]  # SEMmodel5b
-    cnums = [3, 0, 3, 0, 0, 0, 0, 3, 3, 3]  # SEMmodel5c
-    cnums = [3, 0, 3, 0, 3, 0, 0, 3, 3, 3]  # SEMmodel5d
-    cnums = [0, 0, 3, 0, 3, 0, 0, 3, 3, 3]  # SEMmodel5e
-    cnums = [3, 0, 0, 3, 1, 2, 0, 3, 3, 3]  # SEMmodel5f
-    cnums = [0, 0, 4, 3, 1, 2, 0, 3, 3, 3]  # SEMmodel5g
-
-    cnums = [0, 3, 3, 0, 4, 1, 3, 3, 4, 3]  # good fishing trip
-
-    cnums = [3, 4, 2, 0, 4, 1, 3, 1, 3, 4]  # continue fishing - model_PBN3_cord3
-
-
-    cnums = [0, 3, 3, 0, 4, 1, 3, 3, 4, 3]  # good fishing trip
-    cnums = [0, 3, 3, 0, 2, 1, 3, 3, 4, 3]  # tweaked the good fishing trip  Feb2022C
-    # cnums = [3, 3, 3, 0, 2, 1, 3, 3, 4, 3]  # tweaked the good fishing trip - with cord3  Feb2022D
-
-
-    # NTS = 0 is best
-    # Thalamus = 3 or 0 is best
-    # Hypothalamus = 3 is best
-    # PBN = 1 is best
-    # LC = 0 is best
-    # NGC = 1 is best
-    # NRM = 2 is best ?
-    # PAG = 2 ?
-    # Hypothalamus = 0 is best now but now PBN needs to be reconsidered
-    # PBN = 3 is best now
-    # LC = 4 now
-    # DRt = 4
-
-    namelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC', 'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus',
-            'Rtotal', 'R C6RD',  'R DRt', 'R Hyp','R LC', 'R NGC', 'R NRM', 'R NTS', 'R PAG',
-            'R PBN', 'R Thal']
-
-    # starting values
-    # cnums = [0, 4, 2, 0, 4, 1, 3, 1, 3, 4] # original starting point
-    cnums_original = copy.deepcopy(cnums)
-    adjust_region = 4   # pick one to start
-    last_Rtotal = 0.0  # initialize
-    iter = 0
-    still_searching = True
-    excelsheetname = 'clusters'
-    excelfilename = os.path.join(outputdir, 'fishing_clusters.xlsx')
-    outputdata = []
-    strikenumber = 0
-
-    while still_searching:
-        resultsrecord = []
-        Rvalrecord = []
-        Rtotal_list = np.zeros(5)
-        for clusternum in range(5):
-            cnums[adjust_region] = clusternum # SEMmodel5 go fish
-
-            clusterlist = np.array(cnums) + full_rnum_base
-            prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
-            output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
-
-            SEMresults = np.load(output, allow_pickle=True).flat[0]
-
-            group = 'all'
-            windowoffset = 0
-            yrange = []
-            yrange2 = []
-            Rtextlist, Rvallist = show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
-                                            windowoffset, yrange, yrange2)
-
-            resultsrecord.append({'Rtextlist':Rtextlist})
-            Rvalrecord.append({'Rvallist':Rvallist})
-            Rtotal_list[clusternum] = np.sum(Rvallist)
-
-        # check the results
-        clusternum = np.argmax(Rtotal_list)   # find the cluster number that gives the best Rtotal
-        Rtotal = Rtotal_list[clusternum]
-
-        if Rtotal > last_Rtotal:
-            cnums[adjust_region] = clusternum
-            Rvallist = Rvalrecord[clusternum]['Rvallist']
-            Rvallist2 = [Rvallist[a][0] for a in range(len(Rvallist))]  # flatten this list
-            Rvallist_temp = np.array(copy.deepcopy(Rvallist))
-            Rvallist_temp[adjust_region] = 1.0
-            last_adjust_region = adjust_region
-            adjust_region = np.argmin(Rvallist_temp)   # adjust the region with the worst fit, but not the same one that was just done
-            sample_list = [1,2,3,4,5,6,7,9]
-            if adjust_region == 0  |  adjust_region == 8:
-                adjust_region = np.random.choice(sample_list)   # don't change the C6RD cluster
-            if np.mod(iter,3) == 2:
-                adjust_region = np.random.choice(list(range(1, 10)))   # throw a random one once in a while
-            last_Rtotal = Rtotal
-            # save the results and keep going
-            # write out cnums, Rtotal, and Rvallist
-            values = cnums + [Rtotal] + Rvallist2
-            entry = dict(zip(namelist, values))
-            outputdata.append(entry)
-            print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
-            pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'replace')
-            iter += 1
-            strikenumber = 0
-        else:
-            strikenumber += 1
-            if strikenumber > 2:
-                still_searching = False
-            else:
-                cnums[adjust_region] = clusternum
-                Rvallist = Rvalrecord[clusternum]['Rvallist']
-                Rvallist2 = [Rvallist[a][0] for a in range(len(Rvallist))]  # flatten this list
-                Rvallist_temp = np.array(copy.deepcopy(Rvallist))
-
-                values = cnums + [Rtotal] + Rvallist2
-                entry = dict(zip(namelist, values))
-                outputdata.append(entry)
-                print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
-                pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'replace')
-                iter += 1
-
-                sample_list = [1,2,3,4,5,6,7,9]
-                adjust_region = np.random.choice(sample_list)   # don't change the C6RD cluster
-
-
-    yrange = [-0.6, 0.6]
-    yrange2 = [1.6, 0.7, 0.8, 0.6, 0.9, 0.8, 0.5]   # for Feb2022C
-    windowoffset = 0
-    group = 'Female'
-    show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
-                                    windowoffset, yrange, yrange2)
-
-    group = 'Male'
-    show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
-                                    windowoffset, yrange, yrange2)
-
-    show_SEM_timecourse_results_compare_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered)
-
-    group = 'all'
-    show_SEM_average_beta_for_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
-                                     windowoffset=0)
-
-    # display a cluster
-    # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
-    #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
-    # cnums = [0, 0, 3, 0, 3, 0, 0, 3, 3, 3]  # SEMmodel5e
-    # targetnum = 9
-    # targetcluster = cnums[targetnum]
-    # targetcluster = 3
-    # orientation = 'sagittal'
-    # outputimg = display_anatomical_cluster(clusterdataname, targetnum, targetcluster, orientation='axial', regioncolor=[0, 1, 1])
-    # plt.close(1)
-    # fig = plt.figure(1), plt.imshow(outputimg)
-
-    # SEMresultsname = os.path.join(outputdir, 'SEMphysio_nullset.npy')
-    # sem_physio_nulldist2(clusterlist, fintrinsic_base, SEMresultsname, SEMparametersname)
-
-    # null distribution has p < 0.05 at arctanh(R) = 0.593
-    # to scale distribution to match normal distribution, multiply by 2.774 (no idea why this number)
-
-
-# main program
-def IDstudy_search(cord_cluster):
-
-    # main function
-    # settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
-    covariatesfile = r'D:\threat_safety_python\copy_of_covariates.npy'
-
-    outputdir = r'D:\threat_safety_python\individual_differences'
-    if not os.path.exists(outputdir): os.mkdir(outputdir)
-    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model.npy')
-    SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
-    networkfile = r'D:/threat_safety_python/network_model_5cluster_v5_w_3intrinsics.xlsx'
-
-    # load paradigm data--------------------------------------------------------------------
-    DBname = r'D:/threat_safety_python/threat_safety_database.xlsx'
-    xls = pd.ExcelFile(DBname, engine='openpyxl')
-    df1 = pd.read_excel(xls, 'paradigm1_BOLD')
-    del df1['Unnamed: 0']  # get rid of the unwanted header column
-    fields = list(df1.keys())
-    paradigm = df1['paradigms_BOLD']
-    timevals = df1['time']
-    paradigm_centered = paradigm - np.mean(paradigm)
-    dparadigm = np.zeros(len(paradigm))
-    dparadigm[1:] = np.diff(paradigm_centered)
-
-    regiondataname = r'D:/threat_safety_python/threat_safety_regiondata_allthreat55.npy'
-    clusterdataname = r'D:/threat_safety_python/threat_safety_clusterdata.npy'
-
-    # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
-    #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
-    full_rnum_base =  np.array([0,5,10,15,20,25,30,35,40,45])
-    # cluster set 1
-    cnums = [0, 3, 3, 0, 4, 1, 3, 3, 4, 3]  # good fishing trip
-    cnums = [0, 3, 3, 0, 2, 1, 3, 3, 4, 3]  # tweaked the good fishing trip  Feb2022C
-
-    # set clusters to random
-    # for cc in range(10):
-    #     cluster_val = np.random.choice(list(range(5)))
-    #     cnums[cc] = cluster_val
-    # cnums[0] = cord_cluster
-
-    namelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC', 'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus',
-            'Rtotal', 'R C6RD',  'R DRt', 'R Hyp','R LC', 'R NGC', 'R NRM', 'R NTS', 'R PAG',
-            'R PBN', 'R Thal']
-
-    # starting values
-    cnums_original = copy.deepcopy(cnums)
-    adjust_region = 4   # pick one to start
-    last_Rtotal = 0.0  # initialize
-    iter = 0
-    still_searching = True
-    excelsheetname = 'clusters'
-    fname = 'fishing_clusters_random_C6RD{}.xlsx'.format(cord_cluster)
-    excelfilename = os.path.join(outputdir, fname)
-    outputdata = []
-    strikenumber = 0
-
-    while still_searching:
-        resultsrecord = []
-        Rvalrecord = []
-        Rtotal_list = np.zeros(5)
-        for clusternum in range(5):
-            cnums[adjust_region] = clusternum # SEMmodel5 go fish
-            clusterlist = np.array(cnums) + full_rnum_base
-            prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
-            output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
-
-            SEMresults = np.load(output, allow_pickle=True).flat[0]
-
-            group = 'all'
-            windowoffset = 0
-            yrange = []
-            yrange2 = []
-            Rtextlist, Rvallist = show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
-                                            windowoffset, yrange, yrange2)
-
-            resultsrecord.append({'Rtextlist':Rtextlist})
-            Rvalrecord.append({'Rvallist':Rvallist})
-            Rtotal_list[clusternum] = np.sum(Rvallist)
-
-        # check the results
-        clusternum = np.argmax(Rtotal_list)   # find the cluster number that gives the best Rtotal
-        Rtotal = Rtotal_list[clusternum]
-
-        if Rtotal > last_Rtotal:
-            cnums[adjust_region] = clusternum
-            Rvallist = Rvalrecord[clusternum]['Rvallist']
-            Rvallist2 = [Rvallist[a][0] for a in range(len(Rvallist))]  # flatten this list
-            Rvallist_temp = np.array(copy.deepcopy(Rvallist))
-            Rvallist_temp[adjust_region] = 1.0
-            last_adjust_region = adjust_region
-            adjust_region = np.argmin(Rvallist_temp)   # adjust the region with the worst fit, but not the same one that was just done
-            sample_list = [1,2,3,4,5,6,7,9]
-            if adjust_region == 0:
-                adjust_region = np.random.choice(sample_list)   # don't change the C6RD cluster
-            if np.mod(iter,3) == 2:
-                adjust_region = np.random.choice(list(range(1, 10)))   # throw a random one once in a while
-            last_Rtotal = Rtotal
-            # save the results and keep going
-            # write out cnums, Rtotal, and Rvallist
-            values = cnums + [Rtotal] + Rvallist2
-            entry = dict(zip(namelist, values))
-            outputdata.append(entry)
-            print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
-            pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'replace')
-            iter += 1
-            strikenumber = 0
-        else:
-            strikenumber += 1
-            if strikenumber > 2:
-                still_searching = False
-            else:
-                cnums[adjust_region] = clusternum
-                Rvallist = Rvalrecord[clusternum]['Rvallist']
-                Rvallist2 = [Rvallist[a][0] for a in range(len(Rvallist))]  # flatten this list
-                Rvallist_temp = np.array(copy.deepcopy(Rvallist))
-
-                values = cnums + [Rtotal] + Rvallist2
-                entry = dict(zip(namelist, values))
-                outputdata.append(entry)
-                print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
-                pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'replace')
-                iter += 1
-
-                sample_list = [1,2,3,4,5,6,7,9]
-                adjust_region = np.random.choice(sample_list)   # don't change the C6RD cluster
-
-    yrange = [-0.6, 0.6]
-    yrange2 = [1.6, 0.7, 0.8, 0.6, 0.9, 0.8, 0.5]   # for Feb2022C
-    windowoffset = 0
-
-    group = 'all'
-    show_SEM_average_beta_for_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
-                                     windowoffset=0)
-
-    run_nulldist = False
-    # now look at distributions of beta values and check for bias
-    if run_nulldist:
-        SEMresultsname = os.path.join(outputdir, 'SEMphysio_nullset.npy')
-        sem_physio_nulldist2(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
-
-        nullresults = np.load(SEMresultsname, allow_pickle=True)
-        nr = len(nullresults)
-        nbeta = len(nullresults[0]['betavals'])
-        betalist = np.zeros((nr,nbeta))
-        for nn in range(nr):
-            betalist[nn,:] = nullresults[nn]['betavals']
-
-        betaprops = np.zeros((nbeta,4))
-        for bb in range(nbeta):
-            b = betalist[:,bb]
-            betaprops[bb,0] = np.mean(b)
-            betaprops[bb,1] = np.std(b)
-            betaprops[bb,2] = stats.skew(b)
-            betaprops[bb,3] = stats.kurtosis(b)
-
-        # get info about network
-        SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
-
-        # csource, ctarget, rnamelist, betanamelist, beta_list
-        labeltext_record, sources_per_target, intrinsic_flag = betavalue_labels(SEMparams['csource'],  SEMparams['ctarget'], SEMparams['rnamelist'], SEMparams['betanamelist'], SEMparams['beta_list'])
-
-        # identify the distribution which best matches the data
-        from fitter import Fitter, get_common_distributions, get_distributions
-        b = betalist[:,1]
-        # f = Fitter(b, distributions= get_distributions())
-        # f = Fitter(b, distributions= get_common_distributions())
-        f = Fitter(b, distributions= ['cauchy','norm'])
-        f.fit()
-        f.summary()
-
-        mlist = []
-        for bb in range(nbeta):
-            print('connection {} of {} ...'.format(bb,nbeta))
-            b = betalist[:,bb]
-            f = Fitter(b, distributions= ['cauchy','norm'])
-            f.fit()
-            m = f.get_best(method='sumsquare_error')
-            mlist.append(m)
-
-        cc = np.where(intrinsic_flag == 0)[0]
-        scale_cauchy = []
-        scale_norm = []
-        loc_cauchy = []
-        loc_norm = []
-        for x in cc:
-            if 'cauchy' in mlist[x].keys():
-                loc_cauchy += [mlist[x]['cauchy']['loc']]
-                scale_cauchy += [mlist[x]['cauchy']['scale']]
-            if 'norm' in mlist[x].keys():
-                loc_norm += [mlist[x]['norm']['loc']]
-                scale_norm += [mlist[x]['norm']['scale']]
-
-
+# def run_a_bunch_of_different_networks():
+#     # main function
+#     # settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+#     covariatesfile = r'D:\threat_safety_python\copy_of_covariates.npy'
+#
+#     outputdir = r'D:/threat_safety_python/SEMresults_Feb2022c'
+#     if not os.path.exists(outputdir): os.mkdir(outputdir)
+#     SEMresultsname = os.path.join(outputdir, 'SEMphysio_model5.npy')
+#     SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
+#     networkfile = r'D:/threat_safety_python/network_model_5cluster_v5_w_3intrinsics.xlsx'
+#
+#     # load paradigm data--------------------------------------------------------------------
+#     DBname = r'D:/threat_safety_python/threat_safety_database.xlsx'
+#     xls = pd.ExcelFile(DBname, engine='openpyxl')
+#     df1 = pd.read_excel(xls, 'paradigm1_BOLD')
+#     del df1['Unnamed: 0']  # get rid of the unwanted header column
+#     fields = list(df1.keys())
+#     paradigm = df1['paradigms_BOLD']
+#     timevals = df1['time']
+#     paradigm_centered = paradigm - np.mean(paradigm)
+#     dparadigm = np.zeros(len(paradigm))
+#     dparadigm[1:] = np.diff(paradigm_centered)
+#
+#     regiondataname = r'D:/threat_safety_python/threat_safety_regiondata_allthreat55.npy'
+#     clusterdataname = r'D:/threat_safety_python/threat_safety_clusterdata.npy'
+#
+#     # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
+#     #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
+#     full_rnum_base =  np.array([0,5,10,15,20,25,30,35,40,45])
+#     # cluster set 1
+#     cnums = [0, 0, 3, 0, 4, 3, 0, 3, 3, 3]
+#     cnums = [0, 0, 3, 0, 0, 3, 0, 3, 3, 3]  # SEMmodel5
+#     cnums = [3, 0, 3, 0, 0, 3, 0, 3, 3, 3]  # SEMmodel5b
+#     cnums = [3, 0, 3, 0, 0, 0, 0, 3, 3, 3]  # SEMmodel5c
+#     cnums = [3, 0, 3, 0, 3, 0, 0, 3, 3, 3]  # SEMmodel5d
+#     cnums = [0, 0, 3, 0, 3, 0, 0, 3, 3, 3]  # SEMmodel5e
+#     cnums = [3, 0, 0, 3, 1, 2, 0, 3, 3, 3]  # SEMmodel5f
+#     cnums = [0, 0, 4, 3, 1, 2, 0, 3, 3, 3]  # SEMmodel5g
+#
+#     cnums = [0, 3, 3, 0, 4, 1, 3, 3, 4, 3]  # good fishing trip
+#
+#     cnums = [3, 4, 2, 0, 4, 1, 3, 1, 3, 4]  # continue fishing - model_PBN3_cord3
+#
+#
+#     cnums = [0, 3, 3, 0, 4, 1, 3, 3, 4, 3]  # good fishing trip
+#     cnums = [0, 3, 3, 0, 2, 1, 3, 3, 4, 3]  # tweaked the good fishing trip  Feb2022C
+#     # cnums = [3, 3, 3, 0, 2, 1, 3, 3, 4, 3]  # tweaked the good fishing trip - with cord3  Feb2022D
+#
+#
+#     # NTS = 0 is best
+#     # Thalamus = 3 or 0 is best
+#     # Hypothalamus = 3 is best
+#     # PBN = 1 is best
+#     # LC = 0 is best
+#     # NGC = 1 is best
+#     # NRM = 2 is best ?
+#     # PAG = 2 ?
+#     # Hypothalamus = 0 is best now but now PBN needs to be reconsidered
+#     # PBN = 3 is best now
+#     # LC = 4 now
+#     # DRt = 4
+#
+#     namelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC', 'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus',
+#             'Rtotal', 'R C6RD',  'R DRt', 'R Hyp','R LC', 'R NGC', 'R NRM', 'R NTS', 'R PAG',
+#             'R PBN', 'R Thal']
+#
+#     # starting values
+#     # cnums = [0, 4, 2, 0, 4, 1, 3, 1, 3, 4] # original starting point
+#     cnums_original = copy.deepcopy(cnums)
+#     adjust_region = 4   # pick one to start
+#     last_Rtotal = 0.0  # initialize
+#     iter = 0
+#     still_searching = True
+#     excelsheetname = 'clusters'
+#     excelfilename = os.path.join(outputdir, 'fishing_clusters.xlsx')
+#     outputdata = []
+#     strikenumber = 0
+#
+#     while still_searching:
+#         resultsrecord = []
+#         Rvalrecord = []
+#         Rtotal_list = np.zeros(5)
+#         for clusternum in range(5):
+#             cnums[adjust_region] = clusternum # SEMmodel5 go fish
+#
+#             clusterlist = np.array(cnums) + full_rnum_base
+#             prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
+#             output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
+#
+#             SEMresults = np.load(output, allow_pickle=True).flat[0]
+#
+#             group = 'all'
+#             windowoffset = 0
+#             yrange = []
+#             yrange2 = []
+#             Rtextlist, Rvallist = show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+#                                             windowoffset, yrange, yrange2)
+#
+#             resultsrecord.append({'Rtextlist':Rtextlist})
+#             Rvalrecord.append({'Rvallist':Rvallist})
+#             Rtotal_list[clusternum] = np.sum(Rvallist)
+#
+#         # check the results
+#         clusternum = np.argmax(Rtotal_list)   # find the cluster number that gives the best Rtotal
+#         Rtotal = Rtotal_list[clusternum]
+#
+#         if Rtotal > last_Rtotal:
+#             cnums[adjust_region] = clusternum
+#             Rvallist = Rvalrecord[clusternum]['Rvallist']
+#             Rvallist2 = [Rvallist[a][0] for a in range(len(Rvallist))]  # flatten this list
+#             Rvallist_temp = np.array(copy.deepcopy(Rvallist))
+#             Rvallist_temp[adjust_region] = 1.0
+#             last_adjust_region = adjust_region
+#             adjust_region = np.argmin(Rvallist_temp)   # adjust the region with the worst fit, but not the same one that was just done
+#             sample_list = [1,2,3,4,5,6,7,9]
+#             if adjust_region == 0  |  adjust_region == 8:
+#                 adjust_region = np.random.choice(sample_list)   # don't change the C6RD cluster
+#             if np.mod(iter,3) == 2:
+#                 adjust_region = np.random.choice(list(range(1, 10)))   # throw a random one once in a while
+#             last_Rtotal = Rtotal
+#             # save the results and keep going
+#             # write out cnums, Rtotal, and Rvallist
+#             values = cnums + [Rtotal] + Rvallist2
+#             entry = dict(zip(namelist, values))
+#             outputdata.append(entry)
+#             print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+#             pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'replace')
+#             iter += 1
+#             strikenumber = 0
+#         else:
+#             strikenumber += 1
+#             if strikenumber > 2:
+#                 still_searching = False
+#             else:
+#                 cnums[adjust_region] = clusternum
+#                 Rvallist = Rvalrecord[clusternum]['Rvallist']
+#                 Rvallist2 = [Rvallist[a][0] for a in range(len(Rvallist))]  # flatten this list
+#                 Rvallist_temp = np.array(copy.deepcopy(Rvallist))
+#
+#                 values = cnums + [Rtotal] + Rvallist2
+#                 entry = dict(zip(namelist, values))
+#                 outputdata.append(entry)
+#                 print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+#                 pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'replace')
+#                 iter += 1
+#
+#                 sample_list = [1,2,3,4,5,6,7,9]
+#                 adjust_region = np.random.choice(sample_list)   # don't change the C6RD cluster
+#
+#
+#     yrange = [-0.6, 0.6]
+#     yrange2 = [1.6, 0.7, 0.8, 0.6, 0.9, 0.8, 0.5]   # for Feb2022C
+#     windowoffset = 0
+#     group = 'Female'
+#     show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+#                                     windowoffset, yrange, yrange2)
+#
+#     group = 'Male'
+#     show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+#                                     windowoffset, yrange, yrange2)
+#
+#     show_SEM_timecourse_results_compare_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered)
+#
+#     group = 'all'
+#     show_SEM_average_beta_for_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+#                                      windowoffset=0)
+#
+#     # display a cluster
+#     # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
+#     #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
+#     # cnums = [0, 0, 3, 0, 3, 0, 0, 3, 3, 3]  # SEMmodel5e
+#     # targetnum = 9
+#     # targetcluster = cnums[targetnum]
+#     # targetcluster = 3
+#     # orientation = 'sagittal'
+#     # outputimg = display_anatomical_cluster(clusterdataname, targetnum, targetcluster, orientation='axial', regioncolor=[0, 1, 1])
+#     # plt.close(1)
+#     # fig = plt.figure(1), plt.imshow(outputimg)
+#
+#     # SEMresultsname = os.path.join(outputdir, 'SEMphysio_nullset.npy')
+#     # sem_physio_nulldist2(clusterlist, fintrinsic_base, SEMresultsname, SEMparametersname)
+#
+#     # null distribution has p < 0.05 at arctanh(R) = 0.593
+#     # to scale distribution to match normal distribution, multiply by 2.774 (no idea why this number)
 
 
 # main program
-def IDstudy_main(cord_cluster, type, reload_existing = False):
-    # cord_cluster = 1
-    # type = 'fixed'
+# def IDstudy_search(cord_cluster):
+#
+#     # main function
+#     # settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+#     covariatesfile = r'D:\threat_safety_python\copy_of_covariates.npy'
+#
+#     outputdir = r'D:\threat_safety_python\individual_differences'
+#     if not os.path.exists(outputdir): os.mkdir(outputdir)
+#     SEMresultsname = os.path.join(outputdir, 'SEMphysio_model.npy')
+#     SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
+#     networkfile = r'D:/threat_safety_python/network_model_5cluster_v5_w_3intrinsics.xlsx'
+#
+#     # load paradigm data--------------------------------------------------------------------
+#     DBname = r'D:/threat_safety_python/threat_safety_database.xlsx'
+#     xls = pd.ExcelFile(DBname, engine='openpyxl')
+#     df1 = pd.read_excel(xls, 'paradigm1_BOLD')
+#     del df1['Unnamed: 0']  # get rid of the unwanted header column
+#     fields = list(df1.keys())
+#     paradigm = df1['paradigms_BOLD']
+#     timevals = df1['time']
+#     paradigm_centered = paradigm - np.mean(paradigm)
+#     dparadigm = np.zeros(len(paradigm))
+#     dparadigm[1:] = np.diff(paradigm_centered)
+#
+#     regiondataname = r'D:/threat_safety_python/threat_safety_regiondata_allthreat55.npy'
+#     clusterdataname = r'D:/threat_safety_python/threat_safety_clusterdata.npy'
+#
+#     # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
+#     #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
+#     full_rnum_base =  np.array([0,5,10,15,20,25,30,35,40,45])
+#     # cluster set 1
+#     cnums = [0, 3, 3, 0, 4, 1, 3, 3, 4, 3]  # good fishing trip
+#     cnums = [0, 3, 3, 0, 2, 1, 3, 3, 4, 3]  # tweaked the good fishing trip  Feb2022C
+#
+#     # set clusters to random
+#     # for cc in range(10):
+#     #     cluster_val = np.random.choice(list(range(5)))
+#     #     cnums[cc] = cluster_val
+#     # cnums[0] = cord_cluster
+#
+#     namelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC', 'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus',
+#             'Rtotal', 'R C6RD',  'R DRt', 'R Hyp','R LC', 'R NGC', 'R NRM', 'R NTS', 'R PAG',
+#             'R PBN', 'R Thal']
+#
+#     # starting values
+#     cnums_original = copy.deepcopy(cnums)
+#     adjust_region = 4   # pick one to start
+#     last_Rtotal = 0.0  # initialize
+#     iter = 0
+#     still_searching = True
+#     excelsheetname = 'clusters'
+#     fname = 'fishing_clusters_random_C6RD{}.xlsx'.format(cord_cluster)
+#     excelfilename = os.path.join(outputdir, fname)
+#     outputdata = []
+#     strikenumber = 0
+#
+#     while still_searching:
+#         resultsrecord = []
+#         Rvalrecord = []
+#         Rtotal_list = np.zeros(5)
+#         for clusternum in range(5):
+#             cnums[adjust_region] = clusternum # SEMmodel5 go fish
+#             clusterlist = np.array(cnums) + full_rnum_base
+#             prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
+#             output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
+#
+#             SEMresults = np.load(output, allow_pickle=True).flat[0]
+#
+#             group = 'all'
+#             windowoffset = 0
+#             yrange = []
+#             yrange2 = []
+#             Rtextlist, Rvallist = show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+#                                             windowoffset, yrange, yrange2)
+#
+#             resultsrecord.append({'Rtextlist':Rtextlist})
+#             Rvalrecord.append({'Rvallist':Rvallist})
+#             Rtotal_list[clusternum] = np.sum(Rvallist)
+#
+#         # check the results
+#         clusternum = np.argmax(Rtotal_list)   # find the cluster number that gives the best Rtotal
+#         Rtotal = Rtotal_list[clusternum]
+#
+#         if Rtotal > last_Rtotal:
+#             cnums[adjust_region] = clusternum
+#             Rvallist = Rvalrecord[clusternum]['Rvallist']
+#             Rvallist2 = [Rvallist[a][0] for a in range(len(Rvallist))]  # flatten this list
+#             Rvallist_temp = np.array(copy.deepcopy(Rvallist))
+#             Rvallist_temp[adjust_region] = 1.0
+#             last_adjust_region = adjust_region
+#             adjust_region = np.argmin(Rvallist_temp)   # adjust the region with the worst fit, but not the same one that was just done
+#             sample_list = [1,2,3,4,5,6,7,9]
+#             if adjust_region == 0:
+#                 adjust_region = np.random.choice(sample_list)   # don't change the C6RD cluster
+#             if np.mod(iter,3) == 2:
+#                 adjust_region = np.random.choice(list(range(1, 10)))   # throw a random one once in a while
+#             last_Rtotal = Rtotal
+#             # save the results and keep going
+#             # write out cnums, Rtotal, and Rvallist
+#             values = cnums + [Rtotal] + Rvallist2
+#             entry = dict(zip(namelist, values))
+#             outputdata.append(entry)
+#             print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+#             pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'replace')
+#             iter += 1
+#             strikenumber = 0
+#         else:
+#             strikenumber += 1
+#             if strikenumber > 2:
+#                 still_searching = False
+#             else:
+#                 cnums[adjust_region] = clusternum
+#                 Rvallist = Rvalrecord[clusternum]['Rvallist']
+#                 Rvallist2 = [Rvallist[a][0] for a in range(len(Rvallist))]  # flatten this list
+#                 Rvallist_temp = np.array(copy.deepcopy(Rvallist))
+#
+#                 values = cnums + [Rtotal] + Rvallist2
+#                 entry = dict(zip(namelist, values))
+#                 outputdata.append(entry)
+#                 print('writing results to {}, sheet {}'.format(excelfilename, excelsheetname))
+#                 pydisplay.pywriteexcel(outputdata, excelfilename, excelsheetname, 'replace')
+#                 iter += 1
+#
+#                 sample_list = [1,2,3,4,5,6,7,9]
+#                 adjust_region = np.random.choice(sample_list)   # don't change the C6RD cluster
+#
+#     yrange = [-0.6, 0.6]
+#     yrange2 = [1.6, 0.7, 0.8, 0.6, 0.9, 0.8, 0.5]   # for Feb2022C
+#     windowoffset = 0
+#
+#     group = 'all'
+#     show_SEM_average_beta_for_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+#                                      windowoffset=0)
+#
+#     run_nulldist = False
+#     # now look at distributions of beta values and check for bias
+#     if run_nulldist:
+#         SEMresultsname = os.path.join(outputdir, 'SEMphysio_nullset.npy')
+#         sem_physio_nulldist2(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
+#
+#         nullresults = np.load(SEMresultsname, allow_pickle=True)
+#         nr = len(nullresults)
+#         nbeta = len(nullresults[0]['betavals'])
+#         betalist = np.zeros((nr,nbeta))
+#         for nn in range(nr):
+#             betalist[nn,:] = nullresults[nn]['betavals']
+#
+#         betaprops = np.zeros((nbeta,4))
+#         for bb in range(nbeta):
+#             b = betalist[:,bb]
+#             betaprops[bb,0] = np.mean(b)
+#             betaprops[bb,1] = np.std(b)
+#             betaprops[bb,2] = stats.skew(b)
+#             betaprops[bb,3] = stats.kurtosis(b)
+#
+#         # get info about network
+#         SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+#
+#         # csource, ctarget, rnamelist, betanamelist, beta_list
+#         labeltext_record, sources_per_target, intrinsic_flag = betavalue_labels(SEMparams['csource'],  SEMparams['ctarget'], SEMparams['rnamelist'], SEMparams['betanamelist'], SEMparams['beta_list'])
+#
+#         # identify the distribution which best matches the data
+#         from fitter import Fitter, get_common_distributions, get_distributions
+#         b = betalist[:,1]
+#         # f = Fitter(b, distributions= get_distributions())
+#         # f = Fitter(b, distributions= get_common_distributions())
+#         f = Fitter(b, distributions= ['cauchy','norm'])
+#         f.fit()
+#         f.summary()
+#
+#         mlist = []
+#         for bb in range(nbeta):
+#             print('connection {} of {} ...'.format(bb,nbeta))
+#             b = betalist[:,bb]
+#             f = Fitter(b, distributions= ['cauchy','norm'])
+#             f.fit()
+#             m = f.get_best(method='sumsquare_error')
+#             mlist.append(m)
+#
+#         cc = np.where(intrinsic_flag == 0)[0]
+#         scale_cauchy = []
+#         scale_norm = []
+#         loc_cauchy = []
+#         loc_norm = []
+#         for x in cc:
+#             if 'cauchy' in mlist[x].keys():
+#                 loc_cauchy += [mlist[x]['cauchy']['loc']]
+#                 scale_cauchy += [mlist[x]['cauchy']['scale']]
+#             if 'norm' in mlist[x].keys():
+#                 loc_norm += [mlist[x]['norm']['loc']]
+#                 scale_norm += [mlist[x]['norm']['scale']]
 
-    if type == 'fixed':
-        if cord_cluster == 0:
-            cnums = [0, 3, 3, 1, 4, 1, 3, 3, 4, 1]  # fixed 0
-        if cord_cluster == 1:
-            cnums = [1, 3, 3, 1, 3, 1, 3, 3, 2, 1]  # fixed 1
-        if cord_cluster == 2:
-            cnums = [2, 3, 3, 1, 1, 1, 3, 3, 2, 0]  # fixed 2
-        if cord_cluster == 3:
-            cnums = [3, 3, 2, 1, 0, 1, 2, 3, 4, 1]  # fixed 3
-        if cord_cluster == 4:
-            cnums = [4, 3, 3, 1, 0, 1, 2, 3, 4, 3]  # fixed 4
-    else:
-        if cord_cluster == 0:
-            cnums = [0, 4, 4, 2, 2, 3, 3, 2, 3, 1]  # random 0
-        if cord_cluster == 1:
-            cnums = [1, 4, 2, 3, 2, 1, 1, 2, 3, 0]  # random 1
-        if cord_cluster == 2:
-            cnums = [2, 2, 2, 0, 0, 2, 0, 3, 1, 3]  # random 2
-        if cord_cluster == 3:
-            cnums = [3, 3, 1, 4, 4, 1, 3, 3, 1, 0]  # random 3
-        if cord_cluster == 4:
-            cnums = [4, 4, 2, 1, 0, 3, 3, 3, 2, 0]  # random 4
 
 
-    outputdir = r'D:\threat_safety_python\individual_differences\{}_C6RD{}'.format(type,cord_cluster)
-    if not os.path.exists(outputdir): os.mkdir(outputdir)
 
-    # main function
-    # settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
-    covariatesfile = r'D:\threat_safety_python\copy_of_covariates.npy'
-
-    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model.npy')
-    SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
-    networkfile = r'D:/threat_safety_python/network_model_5cluster_v5_w_3intrinsics.xlsx'
-
-    # load paradigm data--------------------------------------------------------------------
-    DBname = r'D:/threat_safety_python/threat_safety_database.xlsx'
-    xls = pd.ExcelFile(DBname, engine='openpyxl')
-    df1 = pd.read_excel(xls, 'paradigm1_BOLD')
-    del df1['Unnamed: 0']  # get rid of the unwanted header column
-    fields = list(df1.keys())
-    paradigm = df1['paradigms_BOLD']
-    timevals = df1['time']
-    paradigm_centered = paradigm - np.mean(paradigm)
-    dparadigm = np.zeros(len(paradigm))
-    dparadigm[1:] = np.diff(paradigm_centered)
-
-    regiondataname = r'D:/threat_safety_python/threat_safety_regiondata_allthreat55.npy'
-    clusterdataname = r'D:/threat_safety_python/threat_safety_clusterdata.npy'
-
-    # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
-    #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
-    full_rnum_base =  np.array([0,5,10,15,20,25,30,35,40,45])
-
-    namelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC', 'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus',
-            'Rtotal', 'R C6RD',  'R DRt', 'R Hyp','R LC', 'R NGC', 'R NRM', 'R NTS', 'R PAG',
-            'R PBN', 'R Thal']
-
-    # starting values
-    cnums_original = copy.deepcopy(cnums)
-    excelsheetname = 'clusters'
-    fname = 'fixed_C6RD{}.xlsx'.format(cord_cluster)
-    excelfilename = os.path.join(outputdir, fname)
-
-    # run the analysis with SAPM
-    clusterlist = np.array(cnums) + full_rnum_base
-    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
-
-    if reload_existing:
-        output = SEMresultsname
-    else:
-        output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
-
-    SEMresults = np.load(output, allow_pickle=True).flat[0]
-
-    group = 'all'
-    windowoffset = 0
-    yrange = []
-    yrange2 = []
-    Rtextlist, Rvallist = show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
-                                    windowoffset, yrange, yrange2)
-
-    yrange = [-0.6, 0.6]
-    yrange2 = [1.6, 0.7, 0.8, 0.6, 0.9, 0.8, 0.5]   # for Feb2022C
-    windowoffset = 0
-
-    group = 'all'
-    show_SEM_average_beta_for_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
-                                     windowoffset=0)
-
-    # show a specific connection
-    connection_name = 'PBN-LC-DRt'
-
-    # settings = np.load(settingsfile, allow_pickle=True).flat[0]
-    # covariates = settings['GRPcharacteristicsvalues'][0].astype(float)  # painrating
-
-    covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
-    if 'painrating' in covariatesdata['GRPcharacteristicslist']:
-        x = covariatesdata['GRPcharacteristicslist'].index('painrating')
-        covariates = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
-    else:
-        covariates = []
-
-    plot_correlated_results(SEMresultsname, SEMparametersname, connection_name, covariates, figurenumber = 1)
+# main program
+# def IDstudy_main(cord_cluster, type, reload_existing = False):
+#     # cord_cluster = 1
+#     # type = 'fixed'
+#
+#     if type == 'fixed':
+#         if cord_cluster == 0:
+#             cnums = [0, 3, 3, 1, 4, 1, 3, 3, 4, 1]  # fixed 0
+#         if cord_cluster == 1:
+#             cnums = [1, 3, 3, 1, 3, 1, 3, 3, 2, 1]  # fixed 1
+#         if cord_cluster == 2:
+#             cnums = [2, 3, 3, 1, 1, 1, 3, 3, 2, 0]  # fixed 2
+#         if cord_cluster == 3:
+#             cnums = [3, 3, 2, 1, 0, 1, 2, 3, 4, 1]  # fixed 3
+#         if cord_cluster == 4:
+#             cnums = [4, 3, 3, 1, 0, 1, 2, 3, 4, 3]  # fixed 4
+#     else:
+#         if cord_cluster == 0:
+#             cnums = [0, 4, 4, 2, 2, 3, 3, 2, 3, 1]  # random 0
+#         if cord_cluster == 1:
+#             cnums = [1, 4, 2, 3, 2, 1, 1, 2, 3, 0]  # random 1
+#         if cord_cluster == 2:
+#             cnums = [2, 2, 2, 0, 0, 2, 0, 3, 1, 3]  # random 2
+#         if cord_cluster == 3:
+#             cnums = [3, 3, 1, 4, 4, 1, 3, 3, 1, 0]  # random 3
+#         if cord_cluster == 4:
+#             cnums = [4, 4, 2, 1, 0, 3, 3, 3, 2, 0]  # random 4
+#
+#
+#     outputdir = r'D:\threat_safety_python\individual_differences\{}_C6RD{}'.format(type,cord_cluster)
+#     if not os.path.exists(outputdir): os.mkdir(outputdir)
+#
+#     # main function
+#     # settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+#     covariatesfile = r'D:\threat_safety_python\copy_of_covariates.npy'
+#
+#     SEMresultsname = os.path.join(outputdir, 'SEMphysio_model.npy')
+#     SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
+#     networkfile = r'D:/threat_safety_python/network_model_5cluster_v5_w_3intrinsics.xlsx'
+#
+#     # load paradigm data--------------------------------------------------------------------
+#     DBname = r'D:/threat_safety_python/threat_safety_database.xlsx'
+#     xls = pd.ExcelFile(DBname, engine='openpyxl')
+#     df1 = pd.read_excel(xls, 'paradigm1_BOLD')
+#     del df1['Unnamed: 0']  # get rid of the unwanted header column
+#     fields = list(df1.keys())
+#     paradigm = df1['paradigms_BOLD']
+#     timevals = df1['time']
+#     paradigm_centered = paradigm - np.mean(paradigm)
+#     dparadigm = np.zeros(len(paradigm))
+#     dparadigm[1:] = np.diff(paradigm_centered)
+#
+#     regiondataname = r'D:/threat_safety_python/threat_safety_regiondata_allthreat55.npy'
+#     clusterdataname = r'D:/threat_safety_python/threat_safety_clusterdata.npy'
+#
+#     # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
+#     #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
+#     full_rnum_base =  np.array([0,5,10,15,20,25,30,35,40,45])
+#
+#     namelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC', 'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus',
+#             'Rtotal', 'R C6RD',  'R DRt', 'R Hyp','R LC', 'R NGC', 'R NRM', 'R NTS', 'R PAG',
+#             'R PBN', 'R Thal']
+#
+#     # starting values
+#     cnums_original = copy.deepcopy(cnums)
+#     excelsheetname = 'clusters'
+#     fname = 'fixed_C6RD{}.xlsx'.format(cord_cluster)
+#     excelfilename = os.path.join(outputdir, fname)
+#
+#     # run the analysis with SAPM
+#     clusterlist = np.array(cnums) + full_rnum_base
+#     prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
+#
+#     if reload_existing:
+#         output = SEMresultsname
+#     else:
+#         output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
+#
+#     SEMresults = np.load(output, allow_pickle=True).flat[0]
+#
+#     group = 'all'
+#     windowoffset = 0
+#     yrange = []
+#     yrange2 = []
+#     Rtextlist, Rvallist = show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+#                                     windowoffset, yrange, yrange2)
+#
+#     yrange = [-0.6, 0.6]
+#     yrange2 = [1.6, 0.7, 0.8, 0.6, 0.9, 0.8, 0.5]   # for Feb2022C
+#     windowoffset = 0
+#
+#     group = 'all'
+#     show_SEM_average_beta_for_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+#                                      windowoffset=0)
+#
+#     # show a specific connection
+#     connection_name = 'PBN-LC-DRt'
+#
+#     # settings = np.load(settingsfile, allow_pickle=True).flat[0]
+#     # covariates = settings['GRPcharacteristicsvalues'][0].astype(float)  # painrating
+#
+#     covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
+#     if 'painrating' in covariatesdata['GRPcharacteristicslist']:
+#         x = covariatesdata['GRPcharacteristicslist'].index('painrating')
+#         covariates = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
+#     else:
+#         covariates = []
+#
+#     plot_correlated_results(SEMresultsname, SEMparametersname, connection_name, covariates, figurenumber = 1)
 
 
 
@@ -5212,1066 +5212,1066 @@ def Beta_distribution_study_main(studyname, cord_cluster, type, reload_existing 
 
 
 
-def view_distributions(type, cord_cluster, display_connection_number):
-
-    studylist = ['allthreat','RS1nostim','Low','Sens']
-    plotcolor = [[0,0,1],[1,0.5,0],[1,0,1],[0,1,0]]
-
-    nullname = 'E:\\beta_distribution\\Sens_fixed_C6RD0\\SEMphysio_nullset.npy'
-    nullresults = np.load(nullname, allow_pickle=True)
-    nr = len(nullresults)
-    nbeta = len(nullresults[0]['betavals'])
-    betalist_null = np.zeros((nr, nbeta))
-    R2list_null = np.zeros(nr)
-    for nn in range(nr):
-        betalist_null[nn, :] = nullresults[nn]['betavals']
-        R2list_null[nn] = nullresults[nn]['R2total']
-
-
-    rangenums = np.zeros(len(studylist)+1)
-    for num, studyname in enumerate(studylist):
-        outputdir = r'E:\beta_distribution\{}_{}_C6RD{}'.format(studyname, type, cord_cluster)
-        SEMresultsname = os.path.join(outputdir, 'SEMphysio_model.npy')
-        SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
-
-        results = np.load(SEMresultsname, allow_pickle=True)
-        parameters = np.load(SEMparametersname, allow_pickle=True).flat[0]
-
-        NP = len(results)
-        for nn in range(NP):
-            if num == 0 and nn == 0:
-                betaval_record = results[nn]['betavals'][:,np.newaxis]
-                R2_record = [results[nn]['R2total']]
-                csource = parameters['csource']
-                ctarget = parameters['ctarget']
-                beta_list = parameters['beta_list']
-                rnamelist = parameters['rnamelist']
-            else:
-                betaval_record = np.concatenate((betaval_record, results[nn]['betavals'][:,np.newaxis]),axis=1)
-                R2_record += [results[nn]['R2total']]
-
-        NP,nb = np.shape(betaval_record)
-        rangenums[num+1] = nb
-
-    R2_record = np.array(R2_record)
-
-    rangenums = rangenums.astype(int)
-    windownum = 10
-    bins = np.linspace(-2.0,2.0,21)
-
-    list_connections = False
-    if list_connections:
-        for nn in range(98):
-            sourcecon = csource[nn]
-            targetcon = ctarget[nn]
-            sourcepair = beta_list[sourcecon]['pair']
-            targetpair = beta_list[targetcon]['pair']
-            if sourcepair[0] < 10:
-                con_name = '{}-{}-{}'.format(rnamelist[sourcepair[0]],rnamelist[targetpair[0]],rnamelist[targetpair[1]])
-                print('{} {}'.format(nn,con_name))
-
-    nn = display_connection_number
-    sourcecon = csource[nn]
-    targetcon = ctarget[nn]
-    sourcepair = beta_list[sourcecon]['pair']
-    targetpair = beta_list[targetcon]['pair']
-    if sourcepair[0] < 10:
-        con_name = '{}-{}-{}'.format(rnamelist[sourcepair[0]],rnamelist[targetpair[0]],rnamelist[targetpair[1]])
-    else:
-        con_name = '{}-{}-{}'.format('latent',rnamelist[targetpair[0]],rnamelist[targetpair[1]])
-    print('{} {}'.format(nn,con_name))
-
-
-    plt.close(windownum)
-    fig = plt.figure(windownum,figsize = (4,6), dpi=120)
-    fig.add_subplot(3,1,1)
-    # plt.hist(betaval_record[nn,:], bins = bins)
-
-    hist = np.histogram(betaval_record[nn,:], bins = bins)
-    bin_centers = (hist[1][1:] + hist[1][:-1]) / 2.0
-    plt.plot(bin_centers,hist[0],'-b')
-
-    # plt.close(windownum+1)
-    # fig = plt.figure(windownum+1)
-    fig.add_subplot(3,1,2)
-    for mm in range(len(studylist)):
-        v1 = rangenums[mm]
-        v2 = rangenums[mm+1]
-        # plt.hist(betaval_record[nn,list(range(v1,v2))], bins=bins)
-        hist = np.histogram(betaval_record[nn,list(range(v1,v2))], bins=bins)
-        bin_centers = (hist[1][1:] + hist[1][:-1]) / 2.0
-        offset = mm*0.2
-        plt.plot(bin_centers,np.array(hist[0])+offset,'-',color = plotcolor[mm])
-
-    # show null distribution for comparison
-    # plt.close(windownum+2)
-    # fig = plt.figure(windownum+2)
-    fig.add_subplot(3,1,3)
-    # plt.hist(betalist_null[:,nn], bins = bins, color = [1.0, 0.7, 0.7])
-    hist = np.histogram(betalist_null[:,nn], bins = bins)
-    bin_centers = (hist[1][1:] + hist[1][:-1]) / 2.0
-    plt.plot(bin_centers,hist[0],'-', color = [1.0, 0.7, 0.7])
-
-
-    bins = np.linspace(0.0,0.9,41)
-    plt.close(windownum+1)
-    fig = plt.figure(windownum+1,figsize = (4,6), dpi=120)
-    fig.add_subplot(3,1,1)
-    # plt.hist(R2_record[:], bins = bins)
-    hist = np.histogram(R2_record[:], bins = bins)
-    bin_centers = (hist[1][1:] + hist[1][:-1]) / 2.0
-    plt.plot(bin_centers,hist[0],'-')
-    # plt.close(windownum+1)
-    # fig = plt.figure(windownum+1)
-    fig.add_subplot(3,1,2)
-    for mm in range(len(studylist)):
-        v1 = rangenums[mm]
-        v2 = rangenums[mm+1]
-        # plt.hist(R2_record[list(range(v1,v2))], bins=bins)
-        hist = np.histogram(R2_record[list(range(v1,v2))], bins=bins)
-        bin_centers = (hist[1][1:] + hist[1][:-1]) / 2.0
-        offset = 0.2*mm
-        plt.plot(bin_centers,np.array(hist[0])+offset,'-',color = plotcolor[mm])
-
-    # show null distribution for comparison
-    # plt.close(windownum+2)
-    # fig = plt.figure(windownum+2)
-    fig.add_subplot(3,1,3)
-    # plt.hist(R2list_null[:], bins = bins, color = [1.0, 0.7, 0.7])
-    hist = np.histogram(R2list_null[:], bins = bins)
-    bin_centers = (hist[1][1:] + hist[1][:-1]) / 2.0
-    plt.plot(bin_centers,hist[0],'-', color = [1.0, 0.7, 0.7])
-
-
-def test_bootstrap_idea():
-    cnums = [0, 3, 3, 1, 4, 1, 3, 3, 4, 1]  # fixed 0
-
-    outputdir = r'D:\threat_safety_python\bootstrap_test\test1'
-    if not os.path.exists(outputdir): os.mkdir(outputdir)
-
-    # main function
-    # settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
-    covariatesfile = r'D:\threat_safety_python\copy_of_covariates.npy'
-
-    SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
-    networkfile = r'D:/threat_safety_python/network_model_5cluster_v5_w_3intrinsics.xlsx'
-
-    # load paradigm data--------------------------------------------------------------------
-    DBname = r'D:/threat_safety_python/threat_safety_database.xlsx'
-    xls = pd.ExcelFile(DBname, engine='openpyxl')
-    df1 = pd.read_excel(xls, 'paradigm1_BOLD')
-    del df1['Unnamed: 0']  # get rid of the unwanted header column
-    fields = list(df1.keys())
-    paradigm = df1['paradigms_BOLD']
-    timevals = df1['time']
-    paradigm_centered = paradigm - np.mean(paradigm)
-    # dparadigm = np.zeros(len(paradigm))
-    # dparadigm[1:] = np.diff(paradigm_centered)
-
-    regiondataname = r'D:/threat_safety_python/threat_safety_regiondata_allthreat55.npy'
-    clusterdataname = r'D:/threat_safety_python/threat_safety_clusterdata.npy'
-
-    # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
-    #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
-    full_rnum_base =  np.array([0,5,10,15,20,25,30,35,40,45])
-
-    namelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC', 'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus',
-            'Rtotal', 'R C6RD',  'R DRt', 'R Hyp','R LC', 'R NGC', 'R NRM', 'R NTS', 'R PAG',
-            'R PBN', 'R Thal']
-
-    # starting values
-    cnums_original = copy.deepcopy(cnums)
-    excelsheetname = 'clusters'
-    fname = 'test.xlsx'
-    excelfilename = os.path.join(outputdir, fname)
-
-    # run the analysis with SAPM
-    clusterlist = np.array(cnums) + full_rnum_base
-    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
-    # modify tplist_full in SEMparametersname for bootstrap sampling
-    # save a new copy of SEMparameters
-    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
-    tplist_full = SEMparams['tplist_full']
-    epoch = 0
-    NP = len(tplist_full[epoch])
-
-    # # first pass - change nothing
-    # SEMresultsname = os.path.join(outputdir, 'SEMphysio_model0.npy')
-    # boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters0.npy')
-    # SEMparams['tplist_full'] = tplist_full
-    # tplist_full0 = copy.deepcopy(tplist_full)
-    # np.save(boot_SEMparametersname, SEMparams)
-    # output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
-    # SEMresults0 = np.load(output, allow_pickle=True)
-
-    # # second pass - change something
-    # SEMresultsname = os.path.join(outputdir, 'SEMphysio_model1.npy')
-    # boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters1.npy')
-    # SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
-    # tplist_full = SEMparams['tplist_full']
-    # tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'allodds')
-    # SEMparams['tplist_full'] = tplist
-    # np.save(boot_SEMparametersname, SEMparams)
-    # tplist_full1 = copy.deepcopy(tplist)
-    # output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
-    # SEMresults1 = np.load(output, allow_pickle=True)
-
-    # # third pass - change something else
-    # SEMresultsname = os.path.join(outputdir, 'SEMphysio_model2.npy')
-    # boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters2.npy')
-    # SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
-    # tplist_full = SEMparams['tplist_full']
-    # tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'allevens')
-    # SEMparams['tplist_full'] = tplist
-    # np.save(boot_SEMparametersname, SEMparams)
-    # tplist_full2 = copy.deepcopy(tplist)
-    # output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
-    # SEMresults2 = np.load(output, allow_pickle=True)
-
-
-    # # fourth pass - change something else
-    # SEMresultsname = os.path.join(outputdir, 'SEMphysio_model3.npy')
-    # boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters3.npy')
-    # SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
-    # tplist_full = SEMparams['tplist_full']
-    # tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'evenruns', 0, 40)
-    # SEMparams['tplist_full'] = tplist
-    # np.save(boot_SEMparametersname, SEMparams)
-    # tplist_full3 = copy.deepcopy(tplist)
-    # output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
-    # SEMresults3 = np.load(output, allow_pickle=True)
-
-    # # fifth pass - change something else
-    # SEMresultsname = os.path.join(outputdir, 'SEMphysio_model4.npy')
-    # boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters4.npy')
-    # SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
-    # tplist_full = copy.deepcopy(SEMparams['tplist_full'])
-    # tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'oddruns', 0, 40)
-    # SEMparams['tplist_full'] = tplist
-    # np.save(boot_SEMparametersname, SEMparams)
-    # tplist_full4 = copy.deepcopy(tplist)
-    # output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
-    # SEMresults4 = np.load(output, allow_pickle=True)
-
-
-    # iterate through a number of passes - replacing random time points - 20% of the data
-    SEMresultsname = os.path.join(outputdir, 'SEMphysio_modelI.npy')
-    boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparametersI.npy')
-    beta_record = []
-    for nruns in range(100):
-        print('running iteration {} of {}'.format(nruns,100))
-        SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
-        tplist_full = SEMparams['tplist_full']
-        tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'random', 20)
-        SEMparams['tplist_full'] = tplist
-        np.save(boot_SEMparametersname, SEMparams)
-        tplist_fullI = copy.deepcopy(tplist)
-        output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
-        SEMresultsI = np.load(output, allow_pickle=True)
-
-        NP = len(SEMresultsI)
-        nb = len(SEMresultsI[0]['betavals'])
-        allbeta = np.zeros((NP,nb))
-        for nn in range(NP): allbeta[nn,:] = SEMresultsI[nn]['betavals']
-        beta_record.append({'betavals':allbeta})
-
-    bootstrapresultsname = os.path.join(outputdir, 'bootstrap_results_20percent.npy')
-    np.save(bootstrapresultsname, beta_record)
-
-    # use the bootstrap results...
-    beta_record = np.load(bootstrapresultsname, allow_pickle=True)
-    ns = len(beta_record)
-    NP,nb = np.shape(beta_record[0]['betavals'])
-    allbeta = np.zeros((ns,NP,nb))
-    for nn in range(ns):
-        b = beta_record[nn]['betavals']
-        allbeta[nn,:,:] = b
-
-    avg_beta = np.zeros((NP,nb))
-    sd_beta = np.zeros((NP,nb))
-    sem_beta = np.zeros((NP,nb))
-    for nn in range(NP):
-        for bb in range(nb):
-            avg_beta[nn,bb] = np.mean(allbeta[:,nn,bb])
-            sd_beta[nn,bb] = np.std(allbeta[:,nn,bb])
-            sem_beta[nn,bb] = np.std(allbeta[:,nn,bb])/np.sqrt(ns)
-
-    # np = 0
-    # for n in range(nb):
-    #     print('{}  {:.3f} {} {:.3f}  T = {:.2f}'.format(n, avg_beta[np,n], chr(177), sem_beta[np,n], avg_beta[np,n]/sem_beta[np,n]))
-
-    # # pick a person to display
-    # p = 50
-    # mbeta = avg_beta[p,:]
-    # sbeta = sd_beta[p,:]
-    #
-    # fignumber = 106+p
-    # plt.close(fignumber)
-    # fig = plt.figure(fignumber)
-    # x = np.array(list(range(ncon)))
-    # plt.errorbar(x, mbeta, yerr = sbeta,fmt='o',ecolor = 'red',color='red')
-    # plt.errorbar(x[latentlist], mbeta[latentlist], yerr = sbeta[latentlist],fmt='o',ecolor = 'red',color='black')
-
-
-    #--------------show some results--------------------------
-    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
-    beta_list = SEMparams['beta_list']
-    csource = SEMparams['csource']
-    ctarget = SEMparams['ctarget']
-    rnamelist = SEMparams['rnamelist']
-    ncon = len(csource)
-    nregions = 10
-
-    connection_name_list = []
-    for nn in range(ncon):
-        spair = beta_list[csource[nn]]['pair']
-        tpair = beta_list[ctarget[nn]]['pair']
-        if spair[0] < nregions:
-            sname0 = rnamelist[spair[0]]
-        else:
-            sname0 = 'latent{}'.format(spair[0]-nregions)
-        # latent regions are never target
-        sname1 = rnamelist[spair[1]]
-        tname1 = rnamelist[tpair[1]]
-
-        name = '{}-{}-{}'.format(sname0,sname1,tname1)
-        connection_name_list.append(name)
-
-    reciprocal_con_list = []
-    for nn in range(ncon):
-        spair = beta_list[csource[nn]]['pair']
-        tpair = beta_list[ctarget[nn]]['pair']
-        if spair[0] == tpair[1]:  reciprocal_con_list += [nn]
-
-    latentlist = []
-    for nn in range(ncon):
-        regions1 = beta_list[csource[nn]]['pair']
-        regions2 = beta_list[ctarget[nn]]['pair']
-        if (np.array([regions1, regions2]) >= nregions).any():
-            latentlist += [nn]
-    nonlatentlist = [x for x in range(ncon) if x not in latentlist]
-    NL = len(nonlatentlist)
-
-    # # organize data
-    # NP = len(SEMresults0)
-    # beta = np.zeros((5,NP,ncon))
-    # for p in range(NP):
-    #     beta[0,p,:] = SEMresults0[p]['betavals']
-    #     beta[1,p,:] = SEMresults1[p]['betavals']
-    #     beta[2,p,:] = SEMresults2[p]['betavals']
-    #     beta[3,p,:] = SEMresults3[p]['betavals']
-    #     beta[4,p,:] = SEMresults4[p]['betavals']
-
-    # display variations across people
-    mbeta = np.mean(beta, axis = 0)
-    sbeta = np.std(beta, axis = 0)
-
-    mbeta_group = np.mean(mbeta, axis = 0)
-    sbeta_group = np.std(mbeta, axis = 0)
-
-    fignumber = 2
-    plt.close(fignumber)
-    fig = plt.figure(fignumber)
-    x = np.array(list(range(ncon)))
-    plt.errorbar(x, mbeta_group, yerr = sbeta_group,fmt='o',ecolor = 'red',color='red')
-    plt.errorbar(x[latentlist], mbeta_group[latentlist], yerr = sbeta_group[latentlist],fmt='o',ecolor = 'red',color='black')
-    plt.plot([0,ncon],[0,0],'-k', linewidth = 0.2)
-
-    # find the connections with the smallest stdev and mbeta nearest zero
-    # if stdev is large it does not matter if mbeta = 0, it is still of interest
-    # if mbeta is sufficient different that zero it does not matter if stdev is small
-    # sort by T = mbeta/(stdev/sqrt(ns))
-    # OR  sort by stdev
-
-    T = mbeta_group/(sbeta_group/np.sqrt(ns))
-    xt = np.argsort(np.abs(T))
-    xs = np.argsort(sbeta_group)
-    # take the higest sort position of these two
-    sortlist = list(np.zeros(ncon))
-    xtl = list(xt)
-    xsl = list(xs)
-    for nn in range(ncon):
-        x = np.max([xtl.index(nn), xsl.index(nn)])
-        sortlist[nn] = x   # place in the ranking where each entry belongs
-    sortlist = np.argsort(sortlist)
-
-    # getting further away from the original function here ....
-    # use bootstrap results to find connections that do not matter to the network...
-    # most inconsequential connections:
-    for nn in range(30):
-        x = sortlist[nn]
-        print('{}  average beta = {:.3f} {} {:.3f}'.format(connection_name_list[x],mbeta_group[x],chr(177),sbeta_group[x]))
-
-    # rerun SAPM without these inconsequential connections
-    fixem = sortlist[:30]
-
-    # rerun without direct reciprocal connections, such as PBN-NTS-PBN
-    fixem = reciprocal_con_list
-
-    # rerun with nothing excluded
-    fixem = []
-
-    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model_L1reg.npy')
-    SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
-    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
-    output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname, fixed_beta_vals = fixem)
-    SEMresults = np.load(output, allow_pickle=True)
-
-    group = 'all'
-    windowoffset = 0
-    yrange = []
-    yrange2 = []
-    Rtextlist, Rvallist = show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
-                                    windowoffset, yrange, yrange2)
-    show_SEM_average_beta_for_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
-                                     windowoffset=0)
-
-
-
-        # G = np.concatenate((x[np.newaxis, nonlatentlist], np.ones((1, NL))))
-        # b, fit, R2, total_var, res_var = pysem.general_glm(np.array(y[np.newaxis,nonlatentlist]),G)
-        # print('person {}  {}  R2 = {:.2f}'.format(p,tag,R2))
-        #
-        # fignumber = 6+d
-        # plt.close(fignumber)
-        # fig = plt.figure(fignumber)
-        # plt.plot(x, y, 'ok')
-        # plt.plot(x[nonlatentlist], y[nonlatentlist], 'or')
-        # plt.plot(x[nonlatentlist], fit[0, :], '-k')
-
-
-def mod_tplist_for_bootstrap(tplist_full, epoch, modtype, percent_replace = 0, tsize =40):
-    # modtype can be 'random', 'allodds', 'allevens', 'firsthalf', 'lasthalf'
-    tplist = copy.deepcopy(tplist_full[epoch])
-    NP = len(tplist)
-    stilllooking = True
-    if modtype == 'allodds':
-        for nn in range(NP):
-            tp = copy.deepcopy(tplist[nn]['tp'])
-            nt = len(tp)
-            tpb = copy.deepcopy(tp)
-            for tt in range(0,nt,2): tpb[tt] = tpb[tt+1]
-            tplist[nn]['tp'] = tpb
-        stilllooking = False
-
-    if modtype == 'allevens':
-        for nn in range(NP):
-            tp = copy.deepcopy(tplist[nn]['tp'])
-            nt = len(tp)
-            tpb = copy.deepcopy(tp)
-            for tt in range(1,nt,2): tpb[tt] = tpb[tt-1]
-            tplist[nn]['tp'] = tpb
-        stilllooking = False
-
-    if modtype == 'firsthalf':
-        for nn in range(NP):
-            tp = copy.deepcopy(tplist[nn]['tp'])
-            nt = len(tp)
-            tpb = copy.deepcopy(tp)
-            tt = np.floor(nt/2).astype(int)
-            tpb[-tt:] = tpb[:tt]
-            tplist[nn]['tp'] = tpb
-        stilllooking = False
-
-    if modtype == 'lasthalf':
-        for nn in range(NP):
-            tp = copy.deepcopy(tplist[nn]['tp'])
-            nt = len(tp)
-            tpb = copy.deepcopy(tp)
-            tt = np.floor(nt/2).astype(int)
-            tpb[:tt] = tpb[-tt:]
-            tplist[nn]['tp'] = tpb
-        stilllooking = False
-
-    if modtype == 'oddruns':
-        for nn in range(NP):
-            tp = copy.deepcopy(tplist[nn]['tp'])
-            nt = len(tp)
-            nruns = np.floor(nt/tsize).astype(int)
-            tpb = copy.deepcopy(tp)
-            replaceruns = list(range(0,nruns,2))
-            for rr in replaceruns:
-                if nruns > (rr+1):
-                    tr1 = rr*tsize
-                    tr2 = (rr+1)*tsize
-                    tt1 = (rr+1)*tsize
-                    tt2 = (rr+2)*tsize
-                    tpb[tr1:tr2] = tpb[tt1:tt2]
-            tplist[nn]['tp'] = tpb
-        stilllooking = False
-
-    if modtype == 'evenruns':
-        for nn in range(NP):
-            tp = copy.deepcopy(tplist[nn]['tp'])
-            nt = len(tp)
-            nruns = np.floor(nt/tsize).astype(int)
-            tpb = copy.deepcopy(tp)
-            replaceruns = list(range(1,nruns,2))
-            for rr in replaceruns:
-                tr1 = rr*tsize
-                tr2 = (rr+1)*tsize
-                tt1 = (rr-1)*tsize
-                tt2 = rr*tsize
-                tpb[tr1:tr2] = tpb[tt1:tt2]
-            tplist[nn]['tp'] = tpb
-        stilllooking = False
-
-    if modtype == 'random' or stilllooking:
-        for nn in range(NP):
-            tp = copy.deepcopy(tplist[nn]['tp'])
-            nt = len(tp)
-            if percent_replace <= 0:
-                nreplace = 1
-            else:
-                nreplace = np.floor(percent_replace*nt/100.0).astype(int)
-            tpb = copy.deepcopy(tp)
-            ntlist = list(range(nt))
-            treplace = random.sample(ntlist,nreplace)
-            ntlist2 = [x for x in ntlist if x not in treplace]
-            twith = random.sample(ntlist2,nreplace)
-            for tt in range(nreplace): tpb[treplace[tt]] = tpb[twith[tt]]
-            tplist[nn]['tp'] = tpb
-        stilllooking = False
-
-    tplist_full2 = copy.deepcopy(tplist_full)
-    tplist_full2[epoch] = tplist
-    return tplist_full2
+# def view_distributions(type, cord_cluster, display_connection_number):
+#
+#     studylist = ['allthreat','RS1nostim','Low','Sens']
+#     plotcolor = [[0,0,1],[1,0.5,0],[1,0,1],[0,1,0]]
+#
+#     nullname = 'E:\\beta_distribution\\Sens_fixed_C6RD0\\SEMphysio_nullset.npy'
+#     nullresults = np.load(nullname, allow_pickle=True)
+#     nr = len(nullresults)
+#     nbeta = len(nullresults[0]['betavals'])
+#     betalist_null = np.zeros((nr, nbeta))
+#     R2list_null = np.zeros(nr)
+#     for nn in range(nr):
+#         betalist_null[nn, :] = nullresults[nn]['betavals']
+#         R2list_null[nn] = nullresults[nn]['R2total']
+#
+#
+#     rangenums = np.zeros(len(studylist)+1)
+#     for num, studyname in enumerate(studylist):
+#         outputdir = r'E:\beta_distribution\{}_{}_C6RD{}'.format(studyname, type, cord_cluster)
+#         SEMresultsname = os.path.join(outputdir, 'SEMphysio_model.npy')
+#         SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
+#
+#         results = np.load(SEMresultsname, allow_pickle=True)
+#         parameters = np.load(SEMparametersname, allow_pickle=True).flat[0]
+#
+#         NP = len(results)
+#         for nn in range(NP):
+#             if num == 0 and nn == 0:
+#                 betaval_record = results[nn]['betavals'][:,np.newaxis]
+#                 R2_record = [results[nn]['R2total']]
+#                 csource = parameters['csource']
+#                 ctarget = parameters['ctarget']
+#                 beta_list = parameters['beta_list']
+#                 rnamelist = parameters['rnamelist']
+#             else:
+#                 betaval_record = np.concatenate((betaval_record, results[nn]['betavals'][:,np.newaxis]),axis=1)
+#                 R2_record += [results[nn]['R2total']]
+#
+#         NP,nb = np.shape(betaval_record)
+#         rangenums[num+1] = nb
+#
+#     R2_record = np.array(R2_record)
+#
+#     rangenums = rangenums.astype(int)
+#     windownum = 10
+#     bins = np.linspace(-2.0,2.0,21)
+#
+#     list_connections = False
+#     if list_connections:
+#         for nn in range(98):
+#             sourcecon = csource[nn]
+#             targetcon = ctarget[nn]
+#             sourcepair = beta_list[sourcecon]['pair']
+#             targetpair = beta_list[targetcon]['pair']
+#             if sourcepair[0] < 10:
+#                 con_name = '{}-{}-{}'.format(rnamelist[sourcepair[0]],rnamelist[targetpair[0]],rnamelist[targetpair[1]])
+#                 print('{} {}'.format(nn,con_name))
+#
+#     nn = display_connection_number
+#     sourcecon = csource[nn]
+#     targetcon = ctarget[nn]
+#     sourcepair = beta_list[sourcecon]['pair']
+#     targetpair = beta_list[targetcon]['pair']
+#     if sourcepair[0] < 10:
+#         con_name = '{}-{}-{}'.format(rnamelist[sourcepair[0]],rnamelist[targetpair[0]],rnamelist[targetpair[1]])
+#     else:
+#         con_name = '{}-{}-{}'.format('latent',rnamelist[targetpair[0]],rnamelist[targetpair[1]])
+#     print('{} {}'.format(nn,con_name))
+#
+#
+#     plt.close(windownum)
+#     fig = plt.figure(windownum,figsize = (4,6), dpi=120)
+#     fig.add_subplot(3,1,1)
+#     # plt.hist(betaval_record[nn,:], bins = bins)
+#
+#     hist = np.histogram(betaval_record[nn,:], bins = bins)
+#     bin_centers = (hist[1][1:] + hist[1][:-1]) / 2.0
+#     plt.plot(bin_centers,hist[0],'-b')
+#
+#     # plt.close(windownum+1)
+#     # fig = plt.figure(windownum+1)
+#     fig.add_subplot(3,1,2)
+#     for mm in range(len(studylist)):
+#         v1 = rangenums[mm]
+#         v2 = rangenums[mm+1]
+#         # plt.hist(betaval_record[nn,list(range(v1,v2))], bins=bins)
+#         hist = np.histogram(betaval_record[nn,list(range(v1,v2))], bins=bins)
+#         bin_centers = (hist[1][1:] + hist[1][:-1]) / 2.0
+#         offset = mm*0.2
+#         plt.plot(bin_centers,np.array(hist[0])+offset,'-',color = plotcolor[mm])
+#
+#     # show null distribution for comparison
+#     # plt.close(windownum+2)
+#     # fig = plt.figure(windownum+2)
+#     fig.add_subplot(3,1,3)
+#     # plt.hist(betalist_null[:,nn], bins = bins, color = [1.0, 0.7, 0.7])
+#     hist = np.histogram(betalist_null[:,nn], bins = bins)
+#     bin_centers = (hist[1][1:] + hist[1][:-1]) / 2.0
+#     plt.plot(bin_centers,hist[0],'-', color = [1.0, 0.7, 0.7])
+#
+#
+#     bins = np.linspace(0.0,0.9,41)
+#     plt.close(windownum+1)
+#     fig = plt.figure(windownum+1,figsize = (4,6), dpi=120)
+#     fig.add_subplot(3,1,1)
+#     # plt.hist(R2_record[:], bins = bins)
+#     hist = np.histogram(R2_record[:], bins = bins)
+#     bin_centers = (hist[1][1:] + hist[1][:-1]) / 2.0
+#     plt.plot(bin_centers,hist[0],'-')
+#     # plt.close(windownum+1)
+#     # fig = plt.figure(windownum+1)
+#     fig.add_subplot(3,1,2)
+#     for mm in range(len(studylist)):
+#         v1 = rangenums[mm]
+#         v2 = rangenums[mm+1]
+#         # plt.hist(R2_record[list(range(v1,v2))], bins=bins)
+#         hist = np.histogram(R2_record[list(range(v1,v2))], bins=bins)
+#         bin_centers = (hist[1][1:] + hist[1][:-1]) / 2.0
+#         offset = 0.2*mm
+#         plt.plot(bin_centers,np.array(hist[0])+offset,'-',color = plotcolor[mm])
+#
+#     # show null distribution for comparison
+#     # plt.close(windownum+2)
+#     # fig = plt.figure(windownum+2)
+#     fig.add_subplot(3,1,3)
+#     # plt.hist(R2list_null[:], bins = bins, color = [1.0, 0.7, 0.7])
+#     hist = np.histogram(R2list_null[:], bins = bins)
+#     bin_centers = (hist[1][1:] + hist[1][:-1]) / 2.0
+#     plt.plot(bin_centers,hist[0],'-', color = [1.0, 0.7, 0.7])
+
+
+# def test_bootstrap_idea():
+#     cnums = [0, 3, 3, 1, 4, 1, 3, 3, 4, 1]  # fixed 0
+#
+#     outputdir = r'D:\threat_safety_python\bootstrap_test\test1'
+#     if not os.path.exists(outputdir): os.mkdir(outputdir)
+#
+#     # main function
+#     # settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+#     covariatesfile = r'D:\threat_safety_python\copy_of_covariates.npy'
+#
+#     SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
+#     networkfile = r'D:/threat_safety_python/network_model_5cluster_v5_w_3intrinsics.xlsx'
+#
+#     # load paradigm data--------------------------------------------------------------------
+#     DBname = r'D:/threat_safety_python/threat_safety_database.xlsx'
+#     xls = pd.ExcelFile(DBname, engine='openpyxl')
+#     df1 = pd.read_excel(xls, 'paradigm1_BOLD')
+#     del df1['Unnamed: 0']  # get rid of the unwanted header column
+#     fields = list(df1.keys())
+#     paradigm = df1['paradigms_BOLD']
+#     timevals = df1['time']
+#     paradigm_centered = paradigm - np.mean(paradigm)
+#     # dparadigm = np.zeros(len(paradigm))
+#     # dparadigm[1:] = np.diff(paradigm_centered)
+#
+#     regiondataname = r'D:/threat_safety_python/threat_safety_regiondata_allthreat55.npy'
+#     clusterdataname = r'D:/threat_safety_python/threat_safety_clusterdata.npy'
+#
+#     # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
+#     #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
+#     full_rnum_base =  np.array([0,5,10,15,20,25,30,35,40,45])
+#
+#     namelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC', 'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus',
+#             'Rtotal', 'R C6RD',  'R DRt', 'R Hyp','R LC', 'R NGC', 'R NRM', 'R NTS', 'R PAG',
+#             'R PBN', 'R Thal']
+#
+#     # starting values
+#     cnums_original = copy.deepcopy(cnums)
+#     excelsheetname = 'clusters'
+#     fname = 'test.xlsx'
+#     excelfilename = os.path.join(outputdir, fname)
+#
+#     # run the analysis with SAPM
+#     clusterlist = np.array(cnums) + full_rnum_base
+#     prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
+#     # modify tplist_full in SEMparametersname for bootstrap sampling
+#     # save a new copy of SEMparameters
+#     SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+#     tplist_full = SEMparams['tplist_full']
+#     epoch = 0
+#     NP = len(tplist_full[epoch])
+#
+#     # # first pass - change nothing
+#     # SEMresultsname = os.path.join(outputdir, 'SEMphysio_model0.npy')
+#     # boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters0.npy')
+#     # SEMparams['tplist_full'] = tplist_full
+#     # tplist_full0 = copy.deepcopy(tplist_full)
+#     # np.save(boot_SEMparametersname, SEMparams)
+#     # output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
+#     # SEMresults0 = np.load(output, allow_pickle=True)
+#
+#     # # second pass - change something
+#     # SEMresultsname = os.path.join(outputdir, 'SEMphysio_model1.npy')
+#     # boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters1.npy')
+#     # SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+#     # tplist_full = SEMparams['tplist_full']
+#     # tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'allodds')
+#     # SEMparams['tplist_full'] = tplist
+#     # np.save(boot_SEMparametersname, SEMparams)
+#     # tplist_full1 = copy.deepcopy(tplist)
+#     # output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
+#     # SEMresults1 = np.load(output, allow_pickle=True)
+#
+#     # # third pass - change something else
+#     # SEMresultsname = os.path.join(outputdir, 'SEMphysio_model2.npy')
+#     # boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters2.npy')
+#     # SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+#     # tplist_full = SEMparams['tplist_full']
+#     # tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'allevens')
+#     # SEMparams['tplist_full'] = tplist
+#     # np.save(boot_SEMparametersname, SEMparams)
+#     # tplist_full2 = copy.deepcopy(tplist)
+#     # output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
+#     # SEMresults2 = np.load(output, allow_pickle=True)
+#
+#
+#     # # fourth pass - change something else
+#     # SEMresultsname = os.path.join(outputdir, 'SEMphysio_model3.npy')
+#     # boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters3.npy')
+#     # SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+#     # tplist_full = SEMparams['tplist_full']
+#     # tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'evenruns', 0, 40)
+#     # SEMparams['tplist_full'] = tplist
+#     # np.save(boot_SEMparametersname, SEMparams)
+#     # tplist_full3 = copy.deepcopy(tplist)
+#     # output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
+#     # SEMresults3 = np.load(output, allow_pickle=True)
+#
+#     # # fifth pass - change something else
+#     # SEMresultsname = os.path.join(outputdir, 'SEMphysio_model4.npy')
+#     # boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparameters4.npy')
+#     # SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+#     # tplist_full = copy.deepcopy(SEMparams['tplist_full'])
+#     # tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'oddruns', 0, 40)
+#     # SEMparams['tplist_full'] = tplist
+#     # np.save(boot_SEMparametersname, SEMparams)
+#     # tplist_full4 = copy.deepcopy(tplist)
+#     # output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
+#     # SEMresults4 = np.load(output, allow_pickle=True)
+#
+#
+#     # iterate through a number of passes - replacing random time points - 20% of the data
+#     SEMresultsname = os.path.join(outputdir, 'SEMphysio_modelI.npy')
+#     boot_SEMparametersname = os.path.join(outputdir, 'boot_SEMparametersI.npy')
+#     beta_record = []
+#     for nruns in range(100):
+#         print('running iteration {} of {}'.format(nruns,100))
+#         SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+#         tplist_full = SEMparams['tplist_full']
+#         tplist = mod_tplist_for_bootstrap(tplist_full, epoch, 'random', 20)
+#         SEMparams['tplist_full'] = tplist
+#         np.save(boot_SEMparametersname, SEMparams)
+#         tplist_fullI = copy.deepcopy(tplist)
+#         output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, boot_SEMparametersname)
+#         SEMresultsI = np.load(output, allow_pickle=True)
+#
+#         NP = len(SEMresultsI)
+#         nb = len(SEMresultsI[0]['betavals'])
+#         allbeta = np.zeros((NP,nb))
+#         for nn in range(NP): allbeta[nn,:] = SEMresultsI[nn]['betavals']
+#         beta_record.append({'betavals':allbeta})
+#
+#     bootstrapresultsname = os.path.join(outputdir, 'bootstrap_results_20percent.npy')
+#     np.save(bootstrapresultsname, beta_record)
+#
+#     # use the bootstrap results...
+#     beta_record = np.load(bootstrapresultsname, allow_pickle=True)
+#     ns = len(beta_record)
+#     NP,nb = np.shape(beta_record[0]['betavals'])
+#     allbeta = np.zeros((ns,NP,nb))
+#     for nn in range(ns):
+#         b = beta_record[nn]['betavals']
+#         allbeta[nn,:,:] = b
+#
+#     avg_beta = np.zeros((NP,nb))
+#     sd_beta = np.zeros((NP,nb))
+#     sem_beta = np.zeros((NP,nb))
+#     for nn in range(NP):
+#         for bb in range(nb):
+#             avg_beta[nn,bb] = np.mean(allbeta[:,nn,bb])
+#             sd_beta[nn,bb] = np.std(allbeta[:,nn,bb])
+#             sem_beta[nn,bb] = np.std(allbeta[:,nn,bb])/np.sqrt(ns)
+#
+#     # np = 0
+#     # for n in range(nb):
+#     #     print('{}  {:.3f} {} {:.3f}  T = {:.2f}'.format(n, avg_beta[np,n], chr(177), sem_beta[np,n], avg_beta[np,n]/sem_beta[np,n]))
+#
+#     # # pick a person to display
+#     # p = 50
+#     # mbeta = avg_beta[p,:]
+#     # sbeta = sd_beta[p,:]
+#     #
+#     # fignumber = 106+p
+#     # plt.close(fignumber)
+#     # fig = plt.figure(fignumber)
+#     # x = np.array(list(range(ncon)))
+#     # plt.errorbar(x, mbeta, yerr = sbeta,fmt='o',ecolor = 'red',color='red')
+#     # plt.errorbar(x[latentlist], mbeta[latentlist], yerr = sbeta[latentlist],fmt='o',ecolor = 'red',color='black')
+#
+#
+#     #--------------show some results--------------------------
+#     SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+#     beta_list = SEMparams['beta_list']
+#     csource = SEMparams['csource']
+#     ctarget = SEMparams['ctarget']
+#     rnamelist = SEMparams['rnamelist']
+#     ncon = len(csource)
+#     nregions = 10
+#
+#     connection_name_list = []
+#     for nn in range(ncon):
+#         spair = beta_list[csource[nn]]['pair']
+#         tpair = beta_list[ctarget[nn]]['pair']
+#         if spair[0] < nregions:
+#             sname0 = rnamelist[spair[0]]
+#         else:
+#             sname0 = 'latent{}'.format(spair[0]-nregions)
+#         # latent regions are never target
+#         sname1 = rnamelist[spair[1]]
+#         tname1 = rnamelist[tpair[1]]
+#
+#         name = '{}-{}-{}'.format(sname0,sname1,tname1)
+#         connection_name_list.append(name)
+#
+#     reciprocal_con_list = []
+#     for nn in range(ncon):
+#         spair = beta_list[csource[nn]]['pair']
+#         tpair = beta_list[ctarget[nn]]['pair']
+#         if spair[0] == tpair[1]:  reciprocal_con_list += [nn]
+#
+#     latentlist = []
+#     for nn in range(ncon):
+#         regions1 = beta_list[csource[nn]]['pair']
+#         regions2 = beta_list[ctarget[nn]]['pair']
+#         if (np.array([regions1, regions2]) >= nregions).any():
+#             latentlist += [nn]
+#     nonlatentlist = [x for x in range(ncon) if x not in latentlist]
+#     NL = len(nonlatentlist)
+#
+#     # # organize data
+#     # NP = len(SEMresults0)
+#     # beta = np.zeros((5,NP,ncon))
+#     # for p in range(NP):
+#     #     beta[0,p,:] = SEMresults0[p]['betavals']
+#     #     beta[1,p,:] = SEMresults1[p]['betavals']
+#     #     beta[2,p,:] = SEMresults2[p]['betavals']
+#     #     beta[3,p,:] = SEMresults3[p]['betavals']
+#     #     beta[4,p,:] = SEMresults4[p]['betavals']
+#
+#     # display variations across people
+#     mbeta = np.mean(beta, axis = 0)
+#     sbeta = np.std(beta, axis = 0)
+#
+#     mbeta_group = np.mean(mbeta, axis = 0)
+#     sbeta_group = np.std(mbeta, axis = 0)
+#
+#     fignumber = 2
+#     plt.close(fignumber)
+#     fig = plt.figure(fignumber)
+#     x = np.array(list(range(ncon)))
+#     plt.errorbar(x, mbeta_group, yerr = sbeta_group,fmt='o',ecolor = 'red',color='red')
+#     plt.errorbar(x[latentlist], mbeta_group[latentlist], yerr = sbeta_group[latentlist],fmt='o',ecolor = 'red',color='black')
+#     plt.plot([0,ncon],[0,0],'-k', linewidth = 0.2)
+#
+#     # find the connections with the smallest stdev and mbeta nearest zero
+#     # if stdev is large it does not matter if mbeta = 0, it is still of interest
+#     # if mbeta is sufficient different that zero it does not matter if stdev is small
+#     # sort by T = mbeta/(stdev/sqrt(ns))
+#     # OR  sort by stdev
+#
+#     T = mbeta_group/(sbeta_group/np.sqrt(ns))
+#     xt = np.argsort(np.abs(T))
+#     xs = np.argsort(sbeta_group)
+#     # take the higest sort position of these two
+#     sortlist = list(np.zeros(ncon))
+#     xtl = list(xt)
+#     xsl = list(xs)
+#     for nn in range(ncon):
+#         x = np.max([xtl.index(nn), xsl.index(nn)])
+#         sortlist[nn] = x   # place in the ranking where each entry belongs
+#     sortlist = np.argsort(sortlist)
+#
+#     # getting further away from the original function here ....
+#     # use bootstrap results to find connections that do not matter to the network...
+#     # most inconsequential connections:
+#     for nn in range(30):
+#         x = sortlist[nn]
+#         print('{}  average beta = {:.3f} {} {:.3f}'.format(connection_name_list[x],mbeta_group[x],chr(177),sbeta_group[x]))
+#
+#     # rerun SAPM without these inconsequential connections
+#     fixem = sortlist[:30]
+#
+#     # rerun without direct reciprocal connections, such as PBN-NTS-PBN
+#     fixem = reciprocal_con_list
+#
+#     # rerun with nothing excluded
+#     fixem = []
+#
+#     SEMresultsname = os.path.join(outputdir, 'SEMphysio_model_L1reg.npy')
+#     SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
+#     prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
+#     output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname, fixed_beta_vals = fixem)
+#     SEMresults = np.load(output, allow_pickle=True)
+#
+#     group = 'all'
+#     windowoffset = 0
+#     yrange = []
+#     yrange2 = []
+#     Rtextlist, Rvallist = show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+#                                     windowoffset, yrange, yrange2)
+#     show_SEM_average_beta_for_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+#                                      windowoffset=0)
+#
+#
+#
+#         # G = np.concatenate((x[np.newaxis, nonlatentlist], np.ones((1, NL))))
+#         # b, fit, R2, total_var, res_var = pysem.general_glm(np.array(y[np.newaxis,nonlatentlist]),G)
+#         # print('person {}  {}  R2 = {:.2f}'.format(p,tag,R2))
+#         #
+#         # fignumber = 6+d
+#         # plt.close(fignumber)
+#         # fig = plt.figure(fignumber)
+#         # plt.plot(x, y, 'ok')
+#         # plt.plot(x[nonlatentlist], y[nonlatentlist], 'or')
+#         # plt.plot(x[nonlatentlist], fit[0, :], '-k')
+
+
+# def mod_tplist_for_bootstrap(tplist_full, epoch, modtype, percent_replace = 0, tsize =40):
+#     # modtype can be 'random', 'allodds', 'allevens', 'firsthalf', 'lasthalf'
+#     tplist = copy.deepcopy(tplist_full[epoch])
+#     NP = len(tplist)
+#     stilllooking = True
+#     if modtype == 'allodds':
+#         for nn in range(NP):
+#             tp = copy.deepcopy(tplist[nn]['tp'])
+#             nt = len(tp)
+#             tpb = copy.deepcopy(tp)
+#             for tt in range(0,nt,2): tpb[tt] = tpb[tt+1]
+#             tplist[nn]['tp'] = tpb
+#         stilllooking = False
+#
+#     if modtype == 'allevens':
+#         for nn in range(NP):
+#             tp = copy.deepcopy(tplist[nn]['tp'])
+#             nt = len(tp)
+#             tpb = copy.deepcopy(tp)
+#             for tt in range(1,nt,2): tpb[tt] = tpb[tt-1]
+#             tplist[nn]['tp'] = tpb
+#         stilllooking = False
+#
+#     if modtype == 'firsthalf':
+#         for nn in range(NP):
+#             tp = copy.deepcopy(tplist[nn]['tp'])
+#             nt = len(tp)
+#             tpb = copy.deepcopy(tp)
+#             tt = np.floor(nt/2).astype(int)
+#             tpb[-tt:] = tpb[:tt]
+#             tplist[nn]['tp'] = tpb
+#         stilllooking = False
+#
+#     if modtype == 'lasthalf':
+#         for nn in range(NP):
+#             tp = copy.deepcopy(tplist[nn]['tp'])
+#             nt = len(tp)
+#             tpb = copy.deepcopy(tp)
+#             tt = np.floor(nt/2).astype(int)
+#             tpb[:tt] = tpb[-tt:]
+#             tplist[nn]['tp'] = tpb
+#         stilllooking = False
+#
+#     if modtype == 'oddruns':
+#         for nn in range(NP):
+#             tp = copy.deepcopy(tplist[nn]['tp'])
+#             nt = len(tp)
+#             nruns = np.floor(nt/tsize).astype(int)
+#             tpb = copy.deepcopy(tp)
+#             replaceruns = list(range(0,nruns,2))
+#             for rr in replaceruns:
+#                 if nruns > (rr+1):
+#                     tr1 = rr*tsize
+#                     tr2 = (rr+1)*tsize
+#                     tt1 = (rr+1)*tsize
+#                     tt2 = (rr+2)*tsize
+#                     tpb[tr1:tr2] = tpb[tt1:tt2]
+#             tplist[nn]['tp'] = tpb
+#         stilllooking = False
+#
+#     if modtype == 'evenruns':
+#         for nn in range(NP):
+#             tp = copy.deepcopy(tplist[nn]['tp'])
+#             nt = len(tp)
+#             nruns = np.floor(nt/tsize).astype(int)
+#             tpb = copy.deepcopy(tp)
+#             replaceruns = list(range(1,nruns,2))
+#             for rr in replaceruns:
+#                 tr1 = rr*tsize
+#                 tr2 = (rr+1)*tsize
+#                 tt1 = (rr-1)*tsize
+#                 tt2 = rr*tsize
+#                 tpb[tr1:tr2] = tpb[tt1:tt2]
+#             tplist[nn]['tp'] = tpb
+#         stilllooking = False
+#
+#     if modtype == 'random' or stilllooking:
+#         for nn in range(NP):
+#             tp = copy.deepcopy(tplist[nn]['tp'])
+#             nt = len(tp)
+#             if percent_replace <= 0:
+#                 nreplace = 1
+#             else:
+#                 nreplace = np.floor(percent_replace*nt/100.0).astype(int)
+#             tpb = copy.deepcopy(tp)
+#             ntlist = list(range(nt))
+#             treplace = random.sample(ntlist,nreplace)
+#             ntlist2 = [x for x in ntlist if x not in treplace]
+#             twith = random.sample(ntlist2,nreplace)
+#             for tt in range(nreplace): tpb[treplace[tt]] = tpb[twith[tt]]
+#             tplist[nn]['tp'] = tpb
+#         stilllooking = False
+#
+#     tplist_full2 = copy.deepcopy(tplist_full)
+#     tplist_full2[epoch] = tplist
+#     return tplist_full2
 
 
 
 #--------------compare with semopy------------------------------------
-def sem_with_semopy(clusterlist, fintrinsic_base, SEMresultsname, SEMparametersname):
-    print('running comparison of methods with semopy....')
-    starttime = time.ctime()
-
-    # load and organize data------------------------------------------
-    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
-    # load the data values
-    betanamelist = SEMparams['betanamelist']
-    beta_list = SEMparams['beta_list']
-    nruns_per_person = SEMparams['nruns_per_person']
-    nclusterstotal = SEMparams['nclusterstotal']
-    rnamelist = SEMparams['rnamelist']
-    nregions = SEMparams['nregions']
-    cluster_properties = SEMparams['cluster_properties']
-    cluster_data = SEMparams['cluster_data']
-    network = SEMparams['network']
-    fintrinsic_count = SEMparams['fintrinsic_count']
-    vintrinsic_count = SEMparams['vintrinsic_count']
-    sem_region_list = SEMparams['sem_region_list']
-    nclusterlist = SEMparams['nclusterlist']
-    tsize = SEMparams['tsize']
-    tplist_full = SEMparams['tplist_full']
-    tcdata_centered = SEMparams['tcdata_centered']
-    ctarget = SEMparams['ctarget']
-    csource = SEMparams['csource']
-    fintrinsic_region = SEMparams['fintrinsic_region']
-    Mconn = SEMparams['Mconn']
-    Minput = SEMparams['Minput']
-    timepoint = SEMparams['timepoint']
-    epoch = SEMparams['epoch']
-    latent_flag = SEMparams['latent_flag']
-
-    ntime, NP = np.shape(tplist_full)
-
-    # define the network in the format for semopy
-
-    # ---------------------------------------------------------------------------------------------------------
-    # ---------------------------------------------------------------------------------------------------------
-    # repeat the process for each participant-----------------------------------------------------------------
-    betalimit = 3.0
-    epochnum = 0
-    SEMresults = []
-    beta_init_record = []
-    for nperson in range(NP):
-        print('starting person {} at {}'.format(nperson, time.ctime()))
-        tp = tplist_full[epochnum][nperson]['tp']
-        tsize_total = len(tp)
-        nruns = nruns_per_person[nperson]
-
-        # get tc data for each region/cluster
-        rnumlist = []
-        clustercount = np.cumsum(nclusterlist)
-        for aa in range(len(clusterlist)):
-            x = np.where(clusterlist[aa] < clustercount)[0]
-            rnumlist += [x[0]]
-
-        Sinput = []
-        for cval in clusterlist:
-            tc1 = tcdata_centered[cval, tp]
-            Sinput.append(tc1)
-        Sinput = np.array(Sinput)
-        # Sinput is size:  nregions x tsize_total
-
-        # setup fixed intrinsic based on the model paradigm
-        # need to account for timepoint and epoch....
-        if fintrinsic_count > 0:
-            if epoch >= tsize:
-                et1 = 0
-                et2 = tsize
-            else:
-                et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
-                et2 = (timepoint + np.floor(epoch / 2)).astype(int)
-
-
-        results_record = []
-        ssqd_record = []
-
-        alpha = initial_alpha
-        Lweight = initial_Lweight
-        dval = initial_dval
-
-        Mconn[ctarget, csource] = betavals
-
-        # # starting point for optimizing intrinsics with given betavals----------------------------------------------------
-
-        fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-        # cost = np.sum(np.abs(betavals ** 2)) # L2 regularization
-        cost = np.sum(np.abs(betavals))  # L1 regularization
-        ssqd = err + Lweight * cost
-        ssqd_starting = ssqd
-        ssqd_record += [ssqd]
-
-        nitermax = 500
-        alpha_limit = 1.0e-5
-
-        iter = 0
-        # vintrinsics_record = []
-        converging = True
-        dssq_record = np.ones(3)
-        dssq_count = 0
-        sequence_count = 0
-        while alpha > alpha_limit and iter < nitermax and converging:
-            iter += 1
-            # gradients in betavals and beta_int1
-            Mconn[ctarget, csource] = betavals
-            fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-            dssq_db, ssqd, dssq_dbeta1 = gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight)
-            ssqd_record += [ssqd]
-
-            # gradient in beta_int1
-
-            # apply the changes
-            betavals -= alpha * dssq_db
-            beta_int1 -= alpha * dssq_dbeta1
-
-            # limit the beta values related to intrinsic inputs to positive values
-            for aa in range(len(betavals)):
-                if latent_flag[aa] > 0:
-                    # if betavals[aa] < 0:  betavals[aa] = 0.0
-                    betavals[aa] = 1.0
-
-            # betavals[betavals >= betalimit] = betalimit
-            # betavals[betavals <= -betalimit] = -betalimit
-
-            Mconn[ctarget, csource] = betavals
-            fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-            # cost = np.sum(np.abs(betavals ** 2))  # L2 regularization
-            cost = np.sum(np.abs(betavals))  # L1 regularization
-            ssqd_new = err + Lweight * cost
-
-            err_total = Sinput - fit
-            Smean = np.mean(Sinput)
-            errmean = np.mean(err_total)
-            R2total = 1 - np.sum((err_total - errmean) ** 2) / np.sum((Sinput - Smean) ** 2)
-
-            # Sinput_sim, Soutput_sim = network_sim(Sinput_full, Soutput_full, Minput, Moutput)
-            results_record.append({'Sinput': fit, 'Mintrinsic': Mintrinsic, 'Meigv': Meigv})
-
-            if ssqd_new >= ssqd:
-                alpha *= 0.5
-                # revert back to last good values
-                betavals = copy.deepcopy(lastgood_betavals)
-                beta_int1 = copy.deepcopy(lastgood_beta_int1)
-                dssqd = ssqd - ssqd_new
-                dssq_record = np.ones(3)  # reset the count
-                dssq_count = 0
-                sequence_count = 0
-                print('beta vals:  iter {} alpha {:.3e}  delta ssq > 0  - no update'.format(iter, alpha))
-            else:
-                # save the good values
-                lastgood_betavals = copy.deepcopy(betavals)
-                lastgood_beta_int1 = copy.deepcopy(beta_int1)
-
-                dssqd = ssqd - ssqd_new
-                ssqd = ssqd_new
-
-                sequence_count += 1
-                if sequence_count > 5:
-                    alpha *= 1.5
-                    sequence_count = 0
-
-                dssq_count += 1
-                dssq_count = np.mod(dssq_count, 3)
-                # dssq_record[dssq_count] = 100.0 * dssqd / ssqd_starting
-                dssq_record[dssq_count] = dssqd
-                if np.max(dssq_record) < 0.1:  converging = False
-
-            print('beta vals:  iter {} alpha {:.3e}  delta ssq {:.4f}  relative: {:.1f} percent  '
-                  'R2 {:.3f}'.format(iter, alpha, -dssqd, 100.0 * ssqd / ssqd_starting, R2total))
-            # now repeat it ...
-
-        # fit the results now to determine output signaling from each region
-        Mconn[ctarget, csource] = betavals
-        fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-        Sconn = Meigv @ Mintrinsic  # signalling over each connection
-
-        regionlist = [0, 7]
-        results_text = display_SEM_results_1person(nperson, Sinput, fit, regionlist, nruns, epoch, windowlist=[24, 25])
-
-        entry = {'Sinput': Sinput, 'Sconn': Sconn, 'beta_int1': beta_int1, 'Mconn': Mconn, 'Minput': Minput,
-                 'rtext1': results_text[0], 'rtext2': results_text[1], 'R2total': R2total, 'Mintrinsic': Mintrinsic,
-                 'Meigv': Meigv, 'betavals': betavals, 'fintrinsic1': fintrinsic1, 'clusterlist': clusterlist}
-        SEMresults.append(copy.deepcopy(entry))
-
-        stoptime = time.ctime()
-
-    np.save(SEMresultsname, SEMresults)
-    print('finished SEM at {}'.format(time.ctime()))
-    print('     started at {}'.format(starttime))
-
-    return SEMresultsname
-
-
-def check_single_result_details(nperson = 27, reload_existing=False):
-
-    verbose = False
-
-    cnums = [0, 3, 3, 1, 4, 1, 3, 3, 4, 1]  # fixed 0
-
-    basedir = r'E:\beta_distribution'
-    if not os.path.exists(basedir): os.mkdir(basedir)
-
-    outputdir = r'E:\beta_distribution\test_single'
-    if not os.path.exists(outputdir): os.mkdir(outputdir)
-
-    covariatesfile = r'E:\allthreat_covariates.npy'
-    regiondataname = r'E:\threat_safety_regiondata_allthreat55.npy'
-    clusterdataname = r'E:\threat_safety_clusterdata.npy'
-
-    SEMresultsname = os.path.join(outputdir, 'SEMphysio_beta_init_test.npy')
-    SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
-    networkfile = r'E:\network_model_5cluster_v5_w_3intrinsics.xlsx'
-
-    # load paradigm data--------------------------------------------------------------------
-    DBname = r'E:\graded_pain_database_May2022.xlsx'
-    xls = pd.ExcelFile(DBname, engine='openpyxl')
-    df1 = pd.read_excel(xls, 'paradigm1_BOLD')
-    del df1['Unnamed: 0']  # get rid of the unwanted header column
-    fields = list(df1.keys())
-    paradigm = df1['paradigms_BOLD']
-    timevals = df1['time']
-    paradigm_centered = paradigm - np.mean(paradigm)
-    dparadigm = np.zeros(len(paradigm))
-    dparadigm[1:] = np.diff(paradigm_centered)
-
-    # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
-    #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
-    full_rnum_base = np.array([0, 5, 10, 15, 20, 25, 30, 35, 40, 45])
-
-    namelist = ['C6RD', 'DRt', 'Hypothalamus', 'LC', 'NGC', 'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus',
-                'Rtotal', 'R C6RD', 'R DRt', 'R Hyp', 'R LC', 'R NGC', 'R NRM', 'R NTS', 'R PAG',
-                'R PBN', 'R Thal']
-
-    # starting values
-    cnums_original = copy.deepcopy(cnums)
-    # excelsheetname = 'clusters'
-    # fname = 'fixed_C6RD{}.xlsx'.format(cord_cluster)
-    # excelfilename = os.path.join(outputdir, fname)
-
-    # run the analysis with SAPM
-    clusterlist = np.array(cnums) + full_rnum_base
-    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
-
-    # output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
-    # SEMresults = np.load(output, allow_pickle=True).flat[0]
-
-    # put a version of sem_physio_model right here to dissect it
-    fintrinsic_base = copy.deepcopy(paradigm_centered)
-    fixed_beta_vals = []
-    starttime = time.ctime()
-
-    # initialize gradient-descent parameters--------------------------------------------------------------
-    initial_alpha = 1e-3
-    initial_Lweight = 1e-4
-    initial_dval = 0.01
-    betascale = 0.0
-
-    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
-    # load the data values
-    betanamelist = SEMparams['betanamelist']
-    beta_list = SEMparams['beta_list']
-    nruns_per_person = SEMparams['nruns_per_person']
-    nclusterstotal = SEMparams['nclusterstotal']
-    rnamelist = SEMparams['rnamelist']
-    nregions = SEMparams['nregions']
-    cluster_properties = SEMparams['cluster_properties']
-    cluster_data = SEMparams['cluster_data']
-    network = SEMparams['network']
-    fintrinsic_count = SEMparams['fintrinsic_count']
-    vintrinsic_count = SEMparams['vintrinsic_count']
-    sem_region_list = SEMparams['sem_region_list']
-    nclusterlist = SEMparams['nclusterlist']
-    tsize = SEMparams['tsize']
-    tplist_full = SEMparams['tplist_full']
-    tcdata_centered = SEMparams['tcdata_centered']
-    ctarget = SEMparams['ctarget']
-    csource = SEMparams['csource']
-    fintrinsic_region = SEMparams['fintrinsic_region']
-    Mconn = SEMparams['Mconn']
-    Minput = SEMparams['Minput']
-    timepoint = SEMparams['timepoint']
-    epoch = SEMparams['epoch']
-    latent_flag = SEMparams['latent_flag']
-
-    ntime, NP = np.shape(tplist_full)
-    #---------------------------------------------------------------------------------------------------------
-    #---------------------------------------------------------------------------------------------------------
-    # run for one participant-----------------------------------------------------------------
-    betalimit = 3.0
-    epochnum = 0
-    SEMresults = []
-    beta_init_record = []
-    # for nperson in range(NP):
-    # nperson is now an input parameter for checking results
-
-    print('starting person {} at {}'.format(nperson,time.ctime()))
-    tp = tplist_full[epochnum][nperson]['tp']
-    tsize_total = len(tp)
-    nruns = nruns_per_person[nperson]
-
-    # get tc data for each region/cluster
-    rnumlist = []
-    clustercount = np.cumsum(nclusterlist)
-    for aa in range(len(clusterlist)):
-        x = np.where(clusterlist[aa] < clustercount)[0]
-        rnumlist += [x[0]]
-
-    Sinput = []
-    for cval in clusterlist:
-        tc1 = tcdata_centered[cval, tp]
-        Sinput.append(tc1)
-    Sinput = np.array(Sinput)
-    # Sinput is size:  nregions x tsize_total
-
-    # setup fixed intrinsic based on the model paradigm
-    # need to account for timepoint and epoch....
-    if fintrinsic_count > 0:
-        if epoch >= tsize:
-            et1 = 0
-            et2 = tsize
-        else:
-            et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
-            et2 = (timepoint + np.floor(epoch / 2)).astype(int)
-
-        ftemp = fintrinsic_base[et1:et2]
-        fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
-        if np.var(ftemp) > 1.0e-3:
-            Sint = Sinput[fintrinsic_region,:]
-            Sint = Sint - np.mean(Sint)
-            # need to add constant to fit values
-            G = np.concatenate((fintrinsic1[np.newaxis, :],np.ones((1,tsize_total))),axis=0)
-            b, fit, R2, total_var, res_var = pysem.general_glm(Sint, G)
-            beta_int1 = b[0]
-        else:
-            beta_int1 = 0.0
-    else:
-        beta_int1 = 0.0
-
-    lastgood_beta_int1 = copy.deepcopy(beta_int1)
-
-    # initialize beta values-----------------------------------
-    beta_initial = np.zeros(len(csource))
-    # beta_initial = np.random.randn(len(csource))
-    beta_initial = betascale*np.ones(len(csource))
-
-    # repeat with many different starting points
-    beta_iter_results = []
-    for bbb in range(1000):
-
-        if bbb == 0:
-            beta_initial = np.zeros(len(csource))
-        else:
-            beta_initial = 0.3*np.random.randn(len(csource))
-        # beta_init_record.append({'beta_initial':beta_initial})
-
-        for aa in range(len(beta_initial)):
-            if latent_flag[aa] > 0:
-                # if beta_initial[aa] < 0:  beta_initial[aa] = 0.0
-                beta_initial[aa] = 1.0
-
-        # initalize Sconn
-        betavals = copy.deepcopy(beta_initial) # initialize beta values at zero
-        lastgood_betavals = copy.deepcopy(betavals)
-
-        results_record = []
-        ssqd_record = []
-
-        alpha = initial_alpha
-        Lweight = initial_Lweight
-        dval = initial_dval
-
-        Mconn[ctarget,csource] = betavals
-
-        # # starting point for optimizing intrinsics with given betavals----------------------------------------------------
-        # fit, Sconn_full = network_eigenvalue_method(Sconn_full, Minput, Mconn, ncon)
-
-        fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-        # cost = np.sum(np.abs(betavals**2)) # L2 regularization
-        cost = np.sum(np.abs(betavals))  # L1 regularization
-        ssqd = err + Lweight * cost
-        ssqd_starting = ssqd
-        ssqd_record += [ssqd]
-
-        nitermax = 500
-        alpha_limit = 1.0e-5
-
-        iter = 0
-        # vintrinsics_record = []
-        converging = True
-        dssq_record = np.ones(3)
-        dssq_count = 0
-        sequence_count = 0
-        while alpha > alpha_limit  and iter < nitermax  and converging:
-            iter += 1
-            # gradients in betavals and beta_int1
-            Mconn[ctarget, csource] = betavals
-            fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-            dssq_db, ssqd, dssq_dbeta1 = gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight)
-            ssqd_record += [ssqd]
-
-            # fix some beta values at zero, if specified
-            if len(fixed_beta_vals) > 0:
-                dssq_db[fixed_beta_vals] = 0
-
-            # apply the changes
-            betavals -= alpha * dssq_db
-            beta_int1 -= alpha * dssq_dbeta1
-
-            # limit the beta values related to intrinsic inputs to positive values
-            for aa in range(len(betavals)):
-                if latent_flag[aa] > 0:
-                    # if betavals[aa] < 0:  betavals[aa] = 0.0
-                    betavals[aa] = 1.0
-
-            # betavals[betavals >= betalimit] = betalimit
-            # betavals[betavals <= -betalimit] = -betalimit
-
-            Mconn[ctarget, csource] = betavals
-            fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-            # cost = np.sum(np.abs(betavals**2))  # L2 regularization
-            cost = np.sum(np.abs(betavals))  # L1 regularization
-            ssqd_new = err + Lweight * cost
-
-            err_total = Sinput - fit
-            Smean = np.mean(Sinput)
-            errmean = np.mean(err_total)
-            R2total = 1 - np.sum((err_total - errmean) ** 2) / np.sum((Sinput - Smean) ** 2)
-
-            # Sinput_sim, Soutput_sim = network_sim(Sinput_full, Soutput_full, Minput, Moutput)
-            results_record.append({'Sinput': fit, 'Mintrinsic': Mintrinsic, 'Meigv':Meigv})
-
-            if ssqd_new >= ssqd:
-                alpha *= 0.5
-                # revert back to last good values
-                betavals = copy.deepcopy(lastgood_betavals)
-                beta_int1 = copy.deepcopy(lastgood_beta_int1)
-                dssqd = ssqd - ssqd_new
-                dssq_record = np.ones(3)  # reset the count
-                dssq_count = 0
-                sequence_count = 0
-                print('beta vals:  iter {} alpha {:.3e}  delta ssq > 0  - no update'.format(iter, alpha))
-            else:
-                # save the good values
-                lastgood_betavals = copy.deepcopy(betavals)
-                lastgood_beta_int1 = copy.deepcopy(beta_int1)
-
-                dssqd = ssqd - ssqd_new
-                ssqd = ssqd_new
-
-                sequence_count += 1
-                if sequence_count > 5:
-                    alpha *= 1.5
-                    sequence_count = 0
-
-                dssq_count += 1
-                dssq_count = np.mod(dssq_count, 3)
-                # dssq_record[dssq_count] = 100.0 * dssqd / ssqd_starting
-                dssq_record[dssq_count] = dssqd
-                if np.max(dssq_record) < 0.1:  converging = False
-
-            print('beta vals:  iter {} alpha {:.3e}  delta ssq {:.4f}  relative: {:.1f} percent  '
-                  'R2 {:.3f}'.format(iter,alpha, -dssqd,100.0 * ssqd / ssqd_starting, R2total))
-            # now repeat it ...
-
-        beta_iter_results.append({'betavals':betavals,'R2total':R2total, 'beta_initial':beta_initial})
-
-        # fit the results now to determine output signaling from each region
-        Mconn[ctarget, csource] = betavals
-        fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
-        Sconn = Meigv @ Mintrinsic    # signalling over each connection
-
-        regionlist = [0, 7]
-        if verbose:
-            results_text = display_SEM_results_1person(nperson, Sinput, fit, regionlist, nruns, epoch, windowlist=[24, 25])
-        else:
-            results_text = ['silent mode','silent mode']
-
-        entry = {'Sinput':Sinput, 'Sconn':Sconn, 'beta_int1':beta_int1, 'Mconn':Mconn, 'Minput':Minput,
-                 'rtext1':results_text[0], 'rtext2':results_text[1], 'R2total':R2total, 'Mintrinsic':Mintrinsic,
-                 'Meigv':Meigv, 'betavals':betavals, 'fintrinsic1':fintrinsic1, 'clusterlist':clusterlist}
-        SEMresults.append(copy.deepcopy(entry))
-
-        stoptime = time.ctime()
-
-    np.save(SEMresultsname, beta_iter_results)
-
-
-    print('finished SEM at {}'.format(time.ctime()))
-    print('     started at {}'.format(starttime))
-
-    # look at some details
-    R2record = [beta_iter_results[x]['R2total'] for x in range(1000)]
-    x = np.argsort(R2record)[::-1]
-    betavals0 = beta_iter_results[0]['betavals']
-    betavals1 = beta_iter_results[x[0]]['betavals']
-    fig = plt.figure(3), plt.plot(betavals0, betavals1, 'or')
-
-    cc = np.where(np.sign(betavals0) != np.sign(betavals1))[0]
-    cc2 = np.where(np.abs(betavals0[cc]) > 0.2)
-    cc_neg = cc[cc2]
-    plt.plot(betavals0[cc_neg], betavals1[cc_neg], 'ob')
-
-    cc = np.where(np.sign(betavals0) == np.sign(betavals1))[0]
-    cc2 = np.where(np.abs(betavals0[cc]) > 0.2)
-    cc_pos = cc[cc2]
-    plt.plot(betavals0[cc_pos], betavals1[cc_pos], 'og')
-
-    print('\n\n')
-    for nn in cc_pos:
-        sourcecon = csource[nn]
-        targetcon = ctarget[nn]
-        sourcepair = beta_list[sourcecon]['pair']
-        targetpair = beta_list[targetcon]['pair']
-        if sourcepair[0] < 10:
-            con_name = '{}-{}-{}'.format(rnamelist[sourcepair[0]], rnamelist[targetpair[0]], rnamelist[targetpair[1]])
-        else:
-            con_name = '{}-{}-{}'.format('latent', rnamelist[targetpair[0]], rnamelist[targetpair[1]])
-        print('positive:  {} {}'.format(nn, con_name))
-
-    print('\n\n')
-    for nn in cc_neg:
-        sourcecon = csource[nn]
-        targetcon = ctarget[nn]
-        sourcepair = beta_list[sourcecon]['pair']
-        targetpair = beta_list[targetcon]['pair']
-        if sourcepair[0] < 10:
-            con_name = '{}-{}-{}'.format(rnamelist[sourcepair[0]], rnamelist[targetpair[0]], rnamelist[targetpair[1]])
-        else:
-            con_name = '{}-{}-{}'.format('latent', rnamelist[targetpair[0]], rnamelist[targetpair[1]])
-        print('negative:  {} {}'.format(nn, con_name))
-
-    return SEMresultsname
+# def sem_with_semopy(clusterlist, fintrinsic_base, SEMresultsname, SEMparametersname):
+#     print('running comparison of methods with semopy....')
+#     starttime = time.ctime()
+#
+#     # load and organize data------------------------------------------
+#     SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+#     # load the data values
+#     betanamelist = SEMparams['betanamelist']
+#     beta_list = SEMparams['beta_list']
+#     nruns_per_person = SEMparams['nruns_per_person']
+#     nclusterstotal = SEMparams['nclusterstotal']
+#     rnamelist = SEMparams['rnamelist']
+#     nregions = SEMparams['nregions']
+#     cluster_properties = SEMparams['cluster_properties']
+#     cluster_data = SEMparams['cluster_data']
+#     network = SEMparams['network']
+#     fintrinsic_count = SEMparams['fintrinsic_count']
+#     vintrinsic_count = SEMparams['vintrinsic_count']
+#     sem_region_list = SEMparams['sem_region_list']
+#     nclusterlist = SEMparams['nclusterlist']
+#     tsize = SEMparams['tsize']
+#     tplist_full = SEMparams['tplist_full']
+#     tcdata_centered = SEMparams['tcdata_centered']
+#     ctarget = SEMparams['ctarget']
+#     csource = SEMparams['csource']
+#     fintrinsic_region = SEMparams['fintrinsic_region']
+#     Mconn = SEMparams['Mconn']
+#     Minput = SEMparams['Minput']
+#     timepoint = SEMparams['timepoint']
+#     epoch = SEMparams['epoch']
+#     latent_flag = SEMparams['latent_flag']
+#
+#     ntime, NP = np.shape(tplist_full)
+#
+#     # define the network in the format for semopy
+#
+#     # ---------------------------------------------------------------------------------------------------------
+#     # ---------------------------------------------------------------------------------------------------------
+#     # repeat the process for each participant-----------------------------------------------------------------
+#     betalimit = 3.0
+#     epochnum = 0
+#     SEMresults = []
+#     beta_init_record = []
+#     for nperson in range(NP):
+#         print('starting person {} at {}'.format(nperson, time.ctime()))
+#         tp = tplist_full[epochnum][nperson]['tp']
+#         tsize_total = len(tp)
+#         nruns = nruns_per_person[nperson]
+#
+#         # get tc data for each region/cluster
+#         rnumlist = []
+#         clustercount = np.cumsum(nclusterlist)
+#         for aa in range(len(clusterlist)):
+#             x = np.where(clusterlist[aa] < clustercount)[0]
+#             rnumlist += [x[0]]
+#
+#         Sinput = []
+#         for cval in clusterlist:
+#             tc1 = tcdata_centered[cval, tp]
+#             Sinput.append(tc1)
+#         Sinput = np.array(Sinput)
+#         # Sinput is size:  nregions x tsize_total
+#
+#         # setup fixed intrinsic based on the model paradigm
+#         # need to account for timepoint and epoch....
+#         if fintrinsic_count > 0:
+#             if epoch >= tsize:
+#                 et1 = 0
+#                 et2 = tsize
+#             else:
+#                 et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
+#                 et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+#
+#
+#         results_record = []
+#         ssqd_record = []
+#
+#         alpha = initial_alpha
+#         Lweight = initial_Lweight
+#         dval = initial_dval
+#
+#         Mconn[ctarget, csource] = betavals
+#
+#         # # starting point for optimizing intrinsics with given betavals----------------------------------------------------
+#
+#         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
+#         # cost = np.sum(np.abs(betavals ** 2)) # L2 regularization
+#         cost = np.sum(np.abs(betavals))  # L1 regularization
+#         ssqd = err + Lweight * cost
+#         ssqd_starting = ssqd
+#         ssqd_record += [ssqd]
+#
+#         nitermax = 500
+#         alpha_limit = 1.0e-5
+#
+#         iter = 0
+#         # vintrinsics_record = []
+#         converging = True
+#         dssq_record = np.ones(3)
+#         dssq_count = 0
+#         sequence_count = 0
+#         while alpha > alpha_limit and iter < nitermax and converging:
+#             iter += 1
+#             # gradients in betavals and beta_int1
+#             Mconn[ctarget, csource] = betavals
+#             fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
+#             dssq_db, ssqd, dssq_dbeta1 = gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight)
+#             ssqd_record += [ssqd]
+#
+#             # gradient in beta_int1
+#
+#             # apply the changes
+#             betavals -= alpha * dssq_db
+#             beta_int1 -= alpha * dssq_dbeta1
+#
+#             # limit the beta values related to intrinsic inputs to positive values
+#             for aa in range(len(betavals)):
+#                 if latent_flag[aa] > 0:
+#                     # if betavals[aa] < 0:  betavals[aa] = 0.0
+#                     betavals[aa] = 1.0
+#
+#             # betavals[betavals >= betalimit] = betalimit
+#             # betavals[betavals <= -betalimit] = -betalimit
+#
+#             Mconn[ctarget, csource] = betavals
+#             fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
+#             # cost = np.sum(np.abs(betavals ** 2))  # L2 regularization
+#             cost = np.sum(np.abs(betavals))  # L1 regularization
+#             ssqd_new = err + Lweight * cost
+#
+#             err_total = Sinput - fit
+#             Smean = np.mean(Sinput)
+#             errmean = np.mean(err_total)
+#             R2total = 1 - np.sum((err_total - errmean) ** 2) / np.sum((Sinput - Smean) ** 2)
+#
+#             # Sinput_sim, Soutput_sim = network_sim(Sinput_full, Soutput_full, Minput, Moutput)
+#             results_record.append({'Sinput': fit, 'Mintrinsic': Mintrinsic, 'Meigv': Meigv})
+#
+#             if ssqd_new >= ssqd:
+#                 alpha *= 0.5
+#                 # revert back to last good values
+#                 betavals = copy.deepcopy(lastgood_betavals)
+#                 beta_int1 = copy.deepcopy(lastgood_beta_int1)
+#                 dssqd = ssqd - ssqd_new
+#                 dssq_record = np.ones(3)  # reset the count
+#                 dssq_count = 0
+#                 sequence_count = 0
+#                 print('beta vals:  iter {} alpha {:.3e}  delta ssq > 0  - no update'.format(iter, alpha))
+#             else:
+#                 # save the good values
+#                 lastgood_betavals = copy.deepcopy(betavals)
+#                 lastgood_beta_int1 = copy.deepcopy(beta_int1)
+#
+#                 dssqd = ssqd - ssqd_new
+#                 ssqd = ssqd_new
+#
+#                 sequence_count += 1
+#                 if sequence_count > 5:
+#                     alpha *= 1.5
+#                     sequence_count = 0
+#
+#                 dssq_count += 1
+#                 dssq_count = np.mod(dssq_count, 3)
+#                 # dssq_record[dssq_count] = 100.0 * dssqd / ssqd_starting
+#                 dssq_record[dssq_count] = dssqd
+#                 if np.max(dssq_record) < 0.1:  converging = False
+#
+#             print('beta vals:  iter {} alpha {:.3e}  delta ssq {:.4f}  relative: {:.1f} percent  '
+#                   'R2 {:.3f}'.format(iter, alpha, -dssqd, 100.0 * ssqd / ssqd_starting, R2total))
+#             # now repeat it ...
+#
+#         # fit the results now to determine output signaling from each region
+#         Mconn[ctarget, csource] = betavals
+#         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
+#         Sconn = Meigv @ Mintrinsic  # signalling over each connection
+#
+#         regionlist = [0, 7]
+#         results_text = display_SEM_results_1person(nperson, Sinput, fit, regionlist, nruns, epoch, windowlist=[24, 25])
+#
+#         entry = {'Sinput': Sinput, 'Sconn': Sconn, 'beta_int1': beta_int1, 'Mconn': Mconn, 'Minput': Minput,
+#                  'rtext1': results_text[0], 'rtext2': results_text[1], 'R2total': R2total, 'Mintrinsic': Mintrinsic,
+#                  'Meigv': Meigv, 'betavals': betavals, 'fintrinsic1': fintrinsic1, 'clusterlist': clusterlist}
+#         SEMresults.append(copy.deepcopy(entry))
+#
+#         stoptime = time.ctime()
+#
+#     np.save(SEMresultsname, SEMresults)
+#     print('finished SEM at {}'.format(time.ctime()))
+#     print('     started at {}'.format(starttime))
+#
+#     return SEMresultsname
+
+
+# def check_single_result_details(nperson = 27, reload_existing=False):
+#
+#     verbose = False
+#
+#     cnums = [0, 3, 3, 1, 4, 1, 3, 3, 4, 1]  # fixed 0
+#
+#     basedir = r'E:\beta_distribution'
+#     if not os.path.exists(basedir): os.mkdir(basedir)
+#
+#     outputdir = r'E:\beta_distribution\test_single'
+#     if not os.path.exists(outputdir): os.mkdir(outputdir)
+#
+#     covariatesfile = r'E:\allthreat_covariates.npy'
+#     regiondataname = r'E:\threat_safety_regiondata_allthreat55.npy'
+#     clusterdataname = r'E:\threat_safety_clusterdata.npy'
+#
+#     SEMresultsname = os.path.join(outputdir, 'SEMphysio_beta_init_test.npy')
+#     SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
+#     networkfile = r'E:\network_model_5cluster_v5_w_3intrinsics.xlsx'
+#
+#     # load paradigm data--------------------------------------------------------------------
+#     DBname = r'E:\graded_pain_database_May2022.xlsx'
+#     xls = pd.ExcelFile(DBname, engine='openpyxl')
+#     df1 = pd.read_excel(xls, 'paradigm1_BOLD')
+#     del df1['Unnamed: 0']  # get rid of the unwanted header column
+#     fields = list(df1.keys())
+#     paradigm = df1['paradigms_BOLD']
+#     timevals = df1['time']
+#     paradigm_centered = paradigm - np.mean(paradigm)
+#     dparadigm = np.zeros(len(paradigm))
+#     dparadigm[1:] = np.diff(paradigm_centered)
+#
+#     # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
+#     #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
+#     full_rnum_base = np.array([0, 5, 10, 15, 20, 25, 30, 35, 40, 45])
+#
+#     namelist = ['C6RD', 'DRt', 'Hypothalamus', 'LC', 'NGC', 'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus',
+#                 'Rtotal', 'R C6RD', 'R DRt', 'R Hyp', 'R LC', 'R NGC', 'R NRM', 'R NTS', 'R PAG',
+#                 'R PBN', 'R Thal']
+#
+#     # starting values
+#     cnums_original = copy.deepcopy(cnums)
+#     # excelsheetname = 'clusters'
+#     # fname = 'fixed_C6RD{}.xlsx'.format(cord_cluster)
+#     # excelfilename = os.path.join(outputdir, fname)
+#
+#     # run the analysis with SAPM
+#     clusterlist = np.array(cnums) + full_rnum_base
+#     prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
+#
+#     # output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
+#     # SEMresults = np.load(output, allow_pickle=True).flat[0]
+#
+#     # put a version of sem_physio_model right here to dissect it
+#     fintrinsic_base = copy.deepcopy(paradigm_centered)
+#     fixed_beta_vals = []
+#     starttime = time.ctime()
+#
+#     # initialize gradient-descent parameters--------------------------------------------------------------
+#     initial_alpha = 1e-3
+#     initial_Lweight = 1e-4
+#     initial_dval = 0.01
+#     betascale = 0.0
+#
+#     SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+#     # load the data values
+#     betanamelist = SEMparams['betanamelist']
+#     beta_list = SEMparams['beta_list']
+#     nruns_per_person = SEMparams['nruns_per_person']
+#     nclusterstotal = SEMparams['nclusterstotal']
+#     rnamelist = SEMparams['rnamelist']
+#     nregions = SEMparams['nregions']
+#     cluster_properties = SEMparams['cluster_properties']
+#     cluster_data = SEMparams['cluster_data']
+#     network = SEMparams['network']
+#     fintrinsic_count = SEMparams['fintrinsic_count']
+#     vintrinsic_count = SEMparams['vintrinsic_count']
+#     sem_region_list = SEMparams['sem_region_list']
+#     nclusterlist = SEMparams['nclusterlist']
+#     tsize = SEMparams['tsize']
+#     tplist_full = SEMparams['tplist_full']
+#     tcdata_centered = SEMparams['tcdata_centered']
+#     ctarget = SEMparams['ctarget']
+#     csource = SEMparams['csource']
+#     fintrinsic_region = SEMparams['fintrinsic_region']
+#     Mconn = SEMparams['Mconn']
+#     Minput = SEMparams['Minput']
+#     timepoint = SEMparams['timepoint']
+#     epoch = SEMparams['epoch']
+#     latent_flag = SEMparams['latent_flag']
+#
+#     ntime, NP = np.shape(tplist_full)
+#     #---------------------------------------------------------------------------------------------------------
+#     #---------------------------------------------------------------------------------------------------------
+#     # run for one participant-----------------------------------------------------------------
+#     betalimit = 3.0
+#     epochnum = 0
+#     SEMresults = []
+#     beta_init_record = []
+#     # for nperson in range(NP):
+#     # nperson is now an input parameter for checking results
+#
+#     print('starting person {} at {}'.format(nperson,time.ctime()))
+#     tp = tplist_full[epochnum][nperson]['tp']
+#     tsize_total = len(tp)
+#     nruns = nruns_per_person[nperson]
+#
+#     # get tc data for each region/cluster
+#     rnumlist = []
+#     clustercount = np.cumsum(nclusterlist)
+#     for aa in range(len(clusterlist)):
+#         x = np.where(clusterlist[aa] < clustercount)[0]
+#         rnumlist += [x[0]]
+#
+#     Sinput = []
+#     for cval in clusterlist:
+#         tc1 = tcdata_centered[cval, tp]
+#         Sinput.append(tc1)
+#     Sinput = np.array(Sinput)
+#     # Sinput is size:  nregions x tsize_total
+#
+#     # setup fixed intrinsic based on the model paradigm
+#     # need to account for timepoint and epoch....
+#     if fintrinsic_count > 0:
+#         if epoch >= tsize:
+#             et1 = 0
+#             et2 = tsize
+#         else:
+#             et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
+#             et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+#
+#         ftemp = fintrinsic_base[et1:et2]
+#         fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
+#         if np.var(ftemp) > 1.0e-3:
+#             Sint = Sinput[fintrinsic_region,:]
+#             Sint = Sint - np.mean(Sint)
+#             # need to add constant to fit values
+#             G = np.concatenate((fintrinsic1[np.newaxis, :],np.ones((1,tsize_total))),axis=0)
+#             b, fit, R2, total_var, res_var = pysem.general_glm(Sint, G)
+#             beta_int1 = b[0]
+#         else:
+#             beta_int1 = 0.0
+#     else:
+#         beta_int1 = 0.0
+#
+#     lastgood_beta_int1 = copy.deepcopy(beta_int1)
+#
+#     # initialize beta values-----------------------------------
+#     beta_initial = np.zeros(len(csource))
+#     # beta_initial = np.random.randn(len(csource))
+#     beta_initial = betascale*np.ones(len(csource))
+#
+#     # repeat with many different starting points
+#     beta_iter_results = []
+#     for bbb in range(1000):
+#
+#         if bbb == 0:
+#             beta_initial = np.zeros(len(csource))
+#         else:
+#             beta_initial = 0.3*np.random.randn(len(csource))
+#         # beta_init_record.append({'beta_initial':beta_initial})
+#
+#         for aa in range(len(beta_initial)):
+#             if latent_flag[aa] > 0:
+#                 # if beta_initial[aa] < 0:  beta_initial[aa] = 0.0
+#                 beta_initial[aa] = 1.0
+#
+#         # initalize Sconn
+#         betavals = copy.deepcopy(beta_initial) # initialize beta values at zero
+#         lastgood_betavals = copy.deepcopy(betavals)
+#
+#         results_record = []
+#         ssqd_record = []
+#
+#         alpha = initial_alpha
+#         Lweight = initial_Lweight
+#         dval = initial_dval
+#
+#         Mconn[ctarget,csource] = betavals
+#
+#         # # starting point for optimizing intrinsics with given betavals----------------------------------------------------
+#         # fit, Sconn_full = network_eigenvalue_method(Sconn_full, Minput, Mconn, ncon)
+#
+#         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
+#         # cost = np.sum(np.abs(betavals**2)) # L2 regularization
+#         cost = np.sum(np.abs(betavals))  # L1 regularization
+#         ssqd = err + Lweight * cost
+#         ssqd_starting = ssqd
+#         ssqd_record += [ssqd]
+#
+#         nitermax = 500
+#         alpha_limit = 1.0e-5
+#
+#         iter = 0
+#         # vintrinsics_record = []
+#         converging = True
+#         dssq_record = np.ones(3)
+#         dssq_count = 0
+#         sequence_count = 0
+#         while alpha > alpha_limit  and iter < nitermax  and converging:
+#             iter += 1
+#             # gradients in betavals and beta_int1
+#             Mconn[ctarget, csource] = betavals
+#             fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
+#             dssq_db, ssqd, dssq_dbeta1 = gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight)
+#             ssqd_record += [ssqd]
+#
+#             # fix some beta values at zero, if specified
+#             if len(fixed_beta_vals) > 0:
+#                 dssq_db[fixed_beta_vals] = 0
+#
+#             # apply the changes
+#             betavals -= alpha * dssq_db
+#             beta_int1 -= alpha * dssq_dbeta1
+#
+#             # limit the beta values related to intrinsic inputs to positive values
+#             for aa in range(len(betavals)):
+#                 if latent_flag[aa] > 0:
+#                     # if betavals[aa] < 0:  betavals[aa] = 0.0
+#                     betavals[aa] = 1.0
+#
+#             # betavals[betavals >= betalimit] = betalimit
+#             # betavals[betavals <= -betalimit] = -betalimit
+#
+#             Mconn[ctarget, csource] = betavals
+#             fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
+#             # cost = np.sum(np.abs(betavals**2))  # L2 regularization
+#             cost = np.sum(np.abs(betavals))  # L1 regularization
+#             ssqd_new = err + Lweight * cost
+#
+#             err_total = Sinput - fit
+#             Smean = np.mean(Sinput)
+#             errmean = np.mean(err_total)
+#             R2total = 1 - np.sum((err_total - errmean) ** 2) / np.sum((Sinput - Smean) ** 2)
+#
+#             # Sinput_sim, Soutput_sim = network_sim(Sinput_full, Soutput_full, Minput, Moutput)
+#             results_record.append({'Sinput': fit, 'Mintrinsic': Mintrinsic, 'Meigv':Meigv})
+#
+#             if ssqd_new >= ssqd:
+#                 alpha *= 0.5
+#                 # revert back to last good values
+#                 betavals = copy.deepcopy(lastgood_betavals)
+#                 beta_int1 = copy.deepcopy(lastgood_beta_int1)
+#                 dssqd = ssqd - ssqd_new
+#                 dssq_record = np.ones(3)  # reset the count
+#                 dssq_count = 0
+#                 sequence_count = 0
+#                 print('beta vals:  iter {} alpha {:.3e}  delta ssq > 0  - no update'.format(iter, alpha))
+#             else:
+#                 # save the good values
+#                 lastgood_betavals = copy.deepcopy(betavals)
+#                 lastgood_beta_int1 = copy.deepcopy(beta_int1)
+#
+#                 dssqd = ssqd - ssqd_new
+#                 ssqd = ssqd_new
+#
+#                 sequence_count += 1
+#                 if sequence_count > 5:
+#                     alpha *= 1.5
+#                     sequence_count = 0
+#
+#                 dssq_count += 1
+#                 dssq_count = np.mod(dssq_count, 3)
+#                 # dssq_record[dssq_count] = 100.0 * dssqd / ssqd_starting
+#                 dssq_record[dssq_count] = dssqd
+#                 if np.max(dssq_record) < 0.1:  converging = False
+#
+#             print('beta vals:  iter {} alpha {:.3e}  delta ssq {:.4f}  relative: {:.1f} percent  '
+#                   'R2 {:.3f}'.format(iter,alpha, -dssqd,100.0 * ssqd / ssqd_starting, R2total))
+#             # now repeat it ...
+#
+#         beta_iter_results.append({'betavals':betavals,'R2total':R2total, 'beta_initial':beta_initial})
+#
+#         # fit the results now to determine output signaling from each region
+#         Mconn[ctarget, csource] = betavals
+#         fit, Mintrinsic, Meigv, err = network_eigenvector_method(Sinput, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1)
+#         Sconn = Meigv @ Mintrinsic    # signalling over each connection
+#
+#         regionlist = [0, 7]
+#         if verbose:
+#             results_text = display_SEM_results_1person(nperson, Sinput, fit, regionlist, nruns, epoch, windowlist=[24, 25])
+#         else:
+#             results_text = ['silent mode','silent mode']
+#
+#         entry = {'Sinput':Sinput, 'Sconn':Sconn, 'beta_int1':beta_int1, 'Mconn':Mconn, 'Minput':Minput,
+#                  'rtext1':results_text[0], 'rtext2':results_text[1], 'R2total':R2total, 'Mintrinsic':Mintrinsic,
+#                  'Meigv':Meigv, 'betavals':betavals, 'fintrinsic1':fintrinsic1, 'clusterlist':clusterlist}
+#         SEMresults.append(copy.deepcopy(entry))
+#
+#         stoptime = time.ctime()
+#
+#     np.save(SEMresultsname, beta_iter_results)
+#
+#
+#     print('finished SEM at {}'.format(time.ctime()))
+#     print('     started at {}'.format(starttime))
+#
+#     # look at some details
+#     R2record = [beta_iter_results[x]['R2total'] for x in range(1000)]
+#     x = np.argsort(R2record)[::-1]
+#     betavals0 = beta_iter_results[0]['betavals']
+#     betavals1 = beta_iter_results[x[0]]['betavals']
+#     fig = plt.figure(3), plt.plot(betavals0, betavals1, 'or')
+#
+#     cc = np.where(np.sign(betavals0) != np.sign(betavals1))[0]
+#     cc2 = np.where(np.abs(betavals0[cc]) > 0.2)
+#     cc_neg = cc[cc2]
+#     plt.plot(betavals0[cc_neg], betavals1[cc_neg], 'ob')
+#
+#     cc = np.where(np.sign(betavals0) == np.sign(betavals1))[0]
+#     cc2 = np.where(np.abs(betavals0[cc]) > 0.2)
+#     cc_pos = cc[cc2]
+#     plt.plot(betavals0[cc_pos], betavals1[cc_pos], 'og')
+#
+#     print('\n\n')
+#     for nn in cc_pos:
+#         sourcecon = csource[nn]
+#         targetcon = ctarget[nn]
+#         sourcepair = beta_list[sourcecon]['pair']
+#         targetpair = beta_list[targetcon]['pair']
+#         if sourcepair[0] < 10:
+#             con_name = '{}-{}-{}'.format(rnamelist[sourcepair[0]], rnamelist[targetpair[0]], rnamelist[targetpair[1]])
+#         else:
+#             con_name = '{}-{}-{}'.format('latent', rnamelist[targetpair[0]], rnamelist[targetpair[1]])
+#         print('positive:  {} {}'.format(nn, con_name))
+#
+#     print('\n\n')
+#     for nn in cc_neg:
+#         sourcecon = csource[nn]
+#         targetcon = ctarget[nn]
+#         sourcepair = beta_list[sourcecon]['pair']
+#         targetpair = beta_list[targetcon]['pair']
+#         if sourcepair[0] < 10:
+#             con_name = '{}-{}-{}'.format(rnamelist[sourcepair[0]], rnamelist[targetpair[0]], rnamelist[targetpair[1]])
+#         else:
+#             con_name = '{}-{}-{}'.format('latent', rnamelist[targetpair[0]], rnamelist[targetpair[1]])
+#         print('negative:  {} {}'.format(nn, con_name))
+#
+#     return SEMresultsname
 
 
 
@@ -6294,366 +6294,366 @@ def main():
 
 
 # gradient descent method to find best clusters
-def gradient_descent_cluster_search(initial_clusters = []):
-    # settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
-    # covariatesfile = r'E:\all_condition_covariates.npy'
-    # regiondataname = r'E:\all_condition_region_data.npy'
-    # clusterdataname = r'E:\threat_safety_clusterdata.npy'
+# def gradient_descent_cluster_search(initial_clusters = []):
+#     # settingsfile = r'C:\Users\Stroman\PycharmProjects\pyspinalfmri3\venv\base_settings_file.npy'
+#     # covariatesfile = r'E:\all_condition_covariates.npy'
+#     # regiondataname = r'E:\all_condition_region_data.npy'
+#     # clusterdataname = r'E:\threat_safety_clusterdata.npy'
+#
+#     basedir = r'E:\FM2021data'
+#     if not os.path.exists(basedir): os.mkdir(basedir)
+#
+#     outputdir = basedir
+#     SEMresultsname = os.path.join(outputdir, 'SEMphysio_model5.npy')
+#     SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
+#     networkfile = r'E:/network_model_5cluster_v5_w_3intrinsics.xlsx'
+#
+#     # load paradigm data--------------------------------------------------------------------
+#     DBname = r'E:\FM2021data\FMS2_database_July27_2022b.xlsx'
+#     xls = pd.ExcelFile(DBname, engine='openpyxl')
+#     df1 = pd.read_excel(xls, 'paradigm1_BOLD')
+#     del df1['Unnamed: 0']  # get rid of the unwanted header column
+#     fields = list(df1.keys())
+#     paradigm = df1['paradigms_BOLD']
+#     timevals = df1['time']
+#     paradigm_centered = paradigm - np.mean(paradigm)
+#     dparadigm = np.zeros(len(paradigm))
+#     dparadigm[1:] = np.diff(paradigm_centered)
+#
+#     regiondataname = r'E:\FM2021data\HCstim_region_data.npy'
+#     clusterdataname = r'E:\FM2021data\FM2021_cluster_definition.npy'
+#
+#     # get cluster info and setup for saving information later
+#     cluster_data = np.load(clusterdataname, allow_pickle=True).flat[0]
+#     cluster_properties = cluster_data['cluster_properties']
+#     nregions = len(cluster_properties)
+#     nclusterlist = [cluster_properties[i]['nclusters'] for i in range(nregions)]
+#     rnamelist = [cluster_properties[i]['rname'] for i in range(nregions)]
+#     namelist_addon = ['R '+n for n in rnamelist]
+#     namelist = rnamelist + namelist_addon
+#
+#     # ---------------------
+#     prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
+#     SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
+#     tcdata = SEMparams['tcdata_centered']  # data for all regions/clusters concatenated along time dimension for all runs
+#     # need to get principal components for each region to model the clusters as a continuum
+#
+#     nclusters_total, tsize_total = np.shape(tcdata)
+#     component_data = np.zeros(np.shape(tcdata))
+#     average_data = np.zeros(np.shape(tcdata))
+#     ncmax = np.max(nclusterlist)
+#     original_loadings = np.zeros((nregions,ncmax,ncmax))
+#     for regionnum in range(nregions):
+#         r1 = sum(nclusterlist[:regionnum])
+#         r2 = sum(nclusterlist[:(regionnum + 1)])
+#
+#         nstates = nclusterlist[regionnum]  # the number to look at
+#         pca = PCA(n_components = nstates)
+#         tcdata_region = tcdata[r1:r2,:]
+#         pca.fit(tcdata_region)
+#         S_pca_ = pca.fit(tcdata_region).transform(tcdata_region)
+#
+#         # components_   is [ncomponents x nfeatures]
+#         #  scores from pca.transform(x) is   [nsamples x ncomponents]
+#         # input data X is  [nsamples x nfeatures]
+#
+#         components = pca.components_
+#         # use components in SAPM in place of original region data
+#
+#         # get loadings
+#         mu = np.mean(tcdata_region, axis=0)
+#         mu = np.repeat(mu[np.newaxis, :], nstates, axis=0)
+#
+#         loadings = pca.transform(tcdata_region)
+#         fit_check = (loadings @ components) + mu
+#
+#         component_data[r1:r2,:] = components
+#         average_data[r1:r2,:] = mu
+#         original_loadings[regionnum,:nstates,:nstates] = loadings
+#
+#         # print(pca.explained_variance_ratio_)
+#         # singular_values = pca.singular_values_
+#         # ncomponents = pca.n_components_
+#         # explained_variance = pca.explained_variance_
+#         # fit_tcdata_region = (pca.fit_transform(tcdata_region))
+#         # params = pca.get_params()
+#         #
+#         # loadings = (tcdata_region-mu) @ components.T @ np.linalg.inv(components @ components.T)
+#         # fit_check = (loadings @ components) + mu
+#         # loadings2 = pca.transform(tcdata_region)
+#         # fit_check2 = np.dot(loadings2,components) + mu
+#         # fit_check3 = (loadings2 @ components) + mu
+#
+#     # scale component_data to make original_loadings near maximum of 1
+#     PCscalefactor = original_loadings.max()
+#     original_loadings /= PCscalefactor
+#     component_data *= PCscalefactor
+#     PCparams = {'components':component_data, 'average':average_data, 'loadings':original_loadings}
+#
+#     # for one set of PCloadings
+#     Lweight = 1.0e-6
+#     beta = 0.01
+#     alpha = 1e-3
+#     initial_alpha = copy.deepcopy(alpha)
+#     alphalimit = 1e-5
+#     maxiter = 40
+#     subsample = [1,0]  # [2,0] use every 2nd data set, starting with 0
+#
+#     PCloadings = 1e-4*np.random.randn(nclusters_total)
+#
+#     if len(initial_clusters) == nregions:
+#         for aa in range(nregions):
+#             L = original_loadings[aa,:,:]
+#             cluster = initial_clusters[aa]
+#             r1 = sum(nclusterlist[:aa])
+#             r2 = sum(nclusterlist[:(aa + 1)])
+#             PCloadings[r1:r2] = L[cluster,:]
+#
+#     lastgood_PCloadings = copy.deepcopy(PCloadings)
+#
+#     # gradient descent to find best cluster combination
+#     iter = 0
+#     costrecord = []
+#     print('starting gradient descent search of clusters at {}'.format(time.ctime()))
+#     recalculate_load_gradients = True
+#     runcount = 0
+#     while (alpha > alphalimit) and (iter < maxiter):
+#         # subsample[1] = iter % 2   # vary which data sets are used out of the subsample
+#         iter += 1
+#         # gradients in PCloadings
+#         if recalculate_load_gradients:
+#             load_gradients, basecost = loadings_gradients(beta, PCparams, PCloadings, paradigm_centered, SEMresultsname, SEMparametersname, subsample, Lweight)
+#         else:
+#             print('not calculating load gradients')
+#         PCloadings -= alpha*load_gradients
+#
+#         SEMresults = sem_physio_model_PCAclusters(PCparams, PCloadings, paradigm_centered,
+#                             SEMresultsname, SEMparametersname, nitermax = 100, alpha_limit = 1e-5,
+#                             subsample = subsample)
+#                             # , fixed_beta_vals = [], verbose = False, nprocessors = 8
+#         # cost function
+#         R2list = np.array([SEMresults[x]['R2total'] for x in range(len(SEMresults))])
+#         newcost = np.sum(1-R2list) + Lweight*np.sum(np.abs(PCloadings))
+#         R2cost_portion = np.sum(1-R2list)
+#         L1cost_portion = Lweight*np.sum(np.abs(PCloadings))
+#
+#         costrecord += [basecost]
+#
+#         if newcost < basecost:
+#             lastgood_PCloadings = copy.deepcopy(PCloadings)
+#             recalculate_load_gradients = True
+#             runcount += 1
+#             if runcount > 2:
+#                 alpha = np.min([initial_alpha, 1.5*alpha])
+#             print('iter {}  new cost = {:.3e}  base cost = {:.3e}  delta cost = {:.3e}  alpha = {:.2e}   {}'.format(iter,newcost, basecost, newcost-basecost,alpha,time.ctime()))
+#         else:
+#             PCloadings = copy.deepcopy(lastgood_PCloadings)
+#             alpha *= 0.5
+#             recalculate_load_gradients = False
+#             runcount = 0
+#             print('iter {} - no improvement   new cost = {:.3e}  base cost = {:.3e}  R2 portion = {:.2e}   L1 portion = {:.2e}  alpha = {:.2e}   {}'.format(iter,newcost, basecost,R2cost_portion,L1cost_portion,alpha,time.ctime()))
+#
+#     results = {'costrecord':costrecord, 'PCloadings':PCloadings, 'original_loadings':original_loadings, 'PCscalefactor':PCscalefactor}
+#     outputname = os.path.join(outputdir, 'GDresults2.npy')
+#     np.save(outputname, results)
+#
+#
+#     # look at results
+#     best_clusters = np.zeros(nregions)
+#     for region in range(nregions):
+#         print('\noriginal loadings region {}'.format(region))
+#         L = original_loadings[region, :, :]
+#         for cc in range(5): print('{:.3f} {:.3f} {:.3f} {:.3f} {:.3f}'
+#                                   .format(L[cc, 0], L[cc, 1], L[cc, 2], L[cc, 3], L[cc, 4]))
+#
+#         r1 = sum(nclusterlist[:region])
+#         r2 = sum(nclusterlist[:(region + 1)])
+#         print('\nPCloadings region {}'.format(region))
+#         p = PCloadings[r1:r2]
+#         print('{:.3f} {:.3f} {:.3f} {:.3f} {:.3f}'
+#               .format(p[0], p[1], p[2], p[3], p[4]))
+#
+#         # look for best match
+#         d = np.zeros(5)
+#         for cc in range(5):
+#             d[cc] = np.sqrt(np.sum((L[cc,:]-p)**2))
+#
+#         print('\ndistance between PCloadings and original {}'.format(region))
+#         print('{:.3f} {:.3f} {:.3f} {:.3f} {:.3f}'
+#               .format(d[0], d[1], d[2], d[3], d[4]))
+#
+#         x = np.argmin(d)
+#         best_clusters[region] = x
+#         best_clusters = best_clusters.astype(int)
+#     print('\nbest cluster set is : {}'.format(best_clusters))
+#
+#     # test result
+#     full_rnum_base =  np.array([0,5,10,15,20,25,30,35,40,45])
+#     clusterlist = best_clusters + full_rnum_base
+#     prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
+#     output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
+#
+#     SEMresults = np.load(output, allow_pickle=True)
+#     R2list3 = [SEMresults[aa]['R2total'] for aa in range(len(SEMresults))]
+#
+#     # compare with previous results
+#     cnums = [1, 4, 1, 3, 1, 0, 4, 2, 1, 2]  # FMstim, from the last TWO GD attempts
+#     cnums = [1, 0, 4, 0, 0, 0, 4, 4, 2, 2]  # HCstim, last GD attempt
+#     clusterlist = cnums + full_rnum_base
+#     prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
+#     output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
+#
+#     SEMresults2 = np.load(output, allow_pickle=True)
+#     R2list2 = [SEMresults2[aa]['R2total'] for aa in range(len(SEMresults2))]
+#
+#     print('current results:  best cluster set: {}'.format(best_clusters))
+#     print('previous results:  best cluster set: {}'.format(cnums))
+#     print('compare R2 values: ')
+#     print('new R2:     old R2:')
+#     for aa in range(len(R2list3)):
+#         print('{:.3f}     {:.3f}'.format(R2list3[aa],R2list2[aa]))
 
-    basedir = r'E:\FM2021data'
-    if not os.path.exists(basedir): os.mkdir(basedir)
-
-    outputdir = basedir
-    SEMresultsname = os.path.join(outputdir, 'SEMphysio_model5.npy')
-    SEMparametersname = os.path.join(outputdir, 'SEMparameters_model5.npy')
-    networkfile = r'E:/network_model_5cluster_v5_w_3intrinsics.xlsx'
-
-    # load paradigm data--------------------------------------------------------------------
-    DBname = r'E:\FM2021data\FMS2_database_July27_2022b.xlsx'
-    xls = pd.ExcelFile(DBname, engine='openpyxl')
-    df1 = pd.read_excel(xls, 'paradigm1_BOLD')
-    del df1['Unnamed: 0']  # get rid of the unwanted header column
-    fields = list(df1.keys())
-    paradigm = df1['paradigms_BOLD']
-    timevals = df1['time']
-    paradigm_centered = paradigm - np.mean(paradigm)
-    dparadigm = np.zeros(len(paradigm))
-    dparadigm[1:] = np.diff(paradigm_centered)
-
-    regiondataname = r'E:\FM2021data\HCstim_region_data.npy'
-    clusterdataname = r'E:\FM2021data\FM2021_cluster_definition.npy'
-
-    # get cluster info and setup for saving information later
-    cluster_data = np.load(clusterdataname, allow_pickle=True).flat[0]
-    cluster_properties = cluster_data['cluster_properties']
-    nregions = len(cluster_properties)
-    nclusterlist = [cluster_properties[i]['nclusters'] for i in range(nregions)]
-    rnamelist = [cluster_properties[i]['rname'] for i in range(nregions)]
-    namelist_addon = ['R '+n for n in rnamelist]
-    namelist = rnamelist + namelist_addon
-
-    # ---------------------
-    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
-    SEMparams = np.load(SEMparametersname, allow_pickle=True).flat[0]
-    tcdata = SEMparams['tcdata_centered']  # data for all regions/clusters concatenated along time dimension for all runs
-    # need to get principal components for each region to model the clusters as a continuum
-
-    nclusters_total, tsize_total = np.shape(tcdata)
-    component_data = np.zeros(np.shape(tcdata))
-    average_data = np.zeros(np.shape(tcdata))
-    ncmax = np.max(nclusterlist)
-    original_loadings = np.zeros((nregions,ncmax,ncmax))
-    for regionnum in range(nregions):
-        r1 = sum(nclusterlist[:regionnum])
-        r2 = sum(nclusterlist[:(regionnum + 1)])
-
-        nstates = nclusterlist[regionnum]  # the number to look at
-        pca = PCA(n_components = nstates)
-        tcdata_region = tcdata[r1:r2,:]
-        pca.fit(tcdata_region)
-        S_pca_ = pca.fit(tcdata_region).transform(tcdata_region)
-
-        # components_   is [ncomponents x nfeatures]
-        #  scores from pca.transform(x) is   [nsamples x ncomponents]
-        # input data X is  [nsamples x nfeatures]
-
-        components = pca.components_
-        # use components in SAPM in place of original region data
-
-        # get loadings
-        mu = np.mean(tcdata_region, axis=0)
-        mu = np.repeat(mu[np.newaxis, :], nstates, axis=0)
-
-        loadings = pca.transform(tcdata_region)
-        fit_check = (loadings @ components) + mu
-
-        component_data[r1:r2,:] = components
-        average_data[r1:r2,:] = mu
-        original_loadings[regionnum,:nstates,:nstates] = loadings
-
-        # print(pca.explained_variance_ratio_)
-        # singular_values = pca.singular_values_
-        # ncomponents = pca.n_components_
-        # explained_variance = pca.explained_variance_
-        # fit_tcdata_region = (pca.fit_transform(tcdata_region))
-        # params = pca.get_params()
-        #
-        # loadings = (tcdata_region-mu) @ components.T @ np.linalg.inv(components @ components.T)
-        # fit_check = (loadings @ components) + mu
-        # loadings2 = pca.transform(tcdata_region)
-        # fit_check2 = np.dot(loadings2,components) + mu
-        # fit_check3 = (loadings2 @ components) + mu
-
-    # scale component_data to make original_loadings near maximum of 1
-    PCscalefactor = original_loadings.max()
-    original_loadings /= PCscalefactor
-    component_data *= PCscalefactor
-    PCparams = {'components':component_data, 'average':average_data, 'loadings':original_loadings}
-
-    # for one set of PCloadings
-    Lweight = 1.0e-6
-    beta = 0.01
-    alpha = 1e-3
-    initial_alpha = copy.deepcopy(alpha)
-    alphalimit = 1e-5
-    maxiter = 40
-    subsample = [1,0]  # [2,0] use every 2nd data set, starting with 0
-
-    PCloadings = 1e-4*np.random.randn(nclusters_total)
-
-    if len(initial_clusters) == nregions:
-        for aa in range(nregions):
-            L = original_loadings[aa,:,:]
-            cluster = initial_clusters[aa]
-            r1 = sum(nclusterlist[:aa])
-            r2 = sum(nclusterlist[:(aa + 1)])
-            PCloadings[r1:r2] = L[cluster,:]
-
-    lastgood_PCloadings = copy.deepcopy(PCloadings)
-
-    # gradient descent to find best cluster combination
-    iter = 0
-    costrecord = []
-    print('starting gradient descent search of clusters at {}'.format(time.ctime()))
-    recalculate_load_gradients = True
-    runcount = 0
-    while (alpha > alphalimit) and (iter < maxiter):
-        # subsample[1] = iter % 2   # vary which data sets are used out of the subsample
-        iter += 1
-        # gradients in PCloadings
-        if recalculate_load_gradients:
-            load_gradients, basecost = loadings_gradients(beta, PCparams, PCloadings, paradigm_centered, SEMresultsname, SEMparametersname, subsample, Lweight)
-        else:
-            print('not calculating load gradients')
-        PCloadings -= alpha*load_gradients
-
-        SEMresults = sem_physio_model_PCAclusters(PCparams, PCloadings, paradigm_centered,
-                            SEMresultsname, SEMparametersname, nitermax = 100, alpha_limit = 1e-5,
-                            subsample = subsample)
-                            # , fixed_beta_vals = [], verbose = False, nprocessors = 8
-        # cost function
-        R2list = np.array([SEMresults[x]['R2total'] for x in range(len(SEMresults))])
-        newcost = np.sum(1-R2list) + Lweight*np.sum(np.abs(PCloadings))
-        R2cost_portion = np.sum(1-R2list)
-        L1cost_portion = Lweight*np.sum(np.abs(PCloadings))
-
-        costrecord += [basecost]
-
-        if newcost < basecost:
-            lastgood_PCloadings = copy.deepcopy(PCloadings)
-            recalculate_load_gradients = True
-            runcount += 1
-            if runcount > 2:
-                alpha = np.min([initial_alpha, 1.5*alpha])
-            print('iter {}  new cost = {:.3e}  base cost = {:.3e}  delta cost = {:.3e}  alpha = {:.2e}   {}'.format(iter,newcost, basecost, newcost-basecost,alpha,time.ctime()))
-        else:
-            PCloadings = copy.deepcopy(lastgood_PCloadings)
-            alpha *= 0.5
-            recalculate_load_gradients = False
-            runcount = 0
-            print('iter {} - no improvement   new cost = {:.3e}  base cost = {:.3e}  R2 portion = {:.2e}   L1 portion = {:.2e}  alpha = {:.2e}   {}'.format(iter,newcost, basecost,R2cost_portion,L1cost_portion,alpha,time.ctime()))
-
-    results = {'costrecord':costrecord, 'PCloadings':PCloadings, 'original_loadings':original_loadings, 'PCscalefactor':PCscalefactor}
-    outputname = os.path.join(outputdir, 'GDresults2.npy')
-    np.save(outputname, results)
 
 
-    # look at results
-    best_clusters = np.zeros(nregions)
-    for region in range(nregions):
-        print('\noriginal loadings region {}'.format(region))
-        L = original_loadings[region, :, :]
-        for cc in range(5): print('{:.3f} {:.3f} {:.3f} {:.3f} {:.3f}'
-                                  .format(L[cc, 0], L[cc, 1], L[cc, 2], L[cc, 3], L[cc, 4]))
-
-        r1 = sum(nclusterlist[:region])
-        r2 = sum(nclusterlist[:(region + 1)])
-        print('\nPCloadings region {}'.format(region))
-        p = PCloadings[r1:r2]
-        print('{:.3f} {:.3f} {:.3f} {:.3f} {:.3f}'
-              .format(p[0], p[1], p[2], p[3], p[4]))
-
-        # look for best match
-        d = np.zeros(5)
-        for cc in range(5):
-            d[cc] = np.sqrt(np.sum((L[cc,:]-p)**2))
-
-        print('\ndistance between PCloadings and original {}'.format(region))
-        print('{:.3f} {:.3f} {:.3f} {:.3f} {:.3f}'
-              .format(d[0], d[1], d[2], d[3], d[4]))
-
-        x = np.argmin(d)
-        best_clusters[region] = x
-        best_clusters = best_clusters.astype(int)
-    print('\nbest cluster set is : {}'.format(best_clusters))
-
-    # test result
-    full_rnum_base =  np.array([0,5,10,15,20,25,30,35,40,45])
-    clusterlist = best_clusters + full_rnum_base
-    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
-    output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
-
-    SEMresults = np.load(output, allow_pickle=True)
-    R2list3 = [SEMresults[aa]['R2total'] for aa in range(len(SEMresults))]
-
-    # compare with previous results
-    cnums = [1, 4, 1, 3, 1, 0, 4, 2, 1, 2]  # FMstim, from the last TWO GD attempts
-    cnums = [1, 0, 4, 0, 0, 0, 4, 4, 2, 2]  # HCstim, last GD attempt
-    clusterlist = cnums + full_rnum_base
-    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
-    output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
-
-    SEMresults2 = np.load(output, allow_pickle=True)
-    R2list2 = [SEMresults2[aa]['R2total'] for aa in range(len(SEMresults2))]
-
-    print('current results:  best cluster set: {}'.format(best_clusters))
-    print('previous results:  best cluster set: {}'.format(cnums))
-    print('compare R2 values: ')
-    print('new R2:     old R2:')
-    for aa in range(len(R2list3)):
-        print('{:.3f}     {:.3f}'.format(R2list3[aa],R2list2[aa]))
-
-
-
-def loadings_gradients(beta, PCparams,PCloadings,paradigm_centered,SEMresultsname,SEMparametersname,subsample, Lweight = 1.0e-3):
-    SEMresults = sem_physio_model_PCAclusters(PCparams, PCloadings, paradigm_centered, SEMresultsname,
-                                              SEMparametersname, nitermax = 100, alpha_limit = 1e-5,
-                                              subsample = subsample)
-                                                # , fixed_beta_vals = [], verbose = False, nprocessors = 8
-
-    nclusters_total = len(PCloadings)
-
-    # cost function
-    R2list = np.array([SEMresults[x]['R2total'] for x in range(len(SEMresults))])
-    basecost = np.sum(1 - R2list) + Lweight * np.sum(np.abs(PCloadings))
-
-    # gradients in PCloadings
-    load_gradients = np.zeros(nclusters_total)
-    gradcalcstart = time.time()
-    for aa in range(nclusters_total):
-        testload = copy.deepcopy(PCloadings)
-        testload[aa] += beta
-        SEMresults = sem_physio_model_PCAclusters(PCparams, testload, paradigm_centered, SEMresultsname,
-                                                  SEMparametersname, nitermax = 100, alpha_limit = 1e-5, subsample = subsample)
-                                                    # , fixed_beta_vals = [], verbose = False, nprocessors = 8
-
-        # cost function
-        R2list = np.array([SEMresults[x]['R2total'] for x in range(len(SEMresults))])
-        testcost = np.sum(1 - R2list) + Lweight * np.sum(np.abs(PCloadings))
-
-        load_gradients[aa] = (testcost - basecost) / beta
-    gradcalcend = time.time()
-    print('calculating load gradients took {:.1f} seconds'.format(gradcalcend - gradcalcstart))
-
-    return load_gradients, basecost
+# def loadings_gradients(beta, PCparams,PCloadings,paradigm_centered,SEMresultsname,SEMparametersname,subsample, Lweight = 1.0e-3):
+#     SEMresults = sem_physio_model_PCAclusters(PCparams, PCloadings, paradigm_centered, SEMresultsname,
+#                                               SEMparametersname, nitermax = 100, alpha_limit = 1e-5,
+#                                               subsample = subsample)
+#                                                 # , fixed_beta_vals = [], verbose = False, nprocessors = 8
+#
+#     nclusters_total = len(PCloadings)
+#
+#     # cost function
+#     R2list = np.array([SEMresults[x]['R2total'] for x in range(len(SEMresults))])
+#     basecost = np.sum(1 - R2list) + Lweight * np.sum(np.abs(PCloadings))
+#
+#     # gradients in PCloadings
+#     load_gradients = np.zeros(nclusters_total)
+#     gradcalcstart = time.time()
+#     for aa in range(nclusters_total):
+#         testload = copy.deepcopy(PCloadings)
+#         testload[aa] += beta
+#         SEMresults = sem_physio_model_PCAclusters(PCparams, testload, paradigm_centered, SEMresultsname,
+#                                                   SEMparametersname, nitermax = 100, alpha_limit = 1e-5, subsample = subsample)
+#                                                     # , fixed_beta_vals = [], verbose = False, nprocessors = 8
+#
+#         # cost function
+#         R2list = np.array([SEMresults[x]['R2total'] for x in range(len(SEMresults))])
+#         testcost = np.sum(1 - R2list) + Lweight * np.sum(np.abs(PCloadings))
+#
+#         load_gradients[aa] = (testcost - basecost) / beta
+#     gradcalcend = time.time()
+#     print('calculating load gradients took {:.1f} seconds'.format(gradcalcend - gradcalcstart))
+#
+#     return load_gradients, basecost
 
 
 
 # main program
-def SAPM_main(reload_existing = False):
-    # required inputs:
-    # cnums
-    # outputdir
-    # covariatesfile (?)
-    # SEMresultsname
-    # SEMparametersname
-    # networkfile
-    # DBname
-    # regiondataname
-    # clusterdataname
-    # excelfilename
-
-    cnums = [1,4,1,3,1,0,4,2,1,2]
-    outputdir = r'E:\FM2021data'
-    covariatesfile = r'E:\FM2021data\HCstim_covariates.npy'
-    SEMresultsname = os.path.join(outputdir, 'FMS2_SAPM_model5.npy')
-    SEMparametersname = os.path.join(outputdir, 'SAPMparameters_model5.npy')
-    networkfile = r'E:/network_model_5cluster_v5_w_3intrinsics.xlsx'
-    DBname = r'E:\FM2021data\FMS2_database_July27_2022b.xlsx'
-    regiondataname = r'E:\FM2021data\HCstim_region_data.npy'
-    clusterdataname = r'E:\FM2021data\FM2021_cluster_definition.npy'
-    excelfilename = os.path.join(outputdir, 'HCstim_results.xlsx')
-    group = 'HCstim'
-
-
-    if not os.path.exists(outputdir): os.mkdir(outputdir)
-
-    # load paradigm data--------------------------------------------------------------------
-    # DBname = r'D:/threat_safety_python/threat_safety_database.xlsx'
-    xls = pd.ExcelFile(DBname, engine='openpyxl')
-    df1 = pd.read_excel(xls, 'paradigm1_BOLD')
-    del df1['Unnamed: 0']  # get rid of the unwanted header column
-    fields = list(df1.keys())
-    paradigm = df1['paradigms_BOLD']
-    timevals = df1['time']
-    paradigm_centered = paradigm - np.mean(paradigm)
-    dparadigm = np.zeros(len(paradigm))
-    dparadigm[1:] = np.diff(paradigm_centered)
-
-    # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
-    #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
-
-    network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count = load_network_model_w_intrinsics(networkfile)
-    ncluster_list = np.array([nclusterlist[x]['nclusters'] for x in range(len(nclusterlist))])
-    cluster_name = [nclusterlist[x]['name'] for x in range(len(nclusterlist))]
-    not_latent = [x for x in range(len(cluster_name)) if 'intrinsic' not in cluster_name[x]]
-    ncluster_list = ncluster_list[not_latent]
-    full_rnum_base = [np.sum(ncluster_list[:x]) for x in range(len(ncluster_list))]
-    namelist = [cluster_name[x] for x in not_latent]
-    namelist += ['Rtotal']
-    namelist += ['R ' + cluster_name[x] for x in not_latent]
-
-    # full_rnum_base =  np.array([0,5,10,15,20,25,30,35,40,45])
-    #
-    # namelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC', 'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus',
-    #         'Rtotal', 'R C6RD',  'R DRt', 'R Hyp','R LC', 'R NGC', 'R NRM', 'R NTS', 'R PAG',
-    #         'R PBN', 'R Thal']
-
-    # starting values
-    cnums_original = copy.deepcopy(cnums)
-    excelsheetname = 'clusters'
-    # fname = 'fixed_C6RD{}.xlsx'.format(cord_cluster)
-    # excelfilename = os.path.join(outputdir, fname)
-
-    # run the analysis with SAPM
-    clusterlist = np.array(cnums) + full_rnum_base
-    prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
-
-    if reload_existing:
-        output = SEMresultsname
-    else:
-        output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
-
-    SEMresults = np.load(output, allow_pickle=True).flat[0]
-
-    windowoffset = 0
-    yrange = []
-    yrange2 = []
-    Rtextlist, Rvallist = show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
-                                    windowoffset, yrange, yrange2)
-
-    yrange = [-0.6, 0.6]
-    yrange2 = [1.6, 0.7, 0.8, 0.6, 0.9, 0.8, 0.5]   # for Feb2022C
-    windowoffset = 0
-
-    # group = 'all'
-    show_SEM_average_beta_for_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
-                                     windowoffset=0)
-
-    # show a specific connection
-    connection_name = 'PBN-LC-DRt'
-
-    # settings = np.load(settingsfile, allow_pickle=True).flat[0]
-    # covariates = settings['GRPcharacteristicsvalues'][0].astype(float)  # painrating
-
-    covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
-    if 'painrating' in covariatesdata['GRPcharacteristicslist']:
-        x = covariatesdata['GRPcharacteristicslist'].index('painrating')
-        covariates = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
-    else:
-        covariates = []
-
-    plot_correlated_results(SEMresultsname, SEMparametersname, connection_name, covariates, figurenumber = 1)
+# def SAPM_main(reload_existing = False):
+#     # required inputs:
+#     # cnums
+#     # outputdir
+#     # covariatesfile (?)
+#     # SEMresultsname
+#     # SEMparametersname
+#     # networkfile
+#     # DBname
+#     # regiondataname
+#     # clusterdataname
+#     # excelfilename
+#
+#     cnums = [1,4,1,3,1,0,4,2,1,2]
+#     outputdir = r'E:\FM2021data'
+#     covariatesfile = r'E:\FM2021data\HCstim_covariates.npy'
+#     SEMresultsname = os.path.join(outputdir, 'FMS2_SAPM_model5.npy')
+#     SEMparametersname = os.path.join(outputdir, 'SAPMparameters_model5.npy')
+#     networkfile = r'E:/network_model_5cluster_v5_w_3intrinsics.xlsx'
+#     DBname = r'E:\FM2021data\FMS2_database_July27_2022b.xlsx'
+#     regiondataname = r'E:\FM2021data\HCstim_region_data.npy'
+#     clusterdataname = r'E:\FM2021data\FM2021_cluster_definition.npy'
+#     excelfilename = os.path.join(outputdir, 'HCstim_results.xlsx')
+#     group = 'HCstim'
+#
+#
+#     if not os.path.exists(outputdir): os.mkdir(outputdir)
+#
+#     # load paradigm data--------------------------------------------------------------------
+#     # DBname = r'D:/threat_safety_python/threat_safety_database.xlsx'
+#     xls = pd.ExcelFile(DBname, engine='openpyxl')
+#     df1 = pd.read_excel(xls, 'paradigm1_BOLD')
+#     del df1['Unnamed: 0']  # get rid of the unwanted header column
+#     fields = list(df1.keys())
+#     paradigm = df1['paradigms_BOLD']
+#     timevals = df1['time']
+#     paradigm_centered = paradigm - np.mean(paradigm)
+#     dparadigm = np.zeros(len(paradigm))
+#     dparadigm[1:] = np.diff(paradigm_centered)
+#
+#     # rnamelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC',
+#     #                'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus']
+#
+#     network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count = load_network_model_w_intrinsics(networkfile)
+#     ncluster_list = np.array([nclusterlist[x]['nclusters'] for x in range(len(nclusterlist))])
+#     cluster_name = [nclusterlist[x]['name'] for x in range(len(nclusterlist))]
+#     not_latent = [x for x in range(len(cluster_name)) if 'intrinsic' not in cluster_name[x]]
+#     ncluster_list = ncluster_list[not_latent]
+#     full_rnum_base = [np.sum(ncluster_list[:x]) for x in range(len(ncluster_list))]
+#     namelist = [cluster_name[x] for x in not_latent]
+#     namelist += ['Rtotal']
+#     namelist += ['R ' + cluster_name[x] for x in not_latent]
+#
+#     # full_rnum_base =  np.array([0,5,10,15,20,25,30,35,40,45])
+#     #
+#     # namelist = ['C6RD',  'DRt', 'Hypothalamus','LC', 'NGC', 'NRM', 'NTS', 'PAG', 'PBN', 'Thalamus',
+#     #         'Rtotal', 'R C6RD',  'R DRt', 'R Hyp','R LC', 'R NGC', 'R NRM', 'R NTS', 'R PAG',
+#     #         'R PBN', 'R Thal']
+#
+#     # starting values
+#     cnums_original = copy.deepcopy(cnums)
+#     excelsheetname = 'clusters'
+#     # fname = 'fixed_C6RD{}.xlsx'.format(cord_cluster)
+#     # excelfilename = os.path.join(outputdir, fname)
+#
+#     # run the analysis with SAPM
+#     clusterlist = np.array(cnums) + full_rnum_base
+#     prep_data_sem_physio_model(networkfile, regiondataname, clusterdataname, SEMparametersname)
+#
+#     if reload_existing:
+#         output = SEMresultsname
+#     else:
+#         output = sem_physio_model(clusterlist, paradigm_centered, SEMresultsname, SEMparametersname)
+#
+#     SEMresults = np.load(output, allow_pickle=True).flat[0]
+#
+#     windowoffset = 0
+#     yrange = []
+#     yrange2 = []
+#     Rtextlist, Rvallist = show_SEM_timecourse_results(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+#                                     windowoffset, yrange, yrange2)
+#
+#     yrange = [-0.6, 0.6]
+#     yrange2 = [1.6, 0.7, 0.8, 0.6, 0.9, 0.8, 0.5]   # for Feb2022C
+#     windowoffset = 0
+#
+#     # group = 'all'
+#     show_SEM_average_beta_for_groups(covariatesfile, SEMparametersname, SEMresultsname, paradigm_centered, group,
+#                                      windowoffset=0)
+#
+#     # show a specific connection
+#     connection_name = 'PBN-LC-DRt'
+#
+#     # settings = np.load(settingsfile, allow_pickle=True).flat[0]
+#     # covariates = settings['GRPcharacteristicsvalues'][0].astype(float)  # painrating
+#
+#     covariatesdata = np.load(covariatesfile, allow_pickle=True).flat[0]
+#     if 'painrating' in covariatesdata['GRPcharacteristicslist']:
+#         x = covariatesdata['GRPcharacteristicslist'].index('painrating')
+#         covariates = covariatesdata['GRPcharacteristicsvalues'][x].astype(float)
+#     else:
+#         covariates = []
+#
+#     plot_correlated_results(SEMresultsname, SEMparametersname, connection_name, covariates, figurenumber = 1)
 
 
 # main program

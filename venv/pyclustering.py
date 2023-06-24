@@ -19,15 +19,15 @@ from scipy.optimize import linear_sum_assignment
 
 # modified clustering method - for roughly equal size clusters
 # Thanks to Eyal Shulman who shared on StackOverflow  https://stackoverflow.com/users/6247548/eyal-shulman
-def get_even_clusters(X, cluster_size):
-    n_clusters = int(np.ceil(len(X)/cluster_size))
-    kmeans = KMeans(n_clusters)
-    kmeans.fit(X)
-    centers = kmeans.cluster_centers_
-    centers = centers.reshape(-1, 1, X.shape[-1]).repeat(cluster_size, 1).reshape(-1, X.shape[-1])
-    distance_matrix = cdist(X, centers)
-    clusters = linear_sum_assignment(distance_matrix)[1]//cluster_size
-    return clusters
+# def get_even_clusters(X, cluster_size):
+#     n_clusters = int(np.ceil(len(X)/cluster_size))
+#     kmeans = KMeans(n_clusters)
+#     kmeans.fit(X)
+#     centers = kmeans.cluster_centers_
+#     centers = centers.reshape(-1, 1, X.shape[-1]).repeat(cluster_size, 1).reshape(-1, X.shape[-1])
+#     distance_matrix = cdist(X, centers)
+#     clusters = linear_sum_assignment(distance_matrix)[1]//cluster_size
+#     return clusters
 
 
 # def load_network_model(networkmodel):

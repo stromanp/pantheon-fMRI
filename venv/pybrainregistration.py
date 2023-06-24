@@ -33,101 +33,101 @@ import os
 import copy
 import pandas as pd
 
-def test_dipy_brain_registration():
-
-    # set the reference image
-    img_template = r'C:\stroman\spm12\spm12\canonical\avg152T2.nii'
-    # ref_data, ref_affine = i3d.load_and_scale_nifti(img_template)
-    input_img = nib.load(img_template)
-    ref_affine = input_img.affine
-    ref_hdr = input_img.header
-    ref_data = input_img.get_fdata()
-    ref_data = ref_data / np.max(ref_data)
-
-    # set the moving image
-    input_name = r'C:\fMRI-EEG_shared_data_X1\sub-xp101\func\sub-xp101_task-motorloc_bold.nii.gz'
-    # img_data, img_affine = i3d.load_and_scale_nifti(input_image)
-    input_img = nib.load(input_name)
-    img_affine = input_img.affine
-    img_hdr = input_img.header
-    img_data = input_img.get_fdata()
-    img_data = img_data / np.max(img_data)
-
-    affine_data_filename = r'C:\fMRI-EEG_shared_data_X1\sub-xp101\func\sub-xp101_task-motorloc_bold_affine.npy'
-
-    # coregistration-----------------------------
-    input_name = input_image
-    coreg_prefix = 'c'
-    coreged_images, affine_record = dipy_brain_coregistration(img_data, img_affine, ref_volume=3, verbose = True)
-
-    # save the coregistered nifti images ...
-    resulting_img = nib.Nifti1Image(coreged_images, img_affine)
-    p,f_full = os.path.split(input_name)
-    f,e = os.path.splitext(f_full)
-    ext = '.nii'
-    if e == '.gz':
-        f, e2 = os.path.splitext(f)  # split again
-        ext = '.nii.gz'
-    output_niiname = os.path.join(p,coreg_prefix+f+ext)
-    nib.save(resulting_img, output_niiname)
-
-    display_slices(coreged_images[:,:,:,3], coreged_images[:,:,:,-1], axis=0, image_number = 5)
-    display_slices(coreged_images[:,:,:,3], coreged_images[:,:,:,-1], axis=1, image_number = 6)
-    display_slices(coreged_images[:,:,:,3], coreged_images[:,:,:,-1], axis=2, image_number = 7)
-
-    #---reload data if needed---------------
-    reload_coreg_data = True
-    if reload_coreg_data:
-        p,f_full = os.path.split(input_name)
-        f,e = os.path.splitext(f_full)
-        ext = '.nii'
-        if e == '.gz':
-            f, e2 = os.path.splitext(f) # split again
-            ext = '.nii.gz'
-        coreg_prefix = 'c'
-        niiname = os.path.join(p,coreg_prefix+f+ext)
-
-        input_img = nib.load(niiname)
-        coreged_images = input_img.get_fdata()
-        img_affine = input_img.affine
-        coreged_hdr = input_img.header
-    else:
-        niiname = output_niiname
-
-    # compute normalization-----------------------------------------
-    input_name = niiname
-    img_data = copy.deepcopy(coreged_images)
-
-    img_data_norm = img_data[:, :, :, 3]
-    img_data_norm = img_data_norm / np.max(img_data_norm)
-
-    print('starting normalization calculation ....')
-    norm_brain_img, norm_brain_affine = dipy_compute_brain_normalization(img_data_norm, img_affine, ref_data, ref_affine)
-    print('finished normalization calculation ....')
-    # save norm_brain_affine for later use...
-    np.save(affine_data_filename,{'norm_affine_transformation':norm_brain_affine})
-
-    # apply normalization---------------------------------------------
-    norm_prefix = 'p'
-    print('starting applying normalization ....')
-    norm_brain_data = dipy_apply_brain_normalization(img_data, norm_brain_affine, verbose = True)
-    print('finished applying normalization ....')
-    # save the normalized nifti images ...
-
-    resulting_img = nib.Nifti1Image(norm_brain_data, norm_brain_affine.affine)
-    p,f_full = os.path.split(input_name)
-    f,e = os.path.splitext(f_full)
-    ext = '.nii'
-    if e == '.gz':
-        f, e2 = os.path.splitext(f) # split again
-        ext = '.nii.gz'
-    output_niiname = os.path.join(p,norm_prefix+f+ext)
-    # need to write the image data out in a smaller format to save disk space ...
-    nib.save(resulting_img, output_niiname)
-
-    display_slices(ref_data, norm_brain_data[:,:,:,10], axis=0, image_number = 11)
-    display_slices(ref_data, norm_brain_data[:,:,:,10], axis=1, image_number = 12)
-    display_slices(ref_data, norm_brain_data[:,:,:,10], axis=2, image_number = 13)
+# def test_dipy_brain_registration():
+#
+#     # set the reference image
+#     img_template = r'C:\stroman\spm12\spm12\canonical\avg152T2.nii'
+#     # ref_data, ref_affine = i3d.load_and_scale_nifti(img_template)
+#     input_img = nib.load(img_template)
+#     ref_affine = input_img.affine
+#     ref_hdr = input_img.header
+#     ref_data = input_img.get_fdata()
+#     ref_data = ref_data / np.max(ref_data)
+#
+#     # set the moving image
+#     input_name = r'C:\fMRI-EEG_shared_data_X1\sub-xp101\func\sub-xp101_task-motorloc_bold.nii.gz'
+#     # img_data, img_affine = i3d.load_and_scale_nifti(input_image)
+#     input_img = nib.load(input_name)
+#     img_affine = input_img.affine
+#     img_hdr = input_img.header
+#     img_data = input_img.get_fdata()
+#     img_data = img_data / np.max(img_data)
+#
+#     affine_data_filename = r'C:\fMRI-EEG_shared_data_X1\sub-xp101\func\sub-xp101_task-motorloc_bold_affine.npy'
+#
+#     # coregistration-----------------------------
+#     input_name = input_image
+#     coreg_prefix = 'c'
+#     coreged_images, affine_record = dipy_brain_coregistration(img_data, img_affine, ref_volume=3, verbose = True)
+#
+#     # save the coregistered nifti images ...
+#     resulting_img = nib.Nifti1Image(coreged_images, img_affine)
+#     p,f_full = os.path.split(input_name)
+#     f,e = os.path.splitext(f_full)
+#     ext = '.nii'
+#     if e == '.gz':
+#         f, e2 = os.path.splitext(f)  # split again
+#         ext = '.nii.gz'
+#     output_niiname = os.path.join(p,coreg_prefix+f+ext)
+#     nib.save(resulting_img, output_niiname)
+#
+#     display_slices(coreged_images[:,:,:,3], coreged_images[:,:,:,-1], axis=0, image_number = 5)
+#     display_slices(coreged_images[:,:,:,3], coreged_images[:,:,:,-1], axis=1, image_number = 6)
+#     display_slices(coreged_images[:,:,:,3], coreged_images[:,:,:,-1], axis=2, image_number = 7)
+#
+#     #---reload data if needed---------------
+#     reload_coreg_data = True
+#     if reload_coreg_data:
+#         p,f_full = os.path.split(input_name)
+#         f,e = os.path.splitext(f_full)
+#         ext = '.nii'
+#         if e == '.gz':
+#             f, e2 = os.path.splitext(f) # split again
+#             ext = '.nii.gz'
+#         coreg_prefix = 'c'
+#         niiname = os.path.join(p,coreg_prefix+f+ext)
+#
+#         input_img = nib.load(niiname)
+#         coreged_images = input_img.get_fdata()
+#         img_affine = input_img.affine
+#         coreged_hdr = input_img.header
+#     else:
+#         niiname = output_niiname
+#
+#     # compute normalization-----------------------------------------
+#     input_name = niiname
+#     img_data = copy.deepcopy(coreged_images)
+#
+#     img_data_norm = img_data[:, :, :, 3]
+#     img_data_norm = img_data_norm / np.max(img_data_norm)
+#
+#     print('starting normalization calculation ....')
+#     norm_brain_img, norm_brain_affine = dipy_compute_brain_normalization(img_data_norm, img_affine, ref_data, ref_affine)
+#     print('finished normalization calculation ....')
+#     # save norm_brain_affine for later use...
+#     np.save(affine_data_filename,{'norm_affine_transformation':norm_brain_affine})
+#
+#     # apply normalization---------------------------------------------
+#     norm_prefix = 'p'
+#     print('starting applying normalization ....')
+#     norm_brain_data = dipy_apply_brain_normalization(img_data, norm_brain_affine, verbose = True)
+#     print('finished applying normalization ....')
+#     # save the normalized nifti images ...
+#
+#     resulting_img = nib.Nifti1Image(norm_brain_data, norm_brain_affine.affine)
+#     p,f_full = os.path.split(input_name)
+#     f,e = os.path.splitext(f_full)
+#     ext = '.nii'
+#     if e == '.gz':
+#         f, e2 = os.path.splitext(f) # split again
+#         ext = '.nii.gz'
+#     output_niiname = os.path.join(p,norm_prefix+f+ext)
+#     # need to write the image data out in a smaller format to save disk space ...
+#     nib.save(resulting_img, output_niiname)
+#
+#     display_slices(ref_data, norm_brain_data[:,:,:,10], axis=0, image_number = 11)
+#     display_slices(ref_data, norm_brain_data[:,:,:,10], axis=1, image_number = 12)
+#     display_slices(ref_data, norm_brain_data[:,:,:,10], axis=2, image_number = 13)
 
 
 def dipy_compute_brain_normalization(img_data, img_affine, ref_data, ref_affine, level_iters = [10000, 1000, 100], sigmas = [3.0, 1.0, 0.0], factors = [4,2,1], nbins=32):
@@ -409,36 +409,36 @@ def brain_coregistration(niiname, nametag, coregistered_prefix = 'c'):
 
 
 # display brain slices in comparison
-def display_slices(volume1, volume2, axis=0, image_number = 10):
-    xs1,ys1,zs1 = np.shape(volume1)
-    xs2,ys2,zs2 = np.shape(volume2)
-
-    x01,y01,z01 = np.floor(np.array([xs1,ys1,zs1])/2).astype(int)
-    x02,y02,z02 = np.floor(np.array([xs2,ys2,zs2])/2).astype(int)
-
-    if axis == 0:
-        img1 = volume1[x01,:,:]
-        img2 = volume2[x02,:,:]
-    if axis == 1:
-        img1 = volume1[:,y01,:]
-        img2 = volume2[:,y02,:]
-    if axis == 2:
-        img1 = volume1[:,:,z01]
-        img2 = volume2[:,:,z02]
-
-    img1 = img1/np.max(img1)
-    img2 = img2/np.max(img2)
-    xs,ys = np.shape(img1)
-    display1 = np.concatenate((img1[:,:,np.newaxis],img1[:,:,np.newaxis],img1[:,:,np.newaxis]),axis = 2)
-    display2 = np.concatenate((img2[:,:,np.newaxis],img2[:,:,np.newaxis],img2[:,:,np.newaxis]),axis = 2)
-    overlay = np.concatenate((img1[:,:,np.newaxis],img2[:,:,np.newaxis],np.zeros((xs,ys,1))),axis = 2)
-
-    fig = plt.figure(image_number)
-    ax1 = plt.subplot(1,3,1)
-    ax1.imshow(display1)
-
-    ax2= plt.subplot(1,3,2)
-    ax2.imshow(overlay)
-
-    ax3 = plt.subplot(1,3,3)
-    ax3.imshow(display2)
+# def display_slices(volume1, volume2, axis=0, image_number = 10):
+#     xs1,ys1,zs1 = np.shape(volume1)
+#     xs2,ys2,zs2 = np.shape(volume2)
+#
+#     x01,y01,z01 = np.floor(np.array([xs1,ys1,zs1])/2).astype(int)
+#     x02,y02,z02 = np.floor(np.array([xs2,ys2,zs2])/2).astype(int)
+#
+#     if axis == 0:
+#         img1 = volume1[x01,:,:]
+#         img2 = volume2[x02,:,:]
+#     if axis == 1:
+#         img1 = volume1[:,y01,:]
+#         img2 = volume2[:,y02,:]
+#     if axis == 2:
+#         img1 = volume1[:,:,z01]
+#         img2 = volume2[:,:,z02]
+#
+#     img1 = img1/np.max(img1)
+#     img2 = img2/np.max(img2)
+#     xs,ys = np.shape(img1)
+#     display1 = np.concatenate((img1[:,:,np.newaxis],img1[:,:,np.newaxis],img1[:,:,np.newaxis]),axis = 2)
+#     display2 = np.concatenate((img2[:,:,np.newaxis],img2[:,:,np.newaxis],img2[:,:,np.newaxis]),axis = 2)
+#     overlay = np.concatenate((img1[:,:,np.newaxis],img2[:,:,np.newaxis],np.zeros((xs,ys,1))),axis = 2)
+#
+#     fig = plt.figure(image_number)
+#     ax1 = plt.subplot(1,3,1)
+#     ax1.imshow(display1)
+#
+#     ax2= plt.subplot(1,3,2)
+#     ax2.imshow(overlay)
+#
+#     ax3 = plt.subplot(1,3,3)
+#     ax3.imshow(display2)

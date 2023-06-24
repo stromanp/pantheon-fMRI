@@ -69,48 +69,48 @@ def resize_3D_nearest(input_data, newsize):
     return output_data
 
 
-def rotate_translate_3D(input_data, translation = [0,0,0], angle = 0, axis=0):
-    # rotate a 3D volume around a selected axis, by a specified angle
-    # using affine interpolation
-    # also do linear translation, if wanted
-    input_size = np.shape(input_data)
-    rangle = angle*np.pi/180.0
-    
-    if axis == 0:
-        matrix = [ [1, 0, 0] ,
-                  [0, math.cos(rangle), -math.sin(rangle)], 
-                  [0, math.sin(rangle), math.cos(rangle)]]
-    
-    if axis == 1:
-        matrix = [ [math.cos(rangle), 0, -math.sin(rangle)], 
-              [0,1,0], 
-              [math.sin(rangle), 0, math.cos(rangle)] ]
-    
-    if axis == 2:
-        matrix = [ [math.cos(rangle), -math.sin(rangle), 0], 
-              [math.sin(rangle), math.cos(rangle), 0], 
-              [0, 0, 1] ]
-        
-    output_image = nd.affine_transform(input_data, matrix, offset=translation, 
-            output_shape=input_size, order=1, mode='nearest', cval=0.0, prefilter=True)
-    return output_image
-
+# def rotate_translate_3D(input_data, translation = [0,0,0], angle = 0, axis=0):
+#     # rotate a 3D volume around a selected axis, by a specified angle
+#     # using affine interpolation
+#     # also do linear translation, if wanted
+#     input_size = np.shape(input_data)
+#     rangle = angle*np.pi/180.0
+#
+#     if axis == 0:
+#         matrix = [ [1, 0, 0] ,
+#                   [0, math.cos(rangle), -math.sin(rangle)],
+#                   [0, math.sin(rangle), math.cos(rangle)]]
+#
+#     if axis == 1:
+#         matrix = [ [math.cos(rangle), 0, -math.sin(rangle)],
+#               [0,1,0],
+#               [math.sin(rangle), 0, math.cos(rangle)] ]
+#
+#     if axis == 2:
+#         matrix = [ [math.cos(rangle), -math.sin(rangle), 0],
+#               [math.sin(rangle), math.cos(rangle), 0],
+#               [0, 0, 1] ]
+#
+#     output_image = nd.affine_transform(input_data, matrix, offset=translation,
+#             output_shape=input_size, order=1, mode='nearest', cval=0.0, prefilter=True)
+#     return output_image
+#
 
 
 
 # rotate 2D or 3D image around a specified point, specified axis
-def rotate2D(input_image, input_angle, refpoint=[0,0]):
-    angle = input_angle*np.pi/180.
-
-    xs, ys = np.shape(input_image)
-    xi, yi = np.mgrid[range(xs), range(ys)]   # coordinates of input points
-    
-    xo = (xi-refpoint[0])*math.cos(angle) - (yi-refpoint[1])*math.sin(angle) + refpoint[0]
-    yo = (xi-refpoint[0])*math.sin(angle) + (yi-refpoint[1])*math.cos(angle) + refpoint[1]
-    
-#    rotimage_nearest, rotimage_linear = warp_image(input_image, xo, yo)
-    rotimage = nd.map_coordinates(input_image, [xo, yo])
-    return rotimage
+# def rotate2D(input_image, input_angle, refpoint=[0,0]):
+#     angle = input_angle*np.pi/180.
+#
+#     xs, ys = np.shape(input_image)
+#     xi, yi = np.mgrid[range(xs), range(ys)]   # coordinates of input points
+#
+#     xo = (xi-refpoint[0])*math.cos(angle) - (yi-refpoint[1])*math.sin(angle) + refpoint[0]
+#     yo = (xi-refpoint[0])*math.sin(angle) + (yi-refpoint[1])*math.cos(angle) + refpoint[1]
+#
+# #    rotimage_nearest, rotimage_linear = warp_image(input_image, xo, yo)
+#     rotimage = nd.map_coordinates(input_image, [xo, yo])
+#     return rotimage
 
 
 
@@ -269,32 +269,32 @@ def ifft(array):
     return ifft
 
 
-def normxcorr3_the_long_way(image, kernel):
-    [xs,ys,zs] = np.shape(image)
-    [xk,yk,zk] = np.shape(kernel)
-    output = np.zeros((xs,ys,zs))
-    image2 = np.zeros((xs+xk,ys+yk,zs+zk))
-    x1 = np.round(xk/2).astype('int')
-    x2 = x1 + xs
-    y1 = np.round(yk/2).astype('int')
-    y2 = y1 + ys
-    z1 = np.round(zk/2).astype('int')
-    z2 = z1 + zs
-    image2[x1:x2,y1:y2,z1:z2] = image   # pad with zeros all around, with a width of half the kernel
-
-    kernel = kernel - np.mean(kernel)
-    kernel2sum = np.sum(kernel**2)
-
-    for ii in range(xs):
-        for jj in range(ys):
-            for kk in range(zs):
-                image_section = image2[ii:(ii+xk),jj:(jj+yk),kk:(kk+zk)]
-                image_section = image_section - np.mean(image_section)
-                section2sum = np.sum(image_section**2)
-                cc = np.sum(image_section*kernel)/math.sqrt(section2sum*kernel2sum)
-                output[ii,jj,kk] = cc
-
-    return output
+# def normxcorr3_the_long_way(image, kernel):
+#     [xs,ys,zs] = np.shape(image)
+#     [xk,yk,zk] = np.shape(kernel)
+#     output = np.zeros((xs,ys,zs))
+#     image2 = np.zeros((xs+xk,ys+yk,zs+zk))
+#     x1 = np.round(xk/2).astype('int')
+#     x2 = x1 + xs
+#     y1 = np.round(yk/2).astype('int')
+#     y2 = y1 + ys
+#     z1 = np.round(zk/2).astype('int')
+#     z2 = z1 + zs
+#     image2[x1:x2,y1:y2,z1:z2] = image   # pad with zeros all around, with a width of half the kernel
+#
+#     kernel = kernel - np.mean(kernel)
+#     kernel2sum = np.sum(kernel**2)
+#
+#     for ii in range(xs):
+#         for jj in range(ys):
+#             for kk in range(zs):
+#                 image_section = image2[ii:(ii+xk),jj:(jj+yk),kk:(kk+zk)]
+#                 image_section = image_section - np.mean(image_section)
+#                 section2sum = np.sum(image_section**2)
+#                 cc = np.sum(image_section*kernel)/math.sqrt(section2sum*kernel2sum)
+#                 output[ii,jj,kk] = cc
+#
+#     return output
 
 
 # start_time = time.time()
@@ -373,11 +373,11 @@ def normxcorr3(image, kernel, shape = 'full'):
 
 
 # normxcorr3 using scipy-------------------------------------
-def normxcorr3_fast(image, kernel, shape = 'full'):
-    C = signal.correlate(image,kernel,mode=shape)
-    # this method does not actually return a correlation value, so use the relative value
-    C /= np.max(np.abs(C))
-    return C
+# def normxcorr3_fast(image, kernel, shape = 'full'):
+#     C = signal.correlate(image,kernel,mode=shape)
+#     # this method does not actually return a correlation value, so use the relative value
+#     C /= np.max(np.abs(C))
+#     return C
 
 
 def integralImage(A, szT):
@@ -434,90 +434,90 @@ def load_and_scale_nifti(niiname):
     return input_datar, new_affine
 
 
-def pad_nifti_files(niiname, axis, newsize, pad_prefix = '', paddirection = 'symmetric', mode = 'zerofill'):
-    mode_options = ['zerofill','replicate','wraparound']
-    if mode not in mode_options:
-        print('mode options are:  zerofill, replicate, wraparound')
-        print('invalid mode entered: {}'.format(mode))
-        mode = 'zerofill'
-        if (mode[0]).lower == 'r': mode = 'replicate'
-        if (mode[0]).lower == 'w': mode = 'wraparound'
-        print('mode changed to: {}'.format(mode))
-
-    pad_options = ['symmetric','pre','post']
-    if paddirection not in pad_options:
-        print('paddirection options are:  symmetric, pre, post')
-        paddirection = 'symmetric'
-        if (paddirection[:2]).lower == 'pr': paddirection = 'pre'
-        if (paddirection[:2]).lower == 'po': paddirection = 'post'
-        print('paddirection to: {}'.format(paddirection))
-
-    input_img = nib.load(niiname)
-    input_data = input_img.get_fdata()
-    affine = input_img.affine
-    input_hdr = input_img.header
-    dims = np.shape(input_data)
-    xd,yd,zd,td = copy.deepcopy(dims)
-    newdims = [xd,yd,zd,td]
-    newdims[axis] = newsize
-
-    output_img = np.zeros(newdims)
-
-    if paddirection == 'symmetric':
-        d1 = np.floor((newdims[axis]-dims[axis])/2).astype(int)
-        d2 = d1+dims[axis]
-    if paddirection == 'pre':
-        d1 = newdims[axis]-dims[axis]
-        d2 = newdims[axis]
-    if paddirection == 'post':
-        d1 = 0
-        d2 = dims[axis]
-
-    # first insert original image data
-    if axis == 0:
-        output_img[d1:d2,:,:,:] = input_data
-    if axis == 1:
-        output_img[:,d1:d2,:,:] = input_data
-    if axis == 2:
-        output_img[:,:,d1:d2,:] = input_data
-    if axis == 3:
-        output_img[:,:,:,d1:d2] = input_data
-
-    if mode == 'replicate':
-        if axis == 0:
-            for dd in range(d1): output_img[dd,:,:,:] = input_data[0,:,:,:]
-            for dd in range(newsize-d2): output_img[d2+dd,:,:,:] = input_data[-1,:,:,:]
-        if axis == 1:
-            for dd in range(d1): output_img[:,dd,:,:] = input_data[:,0,:,:]
-            for dd in range(newsize-d2): output_img[:,d2+dd,:,:] = input_data[:,-1,:,:]
-        if axis == 2:
-            for dd in range(d1): output_img[:,:,dd,:] = input_data[:,:,0,:]
-            for dd in range(newsize-d2): output_img[:,:,d2+dd,:] = input_data[:,:,-1,:]
-        if axis == 3:
-            for dd in range(d1): output_img[:,:,:,dd] = input_data[:,:,:,0]
-            for dd in range(newsize-d2): output_img[:,:,:,d2+dd] = input_data[:,:,:,-1]
-
-    if mode == 'wraparound':
-        if axis == 0:
-            for dd in range(d1): output_img[dd,:,:,:] = input_data[-1-dd,:,:,:]
-            for dd in range(newsize-d2): output_img[d2+dd,:,:,:] = input_data[dd,:,:,:]
-        if axis == 1:
-            for dd in range(d1): output_img[:,dd,:,:] = input_data[:,-1-dd,:,:]
-            for dd in range(newsize-d2): output_img[:,d2+dd,:,:] = input_data[:,dd,:,:]
-        if axis == 2:
-            for dd in range(d1): output_img[:,:,dd,:] = input_data[:,:,-1-dd,:]
-            for dd in range(newsize-d2): output_img[:,:,d2+dd,:] = input_data[:,:,dd,:]
-        if axis == 3:
-            for dd in range(d1): output_img[:,:,:,dd] = input_data[:,:,:,-1-dd]
-            for dd in range(newsize-d2): output_img[:,:,:,d2+dd] = input_data[:,:,:,dd]
-
-    # write out the padded image
-    pname, fname = os.path.split(niiname)
-    niiname_out = os.path.join(pname, pad_prefix + fname)
-    resulting_img = nib.Nifti1Image(output_img, affine)
-    nib.save(resulting_img, niiname_out)
-
-    return niiname_out
+# def pad_nifti_files(niiname, axis, newsize, pad_prefix = '', paddirection = 'symmetric', mode = 'zerofill'):
+#     mode_options = ['zerofill','replicate','wraparound']
+#     if mode not in mode_options:
+#         print('mode options are:  zerofill, replicate, wraparound')
+#         print('invalid mode entered: {}'.format(mode))
+#         mode = 'zerofill'
+#         if (mode[0]).lower == 'r': mode = 'replicate'
+#         if (mode[0]).lower == 'w': mode = 'wraparound'
+#         print('mode changed to: {}'.format(mode))
+#
+#     pad_options = ['symmetric','pre','post']
+#     if paddirection not in pad_options:
+#         print('paddirection options are:  symmetric, pre, post')
+#         paddirection = 'symmetric'
+#         if (paddirection[:2]).lower == 'pr': paddirection = 'pre'
+#         if (paddirection[:2]).lower == 'po': paddirection = 'post'
+#         print('paddirection to: {}'.format(paddirection))
+#
+#     input_img = nib.load(niiname)
+#     input_data = input_img.get_fdata()
+#     affine = input_img.affine
+#     input_hdr = input_img.header
+#     dims = np.shape(input_data)
+#     xd,yd,zd,td = copy.deepcopy(dims)
+#     newdims = [xd,yd,zd,td]
+#     newdims[axis] = newsize
+#
+#     output_img = np.zeros(newdims)
+#
+#     if paddirection == 'symmetric':
+#         d1 = np.floor((newdims[axis]-dims[axis])/2).astype(int)
+#         d2 = d1+dims[axis]
+#     if paddirection == 'pre':
+#         d1 = newdims[axis]-dims[axis]
+#         d2 = newdims[axis]
+#     if paddirection == 'post':
+#         d1 = 0
+#         d2 = dims[axis]
+#
+#     # first insert original image data
+#     if axis == 0:
+#         output_img[d1:d2,:,:,:] = input_data
+#     if axis == 1:
+#         output_img[:,d1:d2,:,:] = input_data
+#     if axis == 2:
+#         output_img[:,:,d1:d2,:] = input_data
+#     if axis == 3:
+#         output_img[:,:,:,d1:d2] = input_data
+#
+#     if mode == 'replicate':
+#         if axis == 0:
+#             for dd in range(d1): output_img[dd,:,:,:] = input_data[0,:,:,:]
+#             for dd in range(newsize-d2): output_img[d2+dd,:,:,:] = input_data[-1,:,:,:]
+#         if axis == 1:
+#             for dd in range(d1): output_img[:,dd,:,:] = input_data[:,0,:,:]
+#             for dd in range(newsize-d2): output_img[:,d2+dd,:,:] = input_data[:,-1,:,:]
+#         if axis == 2:
+#             for dd in range(d1): output_img[:,:,dd,:] = input_data[:,:,0,:]
+#             for dd in range(newsize-d2): output_img[:,:,d2+dd,:] = input_data[:,:,-1,:]
+#         if axis == 3:
+#             for dd in range(d1): output_img[:,:,:,dd] = input_data[:,:,:,0]
+#             for dd in range(newsize-d2): output_img[:,:,:,d2+dd] = input_data[:,:,:,-1]
+#
+#     if mode == 'wraparound':
+#         if axis == 0:
+#             for dd in range(d1): output_img[dd,:,:,:] = input_data[-1-dd,:,:,:]
+#             for dd in range(newsize-d2): output_img[d2+dd,:,:,:] = input_data[dd,:,:,:]
+#         if axis == 1:
+#             for dd in range(d1): output_img[:,dd,:,:] = input_data[:,-1-dd,:,:]
+#             for dd in range(newsize-d2): output_img[:,d2+dd,:,:] = input_data[:,dd,:,:]
+#         if axis == 2:
+#             for dd in range(d1): output_img[:,:,dd,:] = input_data[:,:,-1-dd,:]
+#             for dd in range(newsize-d2): output_img[:,:,d2+dd,:] = input_data[:,:,dd,:]
+#         if axis == 3:
+#             for dd in range(d1): output_img[:,:,:,dd] = input_data[:,:,:,-1-dd]
+#             for dd in range(newsize-d2): output_img[:,:,:,d2+dd] = input_data[:,:,:,dd]
+#
+#     # write out the padded image
+#     pname, fname = os.path.split(niiname)
+#     niiname_out = os.path.join(pname, pad_prefix + fname)
+#     resulting_img = nib.Nifti1Image(output_img, affine)
+#     nib.save(resulting_img, niiname_out)
+#
+#     return niiname_out
 
 
 

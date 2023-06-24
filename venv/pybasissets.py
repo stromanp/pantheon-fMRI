@@ -19,68 +19,68 @@ from sklearn.decomposition import PCA
 
 #---------createparadigmfile----------------------------------------
 #-------------------------------------------------------------------
-def createparadigmfile(DBname):
-    # this is an example of how a paradigm file might be created
-    # the paradigms are written to the database entry file (excel)
-    # the paradigm name is the sheet name
-    paradigmname = 'paradigm1'
-
-    # BASEdir = os.path.dirname(DBname)
-    # xls = pd.ExcelFile(DBname, engine = 'openpyxl')
-    # df1 = pd.read_excel(xls, 'datarecord')
-
-    dt = 0.5    # seconds per point
-    rest1 = 57.0   # initial rest period in seconds
-    isi = 1.5  # interstimulus interval
-    stim = 1.5  # contact stim duration
-    rest2 = 68.0  # final rest period in seconds
-
-    nrest1 = np.zeros(np.round(rest1/dt).astype('int'))
-    nstim = np.ones(np.round(stim/dt).astype('int'))
-    nisi = np.zeros(np.round(isi/dt).astype('int'))
-    nrest2 = np.zeros(np.round(rest2/dt).astype('int'))
-
-    nnostim = np.zeros(np.round(30.0/dt).astype('int'))
-    nafterstim = np.ones(np.round(15.0/dt).astype('int'))
-    nremaining = np.zeros(np.round(53.0/dt).astype('int'))
-
-    paradigm = np.concatenate((nrest1,   # intial rest period
-                nstim, nisi,   # one contact followed by isi
-                nstim, nisi,   # next contact ...
-                nstim, nisi,   # next contact ...
-                nstim, nisi,   # next contact ...
-                nstim, nisi,   # next contact ...
-                nstim, nisi,   # next contact ...
-                nstim, nisi,   # next contact ...
-                nstim, nisi,   # next contact ...
-                nstim, nisi,   # next contact ...
-                nstim, nisi,   # next contact ...
-                nrest2)  )  # final rest period
-
-    aftersensations = np.concatenate( (nrest1, nnostim, nafterstim, nremaining))   # another thing for testing
-
-    # it is possible to have more than one paradigm - give them different names
-    paradigmdef = {'dt':dt,'paradigm':paradigm, 'aftersensations':aftersensations}
-
-    # create a dataframe
-    paradigmdata = pd.DataFrame(data = paradigmdef)
-    # write it to the database by appending a sheet to the excel file
-    # want to overwrite sheet of the same name if it already exists, or create a new one if not
-    # writer.sheets = dict((ws.title, ws) for ws in book.worksheets)
-
-    # first check and see if the sheet already exists - and delete it
-    xls = pd.ExcelFile(DBname, engine = 'openpyxl')
-    existing_sheet_names = xls.sheet_names
-    if paradigmname in existing_sheet_names:
-        # delete sheet - need to use openpyxl
-        workbook = openpyxl.load_workbook(DBname)
-        std = workbook.get_sheet_by_name(paradigmname)
-        workbook.remove_sheet(std)
-        workbook.save(DBname)
-
-    # now write the new sheet
-    with pd.ExcelWriter(DBname, mode='a') as writer:
-        paradigmdata.to_excel(writer, sheet_name=paradigmname)
+# def createparadigmfile(DBname):
+#     # this is an example of how a paradigm file might be created
+#     # the paradigms are written to the database entry file (excel)
+#     # the paradigm name is the sheet name
+#     paradigmname = 'paradigm1'
+#
+#     # BASEdir = os.path.dirname(DBname)
+#     # xls = pd.ExcelFile(DBname, engine = 'openpyxl')
+#     # df1 = pd.read_excel(xls, 'datarecord')
+#
+#     dt = 0.5    # seconds per point
+#     rest1 = 57.0   # initial rest period in seconds
+#     isi = 1.5  # interstimulus interval
+#     stim = 1.5  # contact stim duration
+#     rest2 = 68.0  # final rest period in seconds
+#
+#     nrest1 = np.zeros(np.round(rest1/dt).astype('int'))
+#     nstim = np.ones(np.round(stim/dt).astype('int'))
+#     nisi = np.zeros(np.round(isi/dt).astype('int'))
+#     nrest2 = np.zeros(np.round(rest2/dt).astype('int'))
+#
+#     nnostim = np.zeros(np.round(30.0/dt).astype('int'))
+#     nafterstim = np.ones(np.round(15.0/dt).astype('int'))
+#     nremaining = np.zeros(np.round(53.0/dt).astype('int'))
+#
+#     paradigm = np.concatenate((nrest1,   # intial rest period
+#                 nstim, nisi,   # one contact followed by isi
+#                 nstim, nisi,   # next contact ...
+#                 nstim, nisi,   # next contact ...
+#                 nstim, nisi,   # next contact ...
+#                 nstim, nisi,   # next contact ...
+#                 nstim, nisi,   # next contact ...
+#                 nstim, nisi,   # next contact ...
+#                 nstim, nisi,   # next contact ...
+#                 nstim, nisi,   # next contact ...
+#                 nstim, nisi,   # next contact ...
+#                 nrest2)  )  # final rest period
+#
+#     aftersensations = np.concatenate( (nrest1, nnostim, nafterstim, nremaining))   # another thing for testing
+#
+#     # it is possible to have more than one paradigm - give them different names
+#     paradigmdef = {'dt':dt,'paradigm':paradigm, 'aftersensations':aftersensations}
+#
+#     # create a dataframe
+#     paradigmdata = pd.DataFrame(data = paradigmdef)
+#     # write it to the database by appending a sheet to the excel file
+#     # want to overwrite sheet of the same name if it already exists, or create a new one if not
+#     # writer.sheets = dict((ws.title, ws) for ws in book.worksheets)
+#
+#     # first check and see if the sheet already exists - and delete it
+#     xls = pd.ExcelFile(DBname, engine = 'openpyxl')
+#     existing_sheet_names = xls.sheet_names
+#     if paradigmname in existing_sheet_names:
+#         # delete sheet - need to use openpyxl
+#         workbook = openpyxl.load_workbook(DBname)
+#         std = workbook.get_sheet_by_name(paradigmname)
+#         workbook.remove_sheet(std)
+#         workbook.save(DBname)
+#
+#     # now write the new sheet
+#     with pd.ExcelWriter(DBname, mode='a') as writer:
+#         paradigmdata.to_excel(writer, sheet_name=paradigmname)
 
 
 
