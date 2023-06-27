@@ -2016,9 +2016,9 @@ class NCFrame:
                 if 'Unnamed' in kname: df1.pop(kname)  # remove blank fields from the database
             # df1.pop('Unnamed: 0')
             normdataname_small = normdataname_full.replace(dbhome, '')  # need to strip off dbhome before writing the name
-            df1.loc[dbnum.astype('int'), 'normdataname'] = normdataname_small[1:]
-            # df1.loc[dbnum.astype('int'), 'normdataname'] = normdataname_small
-
+            # df1.loc[dbnum.astype('int'), 'normdataname'] = normdataname_small[1:]
+            df1.loc[dbnum.astype('int'), 'normdataname'] = normdataname_small
+            #
             # add normalization quality to database
             if 'norm_quality' not in keylist:
                 df1['norm_quality'] = 0
@@ -7442,9 +7442,14 @@ class SAPMFrame:
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
 
         regionname = os.path.join(self.SAPMresultsdir, self.SAPMregionname)
-        regiondata = np.load(regionname, allow_pickle=True).flat[0]
-        self.DBname = copy.deepcopy(regiondata['DBname'])
-        self.DBnum = copy.deepcopy(regiondata['DBnum'])
+        if os.path.isfile(regionname):
+            regiondata = np.load(regionname, allow_pickle=True).flat[0]
+            self.DBname = copy.deepcopy(regiondata['DBname'])
+            self.DBnum = copy.deepcopy(regiondata['DBnum'])
+        else:
+            self.DBname = 'none'
+            self.DBnum = []
+            fields = 'empty'
 
         print('reading fields from ', self.DBname)
         if os.path.isfile(self.DBname):
@@ -8661,6 +8666,7 @@ class SAPMResultsFrame:
             for nn in range(vintrinsic_count): region_list_full += ['latent{}'.format(fintrinsic_count + nn)]
         except:
             region_list = 'not defined'
+            region_list_full = copy.deepcopy(region_list)
 
         # add label, and pull-down menu for selected covariate values for searching
         self.SRL6 = tk.Label(self.parent, text = "Target Region: ", font = labelfont)
