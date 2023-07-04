@@ -219,7 +219,7 @@ def check_settings_file(settingsfile):
                     'GLMparadigmnames': '',
                     'GLMdataname': '',
                     'SAPMbetascale': 0.01,
-                    'SAPMLweight': 10.0,
+                    'SAPMLweight': 1.0,
                     # 'SRvariant': 0,
                     'DISPconndefnamefull': '',
                     'CLcrazythreshold':3.0,
@@ -6937,7 +6937,6 @@ class SAPMFrame:
         return self
 
 
-
     def SAPMresultsnamesubmitaction(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
@@ -6983,7 +6982,7 @@ class SAPMFrame:
 
         self.SAPMupdate_network_info()
 
-    # define functions before they are used in the database frame------------------------------------------
+
     # action when the button to browse for a DB fie is pressed
     def SAPMregionnamebrowseaction(self):
         # first load the settings file so that values can be used later
@@ -8401,7 +8400,7 @@ class SAPMResultsFrame:
         self.SRsheetnames = xls.sheet_names
 
         # destroy the old pulldown menu and create a new one with the new choices
-        rownum = 13
+        rownum = 14
         columnum = 4
         fieldvalues = copy.deepcopy(self.SRsheetnames)
         self.SRBsheetfield_var = tk.StringVar()
@@ -8441,7 +8440,7 @@ class SAPMResultsFrame:
         self.SRcolumnnames = [x for x in columnnames if 'Unnamed' not in x]
 
         # destroy the old pulldown menu and create a new one with the new choices
-        rownum = 13
+        rownum = 14
         columnum = 5
         fieldvalues = copy.deepcopy(self.SRcolumnnames)
         self.SRBcolumnfield_var = tk.StringVar()

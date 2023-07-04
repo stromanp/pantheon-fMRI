@@ -268,8 +268,8 @@ def sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, 
 
     # error2 = np.sum( (loadings[:,:ncomponents_to_fit] - loadings_fit)**2)/ncomponents_to_fit
 
-    Mconn2 = Mconn @ Mconn  # Mconn2 = Mconn for idempotent matrix
-    error2 = np.sum((Mconn2.flatten() - Mconn.flatten())**2)
+    # Mconn2 = Mconn @ Mconn  # Mconn2 = Mconn for idempotent matrix
+    # error2 = np.sum((Mconn2.flatten() - Mconn.flatten())**2)
     # most recent changes - May 8, 2023
 
     cr = np.where(regular_flag > 0)[0]
@@ -279,9 +279,9 @@ def sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, 
     # dR2 = (R2list - R2avg)
     # cost4 = np.mean(dR2 ** 2)
 
-    costfactor = Lweight*(cost)
-    ssqd = error + error2 + costfactor
-    return ssqd, error, error2, costfactor
+    costfactor = Lweight*cost
+    ssqd = error + costfactor
+    return ssqd, error, cost, costfactor
 
 
 def gradients_for_betavals(Sinput, Minput, Mconn, betavals, ctarget, csource, dval, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight):
@@ -3350,7 +3350,7 @@ def sem_physio_model1(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparamet
 #----------------------------------------------------------------------------------
 # primary function--------------------------------------------------------------------
 def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparametersname, fixed_beta_vals = [],
-                      betascale = 0.1, normalizevar=False, nitermax = 250, verbose = True, initial_nitermax_stage1 = 15,
+                      betascale = 0.1, Lweight = 1.0, normalizevar=False, nitermax = 250, verbose = True, initial_nitermax_stage1 = 15,
                       initial_nsteps_stage1 = 15):
 
 # this version fits to principal components of Sinput
@@ -3359,7 +3359,7 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
 
     # initialize gradient-descent parameters--------------------------------------------------------------
     initial_alpha = 1e-1
-    initial_Lweight = 100.0
+    initial_Lweight = copy.deepcopy(Lweight)
     initial_dval = 0.05
     # nitermax = 300
     alpha_limit = 1.0e-5
@@ -3400,7 +3400,7 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
     DBname = SAPMparams['DBname']
     DBnum = SAPMparams['DBnum']
 
-    regular_flag = 1-(latent_flag + reciprocal_flag)   # flag where connections are not latent or reciprocal
+    regular_flag = 1-latent_flag   # flag where connections are not latent or reciprocal
 
     ntime, NP = np.shape(tplist_full)
     Nintrinsics = vintrinsic_count + fintrinsic_count
@@ -5903,7 +5903,7 @@ def sem_physio_model2_fast(tcdata, clusterlist, fintrinsic_base, SAPMresultsname
 
 # gradient descent method to find best clusters------------------------------------
 def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, networkfile, regiondataname,
-                        clusterdataname, samplesplit, samplestart=0, initial_clusters=[], timepoint='all', epoch='all', betascale=0.1):
+                        clusterdataname, samplesplit, samplestart=0, initial_clusters=[], timepoint='all', epoch='all', betascale=0.1, Lweight = 1.0):
     # , DBname
     overall_start_time_text = time.ctime()
     overall_start_time = time.time()
@@ -6024,7 +6024,7 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
     #                            initial_nitermax_stage1=initial_nitermax_stage1, initial_nsteps_stage1=initial_nsteps_stage1)
 
     output = sem_physio_model1_V3(cluster_numbers+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
-                                  fixed_beta_vals=[], betascale=betascale, nitermax=nitermax, verbose=False,normalizevar=False,
+                                  fixed_beta_vals=[], betascale=betascale, Lweight = Lweight, nitermax=nitermax, verbose=False,normalizevar=False,
                                   initial_nitermax_stage1=initial_nitermax_stage1, initial_nsteps_stage1=initial_nsteps_stage1)
 
     # now, correct the results for normalizing the variance
@@ -6069,7 +6069,7 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
                         #                                 initial_nitermax_stage1=initial_nitermax_stage1, initial_nsteps_stage1=initial_nsteps_stage1)
 
                         output = sem_physio_model1_V3(test_clusters+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
-                                                        fixed_beta_vals=[], betascale=betascale, nitermax=nitermax, verbose=False, normalizevar=False,
+                                                        fixed_beta_vals=[], betascale=betascale, Lweight = Lweight, nitermax=nitermax, verbose=False, normalizevar=False,
                                                         initial_nitermax_stage1 = initial_nitermax_stage1, initial_nsteps_stage1 = initial_nsteps_stage1)
                         output = sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, verbose=False)
                         SAPMresults = np.load(output, allow_pickle=True)
@@ -6308,7 +6308,7 @@ def SAPMrun(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMparamet
 
 # main program
 def SAPMrun_V2(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkfile, timepoint,
-            epoch, betascale = 0.01, reload_existing = False, multiple_output = False):
+            epoch, betascale = 0.01, Lweight = 1.0, reload_existing = False, multiple_output = False):
 
     # load some data, setup some parameters...
     network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base = load_network_model_w_intrinsics(networkfile)
@@ -6347,7 +6347,7 @@ def SAPMrun_V2(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMpara
                                   fullgroup=False, normalizevar=True, filter_tcdata = False)
 
     output = sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparametersname,
-                               fixed_beta_vals = [], betascale = betascale, normalizevar=False)
+                               fixed_beta_vals = [], betascale = betascale, Lweight = Lweight, normalizevar=False)
 
     # now, correct the results for normalizing the variance
     output = sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, verbose = True)
@@ -6748,16 +6748,19 @@ def plot_region_fits(window, regionlist, nametag, Sinput_avg, Sinput_sem, fit_av
     return svgname, Rtext_record, Rval_record
 
 
-def write_Mconn_values2(Mconn, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format = 'f', pthresh = 0.05,
+def write_Mconn_values2(Mconn, Mconn_sem, NP, betanamelist, rnamelist, beta_list, format = 'f', pthresh = 0.05, statsref = '',
                         sigflag = [], multiple_output = False):
     # get beta values from Mconn
     nregions = len(rnamelist)
     nr1, nr2 = np.shape(Mconn)
 
+    if np.shape(statsref) != (nr1,nr2):
+        statsref = np.zeros((nr1,nr2))
+
     if np.size(sigflag) == 0:
         sigflag = np.zeros(np.shape(Mconn))
 
-    Tvals = Mconn / (Mconn_sem + 1.0e-20)
+    Tvals = (Mconn-statsref) / (Mconn_sem + 1.0e-20)
     Tthresh = stats.t.ppf(1 - pthresh, NP - 1)
     if np.isnan(Tthresh):  Tthresh = 0.0
 
@@ -6766,6 +6769,7 @@ def write_Mconn_values2(Mconn, Mconn_sem, NP, betanamelist, rnamelist, beta_list
         valuetext_record = []
         Ttext_record = []
         T_record = []
+        reftext_record = []
         for n1 in range(nr1):
             tname = betanamelist[n1]
             tpair = beta_list[n1]['pair']
@@ -6796,9 +6800,11 @@ def write_Mconn_values2(Mconn, Mconn_sem, NP, betanamelist, rnamelist, beta_list
                     if format == 'f':
                         valuetext = '{:.3f} {} {:.3f} '.format(Mconn[n1, n2], chr(177), Mconn_sem[n1, n2])
                         Ttext = 'T = {:.2f} '.format(Tvals[n1,n2])
+                        reftext = '{:.3f}'.format(statsref[n1,n2])
                     else:
                         valuetext = '{:.3e} {} {:.3e} '.format(Mconn[n1, n2], chr(177), Mconn_sem[n1, n2])
                         Ttext = 'T = {:.2e} '.format(Tvals[n1,n2])
+                        reftext = '{:.3e}'.format(statsref[n1,n2])
 
                     labeltext_record += [labeltext]
                     valuetext_record += [valuetext]
@@ -6808,11 +6814,13 @@ def write_Mconn_values2(Mconn, Mconn_sem, NP, betanamelist, rnamelist, beta_list
                         print(labeltext)
                         print(valuetext)
                         print(Ttext)
+                        print(reftext)
     else:
         labeltext_record = []
         valuetext_record = []
         Ttext_record = []
         T_record = []
+        reftext_record = []
         for n1 in range(len(beta_list)):
             tpair = beta_list[n1]['pair']
             if tpair[0] >= nregions:
@@ -6831,19 +6839,23 @@ def write_Mconn_values2(Mconn, Mconn_sem, NP, betanamelist, rnamelist, beta_list
                 if format == 'f':
                     valuetext = '{:.3f} {} {:.3f} '.format(Mconn[tpair[1],tpair[0]], chr(177), Mconn_sem[tpair[1],tpair[0]])
                     Ttext = 'T = {:.2f} '.format(Tvals[tpair[1],tpair[0]])
+                    reftext = '{:.3f}'.format(statsref[tpair[1],tpair[0]])
                 else:
                     valuetext = '{:.3e} {} {:.3e} '.format(Mconn[tpair[1],tpair[0]], chr(177), Mconn_sem[tpair[1],tpair[0]])
                     Ttext = 'T = {:.2e} '.format(Tvals[tpair[1],tpair[0]])
+                    reftext = '{:.3e}'.format(statsref[tpair[1],tpair[0]])
 
                 labeltext_record += [labeltext]
                 valuetext_record += [valuetext]
                 Ttext_record += [Ttext]
+                reftext_record += [reftext]
                 T_record += [T]
                 if showval:
                     print(labeltext)
                     print(valuetext)
                     print(Ttext)
-    return labeltext_record, valuetext_record, Ttext_record, T_record, Tthresh
+                    print(reftext)
+    return labeltext_record, valuetext_record, Ttext_record, T_record, Tthresh, reftext_record
 
 
 
@@ -7212,7 +7224,7 @@ def regress_signal_features_with_cov(target, covariates, Minput, Sinput_total, f
 
 
 def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdir, SAPMparametersname, SAPMresultsname,
-                         variation_number, group, target = '', pthresh = 0.05, setylimits = [], TargetCanvas = [],
+                         group, target = '', pthresh = 0.05, SAPMstatsfile = '', setylimits = [], TargetCanvas = [],
                          display_in_GUI = False, multiple_output = False,
                          SRresultsname2 = '', SRparametersname2 = '', covariates2 = []):
 
@@ -7224,8 +7236,6 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
     # outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel', 'Plot_SourceModel', 'DrawSAPMdiagram', 'Paired_diff']
 
     # load SAPM parameters
-    VN = variation_number
-    # print('displaying variation number {}'.format(VN))
     SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
     network = SAPMparams['network']
     beta_list = SAPMparams['beta_list']
@@ -7259,6 +7269,10 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
 
     # NP,nvariations = np.shape(SAPMresults_load)
     NP = len(SAPMresults_load)
+    if len(covariates) == NP:
+        covariates_entered = True
+    else:
+        covariates_entered = False
 
     # resultscheck = np.zeros((NP, 4))
     # nbeta, tsize_full = np.shape(SAPMresults_load[0][0]['Sconn'])
@@ -7282,20 +7296,36 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
     epoch = et2 - et1
     ftemp = paradigm_centered[0,et1:et2]
 
+    DBref_mean = np.zeros((nbeta, nbeta))
+    DBref_std = np.zeros((nbeta, nbeta))
+    print('SAPMstatsfile = {}'.format(SAPMstatsfile))
+    if os.path.isfile(SAPMstatsfile):
+        xls = pd.ExcelFile(SAPMstatsfile, engine='openpyxl')
+        df1 = pd.read_excel(xls, 'B stats')
+        stats_conname = df1.loc[:, 'name']
+        stats_mean = df1.loc[:, 'mean']
+        stats_std = df1.loc[:, 'std']
+
+        for nn in range(len(stats_conname)):
+            nregions = len(rnamelist)
+            cname = stats_conname[nn]
+            c = cname.index('-')
+            sname = cname[:c]
+            tname = cname[(c + 1):]
+            tnum = rnamelist.index(tname)
+            if 'latent' in sname:
+                lnum = int(sname[6:])
+                snum = nregions + lnum
+            else:
+                snum = rnamelist.index(sname)
+            DBref_mean[tnum, snum] = stats_mean[nn]
+            DBref_std[tnum, snum] = stats_std[nn]
+
     DBrecord = np.zeros((nbeta, nbeta, NP))
     Brecord = np.zeros((nbeta, nbeta, NP))
     Drecord = np.zeros((nbeta, nbeta, NP))
     R2totalrecord = np.zeros(NP)
     for nperson in range(NP):
-        # Sinput = SAPMresults_load[nperson][VN]['Sinput']
-        # Sconn = SAPMresults_load[nperson][VN]['Sconn']
-        # Minput = SAPMresults_load[nperson][VN]['Minput']
-        # Mconn = SAPMresults_load[nperson][VN]['Mconn']
-        # beta_int1 = SAPMresults_load[nperson][VN]['beta_int1']
-        # R2total = SAPMresults_load[nperson][VN]['R2total']
-        # Meigv = SAPMresults_load[nperson][VN]['Meigv']
-        # betavals = SAPMresults_load[nperson][VN]['betavals']
-
         Sinput_original = SAPMresults_load[nperson]['Sinput_original']
         Sinput = SAPMresults_load[nperson]['Sinput']
         Sconn = SAPMresults_load[nperson]['Sconn']
@@ -7367,11 +7397,14 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
 
     #-------------------------------------------------------------------------------
     #-------------prep for regression with continuous covariate------------------------------
-    p = covariates[np.newaxis, g1]
-    if len(np.unique(p)) > len(g1)/3:  # assume the values are continuous
-        continuouscov = True
-        p -= np.mean(p)
-        G = np.concatenate((np.ones((1, len(g1))),p), axis=0) # put the intercept term first
+    if covariates_entered:
+        p = covariates[np.newaxis, g1]
+        if len(np.unique(p)) > len(g1)/3:  # assume the values are continuous
+            continuouscov = True
+            p -= np.mean(p)
+            G = np.concatenate((np.ones((1, len(g1))),p), axis=0) # put the intercept term first
+        else:
+            continuouscov = False
     else:
         continuouscov = False
 
@@ -7452,7 +7485,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         # -------------------------------------------------------------------------------
         # -------------prep for regression with continuous covariate------------------------------
         p2 = covariates2[np.newaxis, :]
-        if continuouscov:  # use the mode determined for the first set of results
+        if continuouscov & covariates_entered:  # use the mode determined for the first set of results
             p2 -= np.mean(p2)
             G2 = np.concatenate((np.ones((1, NP2)), p), axis=0)  # put the intercept term first
 
@@ -7474,8 +7507,8 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         # significant B values-------------------------------------
         descriptor = outputnametag + '_Bsig'
         print('\n\nAverage B values')
-        labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(B_avg, B_sem, NP, betanamelist, rnamelist,
-                                                beta_list, format='f', pthresh=pthresh, multiple_output=multiple_output)
+        labeltext, valuetext, Ttext, T, Tthresh, reftext = write_Mconn_values2(B_avg, B_sem, NP, betanamelist, rnamelist,
+                                                beta_list, format='f', pthresh=pthresh, statsref = DBref_mean, multiple_output=multiple_output)
 
         pthresh_list = ['{:.3e}'.format(pthresh)]*len(Ttext)
         Tthresh_list = ['{:.3f}'.format(Tthresh)]*len(Ttext)
@@ -7488,7 +7521,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         T = np.array(T)[si]
         si2 = np.where(T < 1e3)  # dont write out values where B is always = 1
         textoutputs = {'regions': np.array(labeltext)[si[si2]], 'B': np.array(valuetext)[si[si2]], 'T': np.array(Ttext)[si[si2]],
-                       'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]]}
+                       'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]], 'stat ref': np.array(reftext)[si[si2]]}
         df = pd.DataFrame(textoutputs)
 
         xlname = os.path.join(outputdir, descriptor + '.xlsx')
@@ -7498,8 +7531,8 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         # significant D values-------------------------------------
         descriptor = outputnametag + '_Dsig'
         print('\n\nAverage D values')
-        labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(D_avg, D_sem, NP, betanamelist, rnamelist,
-                                                beta_list, format='f', pthresh=pthresh, multiple_output=multiple_output)
+        labeltext, valuetext, Ttext, T, Tthresh, reftext = write_Mconn_values2(D_avg, D_sem, NP, betanamelist, rnamelist,
+                                                beta_list, format='f', pthresh=pthresh, statsref = '', multiple_output=multiple_output)
 
         pthresh_list = ['{:.3e}'.format(pthresh)] * len(Ttext)
         Tthresh_list = ['{:.3f}'.format(Tthresh)] * len(Ttext)
@@ -7513,7 +7546,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         si2 = np.where(T < 1e3)  # dont write out values where B is always = 1
         textoutputs = {'regions': np.array(labeltext)[si[si2]], 'D': np.array(valuetext)[si[si2]],
                        'T': np.array(Ttext)[si[si2]],
-                       'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]]}
+                       'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]], 'stat ref': np.array(reftext)[si[si2]]}
         df = pd.DataFrame(textoutputs)
 
         xlname = os.path.join(outputdir, descriptor + '.xlsx')
@@ -7524,8 +7557,8 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         # significant DB values-------------------------------------
         descriptor = outputnametag + '_DBsig'
         print('\n\nAverage DB values')
-        labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(DB_avg, DB_sem, NP, betanamelist, rnamelist,
-                                                beta_list, format='f', pthresh=pthresh, multiple_output=multiple_output)
+        labeltext, valuetext, Ttext, T, Tthresh, reftext = write_Mconn_values2(DB_avg, DB_sem, NP, betanamelist, rnamelist,
+                                                beta_list, format='f', pthresh=pthresh, statsref = DBref_mean, multiple_output=multiple_output)
 
         pthresh_list = ['{:.3e}'.format(pthresh)] * len(Ttext)
         Tthresh_list = ['{:.3f}'.format(Tthresh)] * len(Ttext)
@@ -7539,7 +7572,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         si2 = np.where(T < 1e3)  # dont write out values where B is always = 1
         textoutputs = {'regions': np.array(labeltext)[si[si2]], 'DB': np.array(valuetext)[si[si2]],
                        'T': np.array(Ttext)[si[si2]],
-                       'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]]}
+                       'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]], 'stat ref': np.array(reftext)[si[si2]]}
         df = pd.DataFrame(textoutputs)
 
         xlname = os.path.join(outputdir, descriptor + '.xlsx')
@@ -7839,15 +7872,15 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         B_sem2 = np.std(Brecord2, axis=2) / np.sqrt(NP2)
 
         sigflag = np.ones(np.shape(Bdiff_avg))
-        labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(Bdiff_avg, Bdiff_sem, NP, betanamelist, rnamelist,
-                                                                      beta_list, format='f', pthresh=pthresh,
+        labeltext, valuetext, Ttext, T, Tthresh, reftext = write_Mconn_values2(Bdiff_avg, Bdiff_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh, statsref = '',
                                                                       sigflag = sigflag, multiple_output=multiple_output)
 
-        labeltext1, valuetext1, Ttext1, T1, Tthresh1 = write_Mconn_values2(B_avg, B_sem, NP, betanamelist, rnamelist,
-                                                                      beta_list, format='f', pthresh=pthresh,
+        labeltext1, valuetext1, Ttext1, T1, Tthresh1, reftext1 = write_Mconn_values2(B_avg, B_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh, statsref = DBref_mean,
                                                                       sigflag = sigflag, multiple_output=multiple_output)
-        labeltext2, valuetext2, Ttext2, T2, Tthresh2 = write_Mconn_values2(B_avg2, B_sem2, NP2, betanamelist, rnamelist,
-                                                                      beta_list, format='f', pthresh=pthresh,
+        labeltext2, valuetext2, Ttext2, T2, Tthresh2, reftext2 = write_Mconn_values2(B_avg2, B_sem2, NP2, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh, statsref = DBref_mean,
                                                                       sigflag = sigflag, multiple_output=multiple_output)
 
         # for pp in range(len(labeltext)):
@@ -7866,7 +7899,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         textoutputs = {'regions': np.array(labeltext)[si[si2]], 'B': np.array(valuetext)[si[si2]],
                        'T': np.array(Ttext)[si[si2]],
                        'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]],
-                       'B group1': np.array(valuetext1)[si[si2]], 'B group2': np.array(valuetext2)[si[si2]]}
+                       'B group1': np.array(valuetext1)[si[si2]], 'B group2': np.array(valuetext2)[si[si2]], 'stat ref1': np.array(reftext1)[si[si2]], 'stat ref2': np.array(reftext2)[si[si2]]}
         df = pd.DataFrame(textoutputs)
 
         xlname = os.path.join(outputdir, descriptor + '.xlsx')
@@ -7876,15 +7909,15 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         # significant D values-------------------------------------
         descriptor = outputnametag + '_groupDdiff'
         print('\n\nAverage D values difference')
-        labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(Ddiff_avg, Ddiff_sem, NP, betanamelist, rnamelist,
-                                                                      beta_list, format='f', pthresh=pthresh,
+        labeltext, valuetext, Ttext, T, Tthresh, reftext = write_Mconn_values2(Ddiff_avg, Ddiff_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh, statsref = '',
                                                                       sigflag = sigflag, multiple_output=multiple_output)
 
-        labeltext1, valuetext1, Ttext1, T1, Tthresh1 = write_Mconn_values2(D_avg, D_sem, NP, betanamelist, rnamelist,
-                                                                      beta_list, format='f', pthresh=pthresh,
+        labeltext1, valuetext1, Ttext1, T1, Tthresh1, reftext1 = write_Mconn_values2(D_avg, D_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh, statsref = '',
                                                                       sigflag = sigflag, multiple_output=multiple_output)
-        labeltext2, valuetext2, Ttext2, T2, Tthresh2 = write_Mconn_values2(D_avg2, D_sem2, NP2, betanamelist, rnamelist,
-                                                                      beta_list, format='f', pthresh=pthresh,
+        labeltext2, valuetext2, Ttext2, T2, Tthresh2, reftext2 = write_Mconn_values2(D_avg2, D_sem2, NP2, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh, statsref = '',
                                                                       sigflag = sigflag, multiple_output=multiple_output)
 
         pthresh_list = ['{:.3e}'.format(pthresh)] * len(Ttext)
@@ -7900,7 +7933,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         textoutputs = {'regions': np.array(labeltext)[si[si2]], 'D': np.array(valuetext)[si[si2]],
                        'T': np.array(Ttext)[si[si2]],
                        'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]],
-                       'D group1': np.array(valuetext1)[si[si2]], 'D group2': np.array(valuetext2)[si[si2]]}
+                       'D group1': np.array(valuetext1)[si[si2]], 'D group2': np.array(valuetext2)[si[si2]], 'stat ref1': np.array(reftext1)[si[si2]], 'stat ref2': np.array(reftext2)[si[si2]]}
 
         df = pd.DataFrame(textoutputs)
 
@@ -7911,15 +7944,15 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         # significant DB values-------------------------------------
         descriptor = outputnametag + '_groupDBdiff'
         print('\n\nAverage DB values difference')
-        labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(DBdiff_avg, DBdiff_sem, NP, betanamelist, rnamelist,
-                                                                      beta_list, format='f', pthresh=pthresh,
+        labeltext, valuetext, Ttext, T, Tthresh, reftext = write_Mconn_values2(DBdiff_avg, DBdiff_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh, statsref = '',
                                                                       sigflag = sigflag, multiple_output=multiple_output)
 
-        labeltext1, valuetext1, Ttext1, T1, Tthresh1 = write_Mconn_values2(DB_avg, DB_sem, NP, betanamelist, rnamelist,
-                                                                      beta_list, format='f', pthresh=pthresh,
+        labeltext1, valuetext1, Ttext1, T1, Tthresh1, reftext1 = write_Mconn_values2(DB_avg, DB_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh, statsref = DBref_mean,
                                                                       sigflag = sigflag, multiple_output=multiple_output)
-        labeltext2, valuetext2, Ttext2, T2, Tthresh2 = write_Mconn_values2(DB_avg2, DB_sem2, NP2, betanamelist, rnamelist,
-                                                                      beta_list, format='f', pthresh=pthresh,
+        labeltext2, valuetext2, Ttext2, T2, Tthresh2, reftext2 = write_Mconn_values2(DB_avg2, DB_sem2, NP2, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh, statsref = DBref_mean,
                                                                       sigflag = sigflag, multiple_output=multiple_output)
 
         pthresh_list = ['{:.3e}'.format(pthresh)] * len(Ttext)
@@ -7935,7 +7968,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         textoutputs = {'regions': np.array(labeltext)[si[si2]], 'DB': np.array(valuetext)[si[si2]],
                        'T': np.array(Ttext)[si[si2]],
                        'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]],
-                       'DB group1': np.array(valuetext1)[si[si2]], 'DB group2': np.array(valuetext2)[si[si2]]}
+                       'DB group1': np.array(valuetext1)[si[si2]], 'DB group2': np.array(valuetext2)[si[si2]], 'stat ref1': np.array(reftext1)[si[si2]], 'stat ref2': np.array(reftext2)[si[si2]]}
         df = pd.DataFrame(textoutputs)
 
         xlname = os.path.join(outputdir, descriptor + '.xlsx')
@@ -7976,15 +8009,15 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         B_sem2 = np.std(Brecord2, axis=2) / np.sqrt(NP2)
 
         sigflag = np.ones(np.shape(Bdiff_avg))
-        labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(Bdiff_avg, Bdiff_sem, NP, betanamelist, rnamelist,
-                                                                      beta_list, format='f', pthresh=pthresh,
+        labeltext, valuetext, Ttext, T, Tthresh, reftext = write_Mconn_values2(Bdiff_avg, Bdiff_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh, statsref = '',
                                                                       sigflag = sigflag, multiple_output=multiple_output)
 
-        labeltext1, valuetext1, Ttext1, T1, Tthresh1 = write_Mconn_values2(B_avg, B_sem, NP, betanamelist, rnamelist,
-                                                                      beta_list, format='f', pthresh=pthresh,
+        labeltext1, valuetext1, Ttext1, T1, Tthresh1, reftext1 = write_Mconn_values2(B_avg, B_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh, statsref = DBref_mean,
                                                                       sigflag = sigflag, multiple_output=multiple_output)
-        labeltext2, valuetext2, Ttext2, T2, Tthresh2 = write_Mconn_values2(B_avg2, B_sem2, NP2, betanamelist, rnamelist,
-                                                                      beta_list, format='f', pthresh=pthresh,
+        labeltext2, valuetext2, Ttext2, T2, Tthresh2, reftext2 = write_Mconn_values2(B_avg2, B_sem2, NP2, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh, statsref = DBref_mean,
                                                                       sigflag = sigflag, multiple_output=multiple_output)
 
         pthresh_list = ['{:.3e}'.format(pthresh)] * len(Ttext)
@@ -8000,7 +8033,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         textoutputs = {'regions': np.array(labeltext)[si[si2]], 'B': np.array(valuetext)[si[si2]],
                        'T': np.array(Ttext)[si[si2]],
                        'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]],
-                       'B group1': np.array(valuetext1)[si[si2]], 'B group2': np.array(valuetext2)[si[si2]]}
+                       'B group1': np.array(valuetext1)[si[si2]], 'B group2': np.array(valuetext2)[si[si2]], 'stat ref1': np.array(reftext1)[si[si2]], 'stat ref2': np.array(reftext2)[si[si2]]}
         df = pd.DataFrame(textoutputs)
 
         xlname = os.path.join(outputdir, descriptor + '.xlsx')
@@ -8010,15 +8043,15 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         # significant D values-------------------------------------
         descriptor = outputnametag + '_pairedDdiff'
         print('\n\nAverage D values difference')
-        labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(Ddiff_avg, Ddiff_sem, NP, betanamelist, rnamelist,
-                                                                      beta_list, format='f', pthresh=pthresh,
+        labeltext, valuetext, Ttext, T, Tthresh, reftext = write_Mconn_values2(Ddiff_avg, Ddiff_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh, statsref = '',
                                                                       sigflag = sigflag, multiple_output=multiple_output)
 
-        labeltext1, valuetext1, Ttext1, T1, Tthresh1 = write_Mconn_values2(D_avg, D_sem, NP, betanamelist, rnamelist,
-                                                                      beta_list, format='f', pthresh=pthresh,
+        labeltext1, valuetext1, Ttext1, T1, Tthresh1, reftext1 = write_Mconn_values2(D_avg, D_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh, statsref = '',
                                                                       sigflag = sigflag, multiple_output=multiple_output)
-        labeltext2, valuetext2, Ttext2, T2, Tthresh2 = write_Mconn_values2(D_avg2, D_sem2, NP2, betanamelist, rnamelist,
-                                                                      beta_list, format='f', pthresh=pthresh,
+        labeltext2, valuetext2, Ttext2, T2, Tthresh2, reftext2 = write_Mconn_values2(D_avg2, D_sem2, NP2, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh, statsref = '',
                                                                       sigflag = sigflag, multiple_output=multiple_output)
         pthresh_list = ['{:.3e}'.format(pthresh)] * len(Ttext)
         Tthresh_list = ['{:.3f}'.format(Tthresh)] * len(Ttext)
@@ -8033,7 +8066,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         textoutputs = {'regions': np.array(labeltext)[si[si2]], 'D': np.array(valuetext)[si[si2]],
                        'T': np.array(Ttext)[si[si2]],
                        'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]],
-                       'D group1': np.array(valuetext1)[si[si2]], 'D group2': np.array(valuetext2)[si[si2]]}
+                       'D group1': np.array(valuetext1)[si[si2]], 'D group2': np.array(valuetext2)[si[si2]], 'stat ref1': np.array(reftext1)[si[si2]], 'stat ref2': np.array(reftext2)[si[si2]]}
         df = pd.DataFrame(textoutputs)
 
         xlname = os.path.join(outputdir, descriptor + '.xlsx')
@@ -8043,15 +8076,15 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         # significant DB values-------------------------------------
         descriptor = outputnametag + '_pairedDBdiff'
         print('\n\nAverage DB values difference')
-        labeltext, valuetext, Ttext, T, Tthresh = write_Mconn_values2(DBdiff_avg, DBdiff_sem, NP, betanamelist, rnamelist,
-                                                                      beta_list, format='f', pthresh=pthresh,
+        labeltext, valuetext, Ttext, T, Tthresh, reftext = write_Mconn_values2(DBdiff_avg, DBdiff_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh, statsref = '',
                                                                       sigflag = sigflag, multiple_output=multiple_output)
 
-        labeltext1, valuetext1, Ttext1, T1, Tthresh1 = write_Mconn_values2(DB_avg, DB_sem, NP, betanamelist, rnamelist,
-                                                                      beta_list, format='f', pthresh=pthresh,
+        labeltext1, valuetext1, Ttext1, T1, Tthresh1, reftext1 = write_Mconn_values2(DB_avg, DB_sem, NP, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh, statsref = DBref_mean,
                                                                       sigflag = sigflag, multiple_output=multiple_output)
-        labeltext2, valuetext2, Ttext2, T2, Tthresh2 = write_Mconn_values2(DB_avg2, DB_sem2, NP2, betanamelist, rnamelist,
-                                                                      beta_list, format='f', pthresh=pthresh,
+        labeltext2, valuetext2, Ttext2, T2, Tthresh2, reftext2 = write_Mconn_values2(DB_avg2, DB_sem2, NP2, betanamelist, rnamelist,
+                                                                      beta_list, format='f', pthresh=pthresh, statsref = DBref_mean,
                                                                       sigflag = sigflag, multiple_output=multiple_output)
 
         pthresh_list = ['{:.3e}'.format(pthresh)] * len(Ttext)
@@ -8067,7 +8100,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         textoutputs = {'regions': np.array(labeltext)[si[si2]], 'DB': np.array(valuetext)[si[si2]],
                        'T': np.array(Ttext)[si[si2]],
                        'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]],
-                       'DB group1': np.array(valuetext1)[si[si2]], 'DB group2': np.array(valuetext2)[si[si2]]}
+                       'DB group1': np.array(valuetext1)[si[si2]], 'DB group2': np.array(valuetext2)[si[si2]], 'stat ref1': np.array(reftext1)[si[si2]], 'stat ref2': np.array(reftext2)[si[si2]]}
         df = pd.DataFrame(textoutputs)
 
         xlname = os.path.join(outputdir, descriptor + '.xlsx')
