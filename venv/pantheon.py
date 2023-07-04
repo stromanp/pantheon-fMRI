@@ -191,6 +191,7 @@ def check_settings_file(settingsfile):
                     'SAPMresultsname': '',
                     'SAPMparamsname': '',
                     'networkmodel': '',
+                    'SAPMnsims':100,
                     'SAPMclustername': '',
                     'SAPMregionname': '',
                     'SAPMtimepoint': 'all',
@@ -199,6 +200,7 @@ def check_settings_file(settingsfile):
                     'SRcovname': 'not defined',
                     'SRcovname2': 'not defined',
                     'SRpvalue': 0.05,
+                    'SRstatsname': 'not defined',
                     'SRgroup': '',
                     'SRtargetregion': 'none',
                     'SRnametag': '',
@@ -217,7 +219,8 @@ def check_settings_file(settingsfile):
                     'GLMparadigmnames': '',
                     'GLMdataname': '',
                     'SAPMbetascale': 0.01,
-                    'SRvariant': 0,
+                    'SAPMLweight': 10.0,
+                    # 'SRvariant': 0,
                     'DISPconndefnamefull': '',
                     'CLcrazythreshold':3.0,
                     'CLvarcheckmethod':'median',
@@ -6740,13 +6743,30 @@ class SAPMFrame:
         np.save(settingsfile,settings)
 
 
+    def SAPMnsimssubmitaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        SAPMnsims = self.SAPMnsimsbox.get()
+        SAPMnsims = int(SAPMnsims)
+
+        settings['SAPMnsims'] = SAPMnsims
+        self.SAPMnsims = SAPMnsims
+
+        print('SAPMnsims = {}'.format(SAPMnsims))
+
+        # write the result to the label box for display
+        self.SAPMnsimsbox.delete(0, 'end')
+        self.SAPMnsimsbox.insert(0, self.SAPMnsims)
+
+        np.save(settingsfile, settings)
+
 
     # action when the button to browse for a DB fie is pressed
     def SAPMtestnetclick(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
 
-        nsims = 1000
+        nsims = copy.deepcopy(settings['SAPMnsims'])
         networkmodel = copy.deepcopy(settings['networkmodel'])
         cnums = copy.deepcopy(settings['SAPMcnums'])
         regiondataname = copy.deepcopy(settings['SAPMregionname'])
@@ -6754,9 +6774,10 @@ class SAPMFrame:
         timepoint = copy.deepcopy(settings['SAPMtimepoint'])
         epoch = copy.deepcopy(settings['SAPMepoch'])
         betascale = copy.deepcopy(settings['SAPMbetascale'])
+        Lweight = copy.deepcopy(settings['SAPMLweight'])
 
         output = pysapm.run_null_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterdataname, timepoint=timepoint,
-                                epoch=epoch, betascale=betascale)
+                                epoch=epoch, betascale=betascale, Lweight=Lweight)
         print('results of network null test ({} samples) written to {}'.format(nsims, output))
 
 
@@ -6888,6 +6909,24 @@ class SAPMFrame:
         # write the result to the label box for display
         self.SAPMbetascalebox.delete(0, 'end')
         self.SAPMbetascalebox.insert(0, self.SAPMbetascale)
+
+        np.save(settingsfile, settings)
+
+
+    def SAPMLweightsubmitaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        SAPMLweight = self.SAPMLweightbox.get()
+        SAPMLweight = float(SAPMLweight)
+
+        settings['SAPMLweight'] = SAPMLweight
+        self.SAPMLweight = SAPMLweight
+
+        print('SAPMLweight = {}'.format(SAPMLweight))
+
+        # write the result to the label box for display
+        self.SAPMLweightbox.delete(0, 'end')
+        self.SAPMLweightbox.insert(0, self.SAPMLweight)
 
         np.save(settingsfile, settings)
 
@@ -7138,6 +7177,7 @@ class SAPMFrame:
         self.SAPMresultsname = settings['SAPMresultsname']
         self.SAPMresultsdir = settings['SAPMresultsdir']
         self.SAPMbetascale = settings['SAPMbetascale']
+        self.SAPMLweight = settings['SAPMLweight']
         # self.SAPMsavetag = settings['SAPMsavetag']
 
         self.SAPMupdate_network_info()
@@ -7205,7 +7245,7 @@ class SAPMFrame:
         #                     self.SAPMclustername, nprocessors, samplesplit, samplestart, initial_clusters=clusterstart)
 
         best_clusters = pysapm.SAPM_cluster_stepsearch(self.SAPMresultsdir, SAPMresultsname, SAPMparamsname, self.networkmodel, self.SAPMregionname,
-                    self.SAPMclustername, samplesplit, samplestart, initial_clusters=clusterstart)
+                    self.SAPMclustername, samplesplit, samplestart, initial_clusters=clusterstart, timepoint='all', epoch='all', betascale=self.SAPMbetascale, Lweight = self.SAPMLweight)
 
         self.SAPMcnums = copy.deepcopy(list(best_clusters))
         self.SAPMcnumsbox.delete(0, 'end')
@@ -7214,6 +7254,7 @@ class SAPMFrame:
         self.SAPMkeyinfo1.config(text = message_text, fg = 'red')
         settings['SAPMcnums'] = self.SAPMcnums
         np.save(settingsfile,settings)
+
 
     def SAPMrunnetwork(self):
         # define the clusters and load the data
@@ -7232,6 +7273,7 @@ class SAPMFrame:
         self.SAPMepoch = settings['SAPMepoch']
         self.SAPMcnums = settings['SAPMcnums']
         self.SAPMbetascale = settings['SAPMbetascale']
+        self.SAPMLweight = settings['SAPMLweight']
         # self.SEMresumerun = settings['SEMresumerun']
         self.SAPMkeyinfo1.config(text=' ', fg='gray')
 
@@ -7262,7 +7304,7 @@ class SAPMFrame:
         multiple_output = False
         pysapm.SAPMrun_V2(self.SAPMcnums, self.SAPMregionname, self.SAPMclustername,
                        SAPMresultsname, SAPMparamsname, self.networkmodel, self.SAPMtimepoint,
-                       self.SAPMepoch, self.SAPMbetascale, reload_existing=False, multiple_output = multiple_output)
+                       self.SAPMepoch, self.SAPMbetascale, self.SAPMLweight, reload_existing=False, multiple_output = multiple_output)
         # most recent changes - May 8, 2023
 
         # get beta values and save for future betascale (initializing beta values)
@@ -7525,9 +7567,11 @@ class SAPMFrame:
         self.DBname = settings['DBname']
         self.DBnum = settings['DBnum']
         self.networkmodel = settings['networkmodel']
+        self.SAPMnsims = settings['SAPMnsims']
         self.SAPMclustername = settings['SAPMclustername']
         self.SAPMregionname = settings['SAPMregionname']
         self.SAPMbetascale = settings['SAPMbetascale']
+        self.SAPMLweight = settings['SAPMLweight']
         self.SAPMtimepoint = settings['SAPMtimepoint']
         self.SAPMepoch = settings['SAPMepoch']
 
@@ -7586,9 +7630,16 @@ class SAPMFrame:
         self.SAPMnetworkbrowse.grid(row=0, column=3)
 
         # give the option to run null tests on the network model
-        self.SAPMnetworktest = tk.Button(self.parent, text='Null Test', width=smallbuttonsize, bg = fgcol1, fg = fgletter1, font = widgetfont,
+        self.SAPMnetworktest = tk.Button(self.parent, text='Null Dist.', width=smallbuttonsize, bg = fgcol1, fg = fgletter1, font = widgetfont,
                                   command=self.SAPMtestnetclick, relief='raised', bd=5, highlightbackground = widgetbg)
-        self.SAPMnetworktest.grid(row=0, column=4)
+        self.SAPMnetworktest.grid(row=0, column=5)
+        self.SAPMnsimsbox = tk.Entry(self.parent, width = 6, bg="white",justify = 'right')
+        self.SAPMnsimsbox.grid(row=0, column=6, sticky='N')
+        self.SAPMnsimsbox.insert(0,self.SAPMnsims)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SAPMnsimssubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMnsimssubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.SAPMnsimssubmit.grid(row=0, column=7, sticky='N')
+
 
         # cluster definition name ---------------------------------------------
         # need an input for the cluster definition name - save to it, or read from it
@@ -7707,7 +7758,20 @@ class SAPMFrame:
         self.SAPMbetascalebrowse.grid(row=rownum, column=4, sticky='N')
 
 
+        #
+        # Lweight definition ---------------------------------------------
         rownum = 12
+        self.SAPMLweightlabel = tk.Label(self.parent, text = 'Initial L weight:', font = labelfont)
+        self.SAPMLweightlabel.grid(row=rownum, column=1, sticky='N')
+        self.SAPMLweightbox = tk.Entry(self.parent, width = 30, bg="white",justify = 'right')
+        self.SAPMLweightbox.grid(row=rownum, column=2, sticky='N')
+        self.SAPMLweightbox.insert(0,self.SAPMLweight)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SAPMLweightsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMLweightsubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.SAPMLweightsubmit.grid(row=rownum, column=3, sticky='N')
+
+
+        rownum = 13
         # indicate which "personal characteristics" to use - selected from database
         self.SAPMlabel6 = tk.Label(self.parent, text = "Select characteristic:", font = labelfont)
         self.SAPMlabel6.grid(row=rownum,column=1, sticky='W')
@@ -7745,7 +7809,7 @@ class SAPMFrame:
         self.SAPMcharacteristicsdisplay.grid(row=rownum+1, column=2, columnspan=2, sticky='N')
 
 
-        rownum = 14
+        rownum = 15
         self.varS1 = tk.IntVar()
         self.SAPMrandomcluster = tk.Checkbutton(self.parent, text = 'Random search start?', width = bigbigbuttonsize, fg = fgletter2,
                                           command = self.SAPMcheckboxes, variable = self.varS1)
@@ -7760,7 +7824,7 @@ class SAPMFrame:
         self.SAPMkeyinfo1.grid(row=rownum,column=3, sticky='W')
 
 
-        rownum = 15
+        rownum = 16
         self.varS2 = tk.IntVar()
         self.SAPMsavebetascale = tk.Checkbutton(self.parent, text = 'Save beta init?', width = bigbigbuttonsize, fg = fgletter2,
                                           command = self.SAPMbetainitcheckboxes, variable = self.varS2)
@@ -8166,13 +8230,39 @@ class SAPMResultsFrame:
         return self
 
 
-    def SRvariantvaluesubmit(self):
-        self.SRvariant = int(self.SRvariantvaluebox.get())
-        print('p-value for SAPM results display is set to ',self.SRvariant)
-        settings = np.load(settingsfile, allow_pickle=True).flat[0]
-        settings['SRvariant'] = self.SRvariant
+    def SRstatsnamebrowseaction(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.SRstatsname = copy.deepcopy(settings['SRstatsname'])
+        # browse for new name
+        filechoice =  tkf.askopenfilename(title = "Select file",filetypes = (("xlsx files","*.xlsx"),("all files","*.*")))
+        print('SAPM stats name = ',filechoice)
+
+        p,f = os.path.split(filechoice)
+        self.SRstatsnametext.set(f)
+
+        self.SRstatsname = copy.deepcopy(filechoice)
+        settings['SRstatsname'] = self.SRstatsname
+
         np.save(settingsfile, settings)
         return self
+
+
+    def SRstatsnameclearaction(self):
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        self.SRstatsname = 'not defined'
+        self.SRstatsnametext.set('not defined')
+
+        settings['SRstatsname'] = self.SRstatsname
+        np.save(settingsfile, settings)
+        return self
+
+    # def SRvariantvaluesubmit(self):
+    #     self.SRvariant = int(self.SRvariantvaluebox.get())
+    #     print('p-value for SAPM results display is set to ',self.SRvariant)
+    #     settings = np.load(settingsfile, allow_pickle=True).flat[0]
+    #     settings['SRvariant'] = self.SRvariant
+    #     np.save(settingsfile, settings)
+    #     return self
 
     def SRnametagsubmit(self):
         self.SRnametag = self.SRnametagbox.get()
@@ -8210,21 +8300,21 @@ class SAPMResultsFrame:
         print('SRtargetregion:  {}'.format(self.SRtargetregion))
         print('SRpvalue:  {}'.format(self.SRpvalue))
         print('SRnametag:  {}'.format(self.SRnametag))
-        print('SRvariant:  {}'.format(self.SRvariant))
+        # print('SRvariant:  {}'.format(self.SRvariant))
 
         multiple_output = False
 
         # self.SRPlotFigure = 123
         outputname = pysapm.display_SAPM_results(123, self.SRnametag, self.covariatesvalues, self.SRoptionvalue,
-                            self.SRresultsdir, self.SRparamsname, self.SRresultsname, self.SRvariant,
-                            self.SRgroup, self.SRtargetregion, self.SRpvalue, [], self.SRCanvas, True, multiple_output,
+                            self.SRresultsdir, self.SRparamsname, self.SRresultsname,
+                            self.SRgroup, self.SRtargetregion, self.SRpvalue, self.SRstatsname, [], self.SRCanvas, True, multiple_output,
                             self.SRresultsname2, self.SRparamsname2, self.covariatesvalues2)
 
         if ('Plot' in self.SRoptionvalue):     # or ('Draw' in self.SRoptionvalue)
             print('generating figures to save as svg files ...')
             outputname = pysapm.display_SAPM_results(124, self.SRnametag, self.covariatesvalues, self.SRoptionvalue,
-                                self.SRresultsdir, self.SRparamsname, self.SRresultsname, self.SRvariant,
-                                self.SRgroup, self.SRtargetregion, self.SRpvalue, [], 'none', False, multiple_output = multiple_output,
+                                self.SRresultsdir, self.SRparamsname, self.SRresultsname,
+                                self.SRgroup, self.SRtargetregion, self.SRpvalue, self.SRstatsname, [], 'none', False, multiple_output = multiple_output,
                                 SRresultsname2 = '', SRparametersname2 = '', covariates2 = [])
 
         if self.SRoptionvalue == 'DrawSAPMdiagram':
@@ -8399,7 +8489,7 @@ class SAPMResultsFrame:
         self.networkmodel = settings['networkmodel']
         self.SAPMclustername = settings['SAPMclustername']
         self.SAPMregionname = settings['SAPMregionname']
-        self.SRvariant = 0
+        # self.SRvariant = 0
         self.SRoptionvalue = settings['SRoptionvalue']
         self.SRcovname = 'not defined'
         self.SRcovname2 = 'not defined'
@@ -8415,6 +8505,8 @@ class SAPMResultsFrame:
         self.allcovariatesvalues = []
         self.covnamelist2 = []
         self.allcovariatesvalues2 = []
+
+        self.SRstatsname = copy.deepcopy(settings['SRstatsname'])
 
         settings['SRcovname'] = 'not defined'
         settings['SRcovname2'] = 'not defined'
@@ -8615,7 +8707,7 @@ class SAPMResultsFrame:
         rownum = 8
         # add label, and pull-down menu for selected covariate values for searching
         self.SRL3 = tk.Label(self.parent, text = "Covariate term:", font = labelfont)
-        self.SRL3.grid(row=rownum,column=1, sticky='W')
+        self.SRL3.grid(row=rownum,column=1, sticky='E')
 
         # covariate pull-down menu
         # fieldvalues = DBFrame.get_DB_field_values(self)
@@ -8646,7 +8738,7 @@ class SAPMResultsFrame:
         outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel','Plot_SourceModel', 'DrawSAPMdiagram', 'DrawAnatomy_axial', 'DrawAnatomy_sagittal', 'Group_Diff' , 'Paired_Diff', 'Regress_diff_v_diff' ]
         # add label, and pull-down menu for selected covariate values for searching
         self.SRL5 = tk.Label(self.parent, text = "Output: ", font = labelfont)
-        self.SRL5.grid(row=rownum,column=1, sticky='W')
+        self.SRL5.grid(row=rownum,column=1, sticky='E')
         # option pull-down menu
         self.SRoption_var = tk.StringVar()
         self.SRoption_var.set('empty')
@@ -8681,7 +8773,7 @@ class SAPMResultsFrame:
 
         rownum = 10
         # put in choices for statistical threshold
-        self.SRL7 = tk.Label(self.parent, text = 'p-value:', font = labelfont).grid(row=rownum, column=1, sticky='NSEW')
+        self.SRL7 = tk.Label(self.parent, text = 'p-value:', font = labelfont).grid(row=rownum, column=1, sticky='E')
         self.SRpvaluebox = tk.Entry(self.parent, width = 8, bg="white")
         self.SRpvaluebox.grid(row=rownum, column=2, sticky = "W")
         self.SRpvaluebox.insert(0,self.SRpvalue)
@@ -8690,18 +8782,40 @@ class SAPMResultsFrame:
                                 font = widgetfont, command = self.SRpvaluesubmit, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRpvaluesubmitbut.grid(row=rownum, column=3)
 
-
-        # choose run variation number (latent inputs being +/-)
-        self.SRL8 = tk.Label(self.parent, text = 'result variant:', font = labelfont).grid(row=rownum, column=4, sticky='NSEW')
-        self.SRvariantvaluebox = tk.Entry(self.parent, width = 8, bg="white")
-        self.SRvariantvaluebox.grid(row=rownum, column=5, sticky = "W")
-        self.SRvariantvaluebox.insert(0,self.SRvariant)
-        # the entry boxes need a "submit" button so that the program knows when to take the entered values
-        self.SRvariantvaluesubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2,
-                                font = widgetfont, command = self.SRvariantvaluesubmit, relief='raised', bd = 5, highlightbackground = widgetbg)
-        self.SRvariantvaluesubmitbut.grid(row=rownum, column=6)
-
+        # reference stats file
         rownum = 11
+        # box etc for entering the name used in labeling the results files
+        self.SRstatsnamelabel = tk.Label(self.parent, text='SAPM stats file:', font=labelfont)
+        self.SRstatsnamelabel.grid(row=rownum, column=1, sticky='E')
+        self.SRstatsnametext = tk.StringVar()
+        self.SRstatsnametext.set(self.SRstatsname)
+        self.SRstatsnamebox = tk.Label(self.parent, textvariable=self.SRstatsnametext, bg=bgcol, fg="#4B4B4B",
+                                         font=infofont,
+                                         wraplength=250, justify='left')
+        self.SRstatsnamebox.grid(row=rownum, column=2, columnspan=1, sticky='W')
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SRstatsnamesubmit = tk.Button(self.parent, text="Browse", width=smallbuttonsize, bg=fgcol2, fg=fgletter2,
+                                             font=widgetfont, command=self.SRstatsnamebrowseaction, relief='raised',
+                                             bd=5, highlightbackground=widgetbg)
+        self.SRstatsnamesubmit.grid(row=rownum, column=3, sticky='N')
+        # the entry boxes need a "clear" button so that the program knows when to take the entered values
+        self.SRstatsnameclear = tk.Button(self.parent, text="Clear", width=smallbuttonsize, bg=fgcol1, fg=fgletter1,
+                                             font=widgetfont, command=self.SRstatsnameclearaction, relief='raised',
+                                             bd=5, highlightbackground=widgetbg)
+        self.SRstatsnameclear.grid(row=rownum, column=4, sticky='W')
+
+
+        # # choose run variation number (latent inputs being +/-)
+        # self.SRL8 = tk.Label(self.parent, text = 'result variant:', font = labelfont).grid(row=rownum, column=4, sticky='NSEW')
+        # self.SRvariantvaluebox = tk.Entry(self.parent, width = 8, bg="white")
+        # self.SRvariantvaluebox.grid(row=rownum, column=5, sticky = "W")
+        # self.SRvariantvaluebox.insert(0,self.SRvariant)
+        # # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        # self.SRvariantvaluesubmitbut = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2,
+        #                         font = widgetfont, command = self.SRvariantvaluesubmit, relief='raised', bd = 5, highlightbackground = widgetbg)
+        # self.SRvariantvaluesubmitbut.grid(row=rownum, column=6)
+
+        rownum = 12
         # button to launch the generation of outputs with the selected options/values
         self.SRrunoutputbutton = tk.Button(self.parent, text = "GO", width = smallbuttonsize, bg = fgcol1, fg = fgletter1, font = widgetfont, command = self.SRgenerateoutput, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRrunoutputbutton.grid(row=rownum, column=0, sticky='N')
@@ -8718,7 +8832,7 @@ class SAPMResultsFrame:
         # box etc for entering the name of the directory for saving the results
         # make a label to show the current setting of the network definition file directory name
 
-        rownum = 11
+        rownum = 12
         columnum = 4
         self.SRdrawfilelabel = tk.Label(self.parent, text = 'Draw params:', font = labelfont)
         self.SRdrawfilelabel.grid(row=rownum, column=columnum, sticky='E')
@@ -8731,7 +8845,7 @@ class SAPMResultsFrame:
         self.SRdrawfilebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRdrawfilebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRdrawfilebrowse.grid(row=rownum, column=columnum+2, sticky='W')
 
-        rownum = 12
+        rownum = 13
         # SAPMBfile
         columnum = 4
         self.SRBfilelabel = tk.Label(self.parent, text = 'SAPM B file:', font = labelfont)
@@ -8745,7 +8859,7 @@ class SAPMResultsFrame:
         self.SRBfilebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRBfilebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRBfilebrowse.grid(row=rownum, column=columnum+2, sticky='W')
 
-        rownum = 13
+        rownum = 14
         columnum = 4
         # option pull-down menu
         # initialchoice = 'sheet'
@@ -8757,7 +8871,7 @@ class SAPMResultsFrame:
         SRBsheet_menu.config(state = tk.DISABLED)
         self.SRBsheetfield_search_opt = SRBsheet_menu   # save this way so that values are not cleared
 
-        rownum = 13
+        rownum = 14
         columnum = 5
         # option pull-down menu
         # initialchoice = 'stat'
@@ -8769,7 +8883,7 @@ class SAPMResultsFrame:
         SRBcolumn_menu.config(state = tk.DISABLED)
         self.SRBcolumnfield_search_opt = SRBcolumn_menu   # save this way so that values are not cleared
 
-        rownum = 14
+        rownum = 15
         columnum = 4
         # put in base name for output files
         self.SRL11 = tk.Label(self.parent, text = 'Threshold:', font = labelfont).grid(row=rownum, column=columnum, sticky='NSEW')
