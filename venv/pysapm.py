@@ -9355,7 +9355,7 @@ def generate_null_data_set(regiondataname, covariatesname, npeople=0, variable_v
 #     return Mconn, ctarget, csource
 
 
-def run_null_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterdataname, timepoint = 'all', epoch = 'all', betascale = 0.1):
+def run_null_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterdataname, timepoint = 'all', epoch = 'all', betascale = 0.1, Lweight = 1.0):
     resultsdir, networkfilename = os.path.split(networkmodel)
     networkbasename, ext = os.path.splitext(networkfilename)
 
@@ -9366,7 +9366,7 @@ def run_null_test_on_network(nsims, networkmodel, cnums, regiondataname, cluster
     SAPMparametersname = os.path.join(resultsdir,'null_params.npy')
 
     SAPMrun_V2(cnums, null_regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkmodel, timepoint,
-                epoch, betascale = betascale, reload_existing = False, multiple_output = False)
+                epoch, betascale = betascale, Lweight = Lweight, reload_existing = False, multiple_output = False)
 
     # compile stats distributions for each connection
     results = np.load(SAPMresultsname, allow_pickle=True)
