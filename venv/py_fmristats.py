@@ -4,14 +4,6 @@ import scipy.stats as stats
 import scipy
 import math
 
-# def create_test_data():
-#     ts = 30
-#     test = np.zeros((10,10,10,ts))
-#     for tt in range(ts):
-#         test[3:5,3:5,3:5,tt] = 1.0 + 0.1*math.cos(tt*np.pi/5)
-#     test = test + 0.1*np.random.rand(10,10,10,ts)
-#     return test
-
 
 def py_GRFcorrected_pthreshold(p_corr, residual_data, search_mask, df=0):
      # return [p_unc, FWHM, R]
@@ -243,12 +235,3 @@ def py_ECdensity(t,df):
     return EC
 
 
-
-# # QU_p_val
-# # p = (1-tcdf(T,df));
-# import scipy.stats as stats
-# pval = stats.t.sf(np.abs(T), df)*2  # two-sided pvalue = Prob(abs(t)>tt)
-
-
-# QU_T_val
-# T = stats.t.ppf(1-p/2, df)    # p/2 to make it two-tailed t-value

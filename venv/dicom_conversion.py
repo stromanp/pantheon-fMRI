@@ -26,18 +26,6 @@ def find(lst, a):
     return [i for i, x in enumerate(lst) if x==a]
 
 
-# def read_dicom_directory(dicom_directory, stop_before_pixels=False):
-#     """
-#     List all files in a given directory (stop before pixels)
-#     If they are organized correctly, they should form a complete single dicom image series
-#     """
-#     file_list = []
-#     for root, _, files in os.walk(dicom_directory):
-#         for dicom_file in files:
-#             file_path = os.path.join(root, dicom_file)
-#             file_list.append(file_path)
-#     return file_list
-
 
 def get_database_numbers(databasename, dbhome, pname, seriesnumber = 0):
     # BASEdir = os.path.dirname(databasename)

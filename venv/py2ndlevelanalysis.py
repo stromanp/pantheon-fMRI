@@ -2052,25 +2052,15 @@ def group_comparison_ANOVA(filename1, filename2, covariates1, covariates2, pthre
                 # get region names, cluster numbers, etc.
                 Svalue = beta_sig[combo[ii], nt[ii], ss[ii]]
                 timepoint = nt[ii]
-                # sourcename = cluster_info[ss]['rname']
-                # sourcename = cluster_info[tt]['rname']
-                # mlist = pysem.ind2sub_ndims(nclusterlist[sourcenums], combo[ii]).astype(
-                #     int)  # cluster number for each source
-                # sourcecluster = mlist[ss[ii]]
-                # sourcecoords = cluster_info[sourcenums[ss[ii]]]['cluster_coords'][sourcecluster, :]
-                # sourcelimits = cluster_info[sourcenums[ss[ii]]]['regionlimits']
 
-                # connid = nt[ii] * 1e7 + targetnum * 1e5 + tt * 1e3 + sourcenums[ss[ii]] * 10 + sourcecluster
+
 
                 connection_info = [combo[ii], nt[ii], ss[ii]]
-                # values = np.concatenate(([targetname, tt, sourcename, sourcecluster, Svalue],
-                #                          list(targetcoords), list(targetlimits), list(sourcecoords), list(sourcelimits),
-                #                          connection_info))
+
                 entry = dict(zip(keys, connection_info))
 
                 results.append(entry)
                 Svalue_list.append(Svalue)
-                # connid_list.append(connid)
 
             #-------------sort and write out the results?-------------------------
             if len(results) > 0:
@@ -2557,10 +2547,6 @@ def run_ANOVA_or_ANCOVA2(beta1, beta2, cov1, cov2, covname, formula_key1, formul
     cov = list(cov1) + list(cov2)
 
     d = {'beta': beta, 'Group': group, covname:cov}
-    # print('size of beta is {}'.format(np.shape(beta)))
-    # print('size of group is {}'.format(np.shape(group)))
-    # print('size of cov is {}'.format(np.shape(cov)))
-    # print('d = {}'.format(d))
 
     df = pd.DataFrame(data=d)
 
@@ -2582,39 +2568,9 @@ def run_ANOVA_or_ANCOVA2(beta1, beta2, cov1, cov2, covname, formula_key1, formul
     return anova_table, p_MeoG, p_MeoC, p_intGC
 
 
-# repeated measures
-# def run_repeated_measures_ANCOVA(beta1, beta2, cov1, cov2, covname, formula_key1, formula_key2, formula_key3, atype):
-#     # Create the data
-#     # make up test values
-#     NP1 = len(beta1)
-#     NP2 = len(beta2)
-#
-#     beta = np.concatenate((beta1, beta2))
-#     people = np.repeat(np.array(range(NP1))+1,2)
-#     condition = np.tile(['con1','con2'],NP1)
-#     covariates = np.concatenate((cov1, cov2))
-#     covariates += 0.1*np.random.rand(len(covariates))
-#     df = pd.DataFrame({'beta':beta, 'people': people,
-#                               'condition': condition,
-#                               'covariates': covariates})
-#
-#     print(df)
-#
-#     try:
-#         anova_table = AnovaRM(df,
-#                             depvar='beta',
-#                             subject='people',
-#                             within=['condition','covariates']
-#                               ).fit()
-#     except:
-#         print('this doesn\'t work....')
-#         anova_table = []
-#
-#     return anova_table
-#
 
 
-# def run_ANOVA_or_ANCOVA2(beta1, beta2, cov1, cov2, covname = 'cov1', mode = 'ANOVA'):
+
 def run_ANOVA_or_ANCOVA1(beta1, cov1, cov2, covname1, covname2, formula_key1, formula_key2, formula_key3, atype):
     # make up test values
     NP = len(beta1)
@@ -2640,37 +2596,4 @@ def run_ANOVA_or_ANCOVA1(beta1, cov1, cov2, covname1, covname2, formula_key1, fo
     return anova_table, p_MeoG, p_MeoC, p_intGC
 
 
-# def move_network_data(network_filename, newfolder):
-#     # dict_keys(['type', 'resultsnames', 'network', 'regionname', 'clustername', 'DBname', 'DBnum'])
-#     pname,fname = os.path.split(network_filename)
-#     data1 = np.load(network_filename, allow_pickle=True).flat[0]
-#
-#     if pname == newfolder:   # datafile has already been moved, need to update contents
-#         newfilename = network_filename
-#     else:
-#         newfilename = os.path.join(newfolder,fname)
-#
-#     # resultsnames
-#     newresultsnames = copy.deepcopy(data1['resultsnames'])
-#     for nn in range(len(newresultsnames)):
-#         p,f = os.path.split(newresultsnames[nn])
-#         newresultsnames[nn] = os.path.join(newfolder,f)
-#
-#     # clustername
-#     newclustername = copy.deepcopy(data1['clustername'])
-#     p,f = os.path.split(newclustername)
-#     newclustername = os.path.join(newfolder,f)
-#
-#     # regionname
-#     newregionname = copy.deepcopy(data1['regionname'])
-#     p,f = os.path.split(newregionname)
-#     newregionname = os.path.join(newfolder,f)
-#
-#     newdata = copy.deepcopy(data1)
-#     newdata['resultsnames'] = newresultsnames
-#     newdata['clustername'] = newclustername
-#     newdata['regionname'] = newregionname
-#
-#     # write the result
-#     np.save(newfilename,newdata)
 

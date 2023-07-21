@@ -9,22 +9,6 @@ import pysem
 import multiprocessing as mp
 import time
 
-# import time
-# import os
-# import random
-# import multiprocessing as mp
-# import matplotlib.pyplot as plt
-# import py2ndlevelanalysis
-# import draw_sapm_diagram2 as dsd2
-# from statsmodels.formula.api import ols
-# from sklearn.cluster import KMeans
-# from sklearn.decomposition import PCA
-# import scipy.stats as stats
-# import pandas as pd
-# import statsmodels.api as sm
-# import pyclustering
-# import pydisplay
-# from mpl_toolkits import mplot3d
 
 
 #

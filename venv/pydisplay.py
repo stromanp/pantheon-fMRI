@@ -437,70 +437,6 @@ def pydisplayvoxelregionslice(templatename, template_img, cx, cy, cz, orientatio
     return outputimg
 
 
-# def pydisplay_data_from_database(DBname, DBnumlist, prefix, orientation='sagittal', windownum = 100, refresh_interval = 2.0):
-#
-#     if isinstance(DBnumlist,str):
-#         DBnumlist = parsenumlist(DBnumlist)
-#
-#     xls = pd.ExcelFile(DBname, engine = 'openpyxl')
-#     df1 = pd.read_excel(xls, 'datarecord')
-#
-#     plt.close(windownum)
-#     fig = plt.figure(windownum)
-#
-#     for dbnum in DBnumlist:
-#         plt.cla()
-#         dbhome = df1.loc[dbnum, 'datadir']
-#         fname = df1.loc[dbnum, 'niftiname']
-#         niiname = os.path.join(dbhome, fname)
-#
-#         p,f = os.path.split(niiname)
-#         prefix_niiname = os.path.join(p,prefix+f)
-#
-#         temp_data = nib.load(prefix_niiname)
-#         img_data = temp_data.get_fdata()
-#
-#         if np.ndim(temp_data) > 3:
-#             img_data = np.mean(img_data,axis = 3)
-#
-#         xs,ys,zs = np.shape(img_data)
-#         dannot = 2
-#
-#         if orientation not in ['axial','sagittal','coronal']:
-#             orientation = 'axial'
-#
-#         if orientation == 'axial':
-#             z0 = np.floor(zs/2).astype(int)
-#             plt.imshow(img_data[:,:,z0],'gray')
-#             xa1 = dannot
-#             xa2 = ys-dannot
-#             ya1 = dannot
-#             ya2 = xs-dannot
-#
-#         if orientation == 'sagittal':
-#             x0 = np.floor(xs / 2).astype(int)
-#             plt.imshow(img_data[x0, :, :], 'gray')
-#             xa1 = 5
-#             xa2 = zs-10
-#             ya1 = 5
-#             ya2 = ys-10
-#
-#         if orientation == 'coronal':
-#             y0 = np.floor(ys / 2).astype(int)
-#             plt.imshow(img_data[:, y0, :], 'gray')
-#             xa1 = dannot
-#             xa2 = zs-dannot
-#             ya1 = dannot
-#             ya2 = xs-dannot
-#
-#         plt.annotate('{}'.format(dbnum),(xa1,ya1), color = [1,1,0],fontsize = 11, horizontalalignment='left')
-#         plt.annotate('{}'.format(dbnum),(xa1,ya2), color = [1,1,0],fontsize = 11, horizontalalignment='left')
-#         plt.annotate('{}'.format(dbnum),(xa2,ya1), color = [0,1,0],fontsize = 11, horizontalalignment='right')
-#         plt.annotate('{}'.format(dbnum),(xa2,ya2), color = [0,1,0],fontsize = 11, horizontalalignment='right')
-#         plt.show()
-#         plt.pause(refresh_interval)
-
-
 def parsenumlist(entered_text):
     # need to make sure we are working with numbers, not text
     # first, replace any double spaces with single spaces, and then replace spaces with commas
@@ -536,89 +472,6 @@ def parsenumlist(entered_text):
     entered_values = np.fromstring(entered_text, dtype=int, sep=',')
 
     return entered_values
-
-
-
-
-# display named regions in different colors
-# def pydisplayvoxels(templatename, cx,cy,cz, colorlist = [1,0,0]):
-#     templatename = templatename.lower()
-#     resolution = 1
-#     template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = load_templates.load_template_and_masks(templatename, resolution)
-#
-#     background = template_img.astype('double')
-#     background = background/np.max(background)
-#     red = copy.deepcopy(background)
-#     green = copy.deepcopy(background)
-#     blue = copy.deepcopy(background)
-#
-#     # color the voxels
-#     red[cx,cy,cz] = colorlist[0]
-#     green[cx,cy,cz] = colorlist[1]
-#     blue[cx,cy,cz] = colorlist[2]
-#
-#     # slice results and put them into a mosaic format image
-#     xs,ys,zs = np.shape(template_img)
-#     ncols = (np.sqrt(zs)).astype(int)
-#     nrows = np.ceil(zs/ncols).astype(int)
-#
-#     # this might work for brain regions as well
-#     if templatename == 'brain':
-#         # display brain data
-#         outputimg = np.zeros([nrows*ys,ncols*xs,3])
-#
-#         for zz in range(zs):
-#             colnum = zz % ncols
-#             rownum = np.floor(zz/ncols)
-#             x1 = rownum*xs
-#             x2 = (rownum+1)*xs-1
-#             y1 = colnum*ys
-#             y2 = (colnum+1)*ys-1
-#             redrot = red[:,yc1:yc2,zz];  redrot = redrot[:,::-1].T
-#             greenrot = green[:,yc1:yc2,zz];  greenrot = greenrot[:,::-1].T
-#             bluerot = blue[:,yc1:yc2,zz];  bluerot = bluerot[:,::-1].T
-#             outputimg[y1:y2,x1:x2,0:3] = np.dstack((redrot,greenrot,bluerot))
-#
-#     if templatename == 'ccbs':
-#         # display brainstem/cord
-#         yc1 = 20;  yc2 = 76;  ys2 = yc2-yc1
-#         outputimg = np.zeros([nrows*ys2,ncols*xs,3])
-#
-#         for zz in range(zs):
-#             colnum = zz % ncols
-#             rownum = np.floor(zz/ncols).astype(int)
-#             x1 = colnum*xs
-#             x2 = (colnum+1)*xs
-#             y1 = rownum*ys2
-#             y2 = (rownum+1)*ys2
-#             # need to rotate each from by 90 degrees
-#             redrot = red[:,yc1:yc2,zz];  redrot = redrot[:,::-1].T
-#             greenrot = green[:,yc1:yc2,zz];  greenrot = greenrot[:,::-1].T
-#             bluerot = blue[:,yc1:yc2,zz];  bluerot = bluerot[:,::-1].T
-#             outputimg[y1:y2,x1:x2,0:3] = np.dstack((redrot,greenrot,bluerot))
-#
-#     if templatename != 'brain' and templatename != 'ccbs':
-#         # do the other thing
-#         yc1 = 20;  yc2 = 41;  ys2 = yc2-yc1
-#         outputimg = np.zeros([nrows*ys2,ncols*xs,3])
-#
-#         for zz in range(zs):
-#             colnum = zz % ncols
-#             rownum = np.floor(zz/ncols).astype(int)
-#             x1 = colnum*xs
-#             x2 = (colnum+1)*xs
-#             y1 = rownum*ys2
-#             y2 = (rownum+1)*ys2
-#             # need to rotate each from by 90 degrees
-#             redrot = red[:,yc1:yc2,zz];  redrot = redrot[:,::-1].T
-#             greenrot = green[:,yc1:yc2,zz];  greenrot = greenrot[:,::-1].T
-#             bluerot = blue[:,yc1:yc2,zz];  bluerot = bluerot[:,::-1].T
-#             outputimg[y1:y2,x1:x2,0:3] = np.dstack((redrot,greenrot,bluerot))
-#
-#     outputimg[outputimg>1.] = 1.0
-#     outputimg[outputimg<0.] = 0.0
-#
-#     return outputimg
 
 
 def pywriteexcel(data, excelname, excelsheet = 'pydata', write_mode = 'replace', floatformat = '%.2f'):
@@ -1159,24 +1012,6 @@ def display_anatomical_figure(filename, connectiondata, templatename, regioncolo
     TargetCanvas.draw()
 
 
-# def display_sapm_cluster(clusterdataname, regionname, clusternumber):
-#     cluster_data = np.load(clusterdataname, allow_pickle=True).flat[0]
-#     cluster_properties = cluster_data['cluster_properties']
-#     # dict_keys(['cx', 'cy', 'cz', 'IDX', 'nclusters', 'rname', 'regionindex', 'regionnum'])
-#
-#     nregions = len(cluster_properties)
-#     nclusterlist = [cluster_properties[i]['nclusters'] for i in range(nregions)]
-#     rnamelist = [cluster_properties[i]['rname'] for i in range(nregions)]
-#     nclusterstotal = np.sum(nclusterlist)
-#
-#     r = rnamelist.index(regionname)
-#     cx = cluster_properties[r]['cx']
-#     cy = cluster_properties[r]['cy']
-#     cz = cluster_properties[r]['cz']
-
-
-
-# draw SAPM diagram for single output model----------------------------------------------------
 def draw_sem_plot(results_file, sheetname, rownumbers, drawregionsfile, statname, scalefactor, thresholdtext = 'abs>0', writefigure = False):
     # draw a plot of connections between anatomical regions based on SEM results, and a definition of how to draw the network
     regionnames = 'regions'
