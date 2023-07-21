@@ -6780,6 +6780,11 @@ class SAPMFrame:
                                 epoch=epoch, betascale=betascale, Lweight=Lweight)
         print('results of network null test ({} samples) written to {}'.format(nsims, output))
 
+        #--------------temporary for testing-------------------------------------------------
+        # output = pysapm.run_sim_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterdataname, timepoint=timepoint,
+        #                         epoch=epoch, betascale=betascale, Lweight=Lweight)
+        # print('results of network sim test ({} samples) written to {}'.format(nsims, output))
+
 
     def SAPMprefixsubmitaction(self):
         settings = np.load(settingsfile, allow_pickle = True).flat[0]

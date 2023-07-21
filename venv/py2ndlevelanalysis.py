@@ -1517,13 +1517,16 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                     # pooled standard deviation:
                     sp = np.sqrt(((NP1 - 1) * var_beta1 + (NP2 - 1) * var_beta2) / (NP1 + NP2 - 2))
 
-                    Tbeta = (meanB1 - meanB2) / (sp * np.sqrt(1 / NP1 + 1 / NP2))
+                    B1diff = meanB1 - meanB2
+                    sem_diff = (sp * np.sqrt(1 / NP1 + 1 / NP2))
+                    Tbeta = B1diff / sem_diff
                     Tthresh = stats.t.ppf(1 - pthreshold, NP1 - 1)
                     beta_sig = np.abs(Tbeta) > Tthresh  # size is ncombinations x ntimepoints x nsources
                 else:
                     # NP = 1  special case
-                    sp = np.sqrt((sem1**2 + sem2**2)/2.0)
-                    Tbeta = (B1 - B2) / (sp + 1.0e-20)
+                    B1diff = B1 - B2
+                    sem_diff = np.sqrt((sem1**2 + sem2**2)/2.0)
+                    Tbeta = (B1 - B2) / (sem_diff + 1.0e-20)
                     beta_sig = np.abs(Tbeta) > Tthresh  # size is ncombinations x ntimepoints x nsources
 
                 pname1, fname1 = os.path.split(filename1)
@@ -1531,6 +1534,13 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                 pname2, fname2 = os.path.split(filename2)
                 fname2, ext = os.path.splitext(fname2)
                 outputimagename = os.path.join(pname1, fname1 + '_' + fname2 + '_GLM_group_diff.png')
+
+                outputresultsname = os.path.join(pname1, fname1 + '_' + fname2 + '_GLM_group_diff.npy')
+                results = {'type': 'GLM', 'B': B1diff, 'sem': sem_diff, 'T': Tbeta, 'template': template_img,
+                           'regionmap': regionmap_img, 'roi_map': roi_map, 'Tthresh': Tthresh,
+                           'normtemplatename': normtemplatename, 'DBname': 'undefined', 'DBnum': []}
+                np.save(outputresultsname, results)
+
             else:   # paired difference
                 if NP1 > 1:
                     diff = B1-B2
@@ -1541,8 +1551,10 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                     beta_sig = np.abs(Tbeta) > Tthresh
                 else:
                     # the paired difference with one sample in each group is the same as the unpaired difference
-                    sp = np.sqrt((sem1**2 + sem2**2)/2.0)   # the two sets of results need to be from the same number of volumes
-                    Tbeta = (B1 - B2) / (sp + 1.0e-20)
+                    mean_diff = B1 - B2
+                    sem_diff = np.sqrt((sem1**2 + sem2**2)/2.0)
+                    Tbeta = mean_diff/(sem_diff + 1.0e-10)
+
                     beta_sig = np.abs(Tbeta) > Tthresh  # size is ncombinations x ntimepoints x nsources
 
                 pname1, fname1 = os.path.split(filename1)
@@ -1550,6 +1562,12 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                 pname2, fname2 = os.path.split(filename2)
                 fname2, ext = os.path.splitext(fname2)
                 outputimagename = os.path.join(pname1, fname1 + '_' + fname2 + '_GLM_group_paireddiff.png')
+
+                outputresultsname = os.path.join(pname1, fname1 + '_' + fname2 + '_GLM_group_paireddiff.npy')
+                results = {'type': 'GLM', 'B': mean_diff, 'sem': sem_diff, 'T': Tbeta, 'template': template_img,
+                           'regionmap': regionmap_img, 'roi_map': roi_map, 'Tthresh': Tthresh,
+                           'normtemplatename': normtemplatename, 'DBname': 'undefined', 'DBnum': []}
+                np.save(outputresultsname, results)
 
 
             # create output figure
@@ -1559,6 +1577,7 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
             matplotlib.image.imsave(outputimagename, outputimg)
         #---------------------------------------------------
         print('results written to {}'.format(outputimagename))
+
         return outputimagename
 
 
