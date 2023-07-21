@@ -597,41 +597,12 @@ def py_mirt3D_similarity(main, Xx, Xy, Xz):
     
     
 
-# def py_find_imagebox3d(im):
-# #    ind=find(~isnan(im));
-# #    [i,j,k]=ind2sub(size(im),ind);
-#     i,j,k=np.where(np.isfinite(im))
-#
-#     n=0 #% extra border size to cut
-# #    y=min(i)+n:max(i)-n;
-# #    x=min(j)+n:max(j)-n;
-# #    z=min(k)+n:max(k)-n;
-#
-# #    x = range(np.min(i)+n, np.max(i)-n)
-# #    y = range(np.min(j)+n, np.max(j)-n)
-# #    z = range(np.min(k)+n, np.max(k)-n)
-#
-#     x0 = np.min(i)+n
-#     x1 = np.max(i)-n
-#     y0 = np.min(j)+n
-#     y1 = np.max(j)-n
-#     z0 = np.min(k)+n
-#     z1 = np.max(k)-n
-#     return x0,x1,y0,y1,z0,z1
-
 
 def py_find_imagebox2d(im):
-#    ind=find(~isnan(im));
-#    [i,j,k]=ind2sub(size(im),ind);
     i,j=np.where(np.isfinite(im))
     
     n=0 #% extra border size to cut
-#    y=min(i)+n:max(i)-n;
-#    x=min(j)+n:max(j)-n;
-#    z=min(k)+n:max(k)-n;
-#    x = range(np.min(i)+n, np.max(i)-n)
-#    y = range(np.min(j)+n, np.max(j)-n)
-    
+
     x0 = np.min(i)+n
     x1 = np.max(i)-n
     y0 = np.min(j)+n
@@ -693,14 +664,9 @@ def py_mirt3D_regsolve(X,T,main,optim,mode=0):
 
 #    % find the displacements, as the regularization is defined over the
 #    % displacements of the B-spline control points
-#    X=X-main.Xgrid;
     X=X-main['Xgrid'] 
     
     if mode > 0:       #% if we want simply compute the value of the regularization term
-#        X=X-main['Xgrid']   
-#        dux=mirt_dctn(X(:,:,:,1));
-#        duy=mirt_dctn(X(:,:,:,2));
-#        duz=mirt_dctn(X(:,:,:,3));
         
         dux=py_dct3D(X[:,:,:,0])
         duy=py_dct3D(X[:,:,:,1])
@@ -1067,157 +1033,4 @@ def py_mirt3D_transform(refim, res):
     return im
 
 
-# function im=mirt3D_transform(refim, res)
-# def py_mirt3D_transform_nearest(refim, res):
-#     # return im
-#
-#     dimen = np.shape(refim)
-#
-#     # Precompute the matrix B-spline basis functions
-#     F = py_mirt3D_F(res['okno'])
-#
-#     # obtaine the position of all image voxels (Xx,Xy,Xz) from the positions
-#     # of B-spline control points (res.X)
-#     Xx, Xy, Xz = py_mirt3D_nodes2grid(res['X'], F, res['okno'])
-#
-#     # interpolate the image refim at Xx, Xy, Xz
-#     #    newim=mirt3D_mexinterp(refim, Xx, Xy,Xz); newim(isnan(newim))=0;
-#     #    newim = nd.map_coordinates(refim, [Xx, Xy,Xz])   # original method
-#
-#     newim = i3d.warp_image_nearest(refim, Xx, Xy, Xz)  # use this to be consistent with other functions
-#
-#     # cut the interpolated image size to the original size
-#     # the image produced by B-splines has an additional black border,
-#     # these lines remove that border.
-#     im = np.zeros(dimen)
-#     M, N, K = np.shape(newim)
-#     im[:np.min([dimen[0], M]), :np.min([dimen[1], N]), :np.min([dimen[2], K])] = newim[:np.min([dimen[0], M]), :np.min([dimen[1], N]), :np.min([dimen[2], K])]
-#
-#     return im
 
-
-
-# def new_coreg_method(refimage, image, stepsizes, similaritymethod, optimweight_init, optimlimit, regularizationweight, tol,maxiter):
-#     # 1) scale down both images by stepsizes
-#     # 2) find the optimal shifts, based on the similarity method
-#     # 3) expand the images to the next step size and repeat the process
-#     # refimage and image must be the same size
-#     # regularization weight is between 0 (none) and 1 (the entire image is shifted the same way
-#
-#     refimage[np.isnan(refimage)] = 0.
-#     image[np.isnan(image)] = 0.
-#
-#     # similaritymethod = 'ssd'
-#
-#     [xs,ys,zs] = np.shape(image)
-#
-#     nsteps = len(stepsizes)
-#     for nn, step in enumerate(stepsizes):
-#         optimweight = optimweight_init
-#         newsize = np.ceil(np.array([xs,ys,zs])/step).astype(int)
-#         newsize[newsize < 8] = 8  # limit the smallest dimension
-#         image2 = i3d.resize_3D(image, newsize)
-#         refimage2 = i3d.resize_3D(refimage, newsize)
-#
-#         edgemask = np.ones(newsize)
-#         edgemask[0, :, :] = 0.
-#         edgemask[-1, :, :] = 0.
-#         edgemask[:, 0, :] = 0.
-#         edgemask[:, -1, :] = 0.
-#         edgemask[:, :, 0] = 0.
-#         edgemask[:, :, -1] = 0.
-#
-#         if nn == 0:
-#             [Xt,Yt,Zt] = np.mgrid[range(newsize[0]),range(newsize[1]),range(newsize[2])]
-#             [X,Y,Z] = np.mgrid[range(newsize[0]),range(newsize[1]),range(newsize[2])]
-#             X0 = copy.deepcopy(X)
-#             Y0 = copy.deepcopy(Y)
-#             Z0 = copy.deepcopy(Z)
-#         else:
-#             [Xt,Yt,Zt] = np.mgrid[range(newsize[0]),range(newsize[1]),range(newsize[2])]
-#             X = i3d.resize_3D(X*newsize[0]/xs, newsize)
-#             Y = i3d.resize_3D(Y*newsize[1]/ys, newsize)
-#             Z = i3d.resize_3D(Z*newsize[2]/zs, newsize)
-#             image2 = i3d.warp_image(image2,X,Y,Z)
-#
-#         M0 = new_similarity_measure(refimage2*edgemask, image2*edgemask, similaritymethod)
-#         dval = 1.0  # initialize
-#         iter = 0
-#         print('iter {}  M0 = {}'.format(iter,M0))
-#         while (iter < maxiter) and (optimweight > optimlimit):
-#             iter += 1
-#
-#             diff = refimage2 - image2
-#             gx_int, gy_int, gz_int = np.gradient(refimage2)
-#
-#             X_test = X - optimweight * diff / (gx_int + 1.0e-20)
-#             Y_test = Y - optimweight * diff / (gy_int + 1.0e-20)
-#             Z_test = Z - optimweight * diff / (gz_int + 1.0e-20)
-#
-#             image2_test = i3d.warp_image(image2, X_test, Y_test, Z_test)
-#             M = new_similarity_measure(refimage2 * edgemask, image2_test * edgemask, similaritymethod)
-#             print('iter {}  M = {}'.format(iter,M))
-#             dval = M - M0  # want to increase to maximum value of 1.0
-#
-#             if (dval > tol):
-#                 # smooth for regularization
-#                 M0 = M
-#                 if regularizationweight > 0:
-#                     dX = X_test - X0
-#                     dY = Y_test - Y0
-#                     dZ = Z_test - Z0
-#                     smoothval = regularizationweight*np.max([xs,ys,zs])
-#                     if smoothval < 1.0:  smoothval = 1.0
-#                     X = X0 + nd.gaussian_filter(dX, smoothval)
-#                     Y = Y0 + nd.gaussian_filter(dY, smoothval)
-#                     Z = Z0 + nd.gaussian_filter(dZ, smoothval)
-#                     image2 = i3d.warp_image(image2,X,Y,Z)
-#                 else:
-#                     X = X_test
-#                     Y = Y_test
-#                     Z = Z_test
-#                     image2 = image2_test
-#                 print('{} {} step {} iter {}  gamma {:.3e}'.format(similaritymethod, M, step, iter, optimweight))
-#             else:
-#                 optimweight *= 0.7
-#                 M0=M
-#                 print('{} {} step {} iter {}  gamma {:.3e}'.format(similaritymethod, 'no improvement', step, iter, optimweight))
-#             # do not update X,Y,Z
-#
-#         # either maxiter reached or optimlimit reached
-#         # create fullsize warping matrices
-#         X = i3d.resize_3D(X*xs/newsize[0], [xs,ys,zs])
-#         Y = i3d.resize_3D(Y*ys/newsize[1], [xs,ys,zs])
-#         Z = i3d.resize_3D(Z*zs/newsize[2], [xs,ys,zs])
-#         image2 = i3d.warp_image(image,X,Y,Z)
-#
-#     return image2, X, Y, Z
-#
-
-
-
-# def new_similarity_measure(refimage,image,method):
-#     if method == 'cc':
-#         R = np.corrcoef(refimage.flatten(),image.flatten())
-#         M = R[0,1]
-#         # optimum value = 1.0 (perfect correlation)
-#
-#     if method == 'ssd':
-#         ri = refimage/np.max(refimage)
-#         ii = image/np.max(image)
-#         ri -= np.mean(ri)
-#         ii -= np.mean(ii)
-#         Mref = np.nansum(ri**2)
-#         M = 1.0 - np.nansum((ri-ii)**2)/Mref
-#         # optimum value = 1.0 (perfect match)
-#
-#     if method == 'sad':
-#         ri = refimage/np.max(refimage)
-#         ii = image/np.max(image)
-#         ri -= np.mean(ri)
-#         ii -= np.mean(ii)
-#         Mref = np.nansum(np.sqrt(ri**2))
-#         M = 1.0 - np.nansum(np.sqrt((ri-ii)**2))/Mref
-#         # optimum value = 1.0 (perfect match)
-#
-#     return M

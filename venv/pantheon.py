@@ -442,39 +442,7 @@ class BaseFrame:
         self.L0.grid(row=1, column = 0, columnspan = 3, sticky = 'W')
 
 
-# --------------------BASE FRAME2---------------------------------------------------------------
-# Definition of the frame that holds pictures, labels, etc.
-# class BaseFrame2:
-#     # initialize the values, keeping track of the frame this definition works on (parent), and
-#     # also the main window containing that frame (controller)
-#     def __init__(self, parent, controller):
-#         parent.configure(relief='raised', bd=5, highlightcolor=fgcol2)  # just defining some visual features
-#         self.parent = parent
-#         self.controller = controller
-#
-#         # make objects in the base frame
-#         # load in a picture, for no good reason, and display it in the window to look nice :)
-#         photo1 = tk.PhotoImage(file=os.path.join(basedir, 'queens_flag2.gif'))
-#         controller.photob1 = photo1  # need to keep a copy so it is not cleared from memory
-#         # put this figure, in the 1st row, 1st column, of a grid layout for the window
-#         # and make the background black
-#         self.B1 = tk.Label(self.parent, image=photo1, bg='grey94').grid(row=0, column=0, sticky='W')
-#
-#         # load in another picture, because if one picture is good, two is better
-#         photo2 = tk.PhotoImage(file=os.path.join(basedir, 'lablogo.gif'))
-#         controller.photob2 = photo2  # need to keep a copy so it is not cleared from memory
-#         # put in another figure, for pure artistic value, in the 1st row, 2nd column, of a grid layout for the window
-#         # and make the background black
-#         self.B2 = tk.Label(self.parent, image=photo2, bg='grey94').grid(row=0, column=1, sticky='W')
-#
-#         # create a label under the pictures (row 2), spanning two columns, to tell the user what they are running
-#         # specify a black background and white letters, with 12 point bold font
-#         self.L1 = tk.Label(self.parent, text="SC/BS fMRI Analysis", bg=bgcol, fg=fgcol1, font="none 16 bold")
-#         self.L1.grid(row=1, column=0, columnspan=2, sticky='W')
 
-
-#--------------------OPTIONS FRAME---------------------------------------------------------------
-# Definition of the frame that holds the buttons for choosing which frame to have visible
 class OptionsFrame:
     # initialize the values, keeping track of the frame this definition works on (parent), and
     # also the main window containing that frame (controller)
@@ -6253,14 +6221,7 @@ class DisplayFrame:
             svgname = pydisplay.draw_sem_plot(results_file, sheetname, rownumbers, drawregionsfile, statname, scalefactor, thresholdtext='abs>0',
                           writefigure=True)
 
-    # def DISPconndatabrowse(self):
-    #     # use the input data and generate the figures
-    #     filechoice = tkf.askopenfilename(title="Select SEM results excel file",
-    #                                      filetypes=(("excel files", "*.xlsx"), ("all files", "*.*")))
-    #     print('SEM results file = ', filechoice)
-    #     self.DISPconnplotnamefull = filechoice
-    #     p,f = os.path.split(filechoice)
-    #     self.DISPconnplotname.set(f)
+
 
     def DISPconndefbrowse(self):
         # use the input data and generate the figures
@@ -6600,7 +6561,8 @@ class DisplayFrame:
         self.DISPrunbutton = tk.Button(self.parent, text = 'Generate Figures', width = bigbigbuttonsize, bg = fgcol1, fg = fgletter1, font = widgetfont, command = self.DISPgeneratefigs, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.DISPrunbutton.grid(row = 18, column = 1, columnspan = 2)
 
-
+# ----------DISPLAY FRAME 2-------------------------------------------------------------------------
+#
 class DisplayFrame2:
     def DISP2saveclick1(self):
         # save the figure in PlotFigure3, Canvas3
