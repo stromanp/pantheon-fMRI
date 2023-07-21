@@ -1,12 +1,66 @@
-#-----------------------------------------------------------------------------------
-#  apply structural equation modeling (SEM) using predefined clusters, region data
-#  and neural network model
+"""
+pysem.py
+
+This set of functions is for Structural Equation Modeling (SEM)
+in the form that was developed by P. Stroman
+
+Validation of structural equation modeling (SEM) methods for functional MRI data
+acquired in the human brainstem and spinal cord
+P. W. Stroman
+Critical Reviews in Biomedical Engineering 44(4): 227-241 (2016).
+
+Based on a predefined anatomical network model, the BOLD signal variations in
+each reigon are modelled as a linear combination of the BOLD signals in the region
+that may provide the input signaling to the region.  The results are the beta values
+showing the apparent connectivity strenths between the regions, including the
+direciton of the influence.
+
+"""
+
+#-----------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------
+# "Pantheon" is a python software repository for complete analysis of functional
+# magnetic resonance imaging data at all level of the central nervous system,
+# including the brain, brainstem, and spinal cord.
 #
-# 1) identify data sets to load
-# 2) identify analysis type (1-source, 2-source, network)
-# 3) identify network definition, if applicable
-# 4) carry out sem analysis
-# 5) display results
+# The software in this repository was written by P. Stroman, and the bulk of the methods in this
+# package have been developed by P. W. Stroman, Queen's University at Kingston, Ontario, Canada.
+#
+# Some of the methods have been adapted from other freely available packages
+# as noted in the documentation.
+#
+# This software is for research purposes only, and no guarantees are given that it is
+# free of bugs or errors.
+#
+# Use this software as needed, with the condition that you reference it in any
+# published works or presentations, with the following citations:
+#
+# Proof-of-concept of a novel structural equation modelling approach for the analysis of
+# functional MRI data applied to investigate individual differences in human pain responses
+# P. W. Stroman, J. M. Powers, G. Ioachim
+# Human Brain Mapping, 44:2523–2542 (2023). https://doi.org/10.1002/hbm.26228
+#
+#  Ten key insights into the use of spinal cord fMRI
+#  J. M Powers, G. Ioachim, P. W. Stroman
+#  Brain Sciences 8(9), (DOI: 10.3390/brainsci8090173 ) 2018.
+#
+#  Validation of structural equation modeling (SEM) methods for functional MRI data acquired in the human brainstem and spinal cord
+#  P. W. Stroman
+#  Critical Reviews in Biomedical Engineering 44(4): 227-241 (2016).
+#
+#  Assessment of data acquisition parameters, and analysis techniques for noise
+#  reduction in spinal cord fMRI data
+#  R.L. Bosma & P.W. Stroman
+#  Magnetic Resonance Imaging, 2014 (10.1016/j.mri.2014.01.007).
+#
+# also see https://www.queensu.ca/academia/stromanlab/
+#
+# Patrick W. Stroman, Queen's University, Centre for Neuroscience Studies
+# stromanp@queensu.ca
+#-----------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------
+
+
 
 import pyclustering
 import numpy as np

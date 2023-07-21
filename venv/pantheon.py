@@ -2,29 +2,53 @@
 pantheon.py
 version 1.0.0
 
-Created on Tue Apr 21 16:16:09 2020
-Last edited  10:33 am Saturday, April 25, 2020
+This is the main calling function for all of the components of the Pantheon analysis
+package. It includes definititions of the graphical user interface to guide the setup
+and inputs of parameters for calling all other functions.
 
-@author: Patrick W. Stroman, Queen's University, Kingston
-
-This module organizes inputs to functions to load, pre-process, and analyze 
-functional MRI data from the brainstem and spinal cord
-
-Jobs to do:
-1) Specify database file (done, excepting for creating new database file, and functions to read the database)
-2) Specify database entry numbers to work on (done)
-3) Conversion from DICOM to NIfTI format (done)
-4) Calculation of normalization parameters (done)
-5) Pre-processing of data (done)
-6) Model-driven fit of predicted BOLD responses to voxel data (GLM)) (done, except for creating results figure)
-7) Definition of region clusters, and extraction of cluster data
-8) Data-driven connectivity analysis, using structural equation modeling (SEM), and advances soon to come ...)
-9) Regression analysis of cluster data
-10) Visualization of results
-
+#-----------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------
+# "Pantheon" is a python software repository for complete analysis of functional
+# magnetic resonance imaging data at all level of the central nervous system,
+# including the brain, brainstem, and spinal cord.
+#
+# The software in this repository was written by P. Stroman, and the bulk of the methods in this
+# package have been developed by P. W. Stroman, Queen's University at Kingston, Ontario, Canada.
+#
+# Some of the methods have been adapted from other freely available packages
+# as noted in the documentation.
+#
+# This software is for research purposes only, and no guarantees are given that it is
+# free of bugs or errors.
+#
+# Use this software as needed, with the condition that you reference it in any
+# published works or presentations, with the following citations:
+#
+# Proof-of-concept of a novel structural equation modelling approach for the analysis of
+# functional MRI data applied to investigate individual differences in human pain responses
+# P. W. Stroman, J. M. Powers, G. Ioachim
+# Human Brain Mapping, 44:2523–2542 (2023). https://doi.org/10.1002/hbm.26228
+#
+#  Ten key insights into the use of spinal cord fMRI
+#  J. M Powers, G. Ioachim, P. W. Stroman
+#  Brain Sciences 8(9), (DOI: 10.3390/brainsci8090173 ) 2018.
+#
+#  Validation of structural equation modeling (SEM) methods for functional MRI data acquired in the human brainstem and spinal cord
+#  P. W. Stroman
+#  Critical Reviews in Biomedical Engineering 44(4): 227-241 (2016).
+#
+#  Assessment of data acquisition parameters, and analysis techniques for noise
+#  reduction in spinal cord fMRI data
+#  R.L. Bosma & P.W. Stroman
+#  Magnetic Resonance Imaging, 2014 (10.1016/j.mri.2014.01.007).
+#
+# also see https://www.queensu.ca/academia/stromanlab/
+#
+# Patrick W. Stroman, Queen's University, Centre for Neuroscience Studies
+# stromanp@queensu.ca
+#-----------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------
 """
-# sys.path.append(r'C:\Users\Stroman\PycharmProjects\pantheon\venv')
-# sys.path.append('/Users/brieanakeast/PycharmProjects/pantheon-fMRI/venv')
 
 # import necessary modules 
 import tkinter as tk

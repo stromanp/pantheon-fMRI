@@ -1,9 +1,56 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue May  5 19:28:21 2020
+image_operations_3D.py
 
-@author: stroman
+This file contains a range of functions for manipulating 2D and 3D images
+including spatial transformations, format changes, and definitions of affine matrices
+
 """
+
+#-----------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------
+# "Pantheon" is a python software repository for complete analysis of functional
+# magnetic resonance imaging data at all level of the central nervous system,
+# including the brain, brainstem, and spinal cord.
+#
+# The bulk of the methods in this package have been developed by P. W. Stroman,
+# Queen's University at Kingston, Ontario, Canada.
+#
+# Some of the methods have been adapted from other freely available packages
+# as noted in the documentation.
+#
+# This software is for research purposes only, and no guarantees are given that it is
+# free of bugs or errors.
+#
+# Use this software as needed, with the condition that you reference it in any
+# published works or presentations, with the following citations:
+#
+# Proof-of-concept of a novel structural equation modelling approach for the analysis of
+# functional MRI data applied to investigate individual differences in human pain responses
+# P. W. Stroman, J. M. Powers, G. Ioachim
+# Human Brain Mapping, 44:2523–2542 (2023). https://doi.org/10.1002/hbm.26228
+#
+#  Ten key insights into the use of spinal cord fMRI
+#  J. M Powers, G. Ioachim, P. W. Stroman
+#  Brain Sciences 8(9), (DOI: 10.3390/brainsci8090173 ) 2018.
+#
+#  Validation of structural equation modeling (SEM) methods for functional MRI data acquired in the human brainstem and spinal cord
+#  P. W. Stroman
+#  Critical Reviews in Biomedical Engineering 44(4): 227-241 (2016).
+#
+#  Assessment of data acquisition parameters, and analysis techniques for noise
+#  reduction in spinal cord fMRI data
+#  R.L. Bosma & P.W. Stroman
+#  Magnetic Resonance Imaging, 2014 (10.1016/j.mri.2014.01.007).
+#
+# also see https://www.queensu.ca/academia/stromanlab/
+#
+# Patrick W. Stroman, Queen's University, Centre for Neuroscience Studies
+# stromanp@queensu.ca
+#-----------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------
+
+
 import numpy as np
 import scipy.ndimage as nd
 from scipy import signal

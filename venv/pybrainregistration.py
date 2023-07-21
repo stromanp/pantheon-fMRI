@@ -1,19 +1,61 @@
 """
-=========================
-Affine Registration in 3D
-=========================
+pybrainregistration.py
 
-This example explains how to compute an affine transformation to register two
-3D volumes by maximization of their Mutual Information [Mattes03]_. The
-optimization strategy is similar to that implemented in ANTS [Avants11]_.
+This set of functions is for spatial normalization of brain MRI data for the purposes of
+fMRI analysis.  The methods used for normalizing brain data are different from those used
+for the brainstem and spinal cord regions.
 
-We will do this twice. The first part of this tutorial will walk through the
-details of the process with the object-oriented interface implemented in
-the ``dipy.align`` module. The second part will use a simplified functional
-interface.
+The methods here are adapted from various 3D affine registration methods, all of which were
+based on methods that are similar to the normalization used in ANTS.
+
+The methods in this file are not original and were not developed by P. Stroman.
+This was done in an effort to not reinvent the wheel.
+
 """
 
-# from os.path import join as pjoin
+# -----------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------
+# "Pantheon" is a python software repository for complete analysis of functional
+# magnetic resonance imaging data at all level of the central nervous system,
+# including the brain, brainstem, and spinal cord.
+#
+# The software in this repository was written by P. Stroman, and the bulk of the methods in this
+# package have been developed by P. W. Stroman, Queen's University at Kingston, Ontario, Canada.
+#
+# Some of the methods have been adapted from other freely available packages
+# as noted in the documentation.
+#
+# This software is for research purposes only, and no guarantees are given that it is
+# free of bugs or errors.
+#
+# Use this software as needed, with the condition that you reference it in any
+# published works or presentations, with the following citations:
+#
+# Proof-of-concept of a novel structural equation modelling approach for the analysis of
+# functional MRI data applied to investigate individual differences in human pain responses
+# P. W. Stroman, J. M. Powers, G. Ioachim
+# Human Brain Mapping, 44:2523–2542 (2023). https://doi.org/10.1002/hbm.26228
+#
+#  Ten key insights into the use of spinal cord fMRI
+#  J. M Powers, G. Ioachim, P. W. Stroman
+#  Brain Sciences 8(9), (DOI: 10.3390/brainsci8090173 ) 2018.
+#
+#  Validation of structural equation modeling (SEM) methods for functional MRI data acquired in the human brainstem and spinal cord
+#  P. W. Stroman
+#  Critical Reviews in Biomedical Engineering 44(4): 227-241 (2016).
+#
+#  Assessment of data acquisition parameters, and analysis techniques for noise
+#  reduction in spinal cord fMRI data
+#  R.L. Bosma & P.W. Stroman
+#  Magnetic Resonance Imaging, 2014 (10.1016/j.mri.2014.01.007).
+#
+# also see https://www.queensu.ca/academia/stromanlab/
+#
+# Patrick W. Stroman, Queen's University, Centre for Neuroscience Studies
+# stromanp@queensu.ca
+# -----------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------
+
 import numpy as np
 from dipy.align import affine_registration
 from dipy.align.imaffine import (transform_centers_of_mass,
@@ -35,8 +77,6 @@ import pandas as pd
 
 def dipy_compute_brain_normalization(img_data, img_affine, ref_data, ref_affine, level_iters = [10000, 1000, 100], sigmas = [3.0, 1.0, 0.0], factors = [4,2,1], nbins=32):
     # apply registration/normalization steps in a sequence
-    # use this method instead of the dipy pipeline options in order to keep track of the
-    # final transformation that needs to be saved and later applied to all volumes of the time-series
     #
     # # To avoid getting stuck at local optima, and to accelerate convergence, dipy uses
     # # a multi-resolution strategy (similar to ANTS [Avants11]_) by building a Gaussian
@@ -134,8 +174,6 @@ def dipy_apply_brain_normalization(input_data, norm_affine, verbose = False):
 
 
 
-
-
 def dipy_brain_coregister_onevolume(img_data, ref_data, input_affine, verbose = False):
     # these options are only for testing coregistration methods
     apply_affine = False
@@ -199,8 +237,6 @@ def brain_coregistration(niiname, nametag, coregistered_prefix = 'c'):
     xs,ys,zs,ts = np.shape(img_data)
     ref_volume = 3
     ref_data = img_data[:,:,:,ref_volume]
-    # ref_data = input_img.dataobj[..., ref_volume]
-    # coreged_images, affine_record = dipy_brain_coregistration(img_data, img_affine, ref_volume=ref_volume, verbose = True)
 
     affine_record = []
     for tt in range(ts):

@@ -1,8 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue May  5 15:04:28 2020
+py_mirt3D.py
 
-@author: stroman
+The functions in this program are python versions of the functions in the Medical Image
+Registration Toolbox (MIRT) that were originally written in MATLAB by Andriy Myronenko (myron@csee.ogi.edu).
+
+http://www.bme.ogi.edu/~myron/matlab/MIRT/
+
+The functions were converted from MATLAB to Python by P. Stroman without any changes to the
+original functionality.
+
+The original documentation that was included in the MATLAB version is included in the documentation
+in this file.
+
 """
 #
 #% MIRT3D_REGISTER The main function for non-rigid registration 
@@ -101,6 +111,49 @@ Created on Tue May  5 15:04:28 2020
 #%     the Free Software Foundation version 2 of the License.
 
 #function [res, im_int]=mirt3D_register(refim, im, main, optim)
+
+# -----------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------
+# "Pantheon" is a python software repository for complete analysis of functional
+# magnetic resonance imaging data at all level of the central nervous system,
+# including the brain, brainstem, and spinal cord.
+#
+# The software in this repository was written by P. Stroman, and the bulk of the methods in this
+# package have been developed by P. W. Stroman, Queen's University at Kingston, Ontario, Canada.
+#
+# Some of the methods have been adapted from other freely available packages
+# as noted in the documentation.
+#
+# This software is for research purposes only, and no guarantees are given that it is
+# free of bugs or errors.
+#
+# Use this software as needed, with the condition that you reference it in any
+# published works or presentations, with the following citations:
+#
+# Proof-of-concept of a novel structural equation modelling approach for the analysis of
+# functional MRI data applied to investigate individual differences in human pain responses
+# P. W. Stroman, J. M. Powers, G. Ioachim
+# Human Brain Mapping, 44:2523–2542 (2023). https://doi.org/10.1002/hbm.26228
+#
+#  Ten key insights into the use of spinal cord fMRI
+#  J. M Powers, G. Ioachim, P. W. Stroman
+#  Brain Sciences 8(9), (DOI: 10.3390/brainsci8090173 ) 2018.
+#
+#  Validation of structural equation modeling (SEM) methods for functional MRI data acquired in the human brainstem and spinal cord
+#  P. W. Stroman
+#  Critical Reviews in Biomedical Engineering 44(4): 227-241 (2016).
+#
+#  Assessment of data acquisition parameters, and analysis techniques for noise
+#  reduction in spinal cord fMRI data
+#  R.L. Bosma & P.W. Stroman
+#  Magnetic Resonance Imaging, 2014 (10.1016/j.mri.2014.01.007).
+#
+# also see https://www.queensu.ca/academia/stromanlab/
+#
+# Patrick W. Stroman, Queen's University, Centre for Neuroscience Studies
+# stromanp@queensu.ca
+# -----------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------
 
 import math
 import copy
