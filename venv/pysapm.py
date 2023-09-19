@@ -2265,10 +2265,20 @@ def display_anatomical_cluster(clusterdataname, targetnum, targetcluster, orient
         r = rnamelist.index(targetnum)
 
     IDX = clusterdata['cluster_properties'][r]['IDX']
-    idxx = np.where(IDX == targetcluster)
-    cx = clusterdata['cluster_properties'][r]['cx'][idxx]
-    cy = clusterdata['cluster_properties'][r]['cy'][idxx]
-    cz = clusterdata['cluster_properties'][r]['cz'][idxx]
+    if len(targetcluster) > 1:
+        cx = []
+        cy = []
+        cz = []
+        for tt in targetcluster:
+            idxx = np.where(IDX == tt)
+            cx += [clusterdata['cluster_properties'][r]['cx'][idxx]]
+            cy += [clusterdata['cluster_properties'][r]['cy'][idxx]]
+            cz += [clusterdata['cluster_properties'][r]['cz'][idxx]]
+    else:
+        idxx = np.where(IDX == targetcluster)
+        cx = clusterdata['cluster_properties'][r]['cx'][idxx]
+        cy = clusterdata['cluster_properties'][r]['cy'][idxx]
+        cz = clusterdata['cluster_properties'][r]['cz'][idxx]
 
     # load template
     if templatename.lower() == 'brain':

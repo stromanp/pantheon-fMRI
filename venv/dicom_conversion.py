@@ -149,34 +149,40 @@ def move_files_and_update_database(databasename, dbhome, pname):
 #            # niftiname  needs to be changed first, if it has been set already
             # there should only be one matching series number for a given directory
             if len(dbindex) > 0:
-                niftiname = df1.loc[dbindex[0], 'niftiname']
-                nameparts = os.path.split(niftiname)
-                nameparts2 = os.path.splitext(nameparts[1])
-                niiext = '.nii'
-                if nameparts2[1] == niiext:   # if a niftiname has already been specified, then deal with it, otherwise do nothing
-                    newniftiname = os.path.join(nameparts[0], subfolder, nameparts[1])
-                    niftinamefull = os.path.join(dbhome,niftiname)
-                    newniftinamefull = os.path.join(dbhome,newniftiname)
-                    # if a file called niftinamefull exists, need to move it to the new location
-                    if os.path.isfile(niftinamefull):
-                        shutil.move(niftinamefull, newniftinamefull)
-                    df1.loc[dbindex[0], 'niftiname'] = newniftiname
-                    print('{}  updating niftiname to {}'.format(dbindex[0],newniftiname))
+                try:
+                    niftiname = df1.loc[dbindex[0], 'niftiname']
+                    nameparts = os.path.split(niftiname)
+                    nameparts2 = os.path.splitext(nameparts[1])
+                    niiext = '.nii'
+                    if nameparts2[1] == niiext:   # if a niftiname has already been specified, then deal with it, otherwise do nothing
+                        newniftiname = os.path.join(nameparts[0], subfolder, nameparts[1])
+                        niftinamefull = os.path.join(dbhome,niftiname)
+                        newniftinamefull = os.path.join(dbhome,newniftiname)
+                        # if a file called niftinamefull exists, need to move it to the new location
+                        if os.path.isfile(niftinamefull):
+                            shutil.move(niftinamefull, newniftinamefull)
+                        df1.loc[dbindex[0], 'niftiname'] = newniftiname
+                        print('{}  updating niftiname to {}'.format(dbindex[0],newniftiname))
+                except:
+                    print('{}  niftiname not set yet'.format(dbindex[0]))
                     
                 # normdataname  needs to be changed next, if it has been set already
                 normname = df1.loc[dbindex[0], 'normdataname']
-                nameparts = os.path.split(normname)
-                nameparts2 = os.path.splitext(nameparts[1])
-                normext = '.npy'  # this will probably need to be updated-----------------------------------------------------------
-                if nameparts2[1] == normext:   # if a normdataname has already been specified, then deal with it, otherwise do nothing
-                    newnormname = os.path.join(nameparts[0], subfolder, nameparts[1])
-                    normnamefull = os.path.join(dbhome,normname)
-                    newnormnamefull = os.path.join(dbhome,newnormname)
-                    # if a file called niftinamefull exists, need to move it to the new location
-                    if os.path.isfile(normnamefull):
-                        shutil.move(normnamefull, newnormnamefull)
-                    df1.loc[dbindex[0], 'normdataname'] = newnormname
-                    print('{}  updating normdataname to {}'.format(dbindex[0],newnormname))
+                try:
+                    nameparts = os.path.split(normname)
+                    nameparts2 = os.path.splitext(nameparts[1])
+                    normext = '.npy'  # this will probably need to be updated-----------------------------------------------------------
+                    if nameparts2[1] == normext:   # if a normdataname has already been specified, then deal with it, otherwise do nothing
+                        newnormname = os.path.join(nameparts[0], subfolder, nameparts[1])
+                        normnamefull = os.path.join(dbhome,normname)
+                        newnormnamefull = os.path.join(dbhome,newnormname)
+                        # if a file called niftinamefull exists, need to move it to the new location
+                        if os.path.isfile(normnamefull):
+                            shutil.move(normnamefull, newnormnamefull)
+                        df1.loc[dbindex[0], 'normdataname'] = newnormname
+                        print('{}  updating normdataname to {}'.format(dbindex[0],newnormname))
+                except:
+                    print('{}  normdataname not set yet'.format(dbindex[0]))
                       
                 # now replace the pname for the data, with the new name
                 df1.loc[dbindex[0], 'pname'] = subfolderpath

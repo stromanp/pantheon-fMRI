@@ -58,6 +58,7 @@ This was done in an effort to not reinvent the wheel.
 
 import numpy as np
 from dipy.align import affine_registration
+from dipy.align._public import AffineMap
 from dipy.align.imaffine import (transform_centers_of_mass,
                                  AffineMap,
                                  MutualInformationMetric,
@@ -73,6 +74,30 @@ import nibabel as nib
 import os
 import copy
 import pandas as pd
+
+def dipy_compute_twostage_brain_normalization(img1_data, img1_affine, img2_data, img2_affine, ref_data, ref_affine, level_iters = [10000, 1000, 100], sigmas = [3.0, 1.0, 0.0], factors = [4,2,1], nbins=32):
+    transformed_1_2, affine_1_2 = dipy_compute_brain_normalization(img1_data, img1_affine, img2_data, img2_affine,
+                                                                   level_iters, sigmas, factors, nbins)
+    transformed_2_ref, affine_2_ref = dipy_compute_brain_normalization(img2_data, img2_affine, ref_data, ref_affine,
+                                                                   level_iters, sigmas, factors, nbins)
+    # combine affine_1_2 and affine_2_ref to get affine
+    # check_resampled = norm_brain_affine_1_2.transform(input_image)
+    # check_resampled = norm_brain_affine_2_norm.transform(check_resampled)
+
+    a12 = affine_1_2.get_affine()
+    a2n = affine_2_ref.get_affine()
+
+    a1n = a12 @ a2n
+
+    affine = AffineMap(a1n, np.shape(ref_data), ref_affine, np.shape(img1_data), img1_affine)
+    transformed = affine.transform(img1_data)
+
+    print('finished computing two-stage normalization parameters ...{}'.format(time.ctime()))
+
+    print('dipy_compute_twostage_brain_normalization:   ....')
+    print('   output image data type:  {}'.format(type(transformed)))
+
+    return transformed, affine
 
 
 def dipy_compute_brain_normalization(img_data, img_affine, ref_data, ref_affine, level_iters = [10000, 1000, 100], sigmas = [3.0, 1.0, 0.0], factors = [4,2,1], nbins=32):

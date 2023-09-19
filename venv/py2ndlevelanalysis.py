@@ -1572,8 +1572,8 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                 outputimagename = os.path.join(pname1, fname1 + '_' + fname2 + '_GLM_group_diff.png')
 
                 outputresultsname = os.path.join(pname1, fname1 + '_' + fname2 + '_GLM_group_diff.npy')
-                results = {'type': 'GLM', 'B': B1diff, 'sem': sem_diff, 'T': Tbeta, 'template': template_img,
-                           'regionmap': regionmap_img, 'roi_map': roi_map, 'Tthresh': Tthresh,
+                results = {'type': 'GLM', 'B': B1diff, 'sem': sem_diff, 'T': Tbeta, 'template': template,
+                           'regionmap': regionmap, 'roi_map': roi_map, 'Tthresh': Tthresh,
                            'normtemplatename': normtemplatename, 'DBname': 'undefined', 'DBnum': []}
                 np.save(outputresultsname, results)
 
@@ -1600,8 +1600,8 @@ def group_difference_significance(filename1, filename2, pthreshold, mode = 'unpa
                 outputimagename = os.path.join(pname1, fname1 + '_' + fname2 + '_GLM_group_paireddiff.png')
 
                 outputresultsname = os.path.join(pname1, fname1 + '_' + fname2 + '_GLM_group_paireddiff.npy')
-                results = {'type': 'GLM', 'B': mean_diff, 'sem': sem_diff, 'T': Tbeta, 'template': template_img,
-                           'regionmap': regionmap_img, 'roi_map': roi_map, 'Tthresh': Tthresh,
+                results = {'type': 'GLM', 'B': mean_diff, 'sem': sem_diff, 'T': Tbeta, 'template': template,
+                           'regionmap': regionmap, 'roi_map': roi_map, 'Tthresh': Tthresh,
                            'normtemplatename': normtemplatename, 'DBname': 'undefined', 'DBnum': []}
                 np.save(outputresultsname, results)
 

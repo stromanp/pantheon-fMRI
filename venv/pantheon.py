@@ -2280,6 +2280,7 @@ class NCbrainFrame:
         self.parent = parent
         self.controller = controller
         self.NCresult = []
+        self.intermediate_norm_dbref = -1
 
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
         self.normdatasavename = settings['NCsavename']  # default prefix value
@@ -2584,6 +2585,8 @@ class NCbrainFrame:
         factors = self.factors
         braintemplatename = self.braintemplatename
 
+        intermediate_norm_dbref = self.intermediate_norm_dbref   # reference DBnum for an intermediate normalization step
+
         # load the brain template
         workingdir = os.path.dirname(os.path.realpath(__file__))
         brain_template_folder = os.path.join(workingdir, 'braintemplates')
@@ -2682,12 +2685,50 @@ class NCbrainFrame:
                 input_image = input_datar
             input_datar = []  # clear it from memory
 
+            # load the intermediate reference scan if it was specified, and it exists
+            try:
+                intermediate_norm_dbref = df1.loc[dbnum, 'norm_bridge_ref']
+                if intermediate_norm_dbref >= 0:
+                    print('...normalizing to a reference first, then to the brain template.')
+                    dbhome = df1.loc[intermediate_norm_dbref, 'datadir']
+                    fname = df1.loc[intermediate_norm_dbref, 'niftiname']
+                    seriesnumber = df1.loc[intermediate_norm_dbref, 'seriesnumber']
+                    norm_bridge_name = os.path.join(dbhome, fname)
+
+                    bridge_data = nib.load(norm_bridge_name)
+                    bridge_affine = bridge_data.affine
+                    bridge_hdr = bridge_data.header
+                    bridge_pixdim = bridge_hdr['pixdim'][1:4]
+                    bridge_dim = bridge_hdr['dim'][1:4]
+                    bridge_img = bridge_data.get_fdata()
+                    bridge_img = bridge_img / np.max(bridge_img)
+
+                    # resize to brain template resolution
+                    brainres = [2., 2., 2.]
+                    newsize = np.round(bridge_dim * bridge_pixdim / brainres)
+                    bridge_img = i3d.resize_3D_nearest(bridge_img, newsize)
+                    brainres_affine_scale = np.array([[2, 0, 0, 0], [0, 2, 0, 0], [0, 0, 2, 0], [0, 0, 0, 1]])
+                    bridge_affine = bridge_affine @ brainres_affine_scale
+                else:
+                    intermediate_norm_dbref = -1
+            except:
+                intermediate_norm_dbref = -1
+
             # run the normalization
             print('starting normalization calculation ....')
             # set the cursor to reflect being busy ...
             self.controller.master.config(cursor="wait")
             self.controller.master.update()
-            norm_brain_img, norm_brain_affine = pybrainregistration.dipy_compute_brain_normalization(input_image, affiner, ref_data, ref_affine, iters, sigmas, factors, nbins=32)
+
+            if intermediate_norm_dbref >= 0:
+                print('running two-stage brain normalization ...')
+                norm_brain_img, norm_brain_affine = pybrainregistration.dipy_compute_twostage_brain_normalization(input_image,
+                                                    affiner, bridge_img, bridge_affine, ref_data, ref_affine, iters, sigmas,
+                                                    factors, nbins=32)
+            else:
+                print('running single-stage brain normalization ...')
+                norm_brain_img, norm_brain_affine = pybrainregistration.dipy_compute_brain_normalization(input_image,
+                                                    affiner, ref_data, ref_affine, iters, sigmas, factors, nbins=32)
             self.controller.master.config(cursor="")
             self.controller.master.update()
             print('finished normalization calculation ....')
@@ -2711,6 +2752,7 @@ class NCbrainFrame:
             zmid = np.floor(zs/2).astype(int)
             img2 = norm_brain_img[:,:,zmid]
             img2= (255. * img2 / np.max(img2)).astype(np.uint8)
+            verticalsize = 256.   # might need to scale this for different monitor sizes
             vscale = 0.5 * (verticalsize / ys)
             img2r = i3d.resize_2D(img2, vscale)
             # img2r = i3d.resize_2D(img2, 0.5)

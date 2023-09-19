@@ -391,32 +391,6 @@ def pydisplayanatregionslice(templatename, anatname, orientation, displayslice =
 def pydisplayvoxelregionslice(templatename, template_img, cx, cy, cz, orientation, displayslice = [], colorlist = []):
     templatename = templatename.lower()
 
-    #
-    # if templatename == 'brain':
-    #     resolution = 1
-    #     template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_img = load_templates.load_template_and_masks(templatename, resolution)
-    #     # match affine of data
-    #
-    #     # for brain data, need to match the template, region map, etc., to the data size/position
-    #     dbhome = df1.loc[self.DBnum[0], 'datadir']
-    #     fname = df1.loc[self.DBnum[0], 'niftiname']
-    #     niiname = os.path.join(dbhome, fname)
-    #     fullpath, filename = os.path.split(niiname)
-    #     prefix_niiname = os.path.join(fullpath, self.CLprefix + filename)
-    #     temp_data = nib.load(prefix_niiname)
-    #     img_data_affine = temp_data.affine
-    #     hdr = temp_data.header
-    #     template_img = i3d.convert_affine_matrices_nearest(template_img, template_affine, img_data_affine, hdr['dim'][1:4])
-    #     regionmap_img = i3d.convert_affine_matrices_nearest(regionmap_img, template_affine, img_data_affine, hdr['dim'][1:4])
-    #
-    # else:
-    #     resolution = 1
-    #     template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_img = load_templates.load_template_and_masks(templatename, resolution)
-
-    # anatnamelist = []
-    # for name in anatlabels['names']:
-    #     anatnamelist.append(name)
-
     if len(colorlist) == 0:
         colorlist = [0,1,0]  # make it green by default
 
@@ -435,21 +409,57 @@ def pydisplayvoxelregionslice(templatename, template_img, cx, cy, cz, orientatio
     if templatename.lower()  == 'brain':
         # display brain data
         if orientation == 'axial':
-            if len(displayslice) == 0: displayslice = np.round(np.mean(cz)).astype(int)
+            if len(displayslice) == 0:
+                displayslice = np.round(np.mean(cz)).astype(int)
+                # if the center-of-mass slice has no voxels in it ...
+                checkc = np.where(np.array(cz) == displayslice)[0]
+                if len(checkc) == 0:
+                    dist = np.abs(np.array(cz)-displayslice)
+                    dc = np.argmin(dist)
+                    display_slice_original = copy.deepcopy(displayslice)
+                    displayslice = cz[dc]
+                    print('center slice contains no voxels - changed from {} to {}'.format(display_slice_original, displayslice))
+                else:
+                    print('center slice {} contains {} voxels'.format(displayslice, len(checkc)))
+
             redrot = red[:,:,displayslice];  redrot = redrot[:,::-1].T
             greenrot = green[:,:,displayslice];  greenrot = greenrot[:,::-1].T
             bluerot = blue[:,:,displayslice];  bluerot = bluerot[:,::-1].T
             outputimg = np.dstack((redrot,greenrot,bluerot))
 
         if orientation == 'sagittal':
-            if len(displayslice) == 0: displayslice = np.round(np.mean(cx)).astype(int)
+            if len(displayslice) == 0:
+                displayslice = np.round(np.mean(cx)).astype(int)
+                # if the center-of-mass slice has no voxels in it ...
+                checkc = np.where(np.array(cx) == displayslice)[0]
+                if len(checkc) == 0:
+                    dist = np.abs(np.array(cx)-displayslice)
+                    dc = np.argmin(dist)
+                    display_slice_original = copy.deepcopy(displayslice)
+                    displayslice = cx[dc]
+                    print('center slice contains no voxels - changed from {} to {}'.format(display_slice_original, displayslice))
+                else:
+                    print('center slice {} contains {} voxels'.format(displayslice, len(checkc)))
+
             redrot = red[displayslice,:,:];  # redrot = redrot[:,::-1].T
             greenrot = green[displayslice,:,:];  # greenrot = greenrot[:,::-1].T
             bluerot = blue[displayslice,:,:];  # bluerot = bluerot[:,::-1].T
             outputimg = np.dstack((redrot,greenrot,bluerot))
 
         if orientation == 'coronal':
-            if len(displayslice) == 0: displayslice = np.round(np.mean(cy)).astype(int)
+            if len(displayslice) == 0:
+                displayslice = np.round(np.mean(cy)).astype(int)
+                # if the center-of-mass slice has no voxels in it ...
+                checkc = np.where(np.array(cy) == displayslice)[0]
+                if len(checkc) == 0:
+                    dist = np.abs(np.array(cy)-displayslice)
+                    dc = np.argmin(dist)
+                    display_slice_original = copy.deepcopy(displayslice)
+                    displayslice = cy[dc]
+                    print('center slice contains no voxels - changed from {} to {}'.format(display_slice_original, displayslice))
+                else:
+                    print('center slice {} contains {} voxels'.format(displayslice, len(checkc)))
+
             redrot = red[:,displayslice,:];  # redrot = redrot[:,::-1].T
             greenrot = green[:,displayslice,:];  # greenrot = greenrot[:,::-1].T
             bluerot = blue[:,displayslice,:];  # bluerot = bluerot[:,::-1].T
@@ -463,21 +473,57 @@ def pydisplayvoxelregionslice(templatename, template_img, cx, cy, cz, orientatio
             yc1 = 20;  yc2 = 41;  ys2 = yc2-yc1
 
         if orientation == 'axial':
-            if len(displayslice) == 0: displayslice = np.round(np.mean(cz)).astype(int)
+            if len(displayslice) == 0:
+                displayslice = np.round(np.mean(cz)).astype(int)
+                # if the center-of-mass slice has no voxels in it ...
+                checkc = np.where(np.array(cz) == displayslice)[0]
+                if len(checkc) == 0:
+                    dist = np.abs(np.array(cz)-displayslice)
+                    dc = np.argmin(dist)
+                    display_slice_original = copy.deepcopy(displayslice)
+                    displayslice = cz[dc]
+                    print('center slice contains no voxels - changed from {} to {}'.format(display_slice_original, displayslice))
+                else:
+                    print('center slice {} contains {} voxels'.format(displayslice, len(checkc)))
+
             redrot = red[:,yc1:yc2,displayslice];  redrot = redrot[:,::-1].T
             greenrot = green[:,yc1:yc2,displayslice];  greenrot = greenrot[:,::-1].T
             bluerot = blue[:,yc1:yc2,displayslice];  bluerot = bluerot[:,::-1].T
             outputimg = np.dstack((redrot,greenrot,bluerot))
 
         if orientation == 'sagittal':
-            if len(displayslice) == 0: displayslice = np.round(np.mean(cx)).astype(int)
+            if len(displayslice) == 0:
+                displayslice = np.round(np.mean(cx)).astype(int)
+                # if the center-of-mass slice has no voxels in it ...
+                checkc = np.where(np.array(cx) == displayslice)[0]
+                if len(checkc) == 0:
+                    dist = np.abs(np.array(cx)-displayslice)
+                    dc = np.argmin(dist)
+                    display_slice_original = copy.deepcopy(displayslice)
+                    displayslice = cx[dc]
+                    print('center slice contains no voxels - changed from {} to {}'.format(display_slice_original, displayslice))
+                else:
+                    print('center slice {} contains {} voxels'.format(displayslice, len(checkc)))
+
             redrot = red[displayslice,yc1:yc2,:];  # redrot = redrot[:,::-1].T
             greenrot = green[displayslice,yc1:yc2,:];  # greenrot = greenrot[:,::-1].T
             bluerot = blue[displayslice,yc1:yc2,:];  # bluerot = bluerot[:,::-1].T
             outputimg = np.dstack((redrot,greenrot,bluerot))
 
         if orientation == 'coronal':
-            if len(displayslice) == 0: displayslice = np.round(np.mean(cy)).astype(int)
+            if len(displayslice) == 0:
+                displayslice = np.round(np.mean(cy)).astype(int)
+                # if the center-of-mass slice has no voxels in it ...
+                checkc = np.where(np.array(cy) == displayslice)[0]
+                if len(checkc) == 0:
+                    dist = np.abs(np.array(cy)-displayslice)
+                    dc = np.argmin(dist)
+                    display_slice_original = copy.deepcopy(displayslice)
+                    displayslice = cy[dc]
+                    print('center slice contains no voxels - changed from {} to {}'.format(display_slice_original, displayslice))
+                else:
+                    print('center slice {} contains {} voxels'.format(displayslice, len(checkc)))
+
             redrot = red[:,displayslice,:];  # redrot = redrot[:,::-1].T
             greenrot = green[:,displayslice,:];  # greenrot = greenrot[:,::-1].T
             bluerot = blue[:,displayslice,:];  # bluerot = bluerot[:,::-1].T
