@@ -8586,7 +8586,7 @@ class SAPMResultsFrame:
         columnum = 0
         # define a button to browse and select an existing network definition file, and write out the selected name
         # also, define the function for what to do when this button is pressed
-        self.SRupdatevalues = tk.Button(self.parent, text='Update', width=smallbuttonsize, bg = fgcol1, fg = fgletter1, font = widgetfont,
+        self.SRupdatevalues = tk.Button(self.parent, text='Update', width=smallbuttonsize, bg = fgcol3, fg = fgletter3, font = widgetfont,
                                   command=self.SRupdatevaluesclick, relief='raised', bd=5, highlightbackground = widgetbg)
         self.SRupdatevalues.grid(row = rownum, column=columnum, rowspan = 1)
 
