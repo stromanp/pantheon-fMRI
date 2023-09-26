@@ -783,6 +783,10 @@ class DBFrame:
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         # use a dialog box to prompt the user to select an existing file, the default being .xlsx type
         filechoice =  tkf.asksaveasfilename(title = "Select file",filetypes = (("excel files","*.xlsx"),("all files","*.*")))
+        f,e = os.path.splitext(filechoice)
+        if e != '.xlsx':
+            filechoice = f +'.xlsx'
+
         # save the selected file name in the settings
         settings['DBname'] = filechoice
         self.DBname = filechoice
@@ -997,7 +1001,10 @@ class DBFrame:
         print(entered_values)
 
         # convert back to shorter string for display
-        value_list_for_display = self.DBdisplaynumlist(entered_values)
+        if entered_text == 'none':
+            value_list_for_display = 'none'
+        else:
+            value_list_for_display = self.DBdisplaynumlist(entered_values)
         self.DBnumsave_text = value_list_for_display
 
         settings['DBnum'] = entered_values
@@ -1018,8 +1025,8 @@ class DBFrame:
     def DBnumclear(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
-        settings['DBnum'] = 'none'
-        settings['DBnumstring'] = 'none'
+        settings['DBnum'] = []
+        settings['DBnumstring'] = ''
         self.DBnumenter.delete(0,'end')
         self.DBnumenter.insert(0,settings['DBnumstring'])
         # save the updated settings file again
@@ -1333,7 +1340,10 @@ class NCFrame:
         if os.path.isfile(self.NCdatabasename):
             xls = pd.ExcelFile(self.NCdatabasename, engine = 'openpyxl')
             df1 = pd.read_excel(xls, 'datarecord')
-            self.normtemplatename = df1.loc[self.NCdbnum[0], 'normtemplatename']
+            try:
+                self.normtemplatename = df1.loc[self.NCdbnum[0], 'normtemplatename']
+            except:
+                self.normtemplatename = 'notdefined'
         else:
             self.normtemplatename = 'notdefined'
 
