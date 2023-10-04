@@ -197,11 +197,12 @@ def sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, 
     error = np.mean(np.sum((Sinput - fit) ** 2, axis=1) / np.var(Sinput, axis=1))
 
     cr = np.where(regular_flag > 0)[0]
-    cost = np.mean(np.abs(betavals[cr]))  # L1 regularization, ignoring latents and recriprocal connections
+    cost = np.mean(np.abs(betavals[cr]))  # L1 regularization, ignoring latents
 
     costfactor = Lweight*cost
     ssqd = error + costfactor
     return ssqd, error, cost, costfactor
+
 
 def gradients_for_betavals_V3(Sinput, components, loadings, Minput, Mconn, betavals, deltavals, ctarget,
                               csource, dtarget, dsource, dval, fintrinsic_count, vintrinsic_count,
@@ -324,8 +325,10 @@ def update_betavals_V3(Sinput, components, loadings, Minput, Mconn, betavals, de
                                         deltavals, ctarget, csource, dtarget, dsource, dval,
                                         fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight, regular_flag, ncomponents_to_fit)
 
-    c = np.where(dsource >= nregion)[0]   # latent inputs
-    dssq_dd[c] = 0.0   # over-ride changing the delta values from 1.0, for latent inputs
+    # c = np.where(dsource >= nregion)[0]   # latent inputs
+    # dssq_dd[c] = 0.0   # over-ride changing the delta values from 1.0, for latent inputs
+    c = np.where(csource >= nregion)[0]   # latent inputs
+    dssq_db[c] = 0.0   # over-ride changing the beta values from 1.0, for latent inputs
 
     change_betavals = alpha * dssq_db
     change_deltavals = alpha * dssq_dd
@@ -365,6 +368,7 @@ def network_eigenvector_method_V3(Sinput, components, loadings, Minput, Mconn, f
     Nintrinsic = fintrinsic_count + vintrinsic_count
     e,v = np.linalg.eig(Mconn)    # Mconn is nbeta x nbeta   where nbeta = ncon + Nintrinsic
     Meigv = np.real(v[:,-Nintrinsic:])
+    # Meigv = (Gram_Schmidt_orthogonalization(Meigv.T)).T  # make them a set of linearly indpendent eigvenvectors
     # scale to make the term corresponding to each intrinsic = 1
     for aa in range(Nintrinsic):
         Meigv[:,aa] = Meigv[:,aa]/Meigv[(-Nintrinsic+aa),aa]
@@ -951,15 +955,15 @@ def prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdatanam
 #----------------------------------------------------------------------------------
 # primary function--------------------------------------------------------------------
 def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparametersname, fixed_beta_vals = [],
-                      betascale = 0.1, Lweight = 1.0, normalizevar=False, nitermax = 250, verbose = True, initial_nitermax_stage1 = 15,
-                      initial_nsteps_stage1 = 15):
+                      betascale = 0.1, Lweight = 1.0, normalizevar=False, nitermax = 300, verbose = True, initial_nitermax_stage1 = 15,
+                      initial_nsteps_stage1 = 20):
 
 # this version fits to principal components of Sinput
 
     starttime = time.ctime()
 
     # initialize gradient-descent parameters--------------------------------------------------------------
-    initial_alpha = 1e-1
+    initial_alpha = 1e-3
     initial_Lweight = copy.deepcopy(Lweight)
     initial_dval = 0.05
     alpha_limit = 1.0e-5
@@ -4196,6 +4200,7 @@ def generate_simulated_data_set(regiondataname, covariatesname, networkfile, clu
 
     e,v = np.linalg.eig(Mconn)    # Mconn is nbeta x nbeta   where nbeta = ncon + Nintrinsic
     Meigv = np.real(v[:,-Nintrinsic:])
+    # Meigv = (Gram_Schmidt_orthogonalization(Meigv.T)).T  # make them a set of linearly indpendent eigvenvectors
 
     Sinput_base = Minput @ Meigv @ Mintrinsic_base   # simulated data
     Sinput_base += 0.05*np.random.normal(0,1,np.shape(Sinput_base))
@@ -4369,6 +4374,22 @@ def run_sim_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterd
             df.to_excel(writer, sheet_name='B stats')
 
     return xlname
+
+
+def Gram_Schmidt_orthogonalization(V):
+	# take a set of vectors and make an orthogonal set out of them
+	nv,tsize = np.shape(V)
+	U = np.zeros((nv,tsize))  # new set
+	for nn in range(nv):
+		U[nn,:] = copy.deepcopy(V[nn,:])
+		if nn > 0:
+			projections = np.zeros(tsize)
+			for mm in range(nn):
+				proj = U[mm,:] * np.dot(U[mm,:],V[nn,:])/np.dot(U[mm,:],U[mm,:])
+				projections += proj
+			U[nn,:] -= projections
+	return U
+
 
 #
 #
