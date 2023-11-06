@@ -258,8 +258,16 @@ def pysem_onesource(cluster_properties, region_properties, timepoints = 0, epoch
     else:
         tplist = []
         for ee in range(ntimepoints):
-            et1 = (timepoints[ee] - np.floor(epoch/2)).astype(int)-1
-            et2 = (timepoints[ee] + np.floor(epoch/2)).astype(int)
+            # et1 = (timepoints[ee] - np.floor(epoch/2)).astype(int)-1
+            # et2 = (timepoints[ee] + np.floor(epoch/2)).astype(int)
+
+            if np.floor(epoch / 2).astype(int) == np.ceil(epoch / 2).astype(int):  # even numbered epoch
+                et1 = (timepoints[ee] - np.floor(epoch / 2)).astype(int)
+                et2 = (timepoints[ee] + np.floor(epoch / 2)).astype(int)
+            else:
+                et1 = (timepoints[ee] - np.floor(epoch / 2)).astype(int)
+                et2 = (timepoints[ee] + np.floor(epoch / 2)).astype(int) + 1
+
             tplist1 = []
             for nn in range(NP):
                 r1 = sum(nruns_per_person[:nn])
@@ -369,8 +377,16 @@ def pysem(cluster_properties, region_properties, timepoints = 0, epoch = 0):
     else:
         tplist = []
         for ee in range(ntimepoints):
-            et1 = (timepoints[ee] - np.floor(epoch/2)).astype(int)-1
-            et2 = (timepoints[ee] + np.floor(epoch/2)).astype(int)
+            # et1 = (timepoints[ee] - np.floor(epoch/2)).astype(int)-1
+            # et2 = (timepoints[ee] + np.floor(epoch/2)).astype(int)
+
+            if np.floor(epoch / 2).astype(int) == np.ceil(epoch / 2).astype(int):  # even numbered epoch
+                et1 = (timepoints[ee] - np.floor(epoch / 2)).astype(int)
+                et2 = (timepoints[ee] + np.floor(epoch / 2)).astype(int)
+            else:
+                et1 = (timepoints[ee] - np.floor(epoch / 2)).astype(int)
+                et2 = (timepoints[ee] + np.floor(epoch / 2)).astype(int) + 1
+
             tplist1 = []
             for nn in range(NP):
                 r1 = sum(nruns_per_person[:nn])
@@ -543,8 +559,16 @@ def pysem_network(cluster_properties, region_properties, networkmodel, timepoint
     else:
         tplist = []
         for ee in range(ntimepoints):
-            et1 = (timepoints[ee] - np.floor(epoch/2)).astype(int)-1
-            et2 = (timepoints[ee] + np.floor(epoch/2)).astype(int)
+            # et1 = (timepoints[ee] - np.floor(epoch/2)).astype(int)-1
+            # et2 = (timepoints[ee] + np.floor(epoch/2)).astype(int)
+
+            if np.floor(epoch / 2).astype(int) == np.ceil(epoch / 2).astype(int):  # even numbered epoch
+                et1 = (timepoints[ee] - np.floor(epoch / 2)).astype(int)
+                et2 = (timepoints[ee] + np.floor(epoch / 2)).astype(int)
+            else:
+                et1 = (timepoints[ee] - np.floor(epoch / 2)).astype(int)
+                et2 = (timepoints[ee] + np.floor(epoch / 2)).astype(int) + 1
+
             tplist1 = []
             for nn in range(NP):
                 r1 = np.sum(nruns_per_person[:nn])
