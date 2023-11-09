@@ -429,7 +429,8 @@ def calculate_maineffects(DBname, dbnum, TR, nvols):
             paradigmdef = df2.loc[:, basisname]
             # convolve with hemodynamic response function (HRF) and
             # then resample at the time each volume was acquired
-            paradigm_hrf = np.convolve(paradigmdef, hrf, mode = 'same')
+            tempnum = len(paradigmdef)
+            paradigm_hrf = np.convolve(paradigmdef, hrf, mode = 'full')[:tempnum]
             # resample at the TR
             numpoints = np.size(paradigmdef)
             paradigm_times = np.array(range(numpoints))*dt
