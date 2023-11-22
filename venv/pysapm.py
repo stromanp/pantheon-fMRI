@@ -956,7 +956,7 @@ def prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdatanam
 #----------------------------------------------------------------------------------
 # primary function--------------------------------------------------------------------
 def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparametersname, fixed_beta_vals = [],
-                      betascale = 0.1, Lweight = 1.0, normalizevar=False, nitermax = 300, verbose = True, initial_nitermax_stage1 = 15,
+                      betascale = 0.1, Lweight = 1.0, normalizevar=False, nitermax = 300, verbose = True, initial_nitermax_stage1 = 150,
                       initial_nsteps_stage1 = 20):
 
 # this version fits to principal components of Sinput
@@ -1442,9 +1442,9 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
         initial_nitermax_stage1 = 1
         initial_nsteps_stage1 = 10
     else:
-        nitermax = 30
-        initial_nitermax_stage1 = 5
-        initial_nsteps_stage1 = 10
+        nitermax = 50
+        initial_nitermax_stage1 = 50
+        initial_nsteps_stage1 = 20
 
     output = sem_physio_model1_V3(cluster_numbers+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
                                   fixed_beta_vals=[], betascale=betascale, Lweight = Lweight, nitermax=nitermax, verbose=False,normalizevar=False,
