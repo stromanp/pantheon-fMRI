@@ -179,6 +179,7 @@ def check_settings_file(settingsfile):
                     'CLprefix': 'xptc',
                     'CLclustername': 'notdefined',
                     'CLregionname': 'notdefined',
+                    'CLnmaskvol': 2,
                     'CLresultsdir': basedir,
                     'last_folder': basedir,
                     'SEMprefix': 'xptc',
@@ -3882,6 +3883,18 @@ class CLFrame:
         self.CLupdate_network_info()
 
 
+    def CLnmaskvolsubmitaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        CLnmaskvol = self.CLnmaskvolbox.get()
+
+        # write the result to the label box for display
+        self.CLnmaskvolbox.delete(0, 'end')
+        self.CLnmaskvolbox.insert(0, self.CLnmaskvol)
+
+        np.save(settingsfile, settings)
+        self.CLupdate_network_info()
+
 
     def CLsetcrazytype(self):
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
@@ -3925,6 +3938,7 @@ class CLFrame:
         self.networkmodel = settings['networkmodel']
         self.CLclustername = settings['CLclustername']
         self.CLregionname = settings['CLregionname']
+        self.CLnmaskvol = settings['CLnmaskvol']
 
         self.CLcrazythreshold = settings['CLcrazythreshold']
         self.CLvarcheckmethod = settings['CLvarcheckmethod']
@@ -3951,7 +3965,7 @@ class CLFrame:
             regionmap_img = i3d.convert_affine_matrices_nearest(regionmap_img, template_affine, img_data_affine, hdr['dim'][1:4])
 
         cluster_properties, region_properties = \
-            pyclustering.define_clusters_and_load_data(self.DBname, self.DBnum, self.CLprefix, self.networkmodel,
+            pyclustering.define_clusters_and_load_data(self.DBname, self.DBnum, self.CLprefix, self.CLnmaskvol, self.networkmodel,
                                         regionmap_img, anatlabels, varcheckmethod = self.CLvarcheckmethod, varcheckthresh = self.CLcrazythreshold)
 
         cluster_definition = {'cluster_properties':cluster_properties, 'template_img':template_img,'regionmap_img':regionmap_img}
@@ -3975,6 +3989,7 @@ class CLFrame:
         self.DBnum = settings['DBnum']
         self.CLprefix = settings['CLprefix']
         self.networkmodel = settings['networkmodel']
+        self.CLnmaskvol = settings['CLnmaskvol']
 
         self.CLcrazythreshold = settings['CLcrazythreshold']
         self.CLvarcheckmethod = settings['CLvarcheckmethod']
@@ -3984,7 +3999,7 @@ class CLFrame:
 
         print('CLload:  DBname = ', self.DBname)
         region_properties = pyclustering.load_cluster_data(cluster_properties, self.DBname, self.DBnum, self.CLprefix,
-                    self.networkmodel, varcheckmethod = self.CLvarcheckmethod, varcheckthresh = self.CLcrazythreshold)
+                    self.CLnmaskvol, self.networkmodel, varcheckmethod = self.CLvarcheckmethod, varcheckthresh = self.CLcrazythreshold)
         region_data = {'region_properties':region_properties, 'DBname':self.DBname, 'DBnum':self.DBnum}
 
         np.save(self.CLregionname,region_data)
@@ -4118,26 +4133,36 @@ class CLFrame:
         self.CLregionnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.CLregionnamebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.CLregionnamebrowse.grid(row=6, column=4, sticky='N')
 
+        # box etc for entering the number of initial volumes to mask out
+        self.CLnmaskvolnamelabel = tk.Label(self.parent, text = 'Initial scans to mask:', font = labelfont)
+        self.CLnmaskvolnamelabel.grid(row=7, column=1, sticky='N')
+        self.CLnmaskvolbox = tk.Entry(self.parent, width = 30, bg="white",justify = 'right')
+        self.CLnmaskvolbox.grid(row=7, column=2, sticky='N')
+        self.CLnmaskvolbox.insert(0,self.CLnmaskvol)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.CLnmaskvolsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.CLnmaskvolsubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.CLnmaskvolsubmit.grid(row=7, column=3, sticky='N')
+
 
         # label, button, for running the definition of clusters, and loading data
         self.CLdefineandloadbutton = tk.Button(self.parent, text="Define Clusters", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
                                         command=self.CLdefineandload, relief='raised', bd=5, highlightbackground = widgetbg)
-        self.CLdefineandloadbutton.grid(row=7, column=2)
+        self.CLdefineandloadbutton.grid(row=8, column=2)
 
         self.CLdefinebuttontext = tk.StringVar()
         self.CLdefinebuttonlabel = tk.Label(self.parent, textvariable=self.CLdefinebuttontext, bg=bgcol, fg="#4B4B4B", font = labelfont,
                                      wraplength=200, justify='left')
-        self.CLdefinebuttonlabel.grid(row=7, column=3, sticky='N')
+        self.CLdefinebuttonlabel.grid(row=8, column=3, sticky='N')
 
         # label, button, for running the definition of clusters, and loading data
         self.CLloadbutton = tk.Button(self.parent, text="Load Data", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
                                         command=self.CLload, relief='raised', bd=5, highlightbackground = widgetbg)
-        self.CLloadbutton.grid(row=8, column=2)
+        self.CLloadbutton.grid(row=9, column=2)
 
         self.CLloadbuttontext = tk.StringVar()
         self.CLloadbuttonlabel = tk.Label(self.parent, textvariable=self.CLloadbuttontext, bg=bgcol, fg="#4B4B4B", font = labelfont,
                                      wraplength=200, justify='left')
-        self.CLloadbuttonlabel.grid(row=8, column=3, sticky='N')
+        self.CLloadbuttonlabel.grid(row=9, column=3, sticky='N')
 
 
 # inputs needed:   network model definition, existing cluster definition (if needed), run buttons
@@ -7238,8 +7263,6 @@ class SAPMFrame:
         cluster_data = np.load(self.SAPMclustername, allow_pickle=True).flat[0]
         cluster_properties = cluster_data['cluster_properties']
 
-        # excelfilename = os.path.join(self.SAPMresultsdir, self.SAPMsavetag + '_results.xlsx')
-
         print('running search for best clusters to use with SAPM ...')
 
         SAPMresultsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
@@ -7296,6 +7319,13 @@ class SAPMFrame:
         self.SAPMkeyinfo1.config(text = message_text, fg = 'red')
         settings['SAPMcnums'] = self.SAPMcnums
         np.save(settingsfile,settings)
+
+        # save the cluster search results
+        np.save(search_data_file, {'SAPMresultsdir':self.SAPMresultsdir, 'SAPMresultsname':SAPMresultsname, 'SAPMparamsname':SAPMparamsname,
+                                   'networkmodel':self.networkmodel, 'DBname':self.DBname, 'SAPMregionname':self.SAPMregionname,
+                                    'SAPMclustername':self.SAPMclustername, 'initial_clusters':clusterstart, 'betascale':self.SAPMbetascale,
+                                   'bestclusters':best_clusters})
+
 
 
     def SAPMrunnetwork(self):

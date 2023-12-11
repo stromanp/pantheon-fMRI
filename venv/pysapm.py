@@ -801,7 +801,13 @@ def prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdatanam
         new_max_std = 1.25*avg_std
 
         new_std = copy.deepcopy(avg_std)    # normalize everything to the same variance
-        std_scale = new_std/tcdata_std
+        std_scale = new_std/(tcdata_std + 1.0e-20)
+        # flag extreme values
+        print('max/min of std_scale = {:.3e} / {:.3e}'.format(np.max(std_scale), np.min(std_scale)))
+        checkr, checkp = np.where( (std_scale < 1e-6) | (std_scale > 1e6))
+        std_scale[checkr,checkp] = 1.0
+        print('after check max/min of std_scale = {:.3e} / {:.3e}'.format(np.max(std_scale), np.min(std_scale)))
+
 
         for nn in range(NP):
             tpoints = copy.deepcopy(tplist1[nn]['tp'])
@@ -1320,6 +1326,7 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
         stoptime = time.ctime()
 
     np.save(SAPMresultsname, SAPMresults)
+
     if verbose:
         print('finished SAPM at {}'.format(time.ctime()))
         print('     started at {}'.format(starttime))
@@ -2270,7 +2277,7 @@ def display_anatomical_cluster(clusterdataname, targetnum, targetcluster, orient
         r = rnamelist.index(targetnum)
 
     IDX = clusterdata['cluster_properties'][r]['IDX']
-    if len(targetcluster) > 1:
+    if hasattr(targetcluster, '__len__'):
         cx = []
         cy = []
         cz = []

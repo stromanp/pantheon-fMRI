@@ -132,7 +132,7 @@ def load_network_model(networkmodel, exclude_latent = False):
 
 
 
-def define_clusters_and_load_data(DBname, DBnum, prefix, networkmodel, regionmap_img, anatlabels, varcheckmethod = 'median', varcheckthresh = 3.0):
+def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel, regionmap_img, anatlabels, varcheckmethod = 'median', varcheckthresh = 3.0):
     '''
     Function to load data from a group, and define clusters based on voxel time-course properties
     define_clusters_and_load_data in pyclustering.py
@@ -283,7 +283,7 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, networkmodel, regionmap
     # regiondata = group_data[cx,cy,cz,:]   # nvox x tsize
     # load the data one region at a time to save memory - necessary for large data sets
     mode = 'concatenate'
-    nvolmask = 2
+    # nvolmask = 2  # changed this to be an input parameter
     allregiondata = load_data_from_region(filename_list, nvolmask, mode, cx_all, cy_all, cz_all)
     nvox,ts = np.shape(allregiondata)
 
@@ -423,7 +423,7 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, networkmodel, regionmap
     return cluster_properties, region_properties
 
 
-def load_cluster_data(cluster_properties, DBname, DBnum, prefix, networkmodel, varcheckmethod = 'median', varcheckthresh = 3.0):
+def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, networkmodel, varcheckmethod = 'median', varcheckthresh = 3.0):
     '''
     Function to load data from a group, using a predefined cluster definition
     load_cluster_data in pyclustering.py
@@ -490,7 +490,7 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, networkmodel, v
         else:
             # load the data one region at a time to save memory - necessary for large data sets
             mode = 'concatenate'
-            nvolmask = 2
+            # nvolmask = 2  # changed this to be an input parameter
             regiondata = load_data_from_region(filename_list, nvolmask, mode, cx, cy, cz)
             nvox,ts = np.shape(regiondata)
 
