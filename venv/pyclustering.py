@@ -131,6 +131,39 @@ def load_network_model(networkmodel, exclude_latent = False):
     return network, ncluster_list, sem_region_list
 
 
+def calc_distance_matrix(data1, data2):
+    nvox1, tsize1 = np.shape(data1)
+    nvox2, tsize2 = np.shape(data2)
+
+    dist_matrix = np.zeros((nvox1,nvox2))
+    for aa in range(nvox1):
+        tc1 = data1[aa,:]
+        for bb in range(nvox2):
+            dist_matrix[aa,bb] = np.sqrt(np.sum( (tc1 - data2[bb,:])**2))
+
+    return dist_matrix
+
+
+def sort_by_dist(dist_matrix):
+    # sort into roughly equal size bins based on distance
+    nvox1, nvox2 = np.shape(dist_matrix)
+
+    IDX = -np.ones(nvox1)
+    voxcount = nvox1
+    clist = list(range(nvox1))
+    bin = 0
+    while voxcount > 0:
+        # assign one at a time, then take it out of the list
+        dist = dist_matrix[clist,bin]
+        dd = np.argmin(dist)
+        IDX[clist[dd]] = bin
+        voxcount -= 1
+        if voxcount > 0:
+            clist.remove(clist[dd])
+        bin = (bin+1) % nvox2
+
+    return IDX
+
 
 def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel, regionmap_img, anatlabels, varcheckmethod = 'median', varcheckthresh = 3.0):
     '''
@@ -336,18 +369,42 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel,
         # divide each region into N clusters with similar timecourse properties
         nclusters = ncluster_list2[nn]
         kmeans = KMeans(n_clusters=nclusters, random_state=0).fit(regiondata)
-        # IDX = kmeans.labels_
-        # cluster_tc = kmeans.cluster_centers_
+        IDX = kmeans.labels_
+        cluster_tc = kmeans.cluster_centers_
 
         # modified clustering method - for roughly equal size clusters
         # Thanks to Eyal Shulman who shared on StackOverflow  https://stackoverflow.com/users/6247548/eyal-shulman
         # method for making clusters approximately equal size
         nvoxels, tsizefull = np.shape(regiondata)
         cluster_size = np.floor(nvoxels/nclusters).astype(int)
+        nvox_trunc = cluster_size * nclusters
         centers = kmeans.cluster_centers_
         centers = centers.reshape(-1, 1, regiondata.shape[-1]).repeat(cluster_size, 1).reshape(-1, regiondata.shape[-1])
-        distance_matrix = cdist(regiondata, centers)
-        IDX = linear_sum_assignment(distance_matrix)[1] // cluster_size
+        distance_matrix = cdist(regiondata[:nvox_trunc,:], centers)
+        val = linear_sum_assignment(distance_matrix)
+        IDX = val[1] // cluster_size
+
+        # add in remaining voxels to the nearest clusters
+        nresidual = nvoxels - nvox_trunc
+        IDXresidual = []
+        for xx in range(nresidual):
+            tc = regiondata[-xx,:]
+            dist = [np.sqrt(np.sum( tc - kmeans.cluster_centers_[dd,:])**2) for dd in range(nclusters)]
+            IDXresidual += [np.argmin(dist)]
+        IDX = np.concatenate((IDX, np.array(IDXresidual[::-1])),axis=0)
+
+        # new approach tried Dec 2023
+        # centers = kmeans.cluster_centers_
+        # distance_matrix = calc_distance_matrix(regiondata, centers)
+        # IDX = sort_by_dist(distance_matrix)
+
+        # new_centers = np.zeros((nclusters,tsizefull))
+        # distgrid = np.zeros((nclusters,nclusters))
+        # for xx in range(nclusters):
+        #     cc = np.where(IDX == xx)[0]
+        #     new_centers[xx,:] = np.mean(regiondata[cc,:],axis=0)
+        #     for dd in range(nclusters):
+        #         distgrid[xx,dd] = np.sqrt(np.sum( (new_centers[xx,:] - kmeans.cluster_centers_[dd,:])**2))
 
         tc = np.zeros([nclusters,ts])
         tc_sem = np.zeros([nclusters,ts])
@@ -423,7 +480,7 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel,
     return cluster_properties, region_properties
 
 
-def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, networkmodel, varcheckmethod = 'median', varcheckthresh = 3.0):
+def load_cluster_data_original(cluster_properties, DBname, DBnum, prefix, nvolmask, networkmodel, varcheckmethod = 'median', varcheckthresh = 3.0):
     '''
     Function to load data from a group, using a predefined cluster definition
     load_cluster_data in pyclustering.py
@@ -537,6 +594,149 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, netwo
 
     return region_properties
 
+
+def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, networkmodel, varcheckmethod='median',
+                      varcheckthresh=3.0):
+    '''
+    Function to load data from a group, using a predefined cluster definition
+    load_cluster_data in pyclustering.py
+    region_properties = load_cluster_data(cluster_properties, DBname, DBnum, prefix, networkmodel, template_img, ...
+                                        regionmap_img, anatlabels)
+    :param cluster_properties:  cluster definition data, created in define_clusters_and_load_data
+    :param DBname:  name of the database file (probably an excel file)
+    :param DBnum:   list of the database entry numbers to use
+    :param prefix:   prefix of the nifti format image files to read (indicates the preprocessing
+                        steps that have been applied)
+    :param networkmodel:  the network definition file name (probably an excel file)
+    :return:  output is cluster_properties, region_properties
+            cluster_properties is an array of dictionaries (one entry per cluster),
+                with keys cx, cy, cz, IDX, nclusters, rname, regionindex, regionnum
+                cx, cy, cz are the 3D coordinates of the voxels in each cluster
+                IDX is the list of cluster labels for each voxel
+                nclusters is the number of clusters for the region
+                rname is the region name, regionindex in the index in the anat template definition, and
+                    regionnum is the number index used to indicate voxels in the anat template
+            region_properties is an array of dictionaries (one entry per cluster),
+                        with keys: tc, tc_sem, nruns_per_person, and tsize
+                        tc and tc_sem are the average and standard error of the time-course for each cluster
+                        nruns_per_person lists the number of data sets that are concatenated per person
+                        tsize is the number of time points in each individual fMRI run
+
+    Modified Dec 2023 to run faster, by collecting data from all voxels at a time from each set of data
+    and sorting the data into regions afterward.
+    '''
+
+    #  data will be concatenated across the entire group, with all runs in each person:  tsize  = N x ts
+    # need to save data on how much runs are loaded per person
+    # mode = 'concatenate_group'
+    # # nvolmask is similar to removing the initial volumes, except this is the number of volumes that are replaced
+    # # by a later volume, so that the effects of the initial volumes are not present, but the total number of volumes
+    # # has not changed
+    # nvolmask = 2
+    # print('load_cluster_data:  DBname = ', DBname)
+    # group_data = GLMfit.compile_data_sets(DBname, DBnum, prefix, mode, nvolmask)  # from GLMfit.py
+    # # group_data is now xs, ys, zs, tsize
+    # xs, ys, zs, ts = group_data.shape
+
+    # the voxels in the regions of interest need to be extracted
+    filename_list, dbnum_person_list, NP = pydatabase.get_datanames_by_person(DBname, DBnum, prefix, mode='list',
+                                                                              separate_conditions=True)
+    nruns_per_person = np.zeros(NP).astype(int)
+    for nn in range(NP):
+        nruns_per_person[nn] = len(filename_list[nn])
+    nruns_total = np.sum(nruns_per_person)
+
+    # load information about the network
+    network, ncluster_list, sem_region_list = load_network_model(networkmodel, exclude_latent=True)
+
+    # identify the voxels in the regions of interest
+    cx_all, cy_all, cz_all, IDX_all, nclusters_all = [], [], [], [], []
+    for nn, rname in enumerate(sem_region_list):
+        rname_check = cluster_properties[nn]['rname']
+        regionindex = cluster_properties[nn]['regionindex']
+        regionnum = cluster_properties[nn]['regionnum']
+
+        if nn == 0:
+            cx_all = copy.deepcopy(cluster_properties[nn]['cx'])
+            cy_all = copy.deepcopy(cluster_properties[nn]['cy'])
+            cz_all = copy.deepcopy(cluster_properties[nn]['cz'])
+            IDX_all = copy.deepcopy(cluster_properties[nn]['IDX'])
+        else:
+            cx_all = np.concatenate((cx_all,cluster_properties[nn]['cx']),axis=0)
+            cy_all = np.concatenate((cy_all,cluster_properties[nn]['cy']),axis=0)
+            cz_all = np.concatenate((cz_all,cluster_properties[nn]['cz']),axis=0)
+            IDX_all = np.concatenate((IDX_all,cluster_properties[nn]['IDX']),axis=0)
+
+    cx_all = np.array(cx_all)
+    cy_all = np.array(cy_all)
+    cz_all = np.array(cz_all)
+    IDX_all = np.array(IDX_all)
+
+    print('shape of cx_all = {}'.format(np.shape(cx_all)))
+
+    print('loading data for {} voxels from {} data sets'.format(len(cx_all), len(filename_list)))
+    mode = 'concatenate'
+    regiondata_all = load_data_from_region(filename_list, nvolmask, mode, cx_all, cy_all, cz_all)
+    nvox_all, ts = np.shape(regiondata_all)
+    print('finished loading data ...')
+
+    region_properties = []
+    voxel_count = 0
+    for nn, rname in enumerate(sem_region_list):
+        rname_check = cluster_properties[nn]['rname']
+        regionindex = cluster_properties[nn]['regionindex']
+        regionnum = cluster_properties[nn]['regionnum']
+        cx = cluster_properties[nn]['cx']
+        cy = cluster_properties[nn]['cy']
+        cz = cluster_properties[nn]['cz']
+        IDX = cluster_properties[nn]['IDX']
+        nclusters = cluster_properties[nn]['nclusters']
+        v1, v2 = voxel_count, voxel_count + len(cx)
+
+        if rname_check != rname:
+            print('Problem with inconsistent cluster and network definitions!')
+            return region_properties  # to this point region_properties will be incomplete
+        else:
+            regiondata = copy.deepcopy(regiondata_all[v1:v2,:])
+            nvox, ts = np.shape(regiondata)
+
+            # -----------------check for extreme variance------------
+            tsize = int(ts / nruns_total)
+            nvox = len(cx)
+            rdtemp = regiondata.reshape(nvox, tsize, nruns_total, order='F').copy()
+            varcheck2 = np.var(rdtemp, axis=1)
+
+            if varcheckmethod == 'median':
+                typicalvar2 = np.median(varcheck2)
+            else:
+                typicalvar2 = np.mean(varcheck2)
+            varlimit = varcheckthresh * typicalvar2
+
+            cv, cp = np.where(varcheck2 > varlimit)  # voxels with crazy variance
+            if len(cv) > 0:
+                for vv in range(len(cv)):
+                    rdtemp[cv[vv], :, cp[vv]] = np.zeros(tsize)
+                print('---------------!!!!!----------------------');
+                print('Variance check found {} crazy voxels'.format(len(cv)))
+                print('---------------!!!!!----------------------\n');
+            else:
+                print('Variance check did not find any crazy voxels');
+            regiondata = rdtemp.reshape(nvox, ts, order='F').copy()
+            # ------------done correcting for crazy variance - -------------------
+
+            tc = np.zeros([nclusters, ts])
+            tc_sem = np.zeros([nclusters, ts])
+            for aa in range(nclusters):
+                cc = [i for i in range(len(IDX)) if IDX[i] == aa]
+                nvox = len(cc)
+                tc[aa, :] = np.mean(regiondata[cc, :], axis=0)
+                tc_sem[aa, :] = np.std(regiondata[cc, :], axis=0) / np.sqrt(nvox)
+
+            regiondata_entry = {'tc': tc, 'tc_sem': tc_sem, 'nruns_per_person': nruns_per_person, 'tsize': tsize,
+                                'rname': rname, 'DBname': DBname, 'DBnum': DBnum, 'prefix': prefix}
+            region_properties.append(regiondata_entry)
+
+    return region_properties
 
     # import matplotlib.pyplot as plt
     # aa = 1

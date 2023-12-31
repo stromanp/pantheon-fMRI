@@ -1449,9 +1449,9 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
         initial_nitermax_stage1 = 1
         initial_nsteps_stage1 = 10
     else:
-        nitermax = 50
-        initial_nitermax_stage1 = 50
-        initial_nsteps_stage1 = 20
+        nitermax = 75
+        initial_nitermax_stage1 = 25
+        initial_nsteps_stage1 = 12
 
     output = sem_physio_model1_V3(cluster_numbers+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
                                   fixed_beta_vals=[], betascale=betascale, Lweight = Lweight, nitermax=nitermax, verbose=False,normalizevar=False,
@@ -1963,7 +1963,7 @@ def plot_region_inputs_regression(window, target, nametag1, Minput, Sinput_reg, 
     return svgname
 
 
-def plot_region_fits(window, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange = [], TargetCanvas = 'none'):  # display_in_GUI = False
+def plot_region_fits(window, regionlist, nametag, Sinput_avg, Sinput_sem, fit_avg, fit_sem, rnamelist, outputdir, yrange = [], TargetCanvas = 'none', color1 = 'b', color2 = 'r'):  # display_in_GUI = False
 
     if isinstance(TargetCanvas,str):
         display_in_GUI = False
@@ -2008,16 +2008,16 @@ def plot_region_fits(window, regionlist, nametag, Sinput_avg, Sinput_sem, fit_av
 
         if len(Sinput_sem) > 0:
             tc1_sem = Sinput_sem[regionlist[nn], :]
-            axs[nn].errorbar(t, tc1, tc1_sem, marker = 'o', markerfacecolor = 'b', markeredgecolor = 'b', linestyle = '-', color = 'b', linewidth=1, markersize=4)
+            axs[nn].errorbar(t, tc1, tc1_sem, marker = 'o', markerfacecolor = color1, markeredgecolor = color1, linestyle = '-', color = color1, linewidth=1, markersize=4)
         else:
-            axs[nn].plot(t, tc1, '-ob', linewidth=1, markersize=4)
+            axs[nn].plot(t, tc1, marker = 'o', markerfacecolor = color1, markeredgecolor = color1, linestyle = '-', color = color1, linewidth=1, markersize=4)
 
         if len(fit_avg) > 0:
             if len(fit_sem) > 0:
                 tcf1_sem = fit_sem[regionlist[nn], :]
-                axs[nn].errorbar(t, tcf1, tcf1_sem, marker = 'o', markerfacecolor = 'r', markeredgecolor = 'r', linestyle = '-', color = 'r', linewidth=1, markersize=4)
+                axs[nn].errorbar(t, tcf1, tcf1_sem, marker = 'x', markerfacecolor = color2, markeredgecolor = color2, linestyle = '-', color = color2, linewidth=1, markersize=4)
             else:
-                axs[nn].plot(t, tcf1, '-xr', linewidth=1, markersize=4)
+                axs[nn].plot(t, tcf1, marker = 'x', markerfacecolor = color2, markeredgecolor = color2, linestyle = '-', color = color2, linewidth=1, markersize=4)
 
         axs[nn].set_title('target {}'.format(rnamelist[regionlist[nn]]))
         if setylim:
@@ -3001,6 +3001,37 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         print('finished generating results for Plot_BOLDModel...')
         return outputname
 
+
+    # outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel', 'Plot_Output', 'Plot_SourceModel', 'DrawSAPMdiagram']
+    if outputtype == 'Plot_Output':
+        print('generating results for Plot_Output...')
+        descriptor = outputnametag + '_Output'
+
+        nregions = len(rnamelist)
+        rnamelist_full = copy.deepcopy(rnamelist)
+        if fintrinsic_count > 0: rnamelist_full += ['latent0']
+        for nn in range(vintrinsic_count): rnamelist_full += ['latent{}'.format(fintrinsic_count + nn)]
+
+        regionnum = [rnamelist_full.index(target) ]   # input a region
+        nametag = rnamelist_full[regionnum[0]] + '_' + outputnametag   # create name for saving figure
+        nametag1 = target + '_' + descriptor
+        print('Plotting Sinput data for region {}, number {}'.format(target, regionnum))
+
+        if len(setylimits) > 0:
+            ylim = setylimits[0]
+            yrangethis = [-ylim,ylim]
+        else:
+            yrangethis = []
+        if regionnum[0] >= nregions:   # latent input
+            latentnum = regionnum[0] - nregions
+            svgname, Rtext, Rvals = plot_region_fits(window, [latentnum], nametag1, Mintrinsic_avg, Mintrinsic_sem, [], [], rnamelist_full[nregions:], outputdir, yrangethis, TargetCanvas, color1 = 'r') # display_in_GUI
+        else:
+            svgname, Rtext, Rvals = plot_region_fits(window, regionnum, nametag1, Sconn_avg, Sconn_sem, [], [], rnamelist, outputdir, yrangethis, TargetCanvas, color1 = 'r') # display_in_GUI
+        outputname = svgname
+
+        print('finished generating results for Plot_Output...')
+        return outputname
+
     #-------------------------------------------------------------------------------
     #-------------time-course regression with continuous covariate------------------------------
     # prepare time-course values to plot
@@ -3038,7 +3069,7 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         print('generating outputs for Plot_SourceModel...')
         descriptor = outputnametag + '_SourceModel'
 
-        nametag1 = target + descriptor
+        nametag1 = target + '_' + descriptor
 
         if len(setylimits) > 0:
             ylim = setylimits[0]

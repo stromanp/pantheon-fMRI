@@ -3886,15 +3886,15 @@ class CLFrame:
     def CLnmaskvolsubmitaction(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
-        CLnmaskvol = self.CLnmaskvolbox.get()
+        self.CLnmaskvol = int(float(self.CLnmaskvolbox.get()))
 
         # write the result to the label box for display
         self.CLnmaskvolbox.delete(0, 'end')
         self.CLnmaskvolbox.insert(0, self.CLnmaskvol)
 
+        settings['CLnmaskvol'] = self.CLnmaskvol
         np.save(settingsfile, settings)
         self.CLupdate_network_info()
-
 
     def CLsetcrazytype(self):
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
@@ -4032,6 +4032,7 @@ class CLFrame:
         self.networkmodel = settings['networkmodel']
         self.CLclustername = settings['CLclustername']
         self.CLregionname = settings['CLregionname']
+        self.CLnmaskvol = settings['CLnmaskvol']
 
         self.CLcrazythreshold = settings['CLcrazythreshold']
         self.CLvarcheckmethod = settings['CLvarcheckmethod']
@@ -8807,7 +8808,7 @@ class SAPMResultsFrame:
 
         # specific which outputs to generate...
         rownum = 9
-        outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel','Plot_SourceModel', 'DrawSAPMdiagram', 'DrawAnatomy_axial', 'DrawAnatomy_sagittal', 'Group_Diff' , 'Paired_Diff', 'Regress_diff_v_diff' ]
+        outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel','Plot_SourceModel', 'Plot_Output', 'DrawSAPMdiagram', 'DrawAnatomy_axial', 'DrawAnatomy_sagittal', 'Group_Diff' , 'Paired_Diff', 'Regress_diff_v_diff' ]
         # add label, and pull-down menu for selected covariate values for searching
         self.SRL5 = tk.Label(self.parent, text = "Output: ", font = labelfont)
         self.SRL5.grid(row=rownum,column=1, sticky='E')
