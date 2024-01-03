@@ -7921,8 +7921,8 @@ class SAPMResultsFrame:
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         self.SAPMcnums = settings['SAPMcnums']
         self.SRresultsdir = copy.deepcopy(settings['SAPMresultsdir'])
-        self.SAPMresultsname = copy.deepcopy(settings['SAPMresultsname'])
-        self.SAPMparamsname = copy.deepcopy(settings['SAPMparamsname'])
+        self.SRresultsname = copy.deepcopy(settings['SAPMresultsname'])
+        self.SRparamsname = copy.deepcopy(settings['SAPMparamsname'])
         self.DBname = copy.deepcopy(settings['DBname'])
         self.networkmodel = settings['networkmodel']
 
@@ -7934,6 +7934,11 @@ class SAPMResultsFrame:
         self.SRresultsnametext2.set(self.SRresultsname2)
         self.SRparamsnametext.set(self.SRparamsname)
         self.SRparamsnametext2.set(self.SRparamsname2)
+
+        settings['SRresultsdir'] = copy.deepcopy(self.SRresultsdir)
+        settings['SRresultsname'] = copy.deepcopy(self.SRresultsname)
+        settings['SRparamsname'] = copy.deepcopy(self.SRparamsname)
+        np.save(settingsfile, settings)
 
         # update network
         self.SRtargetregion_opt.destroy()  # remove it
