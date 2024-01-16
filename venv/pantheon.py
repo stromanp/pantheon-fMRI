@@ -7329,6 +7329,75 @@ class SAPMFrame:
 
 
 
+    def SAPMbestclusters_pca(self):
+        # do a gradient-descent search with estimates of variance based on PCA components
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        self.SAPMresultsdir = settings['SAPMresultsdir']
+        self.SAPMregionname = settings['SAPMregionname']
+        self.networkmodel = settings['networkmodel']
+
+        self.SAPMcnums = settings['SAPMcnums']
+        # self.DBname = settings['DBname']
+        # self.DBnum = settings['DBnum']
+        # self.networkmodel = settings['networkmodel']
+        # self.SAPMclustername = settings['SAPMclustername']
+        # self.SAPMresultsname = settings['SAPMresultsname']
+        # self.SAPMupdate_network_info()
+        #
+        # xls = pd.ExcelFile(self.DBname, engine='openpyxl')
+        # df1 = pd.read_excel(xls, 'datarecord')
+        #
+        # normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
+        # resolution = 1
+        # template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = \
+        #     load_templates.load_template_and_masks(normtemplatename, resolution)
+        #
+        # region_data = np.load(self.SAPMregionname, allow_pickle=True).flat[0]
+        # region_properties = region_data['region_properties']
+        #
+        # cluster_data = np.load(self.SAPMclustername, allow_pickle=True).flat[0]
+        # cluster_properties = cluster_data['cluster_properties']
+        #
+        # print('running search for best clusters to use with SAPM ...')
+        #
+        # SAPMresultsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
+        # SAPMparamsname = os.path.join(self.SAPMresultsdir, self.SAPMparamsname)
+
+        # search_data_file = os.path.join(self.SAPMresultsdir, 'SAPM_search_parameters.npy')
+
+        if self.SAPMrandomclusterstart > 0:
+            clusterstart = []
+        else:
+            clusterstart = self.SAPMcnums
+
+
+        # print('SAPMrandomclusterstart = {}'.format(self.SAPMrandomclusterstart))
+        # print('clusterstart set to {}'.format(clusterstart))
+        # np.save(search_data_file, {'SAPMresultsdir': self.SAPMresultsdir, 'SAPMresultsname': SAPMresultsname,
+        #                            'SAPMparamsname': SAPMparamsname,
+        #                            'networkmodel': self.networkmodel, 'DBname': self.DBname,
+        #                            'SAPMregionname': self.SAPMregionname,
+        #                            'SAPMclustername': self.SAPMclustername, 'initial_clusters': clusterstart,
+        #                            'betascale': self.SAPMbetascale})
+        #
+        # best_clusters = pysapm.SAPM_cluster_stepsearch(self.SAPMresultsdir, SAPMresultsname, SAPMparamsname,
+        #                                                self.networkmodel, self.SAPMregionname,
+        #                                                self.SAPMclustername, samplesplit, samplestart,
+        #                                                initial_clusters=clusterstart, timepoint='all', epoch='all',
+        #                                                betascale=self.SAPMbetascale, Lweight=self.SAPMLweight)
+
+        best_clusters = pysapm.cluster_search_pca(self.SAPMregionname, self.networkmodel, initial_clusters=clusterstart)
+
+        self.SAPMcnums = copy.deepcopy(list(best_clusters))
+        self.SAPMcnumsbox.delete(0, 'end')
+        self.SAPMcnumsbox.insert(0, self.SAPMcnums)
+        message_text = 'Best clusters appear to be\n{}\nstarting clusters were\n{}'.format(self.SAPMcnums,clusterstart)
+        self.SAPMkeyinfo1.config(text = message_text, fg = 'red')
+        settings['SAPMcnums'] = self.SAPMcnums
+        np.save(settingsfile,settings)
+
+
+
     def SAPMrunnetwork(self):
         # define the clusters and load the data
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
@@ -7894,7 +7963,13 @@ class SAPMFrame:
         self.SAPMrunsearchbutton.grid(row=rownum, column=2, columnspan = 2, sticky='W')
 
         self.SAPMkeyinfo1 = tk.Label(self.parent, text = " ", fg = 'gray', justify = 'left')
-        self.SAPMkeyinfo1.grid(row=rownum,column=3, sticky='W')
+        self.SAPMkeyinfo1.grid(row=rownum,column=5, sticky='W')
+
+
+        # label, button, for running the definition of clusters, and loading data
+        self.SAPMrunsearchbutton2 = tk.Button(self.parent, text="PCA clusters?", width=bigbigbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
+                                        command=self.SAPMbestclusters_pca, relief='raised', bd=5, highlightbackground = widgetbg)
+        self.SAPMrunsearchbutton2.grid(row=rownum, column=3, columnspan = 2, sticky='W')
 
 
         rownum = 16

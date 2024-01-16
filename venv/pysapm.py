@@ -1449,9 +1449,9 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
         initial_nitermax_stage1 = 1
         initial_nsteps_stage1 = 10
     else:
-        nitermax = 75
-        initial_nitermax_stage1 = 25
-        initial_nsteps_stage1 = 12
+        nitermax = 40
+        initial_nitermax_stage1 = 20
+        initial_nsteps_stage1 = 8
 
     output = sem_physio_model1_V3(cluster_numbers+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
                                   fixed_beta_vals=[], betascale=betascale, Lweight = Lweight, nitermax=nitermax, verbose=False,normalizevar=False,
@@ -1544,6 +1544,232 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
     dtimes = np.round(dtime % 60).astype(int)
     print('Cluster search started at {}\n             and ended at {}\n     {} minutes {} sec total'.format(overall_start_time_text, overall_end_time_text, dtimem,dtimes))
     return cluster_numbers
+
+
+def nperms(n, input_list):
+	# find all possible combinations of n values selected out of the input list
+	# without duplicates
+
+	nvals = len(input_list)
+	permutations = []
+	dimspec = [nvals for xx in range(n)]
+	grid = np.ones(dimspec)
+
+	coords = np.zeros((n,nvals**n))
+	for nn in range(n):
+		predims = nn
+		postdims = n-nn-1
+		d1 = np.tile(np.array(range(nvals)),nvals**postdims)
+		d1 = np.repeat(d1,nvals**predims)
+		coords[nn,:] = d1
+
+	dcoords = coords[1:,:]-coords[:-1,:]
+	keeplist = [xx for xx in range(nvals**n) if np.min(dcoords[:,xx]) > 0]
+	perms = np.array(coords[:,keeplist]).astype(int)
+
+	nperms = np.shape(perms)[1]
+	output_list = []
+	for xx in range(nperms):
+		sample = [input_list[c] for c in perms[:,xx]]
+		output_list += [sample]
+
+	return np.array(output_list), perms
+
+
+def cluster_search_pca(regiondataname, networkmodel, initial_clusters = []):
+    regiondata = np.load(regiondataname, allow_pickle=True).flat[0]
+    region_properties = regiondata['region_properties']
+    nregions = len(region_properties)
+    rnamelist = [region_properties[xx]['rname'] for xx in range(nregions)]
+    nruns_per_person = region_properties[0]['nruns_per_person']
+    tsize = region_properties[0]['tsize']
+
+    NP = len(nruns_per_person)
+    nruns_total = np.sum(nruns_per_person)
+
+    network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base = load_network_model_w_intrinsics(networkmodel)
+    nclusterlist_temp = []
+    for xx in range(len(nclusterlist)):
+        if not 'intrinsic' in nclusterlist[xx]['name']:
+            nclusterlist_temp += [nclusterlist[xx]['nclusters']]
+    nclusterlist = np.array(nclusterlist_temp)
+    nclusterstotal = np.sum(nclusterlist)
+
+    # params = np.load(paramsname, allow_pickle=True).flat[0]
+    # vintrinsic_count = copy.deepcopy(params['vintrinsic_count'])
+    # fintrinsic_count = copy.deepcopy(params['fintrinsic_count'])
+    # nclusterlist = copy.deepcopy(params['nclusterlist'])
+    # nclusterstotal = copy.deepcopy(params['nclusterstotal'])
+    if fintrinsic_count > 0:
+        # fintrinsic_base = copy.deepcopy(params['fintrinsic_base'])
+        fintrinsic_base -= np.mean(fintrinsic_base)
+        fintrinsic_tc = copy.deepcopy(fintrinsic_base)
+    else:
+        fintrinsic_tc = []
+
+    vdata = []
+    for nn in range(NP):
+        # data per person
+        Sinput = np.zeros((nclusterstotal,tsize*nruns_per_person[nn]))
+        t1 = np.sum(nruns_per_person[:nn])*tsize
+        t2 = np.sum(nruns_per_person[:(nn+1)])*tsize
+        for rr in range(nregions):
+            c1 = np.sum(nclusterlist[:rr]).astype(int)
+            c2 = np.sum(nclusterlist[:(rr+1)])
+            Sinput[c1:c2,:] = region_properties[rr]['tc'][:,t1:t2]
+
+        if fintrinsic_count > 0:
+            #  Sinput = f_b @ flatent_tc    - fit fixed latent component if there is one
+            flatent_tc = np.repeat(fintrinsic_tc, nruns_per_person[nn], axis=1)
+            f_b = Sinput @ flatent_tc.T @ np.linalg.inv(flatent_tc @ flatent_tc.T)
+            f_fit = f_b @ flatent_tc
+            Sinput_res = Sinput - f_fit   # take out fixed latent component
+            var_flatent = np.var(Sinput,axis=1) - np.var(Sinput_res,axis=1)
+        else:
+            Sinput_res = copy.deepcopy(Sinput)
+            var_flatent = np.zeros(nclusterstotal)
+
+        # get principal components and weights for timecourse data in Sinput
+        # nregions, tsizefull = np.shape(Sinput)
+        # Sin_std = np.repeat(np.std(Sinput, axis=1)[:, np.newaxis], tsizefull, axis=1)
+        # Sinput_norm = Sinput / Sin_std
+        pca = PCA(n_components=nclusterstotal)
+        pca.fit(Sinput_res)
+        # S_pca_ = pca.fit(Sinput).transform(Sinput)
+
+        components = pca.components_
+        evr = pca.explained_variance_ratio_
+        ev = pca.explained_variance_
+        # get loadings
+        mu = np.mean(Sinput_res, axis=0)   # the average component is separate and messes up everything because
+                                            # it might not be linearly independent of other components
+        vm = np.var(mu, ddof=1)
+        mu = np.repeat(mu[np.newaxis, :], nclusterstotal, axis=0)
+
+        loadings = pca.transform(Sinput_res)
+        # fit_check = (loadings @ components) + mu
+
+        # now find which set of clusters can be best explained by only vintrinsic_count PCA components
+        vc = np.var(components,axis=1, ddof = 1)
+        v_by_component = (loadings**2) * np.repeat(vc[:,np.newaxis],nclusterstotal,axis=1)
+        vS = np.var(Sinput_res - mu, axis=1, ddof = 1)
+        v_ratio_by_component = v_by_component / np.repeat(vS[:,np.newaxis],nclusterstotal,axis=1)
+
+        if fintrinsic_count > 0:
+            v_ratio_flatent = var_flatent / vS
+            v_ratio_by_component = np.concatenate((v_ratio_by_component,v_ratio_flatent[:,np.newaxis]),axis=1)
+
+        # v_ratio_by_component is [cluster_number x component]
+        # find which combination of cluster numbers gives the highest total for some set of compoents across all people
+        vdata.append({'vratio':v_ratio_by_component})
+        if nn == 0:
+            vdata_group = copy.deepcopy(v_ratio_by_component[:,:,np.newaxis])
+        else:
+            vdata_group = np.concatenate((vdata_group,v_ratio_by_component[:,:,np.newaxis]),axis=2)
+
+    # find one cluster per region that gives the best overall fit for all people
+    # permutations of first Nsearch components
+    Nsearch = 8
+    cnumset = list(range(Nsearch))
+    component_list, perms = nperms(vintrinsic_count, cnumset)   # combinations of PCA terms to check
+    ncombinations = np.shape(component_list)[0]
+
+    multistep_results = []
+    nrepeats = 10
+    for rrr in range(nrepeats):
+        # gradient-descent type search---------------------------------------
+        # initial cluster guess
+        offset = np.array([0] + list(np.cumsum(nclusterlist))[:-1])
+        cluster_numbers = np.zeros(len(nclusterlist))
+        for nn in range(len(nclusterlist)):
+            cnum = np.random.choice(range(nclusterlist[nn]))
+            cluster_numbers[nn] = copy.deepcopy(cnum)
+        cnumlist = (cluster_numbers + offset).astype(int)
+
+        initial_clusters = np.array(initial_clusters)
+        if (initial_clusters < 0).any():
+            fixed_clusters = np.where(initial_clusters >= 0)[0]
+            cluster_numbers[fixed_clusters] = copy.deepcopy(initial_clusters[fixed_clusters])
+        else:
+            fixed_clusters = []
+        print('Search for best clusters based on PCA method ...')
+        print('     clusters {} are fixed at {}'.format(fixed_clusters, initial_clusters[fixed_clusters]))
+
+        lastavg = 0
+        maxiter = 100
+        iter = 0
+        converging = True
+        verbose = False
+        while converging and (iter < maxiter):
+            iter += 1
+            nbetterclusters = 0
+            random_region_order = list(range(nregions))
+            np.random.shuffle(random_region_order)
+            for nnn in random_region_order:
+                avg_var_list = np.zeros(nclusterlist[nnn])
+                print('testing region {}'.format(nnn))
+                if nnn in fixed_clusters:
+                    print('cluster for region {} is fixed at {}'.format(nnn, cluster_numbers[nnn]))
+                else:
+                    for ccc in range(nclusterlist[nnn]):
+                        test_clusters = copy.deepcopy(cluster_numbers)
+                        if test_clusters[nnn] == ccc:  # no change in cluster number from last run
+                            avg_var_list[ccc] = lastavg
+                            if verbose:
+                                print('  using cluster {}  total of avg. variance explained for the group is {:.3f} - current cluster'.format(ccc, avg_var_list[ccc]))
+                        else:
+                            test_clusters[nnn] = ccc
+                            cnumlist = (test_clusters + offset).astype(int)
+
+                            # find best combination in each person
+                            best_var = np.zeros(NP)
+                            for pp in range(NP):
+                                var_check_list = np.zeros(ncombinations)
+                                for nn in range(ncombinations):
+                                    complist = component_list[nn, :]
+                                    if fintrinsic_count > 0:
+                                        complist = np.concatenate((complist, [nclusterstotal]))
+
+                                    vdata_subset = vdata_group[cnumlist, :, pp]
+                                    # check = np.mean(np.sum(vdata_group[:,cc,:],axis=1),axis=1)
+                                    var_check_list[nn] = np.sum(vdata_subset[:,complist])  # how much variance is accounted for by these components, for each cluster, in each person
+                                best_var[pp] = np.max(var_check_list)
+                            avg_var_list[ccc] = np.mean(best_var)
+
+                            # entry = {'R2list': R2list, 'R2list2': R2list2, 'region': nnn, 'cluster': ccc}
+                            # results_record.append(entry)
+                            if verbose:
+                                print('  using cluster {}  total of avg. variance explained for the group is {:.3f}'.format(ccc, avg_var_list[ccc]))
+
+                    x = np.argmax(avg_var_list)
+                    this_avg = avg_var_list[x]
+                    delta_avg = this_avg - lastavg
+                    if this_avg > lastavg:
+                        cluster_numbers[nnn] = x
+                        nbetterclusters += 1
+                        lastavg = copy.deepcopy(this_avg)
+                    else:
+                        if verbose:
+                            print('no improvement in clusters found ... region {}'.format(nnn))
+
+                    print('iter {} region {} new avg. variance = {:.3f}  previous avg. variance  = {:.3f}  delta variance = {:.3e} {}'.format(
+                            iter, nnn, this_avg, lastavg, delta_avg, time.ctime()))
+
+            if nbetterclusters == 0:
+                converging = False
+                print('no improvement in clusters found in any region ...')
+
+        multistep_results.append({'cluster_numbers':cluster_numbers, 'lastavg':lastavg})
+
+    # find best of nrepeats
+    lastavg_record = [multistep_results[xx]['lastavg'] for xx in range(nrepeats)]
+    dd = np.argmax(lastavg_record)
+    best_cluster_numbers = multistep_results[dd]['cluster_numbers'].astype(int)
+
+    print('\nbest overall cluster set is : {}'.format(best_cluster_numbers))
+    print('\n    overall variance estimate accounted for is {:.3f}'.format(np.max(lastavg_record)))
+
+    return best_cluster_numbers
 
 
 def sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, verbose = True):

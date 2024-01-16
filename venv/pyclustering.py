@@ -322,6 +322,7 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel,
 
     region_name_list = [region_coordinate_list[x]['rname'] for x in range(len(region_coordinate_list))]
     for nn, rname in enumerate(region_name_list):
+        print('loading data from region {}'.format(rname))
         nvox = region_coordinate_list[nn]['nvox']
         cx = region_coordinate_list[nn]['cx']
         cy = region_coordinate_list[nn]['cy']
@@ -372,26 +373,28 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel,
         IDX = kmeans.labels_
         cluster_tc = kmeans.cluster_centers_
 
-        # modified clustering method - for roughly equal size clusters
-        # Thanks to Eyal Shulman who shared on StackOverflow  https://stackoverflow.com/users/6247548/eyal-shulman
-        # method for making clusters approximately equal size
-        nvoxels, tsizefull = np.shape(regiondata)
-        cluster_size = np.floor(nvoxels/nclusters).astype(int)
-        nvox_trunc = cluster_size * nclusters
-        centers = kmeans.cluster_centers_
-        centers = centers.reshape(-1, 1, regiondata.shape[-1]).repeat(cluster_size, 1).reshape(-1, regiondata.shape[-1])
-        distance_matrix = cdist(regiondata[:nvox_trunc,:], centers)
-        val = linear_sum_assignment(distance_matrix)
-        IDX = val[1] // cluster_size
+        make_equal_size_clusters = False
+        if make_equal_size_clusters:
+            # modified clustering method - for roughly equal size clusters
+            # Thanks to Eyal Shulman who shared on StackOverflow  https://stackoverflow.com/users/6247548/eyal-shulman
+            # method for making clusters approximately equal size
+            nvoxels, tsizefull = np.shape(regiondata)
+            cluster_size = np.floor(nvoxels/nclusters).astype(int)
+            nvox_trunc = cluster_size * nclusters
+            centers = kmeans.cluster_centers_
+            centers = centers.reshape(-1, 1, regiondata.shape[-1]).repeat(cluster_size, 1).reshape(-1, regiondata.shape[-1])
+            distance_matrix = cdist(regiondata[:nvox_trunc,:], centers)
+            val = linear_sum_assignment(distance_matrix)
+            IDX = val[1] // cluster_size
 
-        # add in remaining voxels to the nearest clusters
-        nresidual = nvoxels - nvox_trunc
-        IDXresidual = []
-        for xx in range(nresidual):
-            tc = regiondata[-xx,:]
-            dist = [np.sqrt(np.sum( tc - kmeans.cluster_centers_[dd,:])**2) for dd in range(nclusters)]
-            IDXresidual += [np.argmin(dist)]
-        IDX = np.concatenate((IDX, np.array(IDXresidual[::-1])),axis=0)
+            # add in remaining voxels to the nearest clusters
+            nresidual = nvoxels - nvox_trunc
+            IDXresidual = []
+            for xx in range(nresidual):
+                tc = regiondata[-xx,:]
+                dist = [np.sqrt(np.sum( tc - kmeans.cluster_centers_[dd,:])**2) for dd in range(nclusters)]
+                IDXresidual += [np.argmin(dist)]
+            IDX = np.concatenate((IDX, np.array(IDXresidual[::-1])),axis=0)
 
         # new approach tried Dec 2023
         # centers = kmeans.cluster_centers_
@@ -480,7 +483,7 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel,
     return cluster_properties, region_properties
 
 
-def load_cluster_data_original(cluster_properties, DBname, DBnum, prefix, nvolmask, networkmodel, varcheckmethod = 'median', varcheckthresh = 3.0):
+def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, networkmodel, varcheckmethod = 'median', varcheckthresh = 3.0):
     '''
     Function to load data from a group, using a predefined cluster definition
     load_cluster_data in pyclustering.py
@@ -532,6 +535,7 @@ def load_cluster_data_original(cluster_properties, DBname, DBnum, prefix, nvolma
     # identify the voxels in the regions of interest
     region_properties = []
     for nn, rname in enumerate(sem_region_list):
+        print('loading data for region {}'.format(rname))
         rname_check = cluster_properties[nn]['rname']
         regionindex = cluster_properties[nn]['regionindex']
         regionnum = cluster_properties[nn]['regionnum']
@@ -595,7 +599,7 @@ def load_cluster_data_original(cluster_properties, DBname, DBnum, prefix, nvolma
     return region_properties
 
 
-def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, networkmodel, varcheckmethod='median',
+def load_cluster_data_newmethod(cluster_properties, DBname, DBnum, prefix, nvolmask, networkmodel, varcheckmethod='median',
                       varcheckthresh=3.0):
     '''
     Function to load data from a group, using a predefined cluster definition
@@ -737,34 +741,6 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, netwo
             region_properties.append(regiondata_entry)
 
     return region_properties
-
-    # import matplotlib.pyplot as plt
-    # aa = 1
-    # cx = [i for i in range(len(IDX)) if IDX[i] == aa]
-    # tc0 = np.mean(regiondata[cx, :], axis=0)
-    # fig = plt.figure(23);  plt.plot(range(138), tc0, 'bo-');  plt.plot(range(138), cluster_tc[aa, :], 'g-')
-
-
-    # going to need to check these voxel locations
-    # import matplotlib.pyplot as plt
-    # import copy
-    #
-    # background = template_img.astype(float) / template_img.max()
-    # red = copy.deepcopy(background)
-    # green = copy.deepcopy(background)
-    # blue = copy.deepcopy(background)
-    #
-    # red[cx,cy,cz] = 1.0
-    # green[cx,cy,cz] = 0.0
-    # blue[cx,cy,cz] = 0.0
-    #
-    # sag_slice = 13
-    # tcimg = np.dstack((red[sag_slice, :, :], green[sag_slice, :, :], blue[sag_slice, :, :]))
-    # fig = plt.figure(21), plt.imshow(tcimg)
-    #
-    # ax_slice = 175
-    # tcimg = np.dstack((red[:,:,ax_slice], green[:,:,ax_slice], blue[:,:,ax_slice]))
-    # fig = plt.figure(22), plt.imshow(tcimg)
 
 
 def load_data_from_region(filename_list, nvolmask, mode, cx, cy, cz):
