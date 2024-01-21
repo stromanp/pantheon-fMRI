@@ -190,11 +190,11 @@ def load_network_model_w_intrinsics(networkmodel):
 def sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals, deltavals, regular_flag):  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
     nr, ncomponents_to_fit = np.shape(loadings_fit)
 
-    R2list = 1.0 - np.sum((Sinput - fit) ** 2, axis=1) / np.sum(Sinput ** 2, axis=1)
+    R2list = 1.0 - np.sum((Sinput - fit) ** 2, axis=1) / (np.sum(Sinput ** 2, axis=1) + 1.0e-10)
     R2avg = np.mean(R2list)
-    R2total = 1.0 - np.sum((Sinput - fit) ** 2) / np.sum(Sinput ** 2)
+    R2total = 1.0 - np.sum((Sinput - fit) ** 2) / (np.sum(Sinput ** 2) + 1.0e-10)
 
-    error = np.mean(np.sum((Sinput - fit) ** 2, axis=1) / np.var(Sinput, axis=1))
+    error = np.mean(np.sum((Sinput - fit) ** 2, axis=1) / (np.var(Sinput, axis=1)) + 1.0e-10)
 
     cr = np.where(regular_flag > 0)[0]
     cost = np.mean(np.abs(betavals[cr]))  # L1 regularization, ignoring latents
@@ -322,6 +322,11 @@ def update_betavals_V3(Sinput, components, loadings, Minput, Mconn, betavals, de
     Minput[dtarget, dsource] = copy.deepcopy(deltavals)
 
     # gradients in beta vals
+    # print('shape of Sinput = {}'.format(np.shape(Sinput)))
+    # print('update_betavals_V3:  np.mean(Sinput,axis=1) = {}'.format(np.mean(Sinput,axis=1)))
+    # print('update_betavals_V3:  np.mean(Sinput) = {}'.format(np.mean(Sinput)))
+    # print('update_betavals_V3:  np.var(Sinput,axis=1) = {}'.format(np.var(Sinput,axis=1)))
+
     dssq_db, dssq_dd, ssqd, dssq_dbeta1 = gradients_for_betavals_V3(Sinput, components, loadings, Minput, Mconn, betavals,
                                         deltavals, ctarget, csource, dtarget, dsource, dval,
                                         fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight, regular_flag, ncomponents_to_fit)
@@ -356,6 +361,7 @@ def update_betavals_V3(Sinput, components, loadings, Minput, Mconn, betavals, de
     ssqd_new, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals, deltavals, regular_flag)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
 
     return betavals, deltavals, beta_int1, fit, dssq_db, dssq_dd, dssq_dbeta1, ssqd, ssqd_new, alpha, alphabint
+
 
 def network_eigenvector_method_V3(Sinput, components, loadings, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, ncomponents_to_fit = 0):
     # # Sinput[:nregions,:] = Minput @ Meigv @ Mintrinsic   #  [nr x tsize] = [nr x ncon] @ [ncon x Nint] @ [Nint x tsize]
@@ -2491,6 +2497,7 @@ def display_anatomical_cluster(clusterdataname, targetnum, targetcluster, orient
     # get the voxel coordinates for the target region
     clusterdata = np.load(clusterdataname, allow_pickle=True).flat[0]
     cluster_properties = clusterdata['cluster_properties']
+    template_img = clusterdata['template_img']
     nregions = len(cluster_properties)
     nclusterlist = [cluster_properties[i]['nclusters'] for i in range(nregions)]
     rnamelist = [cluster_properties[i]['rname'] for i in range(nregions)]
@@ -2518,13 +2525,13 @@ def display_anatomical_cluster(clusterdataname, targetnum, targetcluster, orient
         cy = clusterdata['cluster_properties'][r]['cy'][idxx]
         cz = clusterdata['cluster_properties'][r]['cz'][idxx]
 
-    # load template
-    if templatename.lower() == 'brain':
-        resolution = 2
-    else:
-        resolution = 1
-    template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_img = load_templates.load_template_and_masks(
-        templatename, resolution)
+    # # load template
+    # if templatename.lower() == 'brain':
+    #     resolution = 2
+    # else:
+    #     resolution = 1
+    # template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_img = load_templates.load_template_and_masks(
+    #     templatename, resolution)
 
     outputimg = pydisplay.pydisplayvoxelregionslice(templatename, template_img, cx, cy, cz, orientation, displayslice = [], colorlist = regioncolor)
 

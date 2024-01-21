@@ -233,7 +233,7 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel,
     for nn, rname in enumerate(sem_region_list):
         # regionindex = anatnamelist.index(rname)
         regionindex = [x for x, name in enumerate(anatnamelist) if name == rname]
-        regionnum = anatlabels['numbers'][regionindex]
+        regionnum = copy.deepcopy(anatlabels['numbers'][regionindex])
         print('searching for region {} {}'.format(rname,regionnum))
         if len(regionnum) > 1:
             # if the number of clusters divides evenly into the number of regions
@@ -270,14 +270,10 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel,
                         cz_full = np.concatenate((cz_full, cz), axis=0)
 
                 print('shape of cx_full is {}'.format(np.shape(cx_full)))
-                cx = np.unique(cx_full)
-                cy = np.unique(cy_full)
-                cz = np.unique(cz_full)
 
                 cx = copy.deepcopy(cx_full)
                 cy = copy.deepcopy(cy_full)
                 cz = copy.deepcopy(cz_full)
-                print('shape of cx after unique function is {}'.format(np.shape(cx)))
 
                 region_start += [vox_count]
                 region_end += [vox_count + len(cx)]
@@ -314,9 +310,8 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel,
                 cz_all = np.concatenate((cz_all,cz),axis=0)
 
     # regiondata = group_data[cx,cy,cz,:]   # nvox x tsize
-    # load the data one region at a time to save memory - necessary for large data sets
+    # load all the data from all regions, all data sets
     mode = 'concatenate'
-    # nvolmask = 2  # changed this to be an input parameter
     allregiondata = load_data_from_region(filename_list, nvolmask, mode, cx_all, cy_all, cz_all)
     nvox,ts = np.shape(allregiondata)
 
@@ -333,10 +328,11 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel,
 
         regiondata = allregiondata[n1:n2,:]
 
-        #-----------------check for extreme variance------------
+        #-----------------check for high variance------------
         tsize = int(ts/nruns_total)
         rdtemp = regiondata.reshape(nvox, tsize, nruns_total, order = 'F').copy()
         varcheck2 = np.var(rdtemp, axis = 1)
+        nvarvalstotal = nvox*nruns_total
 
         if varcheckmethod == 'median':
             typicalvar2 = np.median(varcheck2)
@@ -344,15 +340,16 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel,
             typicalvar2 = np.mean(varcheck2)
         varlimit = varcheckthresh * typicalvar2
 
-        cv,cp = np.where(varcheck2 > varlimit)  # voxels with crazy variance
+        cv,cp = np.where(varcheck2 > varlimit)  # voxels with high variance
+        high_var_record = {'cv':cv, 'cp':cp}
         if len(cv) > 0:
             for vv in range(len(cv)):
-                rdtemp[cv[vv],:,cp[vv]] = np.zeros(tsize)   # replace with zeros so the crazy variance does not mess up clustering
-            print('---------------!!!!!----------------------');
-            print('Variance check found {} crazy voxels'.format(len(cv)) )
-            print('---------------!!!!!----------------------\n');
+                rdtemp[cv[vv],:,cp[vv]] = np.zeros(tsize)   # replace with zeros so the high variance does not mess up clustering
+            print('---------------------------------!!!!!--------------------------------------');
+            print('Variance check found {} voxels with high variance ({:.1f} percent of total)'.format(len(cv), 100.*len(cv)/nvarvalstotal) )
+            print('---------------------------------!!!!!--------------------------------------\n');
         else:
-            print('Variance check did not find any crazy voxels');
+            print('Variance check did not find any voxels with high variance');
         regiondata = rdtemp.reshape(nvox, ts, order = 'F').copy()
         # ------------done correcting for crazy variance - -------------------
 
@@ -516,10 +513,6 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, netwo
     # load information about the network
     network, ncluster_list, sem_region_list = load_network_model(networkmodel, exclude_latent = True)
 
-    # anatnamelist = []
-    # for name in anatlabels['names']:
-    #     anatnamelist.append(name)
-
     #-------------------replace section of cluster definition function-----------------------
     # identify the voxels in the regions of interest
     region_properties = []
@@ -531,24 +524,25 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, netwo
     vox_count = 0
     for nn, rname in enumerate(sem_region_list):
         print('loading data for region {}'.format(rname))
-        rname_check = cluster_properties[nn]['rname']
-        regionindex = cluster_properties[nn]['regionindex']
-        regionnum = cluster_properties[nn]['regionnum']
-        cx = cluster_properties[nn]['cx']
-        cy = cluster_properties[nn]['cy']
-        cz = cluster_properties[nn]['cz']
-        IDX = cluster_properties[nn]['IDX']
-        nclusters = cluster_properties[nn]['nclusters']
-        region_coordinate_list.append({'rname': rname, 'nvox': len(cx), 'cx': cx, 'cy': cy, 'cz': cz, 'occurrence':0, 'IDX':IDX})
+        rname_check = copy.deepcopy(cluster_properties[nn]['rname'])
+        regionindex = copy.deepcopy(cluster_properties[nn]['regionindex'])
+        regionnum = copy.deepcopy(cluster_properties[nn]['regionnum'])
+        cx = copy.deepcopy(cluster_properties[nn]['cx'])
+        cy = copy.deepcopy(cluster_properties[nn]['cy'])
+        cz = copy.deepcopy(cluster_properties[nn]['cz'])
+        IDX = copy.deepcopy(cluster_properties[nn]['IDX'])
+        nclusters = copy.deepcopy(cluster_properties[nn]['nclusters'])
+        print('loading data for {} clusters'.format(nclusters))
+        region_coordinate_list.append({'rname': rname, 'nvox': len(cx), 'cx': cx, 'cy': cy, 'cz': cz, 'occurrence':0, 'IDX':IDX, 'nclusters':nclusters})
         region_start += [vox_count]
         region_end += [vox_count+len(cx)]
         vox_count += len(cx)
 
         if (nn == 0):
             ncluster_list2 = [nclusters]
-            cx_all = cx
-            cy_all = cy
-            cz_all = cz
+            cx_all = copy.deepcopy(cx)
+            cy_all = copy.deepcopy(cy)
+            cz_all = copy.deepcopy(cz)
         else:
             ncluster_list2 += [nclusters]
             cx_all = np.concatenate((cx_all, cx), axis=0)
@@ -557,31 +551,29 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, netwo
 
     # -------------------end of part that replaced cluster definition function---------------------
 
-
-    # regiondata = group_data[cx,cy,cz,:]   # nvox x tsize
-    # load the data one region at a time to save memory - necessary for large data sets
     mode = 'concatenate'
-    # nvolmask = 2  # changed this to be an input parameter
     allregiondata = load_data_from_region(filename_list, nvolmask, mode, cx_all, cy_all, cz_all)
     nvox,ts = np.shape(allregiondata)
 
     region_name_list = [region_coordinate_list[x]['rname'] for x in range(len(region_coordinate_list))]
     for nn, rname in enumerate(region_name_list):
         print('loading data from region {}'.format(rname))
-        nvox = region_coordinate_list[nn]['nvox']
-        cx = region_coordinate_list[nn]['cx']
-        cy = region_coordinate_list[nn]['cy']
-        cz = region_coordinate_list[nn]['cz']
-        occurrence = region_coordinate_list[nn]['occurrence']
-        n1 = region_start[nn]
-        n2 = region_end[nn]
+        nvox = copy.deepcopy(region_coordinate_list[nn]['nvox'])
+        cx = copy.deepcopy(region_coordinate_list[nn]['cx'])
+        cy = copy.deepcopy(region_coordinate_list[nn]['cy'])
+        cz = copy.deepcopy(region_coordinate_list[nn]['cz'])
+        occurrence = copy.deepcopy(region_coordinate_list[nn]['occurrence'])
+        nclusters = copy.deepcopy(region_coordinate_list[nn]['nclusters'])
+        n1 = copy.deepcopy(region_start[nn])
+        n2 = copy.deepcopy(region_end[nn])
 
-        regiondata = allregiondata[n1:n2,:]
+        regiondata = copy.deepcopy(allregiondata[n1:n2,:])
 
-        #-----------------check for extreme variance------------
+        #-----------------check for high variance------------
         tsize = int(ts/nruns_total)
         rdtemp = regiondata.reshape(nvox, tsize, nruns_total, order = 'F').copy()
         varcheck2 = np.var(rdtemp, axis = 1)
+        nvarvalstotal = nvox*nruns_total
 
         if varcheckmethod == 'median':
             typicalvar2 = np.median(varcheck2)
@@ -593,35 +585,16 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, netwo
         if len(cv) > 0:
             for vv in range(len(cv)):
                 rdtemp[cv[vv],:,cp[vv]] = np.zeros(tsize)   # replace with zeros so the crazy variance does not mess up clustering
-            print('---------------!!!!!----------------------');
-            print('Variance check found {} crazy voxels'.format(len(cv)) )
-            print('---------------!!!!!----------------------\n');
+            print('---------------------------------!!!!!--------------------------------------');
+            print('Variance check found {} voxels with high variance ({:.1f} percent of total)'.format(len(cv), 100. * len(cv)/nvarvalstotal))
+            print('---------------------------------!!!!!--------------------------------------\n');
         else:
-            print('Variance check did not find any crazy voxels');
+            print('Variance check did not find any voxels with high variance');
         regiondata = rdtemp.reshape(nvox, ts, order = 'F').copy()
         # ------------done correcting for crazy variance - -------------------
 
-        #-----------remove this part------------------
-        # now do the clustering for this region
-        # varcheck = np.var(regiondata, axis = 1)
-        # # cvox = np.where(varcheck > 0) # exclude voxels with effectively constant values
-        # cvox = [i for i in range(len(varcheck)) if varcheck[i] > 0]
-        # print('using {} voxels of {} with non-zero variance for defining clusters'.format(len(cvox), nvox))
-        # if len(cvox)>0:
-        #     regiondata = regiondata[cvox, :]
-        #     cx = cx[cvox]
-        #     cy = cy[cvox]
-        #     cz = cz[cvox]
-        #---------------------------------------------------
-
-        # divide each region into N clusters with similar timecourse properties
-        # nclusters = ncluster_list2[nn]
-        # kmeans = KMeans(n_clusters=nclusters, random_state=0).fit(regiondata)
-        # IDX = kmeans.labels_
-        # cluster_tc = kmeans.cluster_centers_
-
         #------------replace in define_cluster_and_load_data function---------------
-        IDX = region_coordinate_list[nn]['IDX']
+        IDX = copy.deepcopy(region_coordinate_list[nn]['IDX'])
         #------------end of replace in define_cluster_and_load_data function--------
 
         make_equal_size_clusters = False
@@ -652,70 +625,18 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, netwo
         for aa in range(nclusters):
             cc = [i for i in range(len(IDX)) if IDX[i] == aa]
             nvox = len(cc)
-            tc[aa,:] = np.mean(regiondata[cc, :], axis=0)
-            tc_sem[aa,:] = np.std(regiondata[cc, :], axis=0)/np.sqrt(nvox)
+            if nvox > 0:
+                tc[aa,:] = np.mean(regiondata[cc, :], axis=0)
+                tc_sem[aa,:] = np.std(regiondata[cc, :], axis=0)/np.sqrt(nvox)
+            else:
+                print('---------------CHECK THIS!-----------------------------')
+                print('region {} cluster {} does not contain any data!'.format(rname,aa))
+                print('-------------------------------------------------------')
 
         clusterdef_entry = {'cx':cx, 'cy':cy, 'cz':cz,'IDX':IDX, 'nclusters':nclusters, 'rname':rname, 'regionindex':regionindex, 'regionnum':regionnum, 'occurrence':occurrence}
         regiondata_entry = {'tc':tc, 'tc_sem':tc_sem, 'nruns_per_person':nruns_per_person, 'tsize':tsize, 'rname':rname, 'DBname':DBname, 'DBnum':DBnum, 'prefix':prefix, 'occurrence':occurrence}
         region_properties.append(regiondata_entry)
         cluster_properties.append(clusterdef_entry)
-
-    # combine repeated occurrences, if they occur
-    occurrences = [cluster_properties[x]['occurrence'] for x in range(len(cluster_properties))]
-    if (np.array(occurrences) > 0).any():
-        rnamelist = [cluster_properties[x]['rname'] for x in range(len(cluster_properties))]
-        cluster_properties2 = []
-        region_properties2 = []
-        for nn, rname in enumerate(sem_region_list):
-            cr = [x for x in range(len(rnamelist)) if rnamelist[x] == rname]
-            if len(cr) > 1:
-                ncluster_total = 0
-                for aa, cc in enumerate(cr):
-                    if aa == 0:
-                        cx = cluster_properties[cc]['cx']
-                        cy = cluster_properties[cc]['cy']
-                        cz = cluster_properties[cc]['cz']
-                        IDX = cluster_properties[cc]['IDX']
-                        nclusters = cluster_properties[cc]['nclusters']
-                        rname = cluster_properties[cc]['rname']
-                        regionindex = cluster_properties[cc]['regionindex']
-                        regionnum = cluster_properties[cc]['regionnum']
-                        tc = region_properties[cc]['tc']
-                        tc_sem = region_properties[cc]['tc_sem']
-                        nruns_per_person = region_properties[cc]['nruns_per_person']
-                        tsize = region_properties[cc]['tsize']
-                        DBname = region_properties[cc]['DBname']
-                        DBnum = region_properties[cc]['DBnum']
-                        prefix = region_properties[cc]['prefix']
-                        ncluster_total += nclusters
-                    else:
-                        cx2 = cluster_properties[cc]['cx']
-                        cy2 = cluster_properties[cc]['cy']
-                        cz2 = cluster_properties[cc]['cz']
-                        IDX2 = cluster_properties[cc]['IDX']
-                        nclusters2 = cluster_properties[cc]['nclusters']
-                        tc2 = region_properties[cc]['tc']
-                        tc_sem2 = region_properties[cc]['tc_sem']
-
-                        cx = np.concatenate((cx,cx2),axis=0)
-                        cy = np.concatenate((cy,cy2),axis=0)
-                        cz = np.concatenate((cz,cz2),axis=0)
-                        IDX = np.concatenate((IDX,IDX2+ncluster_total),axis=0)
-                        ncluster_total += nclusters2
-                        tc = np.concatenate((tc,tc2),axis=0)
-                        tc_sem = np.concatenate((tc,tc_sem2),axis=0)
-
-                clusterdef_entry_temp = {'cx': cx, 'cy': cy, 'cz': cz, 'IDX': IDX, 'nclusters': ncluster_total, 'rname': rname, 'regionindex': regionindex, 'regionnum': regionnum}
-                regiondata_entry_temp = {'tc': tc, 'tc_sem': tc_sem, 'nruns_per_person': nruns_per_person, 'tsize': tsize, 'rname': rname, 'DBname': DBname, 'DBnum': DBnum, 'prefix': prefix}
-
-                cluster_properties2.append(clusterdef_entry_temp)
-                region_properties2.append(regiondata_entry_temp)
-            else:
-                cluster_properties2.append(cluster_properties[cr[0]])
-                region_properties2.append(region_properties[cr[0]])
-
-        cluster_properties = cluster_properties2
-        region_properties = region_properties2
 
     print('loading cluster data complete.')
     return region_properties

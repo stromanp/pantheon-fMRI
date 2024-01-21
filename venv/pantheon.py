@@ -1673,9 +1673,14 @@ class NCFrame:
         normdataname_full = os.path.join(dbhome, normname)
 
         # get normdataname to copy from
-        dbhomeC = df1.loc[copydbnum, 'datadir']
-        normnameC = df1.loc[copydbnum, 'normdataname']
+        dbhomeC = copy.deepcopy(df1.loc[copydbnum, 'datadir'])
+        normnameC = copy.deepcopy(df1.loc[copydbnum, 'normdataname'])
         normdataname_fullC = os.path.join(dbhomeC, normnameC)
+
+        print('copying from database number {}'.format(copydbnum))
+        print('    data directory: {}'.format(dbhomeC))
+        print('    norm data filename: {}'.format(normnameC))
+        print('    full norm data name: {}'.format(normdataname_fullC))
 
         # load normdata to be copied
         print('loading normdata from {}'.format(normdataname_fullC))
@@ -2023,6 +2028,8 @@ class NCFrame:
             # df1.pop('Unnamed: 0')
             normdataname_small = normdataname_full.replace(dbhome, '')  # need to strip off dbhome before writing the name
             # df1.loc[dbnum.astype('int'), 'normdataname'] = normdataname_small[1:]
+            if normdataname_small[0] == os.path.sep:
+                normdataname_small = normdataname_small[1:]
             df1.loc[dbnum.astype('int'), 'normdataname'] = normdataname_small
             #
             # add normalization quality to database
@@ -2170,6 +2177,7 @@ class NCFrame:
             img = (255.*img/np.max(img)).astype(np.uint8)
             image_tk = ImageTk.PhotoImage(Image.fromarray(img))
             input_image = input_data
+        verticalsize = ys
         self.controller.img1d = image_tk  # keep a copy so it persists
         self.window1.configure(width=image_tk.width(), height=image_tk.height())
         self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
@@ -2803,8 +2811,10 @@ class NCbrainFrame:
             for kname in keylist:
                 if 'Unnamed' in kname: df1.pop(kname)  # remove blank fields from the database
             normdataname_small = normdataname_full.replace(dbhome, '')  # need to strip off dbhome before writing the name
-            df1.loc[dbnum, 'normdataname'] = normdataname_small[1:]
-            # df1.loc[dbnum, 'normdataname'] = normdataname_small
+            # df1.loc[dbnum, 'normdataname'] = normdataname_small[1:]
+            if normdataname_small[0] == os.path.sep:
+                normdataname_small = normdataname_small[1:]
+            df1.loc[dbnum, 'normdataname'] = normdataname_small
 
             # add normalization quality to database
             if 'norm_quality' not in keylist:
@@ -8497,6 +8507,9 @@ class SAPMResultsFrame:
 
             regions = pysapm.define_drawing_regions_from_file(drawregionsfile)
             multiple_output = False
+
+            print('SRgenerateoutput: regions = {}'.format(regions))
+
             if multiple_output:
                 outputname = pysapm.draw_sapm_plot(results_file, sheetname, regionnames, regions, statname,
                                                    figurenumber, scalefactor, cnums, threshold_text, writefigure)
@@ -8514,6 +8527,9 @@ class SAPMResultsFrame:
             xls = pd.ExcelFile(self.DBname, engine='openpyxl')
             df1 = pd.read_excel(xls, 'datarecord')
             normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
+
+            print('SRgenerateoutput: clusterdataname = {}'.format(clusterdataname))
+            print('SRgenerateoutput: rnamelist = {}'.format(rnamelist))
 
             if self.SRoptionvalue == 'DrawAnatomy_axial':
                 for nn, targetname in enumerate(rnamelist):
