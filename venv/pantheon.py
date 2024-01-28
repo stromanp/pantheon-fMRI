@@ -7977,9 +7977,11 @@ class SAPMFrame:
 
 
         # label, button, for running the definition of clusters, and loading data
-        self.SAPMrunsearchbutton2 = tk.Button(self.parent, text="PCA clusters?", width=bigbigbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
-                                        command=self.SAPMbestclusters_pca, relief='raised', bd=5, highlightbackground = widgetbg)
-        self.SAPMrunsearchbutton2.grid(row=rownum, column=3, columnspan = 2, sticky='W')
+        include_PCA_option  =False
+        if include_PCA_option:
+            self.SAPMrunsearchbutton2 = tk.Button(self.parent, text="PCA clusters?", width=bigbigbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
+                                            command=self.SAPMbestclusters_pca, relief='raised', bd=5, highlightbackground = widgetbg)
+            self.SAPMrunsearchbutton2.grid(row=rownum, column=3, columnspan = 2, sticky='W')
 
 
         rownum = 16
@@ -8005,9 +8007,12 @@ class SAPMResultsFrame:
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         self.SAPMcnums = settings['SAPMcnums']
+        self.SAPMresultsdir = copy.deepcopy(settings['SAPMresultsdir'])
+        self.SAPMresultsname = copy.deepcopy(settings['SAPMresultsname'])
         self.SRresultsdir = copy.deepcopy(settings['SAPMresultsdir'])
-        self.SRresultsname = copy.deepcopy(settings['SAPMresultsname'])
-        self.SRparamsname = copy.deepcopy(settings['SAPMparamsname'])
+        self.SRresultsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
+        self.SAPMparamsname = copy.deepcopy(settings['SAPMparamsname'])
+        self.SRparamsname = os.path.join(self.SAPMresultsdir, self.SAPMparamsname)
         self.DBname = copy.deepcopy(settings['DBname'])
         self.networkmodel = settings['networkmodel']
 

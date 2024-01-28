@@ -190,11 +190,25 @@ def load_network_model_w_intrinsics(networkmodel):
 def sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals, deltavals, regular_flag):  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
     nr, ncomponents_to_fit = np.shape(loadings_fit)
 
-    R2list = 1.0 - np.sum((Sinput - fit) ** 2, axis=1) / (np.sum(Sinput ** 2, axis=1) + 1.0e-10)
-    R2avg = np.mean(R2list)
-    R2total = 1.0 - np.sum((Sinput - fit) ** 2) / (np.sum(Sinput ** 2) + 1.0e-10)
+    S_fit_diff_squared_per_person = np.sum((Sinput - fit) ** 2, axis=1)
+    # S_fit_diff_squared_total = np.sum((Sinput - fit) ** 2)
+    S_fit_diff_squared_total = np.sum(S_fit_diff_squared_per_person)
+    S_squared_per_person = np.sum(Sinput ** 2, axis=1)
+    # S_squared_total = np.sum(Sinput ** 2)
+    S_squared_total = np.sum(S_squared_per_person)
+    S_var = np.var(Sinput, axis=1)
 
-    error = np.mean(np.sum((Sinput - fit) ** 2, axis=1) / (np.var(Sinput, axis=1)) + 1.0e-10)
+    R2list = 1.0 - S_fit_diff_squared_per_person / (S_squared_per_person + 1.0e-10)
+    R2avg = np.mean(R2list)
+    R2total = 1.0 - S_fit_diff_squared_total / (S_squared_total + 1.0e-10)
+
+    error = np.mean(S_fit_diff_squared_per_person / (S_var + 1.0e-10) )
+
+    # R2list = 1.0 - np.sum((Sinput - fit) ** 2, axis=1) / (np.sum(Sinput ** 2, axis=1) + 1.0e-10)
+    # R2avg = np.mean(R2list)
+    # R2total = 1.0 - np.sum((Sinput - fit) ** 2) / (np.sum(Sinput ** 2) + 1.0e-10)
+    #
+    # error = np.mean(np.sum((Sinput - fit) ** 2, axis=1) / (np.var(Sinput, axis=1) + 1.0e-10) )
 
     cr = np.where(regular_flag > 0)[0]
     cost = np.mean(np.abs(betavals[cr]))  # L1 regularization, ignoring latents
@@ -321,18 +335,10 @@ def update_betavals_V3(Sinput, components, loadings, Minput, Mconn, betavals, de
     Mconn[ctarget, csource] = copy.deepcopy(betavals)
     Minput[dtarget, dsource] = copy.deepcopy(deltavals)
 
-    # gradients in beta vals
-    # print('shape of Sinput = {}'.format(np.shape(Sinput)))
-    # print('update_betavals_V3:  np.mean(Sinput,axis=1) = {}'.format(np.mean(Sinput,axis=1)))
-    # print('update_betavals_V3:  np.mean(Sinput) = {}'.format(np.mean(Sinput)))
-    # print('update_betavals_V3:  np.var(Sinput,axis=1) = {}'.format(np.var(Sinput,axis=1)))
-
     dssq_db, dssq_dd, ssqd, dssq_dbeta1 = gradients_for_betavals_V3(Sinput, components, loadings, Minput, Mconn, betavals,
                                         deltavals, ctarget, csource, dtarget, dsource, dval,
                                         fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight, regular_flag, ncomponents_to_fit)
 
-    # c = np.where(dsource >= nregion)[0]   # latent inputs
-    # dssq_dd[c] = 0.0   # over-ride changing the delta values from 1.0, for latent inputs
     c = np.where(csource >= nregion)[0]   # latent inputs
     dssq_db[c] = 0.0   # over-ride changing the beta values from 1.0, for latent inputs
 
@@ -968,10 +974,14 @@ def prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdatanam
 #----------------------------------------------------------------------------------
 # primary function--------------------------------------------------------------------
 def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparametersname, fixed_beta_vals = [],
-                      betascale = 0.1, Lweight = 1.0, normalizevar=False, nitermax = 300, verbose = True, initial_nitermax_stage1 = 150,
-                      initial_nsteps_stage1 = 20):
+                      betascale = 0.1, Lweight = 1.0, normalizevar=False, nitermax_stage2 = 1000, nitermax_stage1 = 100,
+                      nsteps_stage1 = 30, converging_slope_limit = [0.01,0.001], verbose = True):
 
 # this version fits to principal components of Sinput
+    save_test_record = True
+    test_record_name = r'E:/FM2021data/gradient_descent_record.npy'
+    test_record = []
+    test_person = 1
 
     starttime = time.ctime()
 
@@ -1120,11 +1130,8 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                 nitermax_stage1 = 0
             nsteps_stage1 = 1
         else:
-            nsteps_stage1 = copy.deepcopy(initial_nsteps_stage1)
             beta_initial = betascale*np.random.randn(nsteps_stage1,nbeta)
             nregion,ntotal = np.shape(Minput)
-
-            nitermax_stage1 = copy.deepcopy(initial_nitermax_stage1)
 
         # initialize deltavals
         delta_initial = np.ones(len(dtarget))
@@ -1137,6 +1144,7 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
 
         # stage 1 - test the initial betaval settings
         stage1_ssqd = np.zeros(nsteps_stage1)
+        stage1_slope = np.zeros(nsteps_stage1)
         stage1_results = []
         for ns in range(nsteps_stage1):
             ssqd_record_stage1 = []
@@ -1170,6 +1178,7 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
             dssq_record = np.ones(3)
             dssq_count = 0
             sequence_count = 0
+            R2avg_record = []
 
             while alpha > alpha_limit and iter < nitermax_stage1 and converging:
                 iter += 1
@@ -1209,6 +1218,16 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
 
                 R2list = 1.0 - np.sum((Sinput - fit) ** 2, axis=1) / np.sum(Sinput ** 2, axis=1)
                 R2avg = np.mean(R2list)
+                R2avg_record += [R2avg]
+                if len(R2avg_record) > 10:
+                    # R2avg_slope = (R2avg_record[-1] - R2avg_record[-5])/5.0
+                    N = 5
+                    y = np.array(R2avg_record[-N:])
+                    x = np.array(range(N))
+                    R2avg_slope = (N*np.sum(x*y) - np.sum(x)*np.sum(y))/(N*np.sum(x*x) - np.sum(x)*np.sum(x) )
+                    if R2avg_slope < converging_slope_limit[0]:
+                        converging = False
+
                 R2total = 1.0 - np.sum((Sinput - fit) ** 2) / np.sum(Sinput ** 2)
 
                 results_record.append({'Sinput': Sinput, 'fit': fit, 'Mintrinsic': Mintrinsic, 'Meigv': Meigv})
@@ -1221,16 +1240,29 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                 ssqd_old = copy.deepcopy(ssqd)
                 # now repeat it ...
             stage1_ssqd[ns] = ssqd
+            stage1_slope[ns] = R2avg_slope
             stage1_results.append({'betavals':betavals, 'deltavals':deltavals})
+
+            if save_test_record and nperson == test_person:
+                test_record.append({'stage':1, 'R2avg_record':R2avg_record})
 
         # get the best betavals from stage1 so far ...
         x = np.argmin(stage1_ssqd)
         betavals = stage1_results[x]['betavals']
         deltavals = stage1_results[x]['deltavals']
 
+        if save_test_record and nperson == test_person:
+            stage2_start = copy.deepcopy(x)
+
         # stage 2
         # # starting point for optimizing intrinsics with given betavals----------------------------------------------------
         if verbose: print('starting stage 2 ....')
+
+        # stage2_ssqd = np.zeros(nsteps_stage2)
+        # stage2_results = []
+        # for ns in range(nsteps_stage2):
+        #     ssqd_record_stage2 = []
+
         lastgood_betavals = copy.deepcopy(betavals)
         alpha = copy.deepcopy(initial_alpha)
         alphabint = copy.deepcopy(initial_alpha)
@@ -1257,8 +1289,9 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
         dssq_record = np.ones(3)
         dssq_count = 0
         sequence_count = 0
+        R2avg_record = []
 
-        while alpha > alpha_limit and iter < nitermax and converging:
+        while alpha > alpha_limit and iter < nitermax_stage2 and converging:
             iter += 1
             betavals, deltavals, beta_int1, fit, dssq_db, dssq_dd, dssq_dbeta1, ssqd_original, ssqd, alpha, alphabint = \
                 update_betavals_V3(Sinput, components, loadings, Minput, Mconn, betavals, deltavals, betalimit,
@@ -1280,7 +1313,7 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                 lastgood_deltavals = copy.deepcopy(deltavals)
                 lastgood_beta_int1 = copy.deepcopy(beta_int1)
                 sequence_count += 1
-                if sequence_count > 3:
+                if sequence_count > 2:
                     alpha *= 1.3
                     alphabint *= 1.3
                     sequence_count = 0
@@ -1300,6 +1333,16 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
 
             R2list = 1.0 - np.sum((Sinput - fit) ** 2, axis=1) / np.sum(Sinput ** 2, axis=1)
             R2avg = np.mean(R2list)
+            R2avg_record += [R2avg]
+            if len(R2avg_record) > 10:
+                # R2avg_slope = (R2avg_record[-1] - R2avg_record[-5])/5.0
+                N = 5
+                y = np.array(R2avg_record[-N:])
+                x = np.array(range(N))
+                R2avg_slope = (N*np.sum(x*y) - np.sum(x)*np.sum(y))/(N*np.sum(x*x) - np.sum(x)*np.sum(x) )
+                if R2avg_slope < converging_slope_limit[1]:
+                    converging = False
+
             R2total = 1.0 - np.sum((Sinput - fit) ** 2) / np.sum(Sinput ** 2)
 
             results_record.append({'Sinput': Sinput, 'fit': fit, 'Mintrinsic': Mintrinsic, 'Meigv': Meigv})
@@ -1311,6 +1354,9 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                         nperson,iter, alpha, ssqd, error, error2, ssqchange, 100. * ssqd / ssqd_starting, R2avg, R2total))
             ssqd_old = copy.deepcopy(ssqd)
             # now repeat it ...
+
+        if save_test_record and nperson == test_person:
+            test_record.append({'stage': 2, 'R2avg_record': R2avg_record, 'stage1_base':stage2_start})
 
         # fit the results now to determine output signaling from each region
         Mconn[ctarget, csource] = copy.deepcopy(betavals)
@@ -1331,6 +1377,9 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
 
         stoptime = time.ctime()
 
+        if save_test_record and nperson == test_person:
+            np.save(test_record_name,test_record)
+
     np.save(SAPMresultsname, SAPMresults)
 
     if verbose:
@@ -1338,6 +1387,586 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
         print('     started at {}'.format(starttime))
         print('     results written to {}'.format(SAPMresultsname))
     return SAPMresultsname
+
+
+
+#----------------------------------------------------------------------------------
+# primary function--------------------------------------------------------------------
+def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparametersname, fixed_beta_vals = [],
+                    betascale = 0.1, Lweight = 1.0, normalizevar=False, nitermax_stage3 = 1200,
+                    nitermax_stage2 = 300, nsteps_stage2 = 4, nitermax_stage1 = 100, nsteps_stage1 = 30,
+                    converging_slope_limit = [1e-4, 1e-5, 1e-6], verbose = True, silentrunning = False):
+
+# this version fits to principal components of Sinput
+    save_test_record = False
+    p,f = os.path.split(SAPMresultsname)
+    test_record_name = os.path.join(p,'gradient_descent_record.npy')
+    test_record = []
+    test_person = 1
+
+    starttime = time.ctime()
+
+    # initialize gradient-descent parameters--------------------------------------------------------------
+    initial_alpha = 1e-3
+    initial_Lweight = copy.deepcopy(Lweight)
+    initial_dval = 0.05
+    alpha_limit = 1.0e-5
+    repeat_limit = 2
+
+    SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
+    # load the data values
+    betanamelist = SAPMparams['betanamelist']
+    beta_list = SAPMparams['beta_list']
+    nruns_per_person = SAPMparams['nruns_per_person']
+    nclusterstotal = SAPMparams['nclusterstotal']
+    rnamelist = SAPMparams['rnamelist']
+    nregions = SAPMparams['nregions']
+    cluster_properties = SAPMparams['cluster_properties']
+    cluster_data = SAPMparams['cluster_data']
+    network = SAPMparams['network']
+    fintrinsic_count = SAPMparams['fintrinsic_count']
+    vintrinsic_count = SAPMparams['vintrinsic_count']
+    sem_region_list = SAPMparams['sem_region_list']
+    nclusterlist = SAPMparams['nclusterlist']
+    tsize = SAPMparams['tsize']
+    tplist_full = SAPMparams['tplist_full']
+    tcdata_centered = SAPMparams['tcdata_centered']
+    tcdata_centered_original = SAPMparams['tcdata_centered_original']
+    ctarget = SAPMparams['ctarget']
+    csource = SAPMparams['csource']
+    dtarget = SAPMparams['dtarget']
+    dsource = SAPMparams['dsource']
+    fintrinsic_region = SAPMparams['fintrinsic_region']
+    Mconn = SAPMparams['Mconn']
+    Minput = SAPMparams['Minput']
+    timepoint = SAPMparams['timepoint']
+    epoch = SAPMparams['epoch']
+    latent_flag = SAPMparams['latent_flag']
+    reciprocal_flag = SAPMparams['reciprocal_flag']
+    DBname = SAPMparams['DBname']
+    DBnum = SAPMparams['DBnum']
+
+    regular_flag = 1-latent_flag   # flag where connections are not latent or reciprocal
+
+    ntime, NP = np.shape(tplist_full)
+    Nintrinsics = vintrinsic_count + fintrinsic_count
+
+    ncomponents_to_fit = copy.deepcopy(nregions)
+#---------------------------------------------------------------------------------------------------------
+    #---------------------------------------------------------------------------------------------------------
+    # repeat the process for each participant-----------------------------------------------------------------
+    betalimit = 3.0
+    epochnum = 0
+    SAPMresults = []
+    first_pass_results = []
+    second_pass_results = []
+    beta_init_record = []
+    for nperson in range(NP):
+        if not silentrunning:
+            if verbose:
+                print('starting person {} at {}'.format(nperson,time.ctime()))
+            else:
+                # print('starting person {} at {}'.format(nperson,time.ctime()), end = '\r')
+                print('.', end = '')
+
+        tp = tplist_full[epochnum][nperson]['tp']
+        tsize_total = len(tp)
+        nruns = nruns_per_person[nperson]
+
+        # get tc data for each region/cluster
+        rnumlist = []
+        clustercount = np.cumsum(nclusterlist)
+        for aa in range(len(clusterlist)):
+            x = np.where(clusterlist[aa] < clustercount)[0]
+            rnumlist += [x[0]]
+
+        Sinput = []
+        for nc,cval in enumerate(clusterlist):
+            tc1 = tcdata_centered[cval, tp]
+            Sinput.append(tc1)
+        Sinput = np.array(Sinput)
+
+        Sinput_original = []
+        for nc, cval in enumerate(clusterlist):
+            tc1 = tcdata_centered_original[cval, tp]
+            Sinput_original.append(tc1)
+        Sinput_original = np.array(Sinput_original)
+
+        # get principal components of Sinput--------------------------
+        nr = np.shape(Sinput)[0]
+        pca = sklearn.decomposition.PCA()
+        pca.fit(Sinput)
+        components = pca.components_
+        loadings = pca.transform(Sinput)
+        mu2 = np.mean(Sinput, axis=0)
+        loadings = np.concatenate((np.ones((nr, 1)), loadings), axis=1)
+        components = np.concatenate((mu2[np.newaxis, :], components), axis=0)
+        # test_fit = loadings @ components
+
+        # setup fixed intrinsic based on the model paradigm
+        # need to account for timepoint and epoch....
+        if fintrinsic_count > 0:
+            if epoch >= tsize:
+                et1 = 0
+                et2 = tsize
+            else:
+                if np.floor(epoch / 2).astype(int) == np.ceil(epoch / 2).astype(int):  # even numbered epoch
+                    et1 = (timepoint - np.floor(epoch / 2)).astype(int)
+                    et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+                else:
+                    et1 = (timepoint - np.floor(epoch / 2)).astype(int) - 1
+                    et2 = (timepoint + np.floor(epoch / 2)).astype(int)
+            if et1 < 0: et1 = 0
+            if et2 > tsize: et2 = tsize
+            epoch = et2 - et1
+
+            ftemp = fintrinsic_base[0,et1:et2]
+            fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
+            # print('shape of fintrinsic1 is {}'.format(np.shape(fintrinsic1)))
+            if np.var(ftemp) > 1.0e-3:
+                Sint = Sinput[fintrinsic_region,:]
+                Sint = Sint - np.mean(Sint)
+                # need to add constant to fit values
+                G = np.concatenate((fintrinsic1[np.newaxis,:],np.ones((1,tsize_total))),axis=0)
+                b, fit, R2, total_var, res_var = pysem.general_glm(Sint, G)
+                beta_int1 = b[0]
+            else:
+                beta_int1 = 0.0
+        else:
+            beta_int1 = 0.0
+            fintrinsic1 = []
+
+        lastgood_beta_int1 = copy.deepcopy(beta_int1)
+
+        # initialize beta values-----------------------------------
+        nbeta = len(csource)
+        if isinstance(betascale,str):
+            if betascale == 'shotgun':
+                beta_initial = betaval_init_shotgun(initial_Lweight, csource, ctarget, Sinput, Minput, Mconn, components,
+                                    loadings, fintrinsic_count, vintrinsic_count, np.ones(len(dtarget)), beta_int1, fintrinsic1,
+                                                    ncomponents_to_fit, nreps=10000)
+
+                beta_initial = beta_initial[np.newaxis,:]
+                nitermax_stage1 = 0
+            else:
+                # read saved beta_initial values
+                b = np.load(betascale,allow_pickle=True).flat[0]
+                beta_initial = b['beta_initial']
+                beta_initial = beta_initial[np.newaxis,:]
+                nitermax_stage1 = 0
+            nsteps_stage1 = 1
+        else:
+            beta_initial = betascale*np.random.randn(nsteps_stage1,nbeta)
+            nregion,ntotal = np.shape(Minput)
+
+        # initialize deltavals
+        ndelta = len(dtarget)
+        delta_initial = np.ones(ndelta)
+        deltascale = np.std(Sinput,axis=1)
+        meanscale = np.mean(deltascale)
+
+        # initialize
+        results_record = []
+        ssqd_record = []
+
+        # stage 1 - test the initial betaval settings
+        stage1_ssqd = np.zeros(nsteps_stage1)
+        stage1_slope = np.zeros(nsteps_stage1)
+        stage1_r2final = np.zeros(nsteps_stage1)
+        stage1_results = []
+        for ns in range(nsteps_stage1):
+            ssqd_record_stage1 = []
+            beta_init_record.append({'beta_initial':beta_initial[ns,:]})
+
+            # initalize Sconn
+            betavals = copy.deepcopy(beta_initial[ns,:]) # initialize beta values at zero
+            lastgood_betavals = copy.deepcopy(betavals)
+            deltavals = copy.deepcopy(delta_initial)
+            lastgood_deltavals = copy.deepcopy(deltavals)
+
+            alphalist = initial_alpha*np.ones(nbeta)
+            alphabint = copy.deepcopy(initial_alpha)
+            alpha = copy.deepcopy(initial_alpha)
+            Lweight = copy.deepcopy(initial_Lweight)
+            dval = copy.deepcopy(initial_dval)
+
+            # # starting point for optimizing intrinsics with given betavals----------------------------------------------------
+            Mconn[ctarget,csource] = copy.deepcopy(betavals)
+            Minput[dtarget, dsource] = copy.deepcopy(deltavals)
+            fit, loadings_fit, W, Mintrinsic, Meigv, err = network_eigenvector_method_V3(Sinput, components, loadings, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, ncomponents_to_fit)
+            # Soutput = Meigv @ Mintrinsic  # signalling over each connection
+            ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals, deltavals, regular_flag)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+
+            ssqd_starting = copy.deepcopy(ssqd)
+            ssqd_old = copy.deepcopy(ssqd)
+            ssqd_record += [ssqd]
+
+            iter = 0
+            converging = True
+            dssq_record = np.ones(3)
+            dssq_count = 0
+            sequence_count = 0
+            R2avg_record = []
+
+            while alpha > alpha_limit and iter < nitermax_stage1 and converging:
+                iter += 1
+
+                betavals, deltavals, beta_int1, fit, dssq_db, dssq_dd, dssq_dbeta1, ssqd_original, ssqd, alpha, alphabint = \
+                                                    update_betavals_V3(Sinput, components, loadings, Minput, Mconn, betavals,
+                                                    deltavals, betalimit, ctarget, csource, dtarget, dsource,
+                                                    dval,fintrinsic_count,
+                                                    vintrinsic_count, beta_int1,fintrinsic1, Lweight, regular_flag, alpha,alphabint,
+                                                    ncomponents_to_fit, latent_flag=latent_flag)  # kappavals, ktarget, ksource,
+
+                ssqd_record_stage1 += [ssqd]
+
+                if ssqd > ssqd_original:
+                    alpha *= 0.5
+                    alphabint *= 0.5
+                    betavals = copy.deepcopy(lastgood_betavals)  # no improvement, so don't update
+                    deltavals = copy.deepcopy(lastgood_deltavals)
+                    beta_int1 = copy.deepcopy(lastgood_beta_int1)
+                    sequence_count = 0
+                else:
+                    lastgood_betavals = copy.deepcopy(betavals)
+                    lastgood_deltavals = copy.deepcopy(deltavals)
+                    lastgood_beta_int1 = copy.deepcopy(beta_int1)
+                    sequence_count += 1
+                    if sequence_count > 2:
+                        alpha = np.min([1.3*alpha, initial_alpha])
+                        alphabint = np.min([1.3*alphabint, initial_alpha])
+                        sequence_count = 0
+
+                Mconn[ctarget, csource] = copy.deepcopy(betavals)
+                Minput[dtarget, dsource] = copy.deepcopy(deltavals)
+
+                fit, loadings_fit, W, Mintrinsic, Meigv, err = network_eigenvector_method_V3(Sinput, components, loadings, Minput,
+                                                    Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1,
+                                                    ncomponents_to_fit)
+                # Soutput = Meigv @ Mintrinsic  # signalling over each connection
+                ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals, deltavals, regular_flag)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+
+                err_total = Sinput - fit
+                Smean = np.mean(Sinput)
+                errmean = np.mean(err_total)
+
+                R2list = 1.0 - np.sum((Sinput - fit) ** 2, axis=1) / np.sum(Sinput ** 2, axis=1)
+                R2avg = np.mean(R2list)
+                R2avg_record += [R2avg]
+                if len(R2avg_record) > 10:
+                    # R2avg_slope = (R2avg_record[-1] - R2avg_record[-5])/5.0
+                    N = 5
+                    y = np.array(R2avg_record[-N:])
+                    x = np.array(range(N))
+                    R2avg_slope = (N*np.sum(x*y) - np.sum(x)*np.sum(y))/(N*np.sum(x*x) - np.sum(x)*np.sum(x) )
+                    if R2avg_slope < converging_slope_limit[0]:
+                        converging = False
+
+                R2total = 1.0 - np.sum((Sinput - fit) ** 2) / np.sum(Sinput ** 2)
+
+                results_record.append({'Sinput': Sinput, 'fit': fit, 'Mintrinsic': Mintrinsic, 'Meigv': Meigv})
+
+                ssqchange = ssqd - ssqd_original
+
+                if verbose and not silentrunning:
+                    print('SAPM  {} stage1 pass {} iter {} alpha {:.3e}  ssqd {:.2f} error {:.2f} error2 {:.2f} change {:.3f}  percent {:.1f}  R2 avg {:.3f}  R2 total {:.3f}'.format(nperson,
+                                    ns, iter, alpha, ssqd, error, error2, ssqchange, 100.*ssqd/ssqd_starting, R2avg, R2total))
+                ssqd_old = copy.deepcopy(ssqd)
+                # now repeat it ...
+            stage1_ssqd[ns] = ssqd
+            stage1_slope[ns] = R2avg_slope
+            stage1_r2final[ns] = R2avg_record[-1]
+            stage1_results.append({'betavals':betavals, 'deltavals':deltavals})
+
+            if save_test_record and nperson == test_person:
+                test_record.append({'stage':1, 'R2avg_record':R2avg_record})
+
+
+        # get the best nsteps_stage2 betavals from stage1 so far ...
+        #--------end of stage 1, finding the trajectories to continue on...
+        # ...based on lowest ssqd, highest slope, some combination of these ...
+        projected_r2 = stage1_r2final + stage1_slope*50.0   # project 50 iterations forward with the final slope
+
+        nset = np.ceil(nsteps_stage2/2.0).astype(int)
+        xd = np.argsort(stage1_slope)  # want the highest values
+        xs1 = xd[-nset:]
+        xsearch = np.array([a for a in range(nsteps_stage1) if a not in xs1]).astype(int)
+        xs2 = np.argsort(stage1_ssqd[xsearch])  # want the lowest values that are not already included
+        x = np.concatenate((xsearch[xs2[:nset]], xs1),axis=0)
+
+        beta_initial2 = np.zeros((nset*2, nbeta))
+        delta_initial2 = np.zeros((nset*2, ndelta))
+        stage2_start = np.zeros(nset*2)
+        for ns in range(len(x)):
+            betavals1 = stage1_results[x[ns]]['betavals']
+            deltavals1 = stage1_results[x[ns]]['deltavals']
+            beta_initial2[ns,:] = copy.deepcopy(betavals1)
+            delta_initial2[ns,:] = copy.deepcopy(deltavals1)
+
+            if save_test_record and nperson == test_person:
+                stage2_start[ns] = copy.deepcopy(x[ns])
+
+        # start of stage 2
+        # initialize
+        results_record = []
+        ssqd_record = []
+
+        # stage 2 - test the initial betaval settings
+        stage2_ssqd = np.zeros(nsteps_stage2)
+        stage2_slope = np.zeros(nsteps_stage2)
+        stage2_r2final = np.zeros(nsteps_stage2)
+        stage2_results = []
+        for ns in range(nsteps_stage2):
+            ssqd_record_stage2 = []
+            beta_init_record.append({'beta_initial':beta_initial2[ns,:]})
+
+            # initalize Sconn
+            betavals = copy.deepcopy(beta_initial2[ns,:]) # initialize beta values at zero
+            lastgood_betavals = copy.deepcopy(betavals)
+            deltavals = copy.deepcopy(delta_initial2[ns,:])
+            lastgood_deltavals = copy.deepcopy(deltavals)
+
+            alphalist = initial_alpha*np.ones(nbeta)
+            alphabint = copy.deepcopy(initial_alpha)
+            alpha = copy.deepcopy(initial_alpha)
+            Lweight = copy.deepcopy(initial_Lweight)
+            dval = copy.deepcopy(initial_dval)
+
+            # # starting point for optimizing intrinsics with given betavals----------------------------------------------------
+            Mconn[ctarget,csource] = copy.deepcopy(betavals)
+            Minput[dtarget, dsource] = copy.deepcopy(deltavals)
+            fit, loadings_fit, W, Mintrinsic, Meigv, err = network_eigenvector_method_V3(Sinput, components, loadings, Minput, Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, ncomponents_to_fit)
+            # Soutput = Meigv @ Mintrinsic  # signalling over each connection
+            ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals, deltavals, regular_flag)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+
+            ssqd_starting = copy.deepcopy(ssqd)
+            ssqd_old = copy.deepcopy(ssqd)
+            ssqd_record += [ssqd]
+
+            iter = 0
+            converging = True
+            dssq_record = np.ones(3)
+            dssq_count = 0
+            sequence_count = 0
+            R2avg_record = []
+
+            while alpha > alpha_limit and iter < nitermax_stage2 and converging:
+                iter += 1
+
+                betavals, deltavals, beta_int1, fit, dssq_db, dssq_dd, dssq_dbeta1, ssqd_original, ssqd, alpha, alphabint = \
+                                                    update_betavals_V3(Sinput, components, loadings, Minput, Mconn, betavals,
+                                                    deltavals, betalimit, ctarget, csource, dtarget, dsource,
+                                                    dval,fintrinsic_count,
+                                                    vintrinsic_count, beta_int1,fintrinsic1, Lweight, regular_flag, alpha,alphabint,
+                                                    ncomponents_to_fit, latent_flag=latent_flag)  # kappavals, ktarget, ksource,
+
+                ssqd_record_stage2 += [ssqd]
+
+                if ssqd > ssqd_original:
+                    alpha *= 0.5
+                    alphabint *= 0.5
+                    betavals = copy.deepcopy(lastgood_betavals)  # no improvement, so don't update
+                    deltavals = copy.deepcopy(lastgood_deltavals)
+                    beta_int1 = copy.deepcopy(lastgood_beta_int1)
+                    sequence_count = 0
+                else:
+                    lastgood_betavals = copy.deepcopy(betavals)
+                    lastgood_deltavals = copy.deepcopy(deltavals)
+                    lastgood_beta_int1 = copy.deepcopy(beta_int1)
+                    sequence_count += 1
+                    if sequence_count > 2:
+                        alpha = np.min([1.3*alpha, initial_alpha])
+                        alphabint = np.min([1.3*alphabint, initial_alpha])
+                        sequence_count = 0
+
+                Mconn[ctarget, csource] = copy.deepcopy(betavals)
+                Minput[dtarget, dsource] = copy.deepcopy(deltavals)
+
+                fit, loadings_fit, W, Mintrinsic, Meigv, err = network_eigenvector_method_V3(Sinput, components, loadings, Minput,
+                                                    Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1,
+                                                    ncomponents_to_fit)
+                # Soutput = Meigv @ Mintrinsic  # signalling over each connection
+                ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals, deltavals, regular_flag)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+
+                err_total = Sinput - fit
+                Smean = np.mean(Sinput)
+                errmean = np.mean(err_total)
+
+                R2list = 1.0 - np.sum((Sinput - fit) ** 2, axis=1) / np.sum(Sinput ** 2, axis=1)
+                R2avg = np.mean(R2list)
+                R2avg_record += [R2avg]
+                if len(R2avg_record) > 10:
+                    # R2avg_slope = (R2avg_record[-1] - R2avg_record[-5])/5.0
+                    N = 5
+                    y = np.array(R2avg_record[-N:])
+                    x = np.array(range(N))
+                    R2avg_slope = (N*np.sum(x*y) - np.sum(x)*np.sum(y))/(N*np.sum(x*x) - np.sum(x)*np.sum(x) )
+                    if R2avg_slope < converging_slope_limit[1]:
+                        converging = False
+
+                R2total = 1.0 - np.sum((Sinput - fit) ** 2) / np.sum(Sinput ** 2)
+
+                results_record.append({'Sinput': Sinput, 'fit': fit, 'Mintrinsic': Mintrinsic, 'Meigv': Meigv})
+
+                ssqchange = ssqd - ssqd_original
+
+                if verbose and not silentrunning:
+                    print('SAPM  {} stage2 pass {} iter {} alpha {:.3e}  ssqd {:.2f} error {:.2f} error2 {:.2f} change {:.3f}  percent {:.1f}  R2 avg {:.3f}  R2 total {:.3f}'.format(nperson,
+                                    ns, iter, alpha, ssqd, error, error2, ssqchange, 100.*ssqd/ssqd_starting, R2avg, R2total))
+                ssqd_old = copy.deepcopy(ssqd)
+                # now repeat it ...
+            stage2_ssqd[ns] = ssqd
+            stage2_slope[ns] = R2avg_slope
+            stage2_r2final[ns] = R2avg_record[-1]
+            stage2_results.append({'betavals':betavals, 'deltavals':deltavals})
+
+            if save_test_record and nperson == test_person:
+                test_record.append({'stage':2, 'R2avg_record':R2avg_record, 'stage2_base':stage2_start[ns]})
+
+        # end of stage2
+        # get the best betavals from stage1 so far ...
+        x = np.argmin(stage2_ssqd)
+        betavals = stage2_results[x]['betavals']
+        deltavals = stage2_results[x]['deltavals']
+
+        if save_test_record and nperson == test_person:
+            stage3_start = copy.deepcopy(x)
+
+        # stage 3
+        # # starting point for optimizing intrinsics with given betavals----------------------------------------------------
+        if verbose and not silentrunning: print('starting stage 3 ....')
+
+        # stage2_ssqd = np.zeros(nsteps_stage2)
+        # stage2_results = []
+        # for ns in range(nsteps_stage2):
+        #     ssqd_record_stage2 = []
+
+        lastgood_betavals = copy.deepcopy(betavals)
+        alpha = copy.deepcopy(initial_alpha)
+        alphabint = copy.deepcopy(initial_alpha)
+        Lweight = copy.deepcopy(initial_Lweight)
+        dval = copy.deepcopy(initial_dval)
+
+        # # starting point for optimizing intrinsics with given betavals----------------------------------------------------
+        Mconn[ctarget, csource] = copy.deepcopy(betavals)
+        Minput[dtarget, dsource] = copy.deepcopy(deltavals)
+
+        fit, loadings_fit, W, Mintrinsic, Meigv, err = network_eigenvector_method_V3(Sinput, components, loadings, Minput,
+                                                Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1,
+                                                ncomponents_to_fit)
+        # Soutput = Meigv @ Mintrinsic  # signalling over each connection
+        ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals, deltavals, regular_flag)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+
+
+        ssqd_starting = copy.deepcopy(ssqd)
+        ssqd_old = copy.deepcopy(ssqd)
+        ssqd_record += [ssqd]
+
+        iter = 0
+        converging = True
+        dssq_record = np.ones(3)
+        dssq_count = 0
+        sequence_count = 0
+        R2avg_record = []
+        ssqd_record_stage3 = []
+
+        while alpha > alpha_limit and iter < nitermax_stage3 and converging:
+            iter += 1
+            betavals, deltavals, beta_int1, fit, dssq_db, dssq_dd, dssq_dbeta1, ssqd_original, ssqd, alpha, alphabint = \
+                update_betavals_V3(Sinput, components, loadings, Minput, Mconn, betavals, deltavals, betalimit,
+                                   ctarget, csource, dtarget, dsource, dval, fintrinsic_count,
+                                   vintrinsic_count, beta_int1, fintrinsic1, Lweight, regular_flag, alpha, alphabint,
+                                   ncomponents_to_fit, latent_flag=latent_flag)   #, kappavals, ktarget, ksource
+
+            ssqd_record_stage3 += [ssqd]
+
+            if ssqd > ssqd_original:
+                alpha *= 0.5
+                alphabint *= 0.5
+                betavals = copy.deepcopy(lastgood_betavals)  # no improvement, so don't update
+                deltavals = copy.deepcopy(lastgood_deltavals)
+                beta_int1 = copy.deepcopy(lastgood_beta_int1)
+                sequence_count = 0
+            else:
+                lastgood_betavals = copy.deepcopy(betavals)
+                lastgood_deltavals = copy.deepcopy(deltavals)
+                lastgood_beta_int1 = copy.deepcopy(beta_int1)
+                sequence_count += 1
+                if sequence_count > 2:
+                    alpha = np.min([1.3*alpha, initial_alpha])
+                    alphabint = np.min([1.3*alphabint, initial_alpha])
+                    sequence_count = 0
+
+            Mconn[ctarget, csource] = copy.deepcopy(betavals)
+            Minput[dtarget, dsource] = copy.deepcopy(deltavals)
+
+            fit, loadings_fit, W, Mintrinsic, Meigv, err = network_eigenvector_method_V3(Sinput, components, loadings, Minput,
+                                                Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1,
+                                                ncomponents_to_fit)
+            # Soutput = Meigv @ Mintrinsic  # signalling over each connection
+            ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals, deltavals, regular_flag)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+
+            err_total = Sinput - fit
+            Smean = np.mean(Sinput)
+            errmean = np.mean(err_total)
+
+            R2list = 1.0 - np.sum((Sinput - fit) ** 2, axis=1) / np.sum(Sinput ** 2, axis=1)
+            R2avg = np.mean(R2list)
+            R2avg_record += [R2avg]
+            if len(R2avg_record) > 10:
+                # R2avg_slope = (R2avg_record[-1] - R2avg_record[-5])/5.0
+                N = 5
+                y = np.array(R2avg_record[-N:])
+                x = np.array(range(N))
+                R2avg_slope = (N*np.sum(x*y) - np.sum(x)*np.sum(y))/(N*np.sum(x*x) - np.sum(x)*np.sum(x) )
+                if R2avg_slope < converging_slope_limit[2]:
+                    converging = False
+
+            R2total = 1.0 - np.sum((Sinput - fit) ** 2) / np.sum(Sinput ** 2)
+
+            results_record.append({'Sinput': Sinput, 'fit': fit, 'Mintrinsic': Mintrinsic, 'Meigv': Meigv})
+
+            ssqchange = ssqd - ssqd_original
+
+            if verbose and not silentrunning:
+                print('SAPM  {} stage 3  beta vals:  iter {} alpha {:.3e}  ssqd {:.2f} error {:.2f} error2 {:.2f} change {:.3f}  percent {:.1f}  R2 avg {:.3f}  R2 total {:.3f}'.format(
+                        nperson,iter, alpha, ssqd, error, error2, ssqchange, 100. * ssqd / ssqd_starting, R2avg, R2total))
+            ssqd_old = copy.deepcopy(ssqd)
+            # now repeat it ...
+
+        if save_test_record and nperson == test_person:
+            test_record.append({'stage': 3, 'R2avg_record': R2avg_record, 'stage3_base':stage3_start})
+
+        # fit the results now to determine output signaling from each region
+        Mconn[ctarget, csource] = copy.deepcopy(betavals)
+        Minput[dtarget, dsource] = copy.deepcopy(deltavals)
+        fit, loadings_fit, W, Mintrinsic, Meigv, err = network_eigenvector_method_V3(Sinput, components, loadings, Minput,
+                                            Mconn, fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1,
+                                            ncomponents_to_fit)
+
+        Sconn = Meigv @ Mintrinsic    # signalling over each connection
+
+        entry = {'Sinput':Sinput, 'Sconn':Sconn, 'beta_int1':beta_int1, 'Mconn':Mconn, 'Minput':Minput,
+                 'fit':fit, 'loadings_fit':loadings_fit, 'W':W, 'loadings':loadings, 'components':components,
+                 'R2total':R2total, 'R2avg':R2avg, 'Mintrinsic':Mintrinsic, 'fintrinsic_count':fintrinsic_count, 'vintrinsic_count':vintrinsic_count,
+                 'Meigv':Meigv, 'betavals':betavals, 'deltavals':deltavals, 'fintrinsic1':fintrinsic1, 'clusterlist':clusterlist,
+                 'fintrinsic_base':fintrinsic_base, 'Sinput_original':Sinput_original, 'DBname':DBname, 'DBnum':DBnum}
+
+        SAPMresults.append(copy.deepcopy(entry))
+
+        stoptime = time.ctime()
+
+        if save_test_record and nperson == test_person:
+            np.save(test_record_name,test_record)
+
+    np.save(SAPMresultsname, SAPMresults)
+
+    if verbose and not silentrunning:
+        print('finished SAPM at {}'.format(time.ctime()))
+        print('     started at {}'.format(starttime))
+        print('     results written to {}'.format(SAPMresultsname))
+    return SAPMresultsname
+
 
 
 def get_data_components(Sinput):
@@ -1406,10 +2035,12 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
 
     nregions = len(ncluster_list)
 
+    print('best cluster search:  preparing data ...')
     prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch,
                                   fullgroup=False, normalizevar=True, filter_tcdata = False)
 
 
+    print('best cluster search:  loading parameters ...')
     SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
     tcdata = SAPMparams['tcdata_centered']  # data for all regions/clusters concatenated along time dimension for all runs
     # need to get principal components for each region to model the clusters as a continuum
@@ -1452,16 +2083,25 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
 
     if betascale == 0:
         nitermax = 50
-        initial_nitermax_stage1 = 1
-        initial_nsteps_stage1 = 10
+        nitermax_stage1 = 1
+        nsteps_stage1 = 10
     else:
-        nitermax = 40
-        initial_nitermax_stage1 = 20
-        initial_nsteps_stage1 = 8
+        nitermax = 100
+        nitermax_stage1 = 40
+        nitermax_stage2 = 100
+        nsteps_stage1 = 20
 
-    output = sem_physio_model1_V3(cluster_numbers+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
-                                  fixed_beta_vals=[], betascale=betascale, Lweight = Lweight, nitermax=nitermax, verbose=False,normalizevar=False,
-                                  initial_nitermax_stage1=initial_nitermax_stage1, initial_nsteps_stage1=initial_nsteps_stage1)
+    # output = sem_physio_model1_V3(cluster_numbers+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
+    #                               fixed_beta_vals=[], betascale=betascale, Lweight = Lweight, nitermax=nitermax, verbose=False,normalizevar=False,
+    #                               nitermax_stage1=nitermax_stage1, nsteps_stage1=nsteps_stage1, converging_slope_limit = [1e-3,1e-5])
+
+    print('best cluster search:  running baseline set of clusters ...')
+    output = sem_physio_model1_V4(cluster_numbers+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
+                                fixed_beta_vals=[], betascale=betascale, Lweight = Lweight, normalizevar=False, nitermax_stage3=nitermax,
+                                nitermax_stage2=nitermax_stage2, nsteps_stage2=2,
+                             nitermax_stage1=nitermax_stage1, nsteps_stage1=nsteps_stage1,
+                             converging_slope_limit=[1e-4, 1e-5, 1e-6], verbose = False)
+    print('\r  finished running baseline clusters....                                         ')
 
     # now, correct the results for normalizing the variance
     output = sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, verbose = False)
@@ -1492,9 +2132,15 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
                     else:
                         test_clusters[nnn] = ccc
 
-                        output = sem_physio_model1_V3(test_clusters+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
-                                                        fixed_beta_vals=[], betascale=betascale, Lweight = Lweight, nitermax=nitermax, verbose=False, normalizevar=False,
-                                                        initial_nitermax_stage1 = initial_nitermax_stage1, initial_nsteps_stage1 = initial_nsteps_stage1)
+                        # output = sem_physio_model1_V3(test_clusters+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
+                        #                                 fixed_beta_vals=[], betascale=betascale, Lweight = Lweight, nitermax=nitermax, verbose=False, normalizevar=False,
+                        #                                 nitermax_stage1 = nitermax_stage1, nsteps_stage1 = nsteps_stage1, converging_slope_limit = [1e-3,1e-5])
+
+                        output = sem_physio_model1_V4(test_clusters + full_rnum_base, fintrinsic_base,SAPMresultsname, SAPMparametersname,
+                                                      fixed_beta_vals=[], betascale=betascale, Lweight=Lweight, normalizevar=False, nitermax_stage3=nitermax,
+                                                      nitermax_stage2=nitermax_stage2, nsteps_stage2=2, nitermax_stage1=nitermax_stage1,
+                                                      nsteps_stage1=nsteps_stage1, converging_slope_limit=[1e-4, 1e-5, 1e-6], verbose = False)
+
                         output = sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, verbose=False)
                         SAPMresults = np.load(output, allow_pickle=True)
 
@@ -1505,7 +2151,7 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
 
                         entry = {'R2list':R2list, 'R2list2':R2list2, 'region':nnn, 'cluster':ccc}
                         results_record.append(entry)
-                        print('  using cluster {}  total of (1-R2 avg) for the group is {:.3f}'.format(ccc,cost_values[ccc]))
+                        print('\r  using cluster {}  total of (1-R2 avg) for the group is {:.3f}                              '.format(ccc,cost_values[ccc]))
 
                 x = np.argmin(cost_values)
                 this_cost = cost_values[x]
@@ -1550,6 +2196,234 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
     dtimes = np.round(dtime % 60).astype(int)
     print('Cluster search started at {}\n             and ended at {}\n     {} minutes {} sec total'.format(overall_start_time_text, overall_end_time_text, dtimem,dtimes))
     return cluster_numbers
+
+
+
+#
+# # gradient descent method to find best clusters------------------------------------
+# def SAPM_cluster_stepsearch_parallel(outputdir, SAPMresultsname, SAPMparametersname, networkfile, regiondataname,
+#                         clusterdataname, samplesplit, samplestart=0, initial_clusters=[], timepoint='all', epoch='all', betascale=0.1, Lweight = 1.0):
+#
+#     overall_start_time_text = time.ctime()
+#     overall_start_time = time.time()
+#
+#     if not os.path.exists(outputdir): os.mkdir(outputdir)
+#
+#     # load some data, setup some parameters...
+#     network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base = load_network_model_w_intrinsics(networkfile)
+#     ncluster_list = np.array([nclusterlist[x]['nclusters'] for x in range(len(nclusterlist))])
+#     cluster_name = [nclusterlist[x]['name'] for x in range(len(nclusterlist))]
+#     not_latent = [x for x in range(len(cluster_name)) if 'intrinsic' not in cluster_name[x]]
+#     ncluster_list = ncluster_list[not_latent]
+#     full_rnum_base = [np.sum(ncluster_list[:x]) for x in range(len(ncluster_list))]
+#     namelist = [cluster_name[x] for x in not_latent]
+#     namelist += ['Rtotal']
+#     namelist += ['R ' + cluster_name[x] for x in not_latent]
+#
+#     nregions = len(ncluster_list)
+#
+#     print('best cluster search (parallel):  preparing data ...')
+#     prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch,
+#                                   fullgroup=False, normalizevar=True, filter_tcdata = False)
+#
+#     print('best cluster search (parallel):  loading parameters ...')
+#     SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
+#     tcdata = SAPMparams['tcdata_centered']  # data for all regions/clusters concatenated along time dimension for all runs
+#     # need to get principal components for each region to model the clusters as a continuum
+#
+#     nclusters_total, tsize_total = np.shape(tcdata)
+#
+#     maxiter = 50
+#     subsample = [samplesplit,samplestart]  # [2,0] use every 2nd data set, starting with samplestart
+#
+#     full_rnum_base = np.array([np.sum(ncluster_list[:x]) for x in range(len(ncluster_list))]).astype(int)
+#     initial_clusters = np.array(initial_clusters)
+#     if (initial_clusters < 0).any():
+#         fixed_clusters = np.where(initial_clusters >= 0)[0]
+#     else:
+#         fixed_clusters = []
+#
+#     if (len(initial_clusters) != nregions):
+#         temp_clusters = -1*np.ones(nregions)
+#         temp_clusters[:len(initial_clusters)] = copy.deepcopy(initial_clusters)   # pad list with -1
+#         initial_clusters = copy.deepcopy(temp_clusters)
+#
+#     cluster_numbers = np.zeros(nregions)
+#     for nn in range(nregions):
+#         if initial_clusters[nn] < 0:
+#             cnum = np.random.choice(range(ncluster_list[nn]))
+#             cluster_numbers[nn] = copy.deepcopy(cnum)
+#         else:
+#             cluster_numbers[nn] = copy.deepcopy(initial_clusters[nn])
+#     cluster_numbers = np.array(cluster_numbers).astype(int)
+#
+#     print('starting clusters: {}'.format(cluster_numbers))
+#
+#     lastgood_clusters = copy.deepcopy(cluster_numbers)
+#
+#     # gradient descent to find best cluster combination
+#     iter = 0
+#     costrecord = []
+#     print('starting step descent search of clusters (parallel) at {}'.format(time.ctime()))
+#     converging = True
+#
+#     if betascale == 0:
+#         nitermax = 50
+#         nitermax_stage1 = 1
+#         nsteps_stage1 = 10
+#     else:
+#         nitermax = 100
+#         nitermax_stage1 = 30
+#         nitermax_stage2 = 50
+#         nsteps_stage1 = 20
+#
+#     # output = sem_physio_model1_V3(cluster_numbers+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
+#     #                               fixed_beta_vals=[], betascale=betascale, Lweight = Lweight, nitermax=nitermax, verbose=False,normalizevar=False,
+#     #                               nitermax_stage1=nitermax_stage1, nsteps_stage1=nsteps_stage1, converging_slope_limit = [1e-3,1e-5])
+#
+#     print('best cluster search (parallel):  running baseline set of clusters ...')
+#     output = sem_physio_model1_V4(cluster_numbers+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
+#                                 fixed_beta_vals=[], betascale=betascale, Lweight = Lweight, normalizevar=False, nitermax_stage3=nitermax,
+#                                 nitermax_stage2=nitermax_stage2, nsteps_stage2=2,
+#                              nitermax_stage1=nitermax_stage1, nsteps_stage1=nsteps_stage1,
+#                              converging_slope_limit=[1e-4, 1e-5, 1e-6], verbose = False)
+#
+#     # now, correct the results for normalizing the variance
+#     output = sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, verbose = False)
+#
+#     SAPMresults = np.load(output,allow_pickle=True)
+#
+#     R2list = np.array([SAPMresults[x]['R2avg'] for x in range(len(SAPMresults))])
+#     basecost = np.sum(1 - R2list)
+#     lastcost = copy.deepcopy(basecost)
+#     results_record = []
+#     results_record_summary = []
+#     while converging and (iter < maxiter):
+#         iter += 1
+#         nbetterclusters = 0
+#         random_region_order = list(range(nregions))
+#         np.random.shuffle(random_region_order)
+#         for nnn in random_region_order:
+#             cost_values = np.zeros(ncluster_list[nnn])
+#             print('testing region {}'.format(nnn))
+#             if nnn in fixed_clusters:
+#                 print('cluster for region {} is fixed at {}'.format(nnn,cluster_numbers[nnn]))
+#             else:
+#                 parameters = []
+#                 tested_cluster_number = np.zeros(ncluster_list[nnn]-1, dtype = int)
+#                 clustercount = 0
+#                 for ccc in range(ncluster_list[nnn]):
+#                     test_clusters = copy.deepcopy(cluster_numbers)
+#                     if test_clusters[nnn] != ccc:   # no change in cluster number from last run
+#                         test_clusters[nnn] = ccc
+#                         tested_cluster_number[clustercount] = ccc
+#                         clustercount += 1
+#
+#                         params = {'cluster_numbers':test_clusters + full_rnum_base,
+#                                     'fintrinsic_base':fintrinsic_base, 'SAPMresultsname':SAPMresultsname,
+#                                     'SAPMparametersname':SAPMparametersname, 'fixed_beta_vals':[],
+#                                     'betascale':betascale,'Lweight':Lweight, 'normalizevar':False,
+#                                     'nitermax_stage3':nitermax,'nitermax_stage2':nitermax_stage2,
+#                                     'nitermax_stage1':nitermax_stage1,'nsteps_stage1':nsteps_stage1,
+#                                     'nsteps_stage2':2, 'converging_slope_limit':[1e-4, 1e-5, 1e-6] }
+#                         parameters.append(params)
+#
+#                 nprocessors = ncluster_list[nnn]-1
+#                 pool = mp.Pool(nprocessors)
+#                 searchresults = pool.map(SAPM_parallel_runs, parameters)
+#                 pool.close()
+#
+#                 cost_values = np.zeros(ncluster_list[nnn])
+#                 cost_values[cluster_numbers[nnn]] = copy.deepcopy(lastcost)
+#                 for ccc in range(ncluster_list[nnn]-1):
+#                     R2list = searchresults[ccc]['R2list']
+#                     R2list2 = searchresults[ccc]['R2list2']
+#                     cost_value = searchresults[ccc]['cost_value']
+#                     cost_values[tested_cluster_number[ccc]] = cost_value
+#
+#                     entry = {'R2list':R2list, 'R2list2':R2list2, 'region':nnn, 'cluster':ccc}
+#                     results_record.append(entry)
+#                     print('  using cluster {}  total of (1-R2 avg) for the group is {:.3f}'.format(ccc,cost_values[ccc]))
+#
+#                 x = np.argmin(cost_values)
+#                 this_cost = cost_values[x]
+#                 delta_cost = this_cost-lastcost
+#                 if this_cost < lastcost:
+#                     cluster_numbers[nnn] = x
+#                     nbetterclusters += 1
+#                     lastcost = copy.deepcopy(this_cost)
+#                 else:
+#                     print('no improvement in clusters found ... region {}'.format(nnn))
+#
+#                 print('iter {} region {} new cost = {:.3f}  previous cost = {:.3f} starting cost {:.3f}  delta cost = {:.3e} {}'.format(
+#                     iter, nnn, this_cost, lastcost, basecost, delta_cost, time.ctime()))
+#
+#         if nbetterclusters == 0:
+#             converging = False
+#             print('no improvement in clusters found in any region ...')
+#
+#         # peek at results
+#         print('\nbest cluster set so far is : {}'.format(cluster_numbers))
+#         print('average R2 across data sets = {:.3f} {} {:.3f}'.format(np.mean(R2list),chr(177),np.std(R2list)))
+#         print('total R2 across data sets = {:.3f} {} {:.3f}'.format(np.mean(R2list2),chr(177),np.std(R2list2)))
+#         print('average R2 range {:.3f} to {:.3f}'.format(np.min(R2list),np.max(R2list)))
+#
+#         R2avg_text = '{:.3f} {} {:.3f}'.format(np.mean(R2list),chr(177),np.std(R2list))
+#         R2total_text = '{:.3f} {} {:.3f}'.format(np.mean(R2list2),chr(177),np.std(R2list2))
+#         R2range_text = '{:.3f} to {:.3f}'.format(np.min(R2list),np.max(R2list))
+#         results_record_summary.append({'best clusters':cluster_numbers, 'R2avg':R2avg_text, 'R2total':R2total_text, 'R2range':R2range_text})
+#
+#     outputname = os.path.join(outputdir, 'step_descent_record.npy')
+#     np.save(outputname, results_record)
+#     print('results record written to {}'.format(outputname))
+#
+#     outputname = os.path.join(outputdir, 'step_descent_record_summary.npy')
+#     np.save(outputname, results_record_summary)
+#     print('results record summary written to {}'.format(outputname))
+#
+#     overall_end_time_text = time.ctime()
+#     overall_end_time = time.time()
+#     dtime = overall_end_time-overall_start_time
+#     dtimem = np.floor(dtime/60).astype(int)
+#     dtimes = np.round(dtime % 60).astype(int)
+#     print('Cluster search started at {}\n             and ended at {}\n     {} minutes {} sec total'.format(overall_start_time_text, overall_end_time_text, dtimem,dtimes))
+#     return cluster_numbers
+#
+#
+# def SAPM_parallel_runs(paramslist):
+#
+#     cluster_numbers = paramslist['cluster_numbers']
+#     fintrinsic_base = paramslist['fintrinsic_base']
+#     SAPMresultsname = paramslist['SAPMresultsname']
+#     SAPMparametersname = paramslist['SAPMparametersname']
+#     fixed_beta_vals = paramslist['fixed_beta_vals']
+#     betascale = paramslist['betascale']
+#     Lweight = paramslist['Lweight']
+#     normalizevar = paramslist['normalizevar']
+#     nitermax_stage3 = paramslist['nitermax_stage3']
+#     nitermax_stage2 = paramslist['nitermax_stage2']
+#     nitermax_stage1 = paramslist['nitermax_stage1']
+#     nsteps_stage1 = paramslist['nsteps_stage1']
+#     nsteps_stage2 = paramslist['nsteps_stage2']
+#     converging_slope_limit = paramslist['converging_slope_limit']
+#
+#     output = sem_physio_model1_V4(cluster_numbers, fintrinsic_base, SAPMresultsname,
+#                                   SAPMparametersname, fixed_beta_vals=fixed_beta_vals, betascale=betascale,
+#                                   Lweight=Lweight, normalizevar=normalizevar, nitermax_stage3=nitermax_stage3,
+#                                   nitermax_stage2=nitermax_stage2, nsteps_stage2=nsteps_stage2,
+#                                   nitermax_stage1=nitermax_stage1, nsteps_stage1=nsteps_stage1,
+#                                   converging_slope_limit=converging_slope_limit, verbose=False, silentrunning = True)
+#
+#     output = sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, verbose=False)
+#     SAPMresults = np.load(output, allow_pickle=True)
+#
+#     # print('size of SAPMresults is {}'.format(np.shape(SAPMresults)))
+#     R2list = np.array([SAPMresults[x]['R2avg'] for x in range(len(SAPMresults))])
+#     R2list2 = np.array([SAPMresults[x]['R2total'] for x in range(len(SAPMresults))])
+#     cost_value = np.sum(1 - R2list)
+#
+#     return {'R2list':R2list, 'R2list2':R2list2, 'cost_value':cost_value}
+#
 
 
 def nperms(n, input_list):
@@ -1677,7 +2551,7 @@ def cluster_search_pca(regiondataname, networkmodel, initial_clusters = []):
     # permutations of first Nsearch components
     Nsearch = 8
     cnumset = list(range(Nsearch))
-    component_list, perms = nperms(vintrinsic_count, cnumset)   # combinations of PCA terms to check
+    component_list, perms = nperms(vintrinsic_count+2, cnumset)   # combinations of PCA terms to check
     ncombinations = np.shape(component_list)[0]
 
     multistep_results = []
@@ -1891,8 +2765,13 @@ def SAPMrun_V2(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMpara
         prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch,
                                   fullgroup=False, normalizevar=True, filter_tcdata = False)
 
-    output = sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparametersname,
-                               fixed_beta_vals = [], betascale = betascale, Lweight = Lweight, normalizevar=False)
+    # output = sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparametersname,
+    #                             fixed_beta_vals = [], betascale = betascale, Lweight = Lweight, normalizevar=False,
+    #                             converging_slope_limit = [1e-4,5e-6])
+
+    output = sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparametersname,
+                                  fixed_beta_vals=[], betascale=betascale, Lweight=Lweight, normalizevar=False,
+                                  converging_slope_limit=[1e-5,1e-6, 1e-7])
 
     # now, correct the results for normalizing the variance
     output = sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, verbose = True)

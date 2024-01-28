@@ -330,8 +330,9 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel,
 
         #-----------------check for high variance------------
         tsize = int(ts/nruns_total)
-        rdtemp = regiondata.reshape(nvox, tsize, nruns_total, order = 'F').copy()
-        varcheck2 = np.var(rdtemp, axis = 1)
+        # rdtemp = regiondata.reshape(nvox, tsize, nruns_total, order = 'F').copy()
+        rdtemp = np.reshape(regiondata, (nvox, nruns_total, tsize))
+        varcheck2 = np.var(rdtemp, axis = 2)
         nvarvalstotal = nvox*nruns_total
 
         if varcheckmethod == 'median':
@@ -344,13 +345,17 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel,
         high_var_record = {'cv':cv, 'cp':cp}
         if len(cv) > 0:
             for vv in range(len(cv)):
-                rdtemp[cv[vv],:,cp[vv]] = np.zeros(tsize)   # replace with zeros so the high variance does not mess up clustering
+                rdtemp[cv[vv],cp[vv],:] = np.zeros(tsize)   # replace with zeros so the high variance does not mess up clustering
+            for vv in range(len(cv)):
+                meanrun = np.mean(rdtemp[cv[vv], :, :],axis=0)
+                rdtemp[cv[vv], cp[vv], :] = copy.deepcopy(meanrun)  # replace with the average now, with the high variance runs zeroed out
             print('---------------------------------!!!!!--------------------------------------');
             print('Variance check found {} voxels with high variance ({:.1f} percent of total)'.format(len(cv), 100.*len(cv)/nvarvalstotal) )
             print('---------------------------------!!!!!--------------------------------------\n');
         else:
             print('Variance check did not find any voxels with high variance');
-        regiondata = rdtemp.reshape(nvox, ts, order = 'F').copy()
+        # regiondata = rdtemp.reshape(nvox, ts, order = 'F').copy()
+        regiondata = np.reshape(rdtemp, (nvox, ts))
         # ------------done correcting for crazy variance - -------------------
 
         # now do the clustering for this region
@@ -372,11 +377,12 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel,
         IDX = kmeans.labels_
         cluster_tc = kmeans.cluster_centers_
 
-        make_equal_size_clusters = False
+        make_equal_size_clusters = True
         if make_equal_size_clusters:
             # modified clustering method - for roughly equal size clusters
             # Thanks to Eyal Shulman who shared on StackOverflow  https://stackoverflow.com/users/6247548/eyal-shulman
             # method for making clusters approximately equal size
+            print('identifying approximately equal sized clusters...')
             nvoxels, tsizefull = np.shape(regiondata)
             cluster_size = np.floor(nvoxels/nclusters).astype(int)
             nvox_trunc = cluster_size * nclusters
@@ -395,29 +401,56 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel,
                 IDXresidual += [np.argmin(dist)]
             IDX = np.concatenate((IDX, np.array(IDXresidual[::-1])),axis=0)
 
-        # new approach tried Dec 2023
-        # centers = kmeans.cluster_centers_
-        # distance_matrix = calc_distance_matrix(regiondata, centers)
-        # IDX = sort_by_dist(distance_matrix)
-
-        # new_centers = np.zeros((nclusters,tsizefull))
-        # distgrid = np.zeros((nclusters,nclusters))
-        # for xx in range(nclusters):
-        #     cc = np.where(IDX == xx)[0]
-        #     new_centers[xx,:] = np.mean(regiondata[cc,:],axis=0)
-        #     for dd in range(nclusters):
-        #         distgrid[xx,dd] = np.sqrt(np.sum( (new_centers[xx,:] - kmeans.cluster_centers_[dd,:])**2))
-
         tc = np.zeros([nclusters,ts])
         tc_sem = np.zeros([nclusters,ts])
         for aa in range(nclusters):
-            cc = [i for i in range(len(IDX)) if IDX[i] == aa]
+            # cc = [i for i in range(len(IDX)) if IDX[i] == aa]
+            cc = np.where(IDX == aa)[0]
             nvox = len(cc)
             tc[aa,:] = np.mean(regiondata[cc, :], axis=0)
             tc_sem[aa,:] = np.std(regiondata[cc, :], axis=0)/np.sqrt(nvox)
+        tc_original = copy.deepcopy(tc)
+        tc_sem_original = copy.deepcopy(tc_sem)
+
+        # handle high variance voxels differently
+        # rdtemp = np.reshape(regiondata, (nvox, nruns_total, tsize))
+        cv2,cp2 = np.where(varcheck2 <= varlimit)  # voxels without high variance
+        tcr = np.zeros([nclusters,nruns_total,tsize])
+        tcr_sem = np.zeros([nclusters,nruns_total,tsize])
+
+        for aa in range(nclusters):
+            # cc = [i for i in range(len(IDX)) if IDX[i] == aa]
+            # cc = np.where(IDX == aa)[0]
+            for bb in range(nruns_total):
+                # rcheck = np.where(cp2 == bb)[0]   # find the entries for this run
+                # vcheck = cv2[rcheck]    # find the good voxels for this run
+                # cc2 = [i for i in cc if i in vcheck]
+                # cc2r = np.where( (varcheck2[:,bb] <= varlimit) & (IDX == aa))  # good voxels for this run
+
+                cc2 = [xx for xx in range(len(IDX)) if (varcheck2[xx, bb] <= varlimit) and (IDX[xx] == aa)]
+                nvox2 = len(cc2)
+                if nvox2 > 0:
+                    tcr[aa, bb, :] = np.mean(rdtemp[cc2, bb, :], axis=0)
+                    tcr_sem[aa, :] = np.std(rdtemp[cc2, bb, :], axis=0) / np.sqrt(nvox2)
+        tc = np.reshape(tcr, (nclusters, ts))
+        tc_sem = np.reshape(tcr_sem, (nclusters, ts))
+
+        # for aa in range(nclusters):
+        #     # cc = [i for i in range(len(IDX)) if IDX[i] == aa]
+        #     cc = np.where(IDX == aa)[0]
+        #     for bb in range(nruns_total):
+        #         rcheck = np.where(cp2 == bb)[0]   # find the entries for this run
+        #         vcheck = cv2[rcheck]    # find the good voxels for this run
+        #         cc2 = [i for i in cc if i in vcheck]
+        #         nvox2 = len(cc2)
+        #         if nvox2 > 0:
+        #             tcr[aa,bb,:] = np.mean(rdtemp[cc2, bb, :], axis=0)
+        #             tcr_sem[aa,:] = np.std(rdtemp[cc2, bb, :], axis=0)/np.sqrt(nvox2)
+        # tc = np.reshape(tcr,(nclusters,ts))
+        # tc_sem = np.reshape(tcr_sem,(nclusters,ts))
 
         clusterdef_entry = {'cx':cx, 'cy':cy, 'cz':cz,'IDX':IDX, 'nclusters':nclusters, 'rname':rname, 'regionindex':regionindex, 'regionnum':regionnum, 'occurrence':occurrence}
-        regiondata_entry = {'tc':tc, 'tc_sem':tc_sem, 'nruns_per_person':nruns_per_person, 'tsize':tsize, 'rname':rname, 'DBname':DBname, 'DBnum':DBnum, 'prefix':prefix, 'occurrence':occurrence}
+        regiondata_entry = {'tc':tc, 'tc_sem':tc_sem, 'tc_original':tc_original, 'tc_sem_original':tc_sem_original, 'nruns_per_person':nruns_per_person, 'tsize':tsize, 'rname':rname, 'DBname':DBname, 'DBnum':DBnum, 'prefix':prefix, 'occurrence':occurrence}
         region_properties.append(regiondata_entry)
         cluster_properties.append(clusterdef_entry)
 
@@ -571,8 +604,9 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, netwo
 
         #-----------------check for high variance------------
         tsize = int(ts/nruns_total)
-        rdtemp = regiondata.reshape(nvox, tsize, nruns_total, order = 'F').copy()
-        varcheck2 = np.var(rdtemp, axis = 1)
+        # rdtemp = regiondata.reshape(nvox, tsize, nruns_total, order = 'F').copy()
+        rdtemp = np.reshape(regiondata, (nvox, nruns_total, tsize))
+        varcheck2 = np.var(rdtemp, axis = 2)
         nvarvalstotal = nvox*nruns_total
 
         if varcheckmethod == 'median':
@@ -581,49 +615,32 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, netwo
             typicalvar2 = np.mean(varcheck2)
         varlimit = varcheckthresh * typicalvar2
 
-        cv,cp = np.where(varcheck2 > varlimit)  # voxels with crazy variance
+        cv,cp = np.where(varcheck2 > varlimit)  # voxels with high variance
         if len(cv) > 0:
             for vv in range(len(cv)):
-                rdtemp[cv[vv],:,cp[vv]] = np.zeros(tsize)   # replace with zeros so the crazy variance does not mess up clustering
+                rdtemp[cv[vv],cp[vv],:] = np.zeros(tsize)   # replace with zeros so the crazy variance does not mess up clustering
+            for vv in range(len(cv)):
+                meanrun = np.mean(rdtemp[cv[vv], :, :], axis=0)
+                rdtemp[cv[vv], cp[vv], :] = copy.deepcopy(meanrun)  # replace with the average now, with the high variance runs zeroed out
             print('---------------------------------!!!!!--------------------------------------');
             print('Variance check found {} voxels with high variance ({:.1f} percent of total)'.format(len(cv), 100. * len(cv)/nvarvalstotal))
             print('---------------------------------!!!!!--------------------------------------\n');
         else:
             print('Variance check did not find any voxels with high variance');
-        regiondata = rdtemp.reshape(nvox, ts, order = 'F').copy()
+
+        # regiondata = rdtemp.reshape(nvox, ts, order = 'F').copy()
+        regiondata = np.reshape(rdtemp, (nvox, ts))
         # ------------done correcting for crazy variance - -------------------
 
         #------------replace in define_cluster_and_load_data function---------------
         IDX = copy.deepcopy(region_coordinate_list[nn]['IDX'])
         #------------end of replace in define_cluster_and_load_data function--------
 
-        make_equal_size_clusters = False
-        if make_equal_size_clusters:
-            # modified clustering method - for roughly equal size clusters
-            # Thanks to Eyal Shulman who shared on StackOverflow  https://stackoverflow.com/users/6247548/eyal-shulman
-            # method for making clusters approximately equal size
-            nvoxels, tsizefull = np.shape(regiondata)
-            cluster_size = np.floor(nvoxels/nclusters).astype(int)
-            nvox_trunc = cluster_size * nclusters
-            centers = kmeans.cluster_centers_
-            centers = centers.reshape(-1, 1, regiondata.shape[-1]).repeat(cluster_size, 1).reshape(-1, regiondata.shape[-1])
-            distance_matrix = cdist(regiondata[:nvox_trunc,:], centers)
-            val = linear_sum_assignment(distance_matrix)
-            IDX = val[1] // cluster_size
-
-            # add in remaining voxels to the nearest clusters
-            nresidual = nvoxels - nvox_trunc
-            IDXresidual = []
-            for xx in range(nresidual):
-                tc = regiondata[-xx,:]
-                dist = [np.sqrt(np.sum( tc - kmeans.cluster_centers_[dd,:])**2) for dd in range(nclusters)]
-                IDXresidual += [np.argmin(dist)]
-            IDX = np.concatenate((IDX, np.array(IDXresidual[::-1])),axis=0)
-
         tc = np.zeros([nclusters,ts])
         tc_sem = np.zeros([nclusters,ts])
         for aa in range(nclusters):
-            cc = [i for i in range(len(IDX)) if IDX[i] == aa]
+            # cc = [i for i in range(len(IDX)) if IDX[i] == aa]
+            cc = np.where(IDX == aa)[0]
             nvox = len(cc)
             if nvox > 0:
                 tc[aa,:] = np.mean(regiondata[cc, :], axis=0)
@@ -632,15 +649,40 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, netwo
                 print('---------------CHECK THIS!-----------------------------')
                 print('region {} cluster {} does not contain any data!'.format(rname,aa))
                 print('-------------------------------------------------------')
+        tc_original = copy.deepcopy(tc)
+        tc_sem_original = copy.deepcopy(tc_sem)
+
+
+        # handle high variance voxels differently
+        # rdtemp = np.reshape(regiondata, (nvox, nruns_total, tsize))
+        cv2,cp2 = np.where(varcheck2 <= varlimit)  # voxels without high variance
+        tcr = np.zeros([nclusters,nruns_total,tsize])
+        tcr_sem = np.zeros([nclusters,nruns_total,tsize])
+
+        for aa in range(nclusters):
+            # cc = [i for i in range(len(IDX)) if IDX[i] == aa]
+            # cc = np.where(IDX == aa)[0]
+            for bb in range(nruns_total):
+                # rcheck = np.where(cp2 == bb)[0]   # find the entries for this run
+                # vcheck = cv2[rcheck]    # find the good voxels for this run
+                # cc2 = [i for i in cc if i in vcheck]
+                # cc2r = np.where( (varcheck2[:,bb] <= varlimit) & (IDX == aa))  # good voxels for this run
+
+                cc2 = [xx for xx in range(len(IDX)) if (varcheck2[xx,bb] <= varlimit) and (IDX[xx] == aa)]
+                nvox2 = len(cc2)
+                if nvox2 > 0:
+                    tcr[aa,bb,:] = np.mean(rdtemp[cc2, bb, :], axis=0)
+                    tcr_sem[aa,:] = np.std(rdtemp[cc2, bb, :], axis=0)/np.sqrt(nvox2)
+        tc = np.reshape(tcr,(nclusters,ts))
+        tc_sem = np.reshape(tcr_sem,(nclusters,ts))
 
         clusterdef_entry = {'cx':cx, 'cy':cy, 'cz':cz,'IDX':IDX, 'nclusters':nclusters, 'rname':rname, 'regionindex':regionindex, 'regionnum':regionnum, 'occurrence':occurrence}
-        regiondata_entry = {'tc':tc, 'tc_sem':tc_sem, 'nruns_per_person':nruns_per_person, 'tsize':tsize, 'rname':rname, 'DBname':DBname, 'DBnum':DBnum, 'prefix':prefix, 'occurrence':occurrence}
+        regiondata_entry = {'tc':tc, 'tc_sem':tc_sem, 'tc_original':tc_original, 'tc_sem_original':tc_sem_original, 'nruns_per_person':nruns_per_person, 'tsize':tsize, 'rname':rname, 'DBname':DBname, 'DBnum':DBnum, 'prefix':prefix, 'occurrence':occurrence}
         region_properties.append(regiondata_entry)
         cluster_properties.append(clusterdef_entry)
 
     print('loading cluster data complete.')
     return region_properties
-
 
 
 def load_cluster_data_original(cluster_properties, DBname, DBnum, prefix, nvolmask, networkmodel, varcheckmethod = 'median', varcheckthresh = 3.0):
@@ -748,7 +790,8 @@ def load_cluster_data_original(cluster_properties, DBname, DBnum, prefix, nvolma
             tc = np.zeros([nclusters, ts])
             tc_sem = np.zeros([nclusters, ts])
             for aa in range(nclusters):
-                cc = [i for i in range(len(IDX)) if IDX[i] == aa]
+                # cc = [i for i in range(len(IDX)) if IDX[i] == aa]
+                cc = np.where(IDX == aa)[0]
                 nvox = len(cc)
                 tc[aa, :] = np.mean(regiondata[cc, :], axis=0)
                 tc_sem[aa, :] = np.std(regiondata[cc, :], axis=0) / np.sqrt(nvox)
