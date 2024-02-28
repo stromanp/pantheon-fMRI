@@ -312,7 +312,7 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel,
     # regiondata = group_data[cx,cy,cz,:]   # nvox x tsize
     # load all the data from all regions, all data sets
     mode = 'concatenate'
-    allregiondata = load_data_from_region(filename_list, nvolmask, mode, cx_all, cy_all, cz_all)
+    allregiondata = load_data_from_region(filename_list, nvolmask, mode, cx_all, cy_all, cz_all, definingclusters = True)
     nvox,ts = np.shape(allregiondata)
 
     region_name_list = [region_coordinate_list[x]['rname'] for x in range(len(region_coordinate_list))]
@@ -946,7 +946,9 @@ def load_cluster_data_original(cluster_properties, DBname, DBnum, prefix, nvolma
 #     return region_properties
 
 
-def load_data_from_region(filename_list, nvolmask, mode, cx, cy, cz):
+def load_data_from_region(filename_list, nvolmask, mode, cx, cy, cz, definingclusters = False):
+    timespantoload = 30
+
     NP = len(filename_list)
     group_divisor = 0
     for pnum in range(NP):
@@ -960,7 +962,10 @@ def load_data_from_region(filename_list, nvolmask, mode, cx, cy, cz):
             # otherwise, concatenate the data
             input_img = nib.load(name)
             input_data = input_img.get_fdata()
-            roi_data = input_data[cx,cy,cz,:]   # check the size of this
+            if definingclusters:
+                roi_data = input_data[cx,cy,cz,:timespantoload]   # check the size of this
+            else:
+                roi_data = input_data[cx,cy,cz,:]   # check the size of this
             print('size of roi_data = {}'.format(np.shape(roi_data)))
 
             nvox, ts = roi_data.shape

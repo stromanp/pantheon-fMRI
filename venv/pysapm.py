@@ -1398,7 +1398,7 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                     converging_slope_limit = [1e-4, 1e-5, 1e-6], verbose = True, silentrunning = False):
 
 # this version fits to principal components of Sinput
-    save_test_record = False
+    save_test_record = True
     p,f = os.path.split(SAPMresultsname)
     test_record_name = os.path.join(p,'gradient_descent_record.npy')
     test_record = []
@@ -2087,9 +2087,10 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
         nsteps_stage1 = 10
     else:
         nitermax = 100
-        nitermax_stage1 = 40
-        nitermax_stage2 = 100
         nsteps_stage1 = 20
+        nitermax_stage1 = 40
+        nsteps_stage2 = 2
+        nitermax_stage2 = 100
 
     # output = sem_physio_model1_V3(cluster_numbers+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
     #                               fixed_beta_vals=[], betascale=betascale, Lweight = Lweight, nitermax=nitermax, verbose=False,normalizevar=False,
@@ -2098,7 +2099,7 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
     print('best cluster search:  running baseline set of clusters ...')
     output = sem_physio_model1_V4(cluster_numbers+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
                                 fixed_beta_vals=[], betascale=betascale, Lweight = Lweight, normalizevar=False, nitermax_stage3=nitermax,
-                                nitermax_stage2=nitermax_stage2, nsteps_stage2=2,
+                                nitermax_stage2=nitermax_stage2, nsteps_stage2=nsteps_stage2,
                              nitermax_stage1=nitermax_stage1, nsteps_stage1=nsteps_stage1,
                              converging_slope_limit=[1e-4, 1e-5, 1e-6], verbose = False)
     print('\r  finished running baseline clusters....                                         ')
@@ -2138,7 +2139,7 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
 
                         output = sem_physio_model1_V4(test_clusters + full_rnum_base, fintrinsic_base,SAPMresultsname, SAPMparametersname,
                                                       fixed_beta_vals=[], betascale=betascale, Lweight=Lweight, normalizevar=False, nitermax_stage3=nitermax,
-                                                      nitermax_stage2=nitermax_stage2, nsteps_stage2=2, nitermax_stage1=nitermax_stage1,
+                                                      nitermax_stage2=nitermax_stage2, nsteps_stage2=nsteps_stage2, nitermax_stage1=nitermax_stage1,
                                                       nsteps_stage1=nsteps_stage1, converging_slope_limit=[1e-4, 1e-5, 1e-6], verbose = False)
 
                         output = sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, verbose=False)
@@ -2694,15 +2695,15 @@ def sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, ve
 
         nr, nr_nL = np.shape(Sinput)
         for aa in range(nr):
-            loadings[aa,:] /= std_scale[clusterlist[aa],nperson]
-            loadings_fit[aa,:] /= std_scale[clusterlist[aa],nperson]
+            loadings[aa,:] /= (std_scale[clusterlist[aa],nperson] + 1.0e-10)
+            loadings_fit[aa,:] /= (std_scale[clusterlist[aa],nperson] + 1.0e-10)
 
         # correct deltavals and betavals
         deltavals = np.zeros(len(csource))
         for aa in range(len(csource)):
             ss = csource[aa]
             tt = ctarget[aa]
-            Minput[tt, ss] /= std_scale[clusterlist[tt], nperson]
+            Minput[tt, ss] /= (std_scale[clusterlist[tt], nperson] + 1.0e-10)
             deltavals[aa] = copy.deepcopy(Minput[tt,ss])
 
         # fit the result ...
@@ -2711,9 +2712,9 @@ def sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, ve
         fit_original = Minput @ Sconn
         fit_original1 = Minput @ Meigv @ Mintrinsic
 
-        R2list = 1.0 - np.sum((Sinput_original - fit_original) ** 2, axis=1) / np.sum(Sinput_original ** 2, axis=1)
+        R2list = 1.0 - np.sum((Sinput_original - fit_original) ** 2, axis=1) / (np.sum(Sinput_original ** 2, axis=1) + 1.0e-10)
         R2avg = np.mean(R2list)
-        R2total = 1.0 - np.sum((Sinput_original - fit_original) ** 2) / np.sum(Sinput_original ** 2)
+        R2total = 1.0 - np.sum((Sinput_original - fit_original) ** 2) / (np.sum(Sinput_original ** 2) + 1.0e-10)
 
         if verbose:
             print('SAPM {} variance correction:  R2 avg {:.3f}  R2 total {:.3f}'.format(nperson, R2avg, R2total))

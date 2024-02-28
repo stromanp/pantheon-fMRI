@@ -3336,7 +3336,7 @@ class GLMFrame:
             search_mask = roi_map
             if np.ndim(self.dataset) > 4:
                 residual_data = self.dataset[:, :, :, :, 0]  # take data from one person, as an example
-                xs,ys,zs,ts = np.shape(self.dataset)
+                xs,ys,zs,ts = np.shape(residual_data)
                 degrees_of_freedom = ts - 1
             else:
                 residual_data = self.dataset

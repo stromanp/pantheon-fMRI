@@ -13,23 +13,51 @@ import scipy.stats as stats
 #                  'paired_difference_correlation_w_cov1', 'paired_difference_correlation_w_delta_cov'
 
 #specify the type of analysis
-comparison_type = 'paired_difference'
+comparison_type = 'ancova'
+descriptor = 'ancova_FMstim_v_HCstim_firstpainrating'
+#
+# comparison_type = 'unpaired_difference'
+# descriptor = 'unpaired_diff_FMstim_v_HCstim'
+
 pthresh = 0.05 / 32.0
 pthresh = 0.05
-descriptor = 'paired_diff_High_vs_Low'
-covname = 'painrating'
+covname = 'firstpainrating'
+covlimit = 1000.0
 
+datagroup = 'brain'
 # specify the data names and locations
-datadir = r'E:\SAPMresults_Dec2022'
-# group1
-group1_resultsname = r'High_3242423012_v2_results.npy'
-group1_paramsname = r'High_3242423012_v2_params.npy'
-group1_covname = r'High_covariates.npy'
+# brain data
+if datagroup == 'brain':
+	datadir = r'D:/Howie_FM2_Brain_Data'
+	# group1
+	group1_resultsname = r'FMstim_02323203331202_V5_19_results_corr.npy'
+	group1_paramsname = r'FMstim_02323203331202_V5_19_params.npy'
+	group1_covname = r'FMstim_02323203331202_V5_19_results_covariates.npy'
 
-# group2
-group2_resultsname = r'Low_3242423012_v2_results.npy'
-group2_paramsname = r'Low_3242423012_v2_params.npy'
-group2_covname = r'Low_covariates.npy'
+	group2_resultsname = r'HCstim_02323203331202_V5_results_corr.npy'
+	group2_paramsname = r'HCstim_02323203331202_V5_params.npy'
+	group2_covname = r'HCstim_02323203331202_V5_results_covariates.npy'
+
+
+	# group2
+	# group2_resultsname = r'FMrest_02323203331202_V5_results_corr.npy'
+	# group2_paramsname = r'FMrest_02323203331202_V5_params.npy'
+	# group2_covname = r'FMrest_02323203331202_V5_results_covariates.npy'
+
+	# group2_resultsname = r'HCrest_02323203331202_V5_results_corr.npy'
+	# group2_paramsname = r'HCrest_02323203331202_V5_params.npy'
+	# group2_covname = r'HCrest_02323203331202_V5_results_covariates.npy'
+
+else:
+	datadir = r'E:\FM2021data'
+
+	group1_resultsname = r'FMstim_2230224124_V5b_results_corr.npy'
+	group1_paramsname = r'FMstim_2230224124_V5b_params.npy'
+	group1_covname = r'FMstim_1441234122_V3_results_covariates.npy'
+
+	group2_resultsname = r'HCstim_2230224124_V5b_results_corr.npy'
+	group2_paramsname = r'HCstim_2230224124_V5b_params.npy'
+	group2_covname = r'HCstim_1432043142_results_covariates.npy'
 
 #-----------------------------------------------------------------------------------
 # probably no need to change anything below this line
@@ -63,6 +91,9 @@ x2 = group2_cov['GRPcharacteristicslist'].index(covname)
 
 cov1 = group1_cov['GRPcharacteristicsvalues'][x1,:]
 cov2 = group2_cov['GRPcharacteristicsvalues'][x2,:]
+
+xx1 = np.where(cov1 < covlimit)[0]
+xx2 = np.where(cov2 < covlimit)[0]
 
 cov1 = np.array(cov1).astype(float)
 cov2 = np.array(cov2).astype(float)
@@ -308,10 +339,15 @@ if comparison_type == 'paired_difference_correlation_w_delta_cov':
 # 3) ANCOVA
 #-----------------------------------------------------------------------------------
 if comparison_type == 'ancova':
+	if 'STAI' in covname:
+		covnameshort = 'anx'
+	else:
+		covnameshort = covname
+
 	statstype = 'ANCOVA'
 	formula_key1 = 'C(Group)'
-	formula_key2 = covname
-	formula_key3 = 'C(Group):' + covname
+	formula_key2 = covnameshort
+	formula_key3 = 'C(Group):' + covnameshort
 	atype = 2
 
 	pthresh_list = np.repeat(pthresh, nconnections)
@@ -320,7 +356,7 @@ if comparison_type == 'ancova':
 	for aa in range(nconnections):
 		group1_B = B1[:,aa]
 		group2_B = B2[:,aa]
-		ancova_table, p_MeoG, p_MeoC, p_intGC = py2ndlevelanalysis.run_ANOVA_or_ANCOVA2(group1_B, group2_B, cov1, cov2, covname,
+		ancova_table, p_MeoG, p_MeoC, p_intGC = py2ndlevelanalysis.run_ANOVA_or_ANCOVA2(group1_B[xx1], group2_B[xx2], cov1[xx1], cov2[xx2], covnameshort,
 																	formula_key1, formula_key2, formula_key3, atype)
 		ancova_p[aa, :] = np.array([p_MeoG, p_MeoC, p_intGC])
 

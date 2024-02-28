@@ -63,6 +63,7 @@ import py_mirt3D as mirt
 import image_operations_3D as i3d
 import openpyxl
 from sklearn.decomposition import PCA
+import copy
 
 
 #---------HRF----------------------------------------
@@ -441,7 +442,12 @@ def calculate_maineffects(DBname, dbnum, TR, nvols):
             BOLD = f(vol_times)
             BOLD = BOLD - np.mean(BOLD)
             BOLDname = basisname+'_BOLD'
-            output[BOLDname] = BOLD/np.max(BOLD)  # scale to max = 1, and save
+            BOLDrange = np.max(BOLD) - np.min(BOLD)
+            if BOLDrange > 1e-3:
+                scaledBOLD = BOLD/BOLDrange
+            else:
+                scaledBOLD = copy.deepcopy(BOLD)
+            output[BOLDname] = copy.deepcopy(scaledBOLD)  # scale to range = 1, and save
 
     # create a dataframe
     BOLDdata = pd.DataFrame(data = output)
@@ -493,7 +499,7 @@ def read_maineffects(DBname, dbnum):
                 paradigmdef = np.array(df2.loc[:, basisname])
                 paradigmdef = paradigmdef[np.newaxis,:]
             else:
-                nextparadigm = df2.loc[:, basisname]
+                nextparadigm = np.array(df2.loc[:, basisname])
                 paradigmdef = np.concatenate((paradigmdef,nextparadigm[np.newaxis,:]),axis = 0)
 
     return paradigmdef, paradigm_names
