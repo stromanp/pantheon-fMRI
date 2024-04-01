@@ -299,7 +299,8 @@ def pydisplayanatregions(templatename, anatnames, colorlist = []):
 
 
 # display named regions in different colors
-def pydisplayclusters(clusterdataname, regionnames, clusternumbers, colorlist = [], templatename = 'brain'):
+def pydisplayclusters(clusterdataname, regionnames, clusternumbers, colorlist = [], templatename = 'brain',
+                      backgroundcolor = [1,1,0], orientation = 'axial'):
 
     clusterdata = np.load(clusterdataname, allow_pickle=True).flat[0]
     cluster_properties = clusterdata['cluster_properties']
@@ -313,30 +314,6 @@ def pydisplayclusters(clusterdataname, regionnames, clusternumbers, colorlist = 
         colors = np.zeros((ncolors,3))
         colors[:,0] = 1  # make all the clusters red
 
-    # templatename = templatename.lower()
-    # resolution = 1
-    # template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_img = load_templates.load_template_and_masks(templatename, resolution)
-    #
-    # anatnamelist = []
-    # for name in anatlabels['names']:
-    #     anatnamelist.append(name)
-    #
-    # nregions = len(anatnames)
-    # colsize = [3,nregions]
-    # if colsize != np.array(colorlist).shape:
-    #     values = np.mgrid[-1:1:nregions*1j]
-    #     r,g,b = colormap(values)
-    #     colorlist = np.stack((r,g,b))
-    #
-    # regionindices = np.zeros(nregions).astype(int)
-    # for nn,name in enumerate(anatnames):
-    #     try:
-    #         rnum  = anatnamelist.index(name)
-    #         regionindices[nn] = anatlabels['numbers'][rnum]
-    #     except:
-    #         print('pydisplayanatregions: region ',name,' is not in the anatomical map (ignoring this region)')
-    #         rnum = 0
-
     background = template_img.astype('double')
     background = background/np.max(background)
     red = copy.deepcopy(background)
@@ -344,7 +321,7 @@ def pydisplayclusters(clusterdataname, regionnames, clusternumbers, colorlist = 
     blue = copy.deepcopy(background)
 
     # color the regions
-    defaultcolor = [1,1,0]
+    defaultcolor = copy.deepcopy(backgroundcolor)
     for nn,region in enumerate(regionnames):
         index = rnamelist.index(region)
         cx = cluster_properties[index]['cx']
@@ -356,29 +333,226 @@ def pydisplayclusters(clusterdataname, regionnames, clusternumbers, colorlist = 
         green[cx,cy,cz] = defaultcolor[1]
         blue[cx,cy,cz] = defaultcolor[2]
 
+    # color the clusters
+    for nn,region in enumerate(regionnames):
+        index = rnamelist.index(region)
+        cx = cluster_properties[index]['cx']
+        cy = cluster_properties[index]['cy']
+        cz = cluster_properties[index]['cz']
+        IDX = cluster_properties[index]['IDX']
+
         cc = np.where(IDX == clusternumbers[nn])[0]
         red[cx[cc],cy[cc],cz[cc]] = colors[nn,0]
         green[cx[cc],cy[cc],cz[cc]] = colors[nn,1]
         blue[cx[cc],cy[cc],cz[cc]] = colors[nn,2]
 
+    # slice results and put them into a mosaic format image
+    xs,ys,zs = np.shape(template_img)
+
+    # axial slices
+    if orientation == 'axial':
+        ncols = (np.sqrt(zs)).astype(int)
+        nrows = np.ceil(zs/ncols).astype(int)
+
+        # this might work for brain regions as well
+        if templatename == 'brain':
+            # display brain data
+            outputimg = np.zeros([nrows*ys,ncols*xs,3])
+
+            for zz in range(zs):
+                colnum = zz % ncols
+                rownum = np.floor(zz/ncols).astype(int)
+                x1 = colnum*xs
+                x2 = (colnum+1)*xs
+                y1 = rownum*ys
+                y2 = (rownum+1)*ys
+                redrot = red[:,:,zz];  redrot = redrot[:,::-1].T
+                greenrot = green[:,:,zz];  greenrot = greenrot[:,::-1].T
+                bluerot = blue[:,:,zz];  bluerot = bluerot[:,::-1].T
+                outputimg[y1:y2,x1:x2,0:3] = np.dstack((redrot,greenrot,bluerot))
+
+        if templatename == 'ccbs':
+            # display brainstem/cord
+            yc1 = 20;  yc2 = 76;  ys2 = yc2-yc1
+            outputimg = np.zeros([nrows*ys2,ncols*xs,3])
+
+            for zz in range(zs):
+                colnum = zz % ncols
+                rownum = np.floor(zz/ncols).astype(int)
+                x1 = colnum*xs
+                x2 = (colnum+1)*xs
+                y1 = rownum*ys2
+                y2 = (rownum+1)*ys2
+                # need to rotate each from by 90 degrees
+                redrot = red[:,yc1:yc2,zz];  redrot = redrot[:,::-1].T
+                greenrot = green[:,yc1:yc2,zz];  greenrot = greenrot[:,::-1].T
+                bluerot = blue[:,yc1:yc2,zz];  bluerot = bluerot[:,::-1].T
+                outputimg[y1:y2,x1:x2,0:3] = np.dstack((redrot,greenrot,bluerot))
+
+        if templatename != 'brain' and templatename != 'ccbs':
+            # do the other thing
+            yc1 = 20;  yc2 = 41;  ys2 = yc2-yc1
+            outputimg = np.zeros([nrows*ys2,ncols*xs,3])
+
+            for zz in range(zs):
+                colnum = zz % ncols
+                rownum = np.floor(zz/ncols).astype(int)
+                x1 = colnum*xs
+                x2 = (colnum+1)*xs
+                y1 = rownum*ys2
+                y2 = (rownum+1)*ys2
+                # need to rotate each frame by 90 degrees
+                redrot = red[:,yc1:yc2,zz];  redrot = redrot[:,::-1].T
+                greenrot = green[:,yc1:yc2,zz];  greenrot = greenrot[:,::-1].T
+                bluerot = blue[:,yc1:yc2,zz];  bluerot = bluerot[:,::-1].T
+                outputimg[y1:y2,x1:x2,0:3] = np.dstack((redrot,greenrot,bluerot))
+
+    # sagittal orientation
+    if orientation == 'sagittal':
+        ncols = (np.sqrt(xs)).astype(int)
+        nrows = np.ceil(xs / ncols).astype(int)
+
+        # this might work for brain regions as well
+        if templatename == 'brain':
+            # display brain data
+            outputimg = np.zeros([nrows * ys, ncols * zs, 3])
+
+            for xx in range(xs):
+                colnum = xx % ncols
+                rownum = np.floor(xx / ncols).astype(int)
+                z1 = colnum * zs
+                z2 = (colnum + 1) * zs
+                y1 = rownum * ys
+                y2 = (rownum + 1) * ys
+                redrot = red[xx, :, :];
+                # redrot = redrot[:, ::-1].T
+                greenrot = green[xx, :, :];
+                # greenrot = greenrot[:, ::-1].T
+                bluerot = blue[xx, :, :];
+                # bluerot = bluerot[:, ::-1].T
+                outputimg[y1:y2, z1:z2, 0:3] = np.dstack((redrot, greenrot, bluerot))
+
+        if templatename == 'ccbs':
+            # display brainstem/cord
+            yc1 = 20;
+            yc2 = 76;
+            ys2 = yc2 - yc1
+            outputimg = np.zeros([nrows * ys2, ncols * zs, 3])
+
+            for xx in range(xs):
+                colnum = xx % ncols
+                rownum = np.floor(xx / ncols).astype(int)
+                z1 = colnum * zs
+                z2 = (colnum + 1) * zs
+                y1 = rownum * ys2
+                y2 = (rownum + 1) * ys2
+                # need to rotate each from by 90 degrees
+                redrot = red[xx, yc1:yc2, :];
+                # redrot = redrot[:, ::-1].T
+                greenrot = green[xx, yc1:yc2, :];
+                # greenrot = greenrot[:, ::-1].T
+                bluerot = blue[xx, yc1:yc2, :];
+                # bluerot = bluerot[:, ::-1].T
+                outputimg[y1:y2, z1:z2, 0:3] = np.dstack((redrot, greenrot, bluerot))
+
+        if templatename != 'brain' and templatename != 'ccbs':
+            # do the other thing
+            yc1 = 20;
+            yc2 = 41;
+            ys2 = yc2 - yc1
+            outputimg = np.zeros([nrows * ys2, ncols * zs, 3])
+
+            for xx in range(xs):
+                colnum = xx % ncols
+                rownum = np.floor(xx / ncols).astype(int)
+                z1 = colnum * zs
+                z2 = (colnum + 1) * zs
+                y1 = rownum * ys2
+                y2 = (rownum + 1) * ys2
+                # need to rotate each frame by 90 degrees
+                redrot = red[xx, yc1:yc2, :];
+                # redrot = redrot[:, ::-1].T
+                greenrot = green[xx, yc1:yc2, :];
+                # greenrot = greenrot[:, ::-1].T
+                bluerot = blue[xx, yc1:yc2, :];
+                # bluerot = bluerot[:, ::-1].T
+                outputimg[y1:y2, z1:z2, 0:3] = np.dstack((redrot, greenrot, bluerot))
+
+    outputimg[outputimg>1.] = 1.0
+    outputimg[outputimg<0.] = 0.0
+
+    return outputimg
+
+
+# display named regions in different colors
+def pydisplayclusters_1slice(clusterdataname, regionnames, clusternumbers, colorlist = [], templatename = 'brain', backgroundcolor = [1,1,0]):
+    nregions = len(regionnames)
+
+    clusterdata = np.load(clusterdataname, allow_pickle=True).flat[0]
+    cluster_properties = clusterdata['cluster_properties']
+    template_img = clusterdata['template_img']
+    regionmap_img = clusterdata['regionmap_img']
+
+    rnamelist = [cluster_properties[xx]['rname'] for xx in range(len(cluster_properties))]
+
+    if np.shape(colorlist)[0] < len(clusternumbers):
+        ncolors = len(clusternumbers)
+        colors = np.zeros((ncolors,3))
+        colors[:,0] = 1  # make all the clusters red
+
+    background = template_img.astype('double')
+    background = background/np.max(background)
+    red = copy.deepcopy(background)
+    green = copy.deepcopy(background)
+    blue = copy.deepcopy(background)
+
+    # color the regions
+    defaultcolor = copy.deepcopy(backgroundcolor)
+    for nn,region in enumerate(regionnames):
+        index = rnamelist.index(region)
+        cx = cluster_properties[index]['cx']
+        cy = cluster_properties[index]['cy']
+        cz = cluster_properties[index]['cz']
+        IDX = cluster_properties[index]['IDX']
+
+        red[cx,cy,cz] = defaultcolor[0]
+        green[cx,cy,cz] = defaultcolor[1]
+        blue[cx,cy,cz] = defaultcolor[2]
+
+    # color the clusters
+    clusterslice = np.zeros(nregions)
+    for nn,region in enumerate(regionnames):
+        index = rnamelist.index(region)
+        cx = cluster_properties[index]['cx']
+        cy = cluster_properties[index]['cy']
+        cz = cluster_properties[index]['cz']
+        IDX = cluster_properties[index]['IDX']
+
+        cc = np.where(IDX == clusternumbers[nn])[0]
+        red[cx[cc],cy[cc],cz[cc]] = colors[nn,0]
+        green[cx[cc],cy[cc],cz[cc]] = colors[nn,1]
+        blue[cx[cc],cy[cc],cz[cc]] = colors[nn,2]
+
+        clusterslice[nn] = np.round(cz[cc]).astype(int)
 
     # slice results and put them into a mosaic format image
     xs,ys,zs = np.shape(template_img)
-    ncols = (np.sqrt(zs)).astype(int)
-    nrows = np.ceil(zs/ncols).astype(int)
+
+    ncols = 1
+    nrows = copy.deepcopy(nregions)
 
     # this might work for brain regions as well
     if templatename == 'brain':
         # display brain data
-        outputimg = np.zeros([nrows*ys,ncols*xs,3])
+        outputimg = np.zeros([nrows*ys,xs,3])
 
-        for zz in range(zs):
-            colnum = zz % ncols
-            rownum = np.floor(zz/ncols).astype(int)
-            x1 = colnum*xs
-            x2 = (colnum+1)*xs
+        for rr in range(nregions):
+            rownum = rr
+            x1 = 0
+            x2 = xs
             y1 = rownum*ys
             y2 = (rownum+1)*ys
+            zz = clusterslice[rr]
             redrot = red[:,:,zz];  redrot = redrot[:,::-1].T
             greenrot = green[:,:,zz];  greenrot = greenrot[:,::-1].T
             bluerot = blue[:,:,zz];  bluerot = bluerot[:,::-1].T
@@ -387,15 +561,15 @@ def pydisplayclusters(clusterdataname, regionnames, clusternumbers, colorlist = 
     if templatename == 'ccbs':
         # display brainstem/cord
         yc1 = 20;  yc2 = 76;  ys2 = yc2-yc1
-        outputimg = np.zeros([nrows*ys2,ncols*xs,3])
+        outputimg = np.zeros([nrows*ys2,xs,3])
 
-        for zz in range(zs):
-            colnum = zz % ncols
-            rownum = np.floor(zz/ncols).astype(int)
-            x1 = colnum*xs
-            x2 = (colnum+1)*xs
+        for rr in range(nregions):
+            rownum = rr
+            x1 = 0
+            x2 = xs
             y1 = rownum*ys2
             y2 = (rownum+1)*ys2
+            zz = clusterslice[rr]
             # need to rotate each from by 90 degrees
             redrot = red[:,yc1:yc2,zz];  redrot = redrot[:,::-1].T
             greenrot = green[:,yc1:yc2,zz];  greenrot = greenrot[:,::-1].T
@@ -407,13 +581,13 @@ def pydisplayclusters(clusterdataname, regionnames, clusternumbers, colorlist = 
         yc1 = 20;  yc2 = 41;  ys2 = yc2-yc1
         outputimg = np.zeros([nrows*ys2,ncols*xs,3])
 
-        for zz in range(zs):
-            colnum = zz % ncols
-            rownum = np.floor(zz/ncols).astype(int)
-            x1 = colnum*xs
-            x2 = (colnum+1)*xs
+        for rr in range(nregions):
+            rownum = rr
+            x1 = 0
+            x2 = xs
             y1 = rownum*ys2
             y2 = (rownum+1)*ys2
+            zz = clusterslice[rr]
             # need to rotate each frame by 90 degrees
             redrot = red[:,yc1:yc2,zz];  redrot = redrot[:,::-1].T
             greenrot = green[:,yc1:yc2,zz];  greenrot = greenrot[:,::-1].T
@@ -423,7 +597,7 @@ def pydisplayclusters(clusterdataname, regionnames, clusternumbers, colorlist = 
     outputimg[outputimg>1.] = 1.0
     outputimg[outputimg<0.] = 0.0
 
-    return outputimg
+    return outputimg, clusterslice
 
 
 # display named regions in different colors
