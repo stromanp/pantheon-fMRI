@@ -1240,7 +1240,7 @@ class NIFrame:
         self.NIorganizedata = tk.Button(self.parent, text = 'Organize Data', width = bigbuttonsize, bg = fgcol1, fg = fgletter1, command = self.NIorganizeclick, font = widgetfont, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.NIorganizedata.grid(row = 1, column = 1, columnspan = 2)
 
-        # butotn to call the NIfTI conversion program
+        # button to call the NIfTI conversion program
         self.NIrunconvert = tk.Button(self.parent, text = 'Convert', width = bigbuttonsize, bg = fgcol1, fg = fgletter1, command = self.NIconversionclick, font = widgetfont, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.NIrunconvert.grid(row = 2, column = 1, columnspan = 2)
 
@@ -7557,12 +7557,16 @@ class SAPMFrame:
         # get the field value choices for the selected field
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         resultsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
-        results = np.load(resultsname, allow_pickle=True)
 
-        keylist = results[0].keys()
-        if 'DBname' in keylist:
-            self.DBname = copy.deepcopy(results[0]['DBname'])
-            self.DBnum = copy.deepcopy(results[0]['DBnum'])
+        try:
+            results = np.load(resultsname, allow_pickle=True)
+            keylist = results[0].keys()
+            if 'DBname' in keylist:
+                self.DBname = copy.deepcopy(results[0]['DBname'])
+                self.DBnum = copy.deepcopy(results[0]['DBnum'])
+        except:
+            self.DBname = copy.deepcopy(settings['DBname'])
+            self.DBnum = copy.deepcopy(settings['DBnum'])
 
         # resultsname2 = os.path.join(self.SAPMresultsdir2, self.SAPMresultsname2)
         # results2 = np.load(resultsname2, allow_pickle=True)

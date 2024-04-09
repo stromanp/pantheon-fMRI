@@ -587,6 +587,7 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, netwo
     mode = 'concatenate'
     allregiondata = load_data_from_region(filename_list, nvolmask, mode, cx_all, cy_all, cz_all)
     nvox,ts = np.shape(allregiondata)
+    print('nvox = {}   ts = {}'.format(nvox,ts))
 
     region_name_list = [region_coordinate_list[x]['rname'] for x in range(len(region_coordinate_list))]
     for nn, rname in enumerate(region_name_list):
@@ -604,6 +605,7 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, netwo
 
         #-----------------check for high variance------------
         tsize = int(ts/nruns_total)
+        print('ts = {}  nruns_total = {}   tsize = {}'.format(ts,nruns_total, ts/nruns_total))
         # rdtemp = regiondata.reshape(nvox, tsize, nruns_total, order = 'F').copy()
         rdtemp = np.reshape(regiondata, (nvox, nruns_total, tsize))
         varcheck2 = np.var(rdtemp, axis = 2)

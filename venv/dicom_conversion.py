@@ -213,8 +213,9 @@ def convert_dicom_folder(databasename, databasenumber, basename = 'Series'):
     df1.pop('Unnamed: 0')   # remove this blank field from the beginning
     dbhome = df1.loc[databasenumber, 'datadir']
     dicom_directory = df1.loc[databasenumber, 'pname']
-    seriesnumber = df1.loc[databasenumber, 'seriesnumber']
-    niiname = '{base}{number}.nii'.format(base = basename, number=seriesnumber)
+    seriesnumber = int(float(df1.loc[databasenumber, 'seriesnumber']))  # make sure input cannot be a string
+    # niiname = '{base}{number}.nii'.format(base = basename, number=seriesnumber)
+    niiname = '{}{}.nii'.format(basename, seriesnumber)
     
     output_file = os.path.join(dbhome, dicom_directory, niiname)
     dicom_directory_full = os.path.join(dbhome, dicom_directory)
