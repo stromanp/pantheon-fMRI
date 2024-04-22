@@ -1348,7 +1348,9 @@ class NCFrame:
         else:
             self.normtemplatename = 'notdefined'
 
-        self.NCtemplatelabel = tk.Label(self.parent, text = 'Normalizing region: '+self.normtemplatename, fg = 'gray', font = labelfont)
+
+        print('self.normtemplatename = {}'.format(self.normtemplatename))
+        self.NCtemplatelabel = tk.Label(self.parent, text = 'Normalizing region: ' + str(self.normtemplatename), fg = 'gray', font = labelfont)
         self.NCtemplatelabel.grid(row=0,column=2, sticky='W')
 
         # put some text as a place-holder

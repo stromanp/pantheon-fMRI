@@ -471,7 +471,7 @@ def slicetimecorrection(filename, sliceorder, refslice, slice_axis = 2, correcte
     # therefore slice_times = time_per_slice[sort_order]
     #
     input_img = nib.load(filename)
-    input_data = input_img.get_data()
+    input_data = input_img.get_fdata()
     affine = input_img.affine
 
     [xs,ys,zs,ts] = np.shape(input_data)
@@ -524,7 +524,7 @@ def slicetimecorrection(filename, sliceorder, refslice, slice_axis = 2, correcte
 def imagesmooth(filename, smoothing_width, smoothed_prefix = 's'):
 
     input_img = nib.load(filename)
-    input_data = input_img.get_data()
+    input_data = input_img.get_fdata()
     affine = input_img.affine
 
     # get the size of the image images, could 2, 3, or 4 dimensional

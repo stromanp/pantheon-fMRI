@@ -80,6 +80,7 @@ def get_datanames_by_person(DBname, dbnumlist, prefix, mode = 'dict', separate_c
         patientid = df1.loc[dbnum, 'patientid']
         studygroup = df1.loc[dbnum, 'studygroup']
 
+        print('setting up niiname: path {}  fname {}'.format(dbhome, fname))
         niiname = os.path.join(dbhome, fname)
         fullpath, filename = os.path.split(niiname)
         prefix_niiname = os.path.join(fullpath, prefix + filename)
