@@ -949,7 +949,7 @@ def load_cluster_data_original(cluster_properties, DBname, DBnum, prefix, nvolma
 
 
 def load_data_from_region(filename_list, nvolmask, mode, cx, cy, cz, definingclusters = False):
-    timespantoload = 30
+    # timespantoload = 30
 
     NP = len(filename_list)
     group_divisor = 0
@@ -965,7 +965,7 @@ def load_data_from_region(filename_list, nvolmask, mode, cx, cy, cz, definingclu
             input_img = nib.load(name)
             input_data = input_img.get_fdata()
             if definingclusters:
-                roi_data = input_data[cx,cy,cz,:timespantoload]   # check the size of this
+                roi_data = input_data[cx,cy,cz,:]   # check the size of this
             else:
                 roi_data = input_data[cx,cy,cz,:]   # check the size of this
             print('size of roi_data = {}'.format(np.shape(roi_data)))
