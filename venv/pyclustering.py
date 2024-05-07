@@ -964,10 +964,12 @@ def load_data_from_region(filename_list, nvolmask, mode, cx, cy, cz, definingclu
             # otherwise, concatenate the data
             input_img = nib.load(name)
             input_data = input_img.get_fdata()
-            if definingclusters:
-                roi_data = input_data[cx,cy,cz,:]   # check the size of this
-            else:
-                roi_data = input_data[cx,cy,cz,:]   # check the size of this
+            # if definingclusters:
+            #     roi_data = input_data[cx,cy,cz,:timespantoload]   # check the size of this
+            # else:
+            #     roi_data = input_data[cx,cy,cz,:]   # check the size of this
+
+            roi_data = input_data[cx,cy,cz,:]   # check the size of this
             print('size of roi_data = {}'.format(np.shape(roi_data)))
 
             nvox, ts = roi_data.shape
