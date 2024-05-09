@@ -516,7 +516,7 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel,
 
 
 # def load_cluster_data     (cluster_properties, DBname, DBnum, prefix, nvolmask, networkmodel, varcheckmethod = 'median', varcheckthresh = 3.0):
-def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, networkmodel, varcheckmethod = 'median', varcheckthresh = 3.0):
+def load_cluster_data_new(cluster_properties, DBname, DBnum, prefix, nvolmask, networkmodel, varcheckmethod = 'median', varcheckthresh = 3.0):
     # NEW VERSION FOR TESTING
     '''
     Function to load data from a group, based on previous cluster definitions.
@@ -687,7 +687,7 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, netwo
     return region_properties
 
 
-def load_cluster_data_original(cluster_properties, DBname, DBnum, prefix, nvolmask, networkmodel, varcheckmethod = 'median', varcheckthresh = 3.0):
+def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, networkmodel, varcheckmethod = 'median', varcheckthresh = 3.0):
     '''
     Function to load data from a group, using a predefined cluster definition
     load_cluster_data in pyclustering.py

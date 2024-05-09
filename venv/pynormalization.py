@@ -776,13 +776,13 @@ def py_apply_normalization(input_image, T, Tfine = 'none', map_to_normalized_spa
         # "reverse" mapping because we had the coordinates of where template voxels mapped into
         # the original image data, and we are calculating where the original image data belongs in the
         # template space
-        if Tfine == 'none':
+        if Tfine.lower() == 'none':
             norm_image = i3d.warp_image(input_image, T['Xs'], T['Ys'], T['Zs'])
         else:
             norm_image = i3d.warp_image(input_image, T['Xs']+Tfine['dXs'], T['Ys']+Tfine['dYs'], T['Zs']+Tfine['dZs'])
     else:
         # forward mapping is the mapping of a normalized template, or image, into the original image space
-        if Tfine == 'none':
+        if Tfine.lower() == 'none':
             norm_image = i3d.warp_image(input_image, T['Xt'], T['Yt'], T['Zt'])
         else:
             norm_image = i3d.warp_image(input_image, T['Xt']+Tfine['dXt'], T['Yt']+Tfine['dYt'], T['Zt']+Tfine['dZt'])

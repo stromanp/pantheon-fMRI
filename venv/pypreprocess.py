@@ -324,21 +324,6 @@ def guided_coregistration(filename, nametag, normdataname, normtemplatename, cor
                 warpdata.append(section_mapping_coords)
 
             time1 = time.time()
-            # show the results
-            # Xlist = np.zeros(nsections)
-            # Ylist = np.zeros(nsections)
-            # Xlist2 = np.zeros(nsections)
-            # Ylist2 = np.zeros(nsections)
-            # for nn in range(nsections):
-            #     Xlist[nn] = result[nn]['coords'][2]
-            #     Ylist[nn] = result[nn]['coords'][1]
-            #     Xlist2[nn] = map_step[nn]['coords'][2]
-            #     Ylist2[nn] = map_step[nn]['coords'][1]
-            # fig = plt.figure(21), plt.imshow(refimage[10, :, :], 'gray')
-            # plt.plot(Xlist, Ylist, color="red", linewidth=2)
-            #
-            # fig = plt.figure(22), plt.imshow(img[10, :, :], 'gray')
-            # plt.plot(Xlist2, Ylist2, color="red", linewidth=2)
 
             # make mapped sections consistent
             adjusted_sections = []
