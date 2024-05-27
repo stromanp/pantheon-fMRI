@@ -5419,7 +5419,8 @@ def generate_simulated_data_set(regiondataname, covariatesname, networkfile, clu
     return outputname, outputcovname
 
 
-def run_null_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterdataname, timepoint = 'all', epoch = 'all', betascale = 0.1, Lweight = 1.0):
+def run_null_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterdataname, timepoint = 'all', epoch = 'all',
+                             betascale = 0.1, Lweight = 1.0, alphascale = 0.01, levelthreshold = [1e-4, 1e-5, 1e-6]):
     resultsdir, networkfilename = os.path.split(networkmodel)
     networkbasename, ext = os.path.splitext(networkfilename)
 
@@ -5430,7 +5431,8 @@ def run_null_test_on_network(nsims, networkmodel, cnums, regiondataname, cluster
     SAPMparametersname = os.path.join(resultsdir,'null_params.npy')
 
     SAPMrun_V2(cnums, null_regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkmodel, timepoint,
-                epoch, betascale = betascale, Lweight = Lweight, reload_existing = False, multiple_output = False)
+                epoch, betascale = betascale, Lweight = Lweight, alphascale = alphascale, levelthreshold = levelthreshold,
+               reload_existing = False, multiple_output = False)
 
     # compile stats distributions for each connection
     results = np.load(SAPMresultsname, allow_pickle=True)
@@ -5474,7 +5476,8 @@ def run_null_test_on_network(nsims, networkmodel, cnums, regiondataname, cluster
     return xlname
 
 
-def run_sim_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterdataname, timepoint = 'all', epoch = 'all', betascale = 0.1, Lweight = 1.0):
+def run_sim_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterdataname, timepoint = 'all', epoch = 'all',
+                            betascale = 0.1, Lweight = 1.0, alphascale = 0.01, levelthreshold = [1e-4, 1e-5, 1e-6]):
     resultsdir, networkfilename = os.path.split(networkmodel)
     networkbasename, ext = os.path.splitext(networkfilename)
 
@@ -5486,7 +5489,8 @@ def run_sim_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterd
     SAPMparametersname = os.path.join(resultsdir,'sim_params.npy')
 
     SAPMrun_V2(cnums, sim_regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkmodel, timepoint,
-                epoch, betascale = betascale, Lweight = Lweight, reload_existing = False, multiple_output = False)
+                epoch, betascale = betascale, Lweight = Lweight, alphascale = alphascale, levelthreshold = levelthreshold,
+               reload_existing = False, multiple_output = False)
 
     # compile stats distributions for each connection
     results = np.load(SAPMresultsname, allow_pickle=True)

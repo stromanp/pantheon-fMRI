@@ -6868,9 +6868,11 @@ class SAPMFrame:
         epoch = copy.deepcopy(settings['SAPMepoch'])
         betascale = copy.deepcopy(settings['SAPMbetascale'])
         Lweight = copy.deepcopy(settings['SAPMLweight'])
+        alphascale = copy.deepcopy(settings['SAPMalphascale'])
+        levelthrehold = copy.deepcopy(settings['SAPMlevelthrehold'])
 
         output = pysapm.run_null_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterdataname, timepoint=timepoint,
-                                epoch=epoch, betascale=betascale, Lweight=Lweight)
+                                epoch=epoch, betascale=betascale, Lweight=Lweight, alphascale = alphascale, levelthrehold = levelthreshold)
         print('results of network null test ({} samples) written to {}'.format(nsims, output))
 
         #--------------temporary for testing-------------------------------------------------
