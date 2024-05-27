@@ -1393,9 +1393,9 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
 #----------------------------------------------------------------------------------
 # primary function--------------------------------------------------------------------
 def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparametersname, fixed_beta_vals = [],
-                    betascale = 0.1, Lweight = 1.0, normalizevar=False, nitermax_stage3 = 1200,
+                    betascale = 0.1, alphascale = 0.01, Lweight = 1.0, normalizevar=False, nitermax_stage3 = 1200,
                     nitermax_stage2 = 300, nsteps_stage2 = 4, nitermax_stage1 = 100, nsteps_stage1 = 30,
-                    converging_slope_limit = [1e-4, 1e-5, 1e-6], verbose = True, silentrunning = False):
+                    levelthreshold = [1e-4, 1e-5, 1e-6], verbose = True, silentrunning = False):
 
 # this version fits to principal components of Sinput
     save_test_record = True
@@ -1407,7 +1407,8 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
     starttime = time.ctime()
 
     # initialize gradient-descent parameters--------------------------------------------------------------
-    initial_alpha = 1e-3
+    converging_slope_limit = levelthreshold
+    initial_alpha = alphascale
     initial_Lweight = copy.deepcopy(Lweight)
     initial_dval = 0.05
     alpha_limit = 1.0e-5
@@ -2015,7 +2016,8 @@ def betaval_init_shotgun(Lweight, csource, ctarget, Sinput, Minput, Mconn, compo
 
 # gradient descent method to find best clusters------------------------------------
 def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, networkfile, regiondataname,
-                        clusterdataname, samplesplit, samplestart=0, initial_clusters=[], timepoint='all', epoch='all', betascale=0.1, Lweight = 1.0):
+                        clusterdataname, samplesplit, samplestart=0, initial_clusters=[], timepoint='all', epoch='all',
+                        betascale=0.1, alphascale = 0.01, Lweight = 1.0, levelthreshold = [1e-4, 1e-5, 1e-6]):
 
     overall_start_time_text = time.ctime()
     overall_start_time = time.time()
@@ -2098,10 +2100,10 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
 
     print('best cluster search:  running baseline set of clusters ...')
     output = sem_physio_model1_V4(cluster_numbers+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
-                                fixed_beta_vals=[], betascale=betascale, Lweight = Lweight, normalizevar=False, nitermax_stage3=nitermax,
+                                fixed_beta_vals=[], betascale=betascale, alphascale = alphascale, Lweight = Lweight, normalizevar=False, nitermax_stage3=nitermax,
                                 nitermax_stage2=nitermax_stage2, nsteps_stage2=nsteps_stage2,
                              nitermax_stage1=nitermax_stage1, nsteps_stage1=nsteps_stage1,
-                             converging_slope_limit=[1e-4, 1e-5, 1e-6], verbose = False)
+                             levelthreshold=levelthreshold, verbose = False)
     print('\r  finished running baseline clusters....                                         ')
 
     # now, correct the results for normalizing the variance
@@ -2138,9 +2140,9 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
                         #                                 nitermax_stage1 = nitermax_stage1, nsteps_stage1 = nsteps_stage1, converging_slope_limit = [1e-3,1e-5])
 
                         output = sem_physio_model1_V4(test_clusters + full_rnum_base, fintrinsic_base,SAPMresultsname, SAPMparametersname,
-                                                      fixed_beta_vals=[], betascale=betascale, Lweight=Lweight, normalizevar=False, nitermax_stage3=nitermax,
+                                                      fixed_beta_vals=[], betascale=betascale, alphascale = alphascale, Lweight=Lweight, normalizevar=False, nitermax_stage3=nitermax,
                                                       nitermax_stage2=nitermax_stage2, nsteps_stage2=nsteps_stage2, nitermax_stage1=nitermax_stage1,
-                                                      nsteps_stage1=nsteps_stage1, converging_slope_limit=[1e-4, 1e-5, 1e-6], verbose = False)
+                                                      nsteps_stage1=nsteps_stage1, levelthreshold=levelthreshold, verbose = False)
 
                         output = sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, verbose=False)
                         SAPMresults = np.load(output, allow_pickle=True)
@@ -2735,7 +2737,7 @@ def sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, ve
 
 # main program
 def SAPMrun_V2(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkfile, timepoint,
-            epoch, betascale = 0.01, Lweight = 1.0, reload_existing = False, multiple_output = False):
+            epoch, betascale = 0.01, Lweight = 1.0, alphascale = 0.01, levelthreshold = [1e-4, 1e-5, 1e-6], reload_existing = False, multiple_output = False):
 
     # load some data, setup some parameters...
     network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base = load_network_model_w_intrinsics(networkfile)
@@ -2771,8 +2773,8 @@ def SAPMrun_V2(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMpara
     #                             converging_slope_limit = [1e-4,5e-6])
 
     output = sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparametersname,
-                                  fixed_beta_vals=[], betascale=betascale, Lweight=Lweight, normalizevar=False,
-                                  converging_slope_limit=[1e-5,1e-6, 1e-7])
+                                  fixed_beta_vals=[], betascale=betascale, alphascale = alphascale, Lweight=Lweight,
+                                  normalizevar=False, levelthreshold=levelthreshold)
 
     # now, correct the results for normalizing the variance
     output = sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, verbose = True)

@@ -244,6 +244,8 @@ def check_settings_file(settingsfile):
                     'GLMparadigmnames': '',
                     'GLMdataname': '',
                     'SAPMbetascale': 0.01,
+                    'SAPMalphascale': 0.01,
+                    'SAPMlevelthreshold': [1e-4, 1e-5, 1e-6],
                     'SAPMLweight': 1.0,
                     # 'SRvariant': 0,
                     'DISPconndefnamefull': '',
@@ -6778,6 +6780,21 @@ class SAPMFrame:
         return entered_values
 
 
+    def SAPMlevelthreshparse(self, entered_text):
+        # need to make sure we are working with numbers, not text
+        # first, replace any double spaces with single spaces, and then replace spaces with commas
+        entered_text = re.sub('\ +', ',', entered_text)
+        entered_text = re.sub('\,\,+', ',', entered_text)
+
+        # remove any leading or trailing commas
+        if entered_text[0] == ',': entered_text = entered_text[1:]
+        if entered_text[-1] == ',': entered_text = entered_text[:-1]
+
+        entered_values = list(np.fromstring(entered_text, dtype=float, sep=','))
+
+        return entered_values
+
+
     # define functions before they are used in the database frame------------------------------------------
     # action when the button to browse for a DB fie is pressed
     def SAPMnetbrowseclick(self):
@@ -6991,6 +7008,53 @@ class SAPMFrame:
         self.SAPMbetascalebox.delete(0, 'end')
         self.SAPMbetascalebox.insert(0, self.SAPMbetascale)
 
+        np.save(settingsfile, settings)
+
+
+    def SAPMalphascalesubmitaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        SAPMalphascale = self.SAPMalphascalebox.get()
+        SAPMalphascale = float(SAPMalphascale)
+
+        settings['SAPMalphascale'] = SAPMalphascale
+        self.SAPMalphascale = SAPMalphascale
+
+        print('SAPMalphascale = {}'.format(SAPMalphascale))
+
+        # write the result to the label box for display
+        self.SAPMalphascalebox.delete(0, 'end')
+        self.SAPMalphascalebox.insert(0, self.SAPMalphascale)
+
+        np.save(settingsfile, settings)
+
+
+    def SAPMlevelthresholdsubmitaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        SAPMlevelthreshold = self.SAPMlevelthresholdbox.get()
+
+        # parse the entered values into a list
+        entered_values = self.SAPMlevelthreshparse(SAPMlevelthreshold)
+        print('entered values = {}'.format(entered_values))
+
+        # make sure there are 3 values
+        checkvals = 1e-10*np.ones(3)
+        nvals = len(entered_values)
+        print('nvals = {}'.format(nvals))
+        if nvals < 3:
+            checkvals[:nvals] = entered_values
+        if nvals >= 3:
+            checkvals = entered_values[:3]
+
+        print('checkvals = {}'.format(checkvals))
+        self.SAPMlevelthreshold = copy.deepcopy(list(checkvals))
+
+        # write the result to the label box for display
+        self.SAPMlevelthresholdbox.delete(0, 'end')
+        self.SAPMlevelthresholdbox.insert(0, self.SAPMlevelthreshold)
+
+        settings['SAPMlevelthreshold'] = self.SAPMlevelthreshold
         np.save(settingsfile, settings)
 
 
@@ -7458,7 +7522,8 @@ class SAPMFrame:
         multiple_output = False
         pysapm.SAPMrun_V2(self.SAPMcnums, self.SAPMregionname, self.SAPMclustername,
                        SAPMresultsname, SAPMparamsname, self.networkmodel, self.SAPMtimepoint,
-                       self.SAPMepoch, self.SAPMbetascale, self.SAPMLweight, reload_existing=False, multiple_output = multiple_output)
+                       self.SAPMepoch, self.SAPMbetascale, self.SAPMLweight, self.SAPMalphascale, self.SAPMlevelthreshold,
+                       reload_existing=False, multiple_output = multiple_output)
         # most recent changes - May 8, 2023
 
         # get beta values and save for future betascale (initializing beta values)
@@ -7729,6 +7794,8 @@ class SAPMFrame:
         self.SAPMclustername = settings['SAPMclustername']
         self.SAPMregionname = settings['SAPMregionname']
         self.SAPMbetascale = settings['SAPMbetascale']
+        self.SAPMalphascale = settings['SAPMalphascale']
+        self.SAPMlevelthreshold = settings['SAPMlevelthreshold']
         self.SAPMLweight = settings['SAPMLweight']
         self.SAPMtimepoint = settings['SAPMtimepoint']
         self.SAPMepoch = settings['SAPMepoch']
@@ -7916,9 +7983,30 @@ class SAPMFrame:
         self.SAPMbetascalebrowse.grid(row=rownum, column=4, sticky='N')
 
 
+        rownum = 12
+        self.SAPMalphascalelabel = tk.Label(self.parent, text = 'Initial alpha:', font = labelfont)
+        self.SAPMalphascalelabel.grid(row=rownum, column=1, sticky='N')
+        self.SAPMalphascalebox = tk.Entry(self.parent, width = 20, bg="white",justify = 'right')
+        self.SAPMalphascalebox.grid(row=rownum, column=2, sticky='N')
+        self.SAPMalphascalebox.insert(0,self.SAPMalphascale)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SAPMalphascalesubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMalphascalesubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.SAPMalphascalesubmit.grid(row=rownum, column=3, sticky='N')
+
+        rownum = 13
+        self.SAPMlevelthreshlabel = tk.Label(self.parent, text = 'Level thresholds:', font = labelfont)
+        self.SAPMlevelthreshlabel.grid(row=rownum, column=1, sticky='N')
+        self.SAPMlevelthresholdbox = tk.Entry(self.parent, width = 20, bg="white",justify = 'right')
+        self.SAPMlevelthresholdbox.grid(row=rownum, column=2, sticky='N')
+        self.SAPMlevelthresholdbox.insert(0,self.SAPMlevelthreshold)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SAPMlevelthresholdsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMlevelthresholdsubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.SAPMlevelthresholdsubmit.grid(row=rownum, column=3, sticky='N')
+
+
         #
         # Lweight definition ---------------------------------------------
-        rownum = 12
+        rownum = 14
         self.SAPMLweightlabel = tk.Label(self.parent, text = 'Initial L weight:', font = labelfont)
         self.SAPMLweightlabel.grid(row=rownum, column=1, sticky='N')
         self.SAPMLweightbox = tk.Entry(self.parent, width = 30, bg="white",justify = 'right')
@@ -7929,7 +8017,7 @@ class SAPMFrame:
         self.SAPMLweightsubmit.grid(row=rownum, column=3, sticky='N')
 
 
-        rownum = 13
+        rownum = 15
         # indicate which "personal characteristics" to use - selected from database
         self.SAPMlabel6 = tk.Label(self.parent, text = "Select characteristic:", font = labelfont)
         self.SAPMlabel6.grid(row=rownum,column=1, sticky='W')
@@ -7967,7 +8055,7 @@ class SAPMFrame:
         self.SAPMcharacteristicsdisplay.grid(row=rownum+1, column=2, columnspan=2, sticky='N')
 
 
-        rownum = 15
+        rownum = 17
         self.varS1 = tk.IntVar()
         self.SAPMrandomcluster = tk.Checkbutton(self.parent, text = 'Random search start?', width = bigbigbuttonsize, fg = fgletter2,
                                           command = self.SAPMcheckboxes, variable = self.varS1)
@@ -7990,7 +8078,7 @@ class SAPMFrame:
             self.SAPMrunsearchbutton2.grid(row=rownum, column=3, columnspan = 2, sticky='W')
 
 
-        rownum = 16
+        rownum = 18
         self.varS2 = tk.IntVar()
         self.SAPMsavebetascale = tk.Checkbutton(self.parent, text = 'Save beta init?', width = bigbigbuttonsize, fg = fgletter2,
                                           command = self.SAPMbetainitcheckboxes, variable = self.varS2)
