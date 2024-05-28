@@ -1394,7 +1394,7 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
 # primary function--------------------------------------------------------------------
 def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparametersname, fixed_beta_vals = [],
                     betascale = 0.1, alphascale = 0.01, Lweight = 1.0, normalizevar=False, nitermax_stage3 = 1200,
-                    nitermax_stage2 = 300, nsteps_stage2 = 4, nitermax_stage1 = 100, nsteps_stage1 = 30,
+                    nitermax_stage2 = 300, nitermax_stage1 = 100, nsteps_stage2 = 4, nsteps_stage1 = 30,
                     levelthreshold = [1e-4, 1e-5, 1e-6], verbose = True, silentrunning = False):
 
 # this version fits to principal components of Sinput
@@ -2017,7 +2017,8 @@ def betaval_init_shotgun(Lweight, csource, ctarget, Sinput, Minput, Mconn, compo
 # gradient descent method to find best clusters------------------------------------
 def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, networkfile, regiondataname,
                         clusterdataname, samplesplit, samplestart=0, initial_clusters=[], timepoint='all', epoch='all',
-                        betascale=0.1, alphascale = 0.01, Lweight = 1.0, levelthreshold = [1e-4, 1e-5, 1e-6]):
+                        betascale=0.1, alphascale = 0.01, Lweight = 1.0, levelthreshold = [1e-4, 1e-5, 1e-6],
+                        leveliter = [100, 250, 1200], leveltrials = [30, 4, 1]):
 
     overall_start_time_text = time.ctime()
     overall_start_time = time.time()
@@ -2088,11 +2089,12 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
         nitermax_stage1 = 1
         nsteps_stage1 = 10
     else:
-        nitermax = 100
-        nsteps_stage1 = 20
-        nitermax_stage1 = 40
-        nsteps_stage2 = 2
-        nitermax_stage2 = 100
+        nitermax = leveliter[2]
+        nsteps_stage1 = leveltrials[0]
+        nitermax_stage1 = leveliter[0]
+        nsteps_stage2 = leveltrials[1]
+        nitermax_stage2 = leveliter[1]
+        nitermax_stage3 = leveliter[2]
 
     # output = sem_physio_model1_V3(cluster_numbers+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
     #                               fixed_beta_vals=[], betascale=betascale, Lweight = Lweight, nitermax=nitermax, verbose=False,normalizevar=False,
@@ -2100,10 +2102,11 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
 
     print('best cluster search:  running baseline set of clusters ...')
     output = sem_physio_model1_V4(cluster_numbers+full_rnum_base, fintrinsic_base, SAPMresultsname, SAPMparametersname,
-                                fixed_beta_vals=[], betascale=betascale, alphascale = alphascale, Lweight = Lweight, normalizevar=False, nitermax_stage3=nitermax,
+                                fixed_beta_vals=[], betascale=betascale, alphascale = alphascale, Lweight = Lweight,
+                                normalizevar=False, nitermax_stage3=nitermax,
                                 nitermax_stage2=nitermax_stage2, nsteps_stage2=nsteps_stage2,
-                             nitermax_stage1=nitermax_stage1, nsteps_stage1=nsteps_stage1,
-                             levelthreshold=levelthreshold, verbose = False)
+                                nitermax_stage1=nitermax_stage1, nsteps_stage1=nsteps_stage1,
+                                levelthreshold=levelthreshold, verbose = False)
     print('\r  finished running baseline clusters....                                         ')
 
     # now, correct the results for normalizing the variance
@@ -2140,9 +2143,10 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
                         #                                 nitermax_stage1 = nitermax_stage1, nsteps_stage1 = nsteps_stage1, converging_slope_limit = [1e-3,1e-5])
 
                         output = sem_physio_model1_V4(test_clusters + full_rnum_base, fintrinsic_base,SAPMresultsname, SAPMparametersname,
-                                                      fixed_beta_vals=[], betascale=betascale, alphascale = alphascale, Lweight=Lweight, normalizevar=False, nitermax_stage3=nitermax,
-                                                      nitermax_stage2=nitermax_stage2, nsteps_stage2=nsteps_stage2, nitermax_stage1=nitermax_stage1,
-                                                      nsteps_stage1=nsteps_stage1, levelthreshold=levelthreshold, verbose = False)
+                                                      fixed_beta_vals=[], betascale=betascale, alphascale = alphascale, Lweight=Lweight,
+                                                      normalizevar=False, nitermax_stage3=nitermax, nitermax_stage2=nitermax_stage2,
+                                                      nsteps_stage2=nsteps_stage2, nitermax_stage1=nitermax_stage1, nsteps_stage1=nsteps_stage1,
+                                                      levelthreshold=levelthreshold, verbose = False)
 
                         output = sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, verbose=False)
                         SAPMresults = np.load(output, allow_pickle=True)
@@ -2737,7 +2741,8 @@ def sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, ve
 
 # main program
 def SAPMrun_V2(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkfile, timepoint,
-            epoch, betascale = 0.01, Lweight = 1.0, alphascale = 0.01, levelthreshold = [1e-4, 1e-5, 1e-6], reload_existing = False, multiple_output = False):
+            epoch, betascale = 0.01, Lweight = 1.0, alphascale = 0.01, leveltrials = [30, 4, 1], leveliter = [100, 250, 1200],
+               levelthreshold = [1e-4, 1e-5, 1e-6], reload_existing = False, multiple_output = False):
 
     # load some data, setup some parameters...
     network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base = load_network_model_w_intrinsics(networkfile)
@@ -2774,7 +2779,10 @@ def SAPMrun_V2(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMpara
 
     output = sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparametersname,
                                   fixed_beta_vals=[], betascale=betascale, alphascale = alphascale, Lweight=Lweight,
-                                  normalizevar=False, levelthreshold=levelthreshold)
+                                  normalizevar=False, nitermax_stage3 = leveliter[2], nitermax_stage2 = leveliter[1],
+                                  nitermax_stage1 = leveliter[0], nsteps_stage2 = leveltrials[1],
+                                  nsteps_stage1 = leveltrials[0], levelthreshold=levelthreshold)
+
 
     # now, correct the results for normalizing the variance
     output = sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, verbose = True)
@@ -5420,7 +5428,8 @@ def generate_simulated_data_set(regiondataname, covariatesname, networkfile, clu
 
 
 def run_null_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterdataname, timepoint = 'all', epoch = 'all',
-                             betascale = 0.1, Lweight = 1.0, alphascale = 0.01, levelthreshold = [1e-4, 1e-5, 1e-6]):
+                             betascale = 0.1, Lweight = 1.0, alphascale = 0.01, levelthreshold = [1e-4, 1e-5, 1e-6],
+                             leveliter = [100, 250, 1200], leveltrials = [30, 4, 1]):
     resultsdir, networkfilename = os.path.split(networkmodel)
     networkbasename, ext = os.path.splitext(networkfilename)
 

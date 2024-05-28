@@ -246,6 +246,8 @@ def check_settings_file(settingsfile):
                     'SAPMbetascale': 0.01,
                     'SAPMalphascale': 0.01,
                     'SAPMlevelthreshold': [1e-4, 1e-5, 1e-6],
+                    'SAPMleveliter': [100, 250, 1200],
+                    'SAPMleveltrials': [30, 4, 1],
                     'SAPMLweight': 1.0,
                     # 'SRvariant': 0,
                     'DISPconndefnamefull': '',
@@ -6795,6 +6797,21 @@ class SAPMFrame:
         return entered_values
 
 
+    def SAPMleveliterparse(self, entered_text):
+        # need to make sure we are working with numbers, not text
+        # first, replace any double spaces with single spaces, and then replace spaces with commas
+        entered_text = re.sub('\ +', ',', entered_text)
+        entered_text = re.sub('\,\,+', ',', entered_text)
+
+        # remove any leading or trailing commas
+        if entered_text[0] == ',': entered_text = entered_text[1:]
+        if entered_text[-1] == ',': entered_text = entered_text[:-1]
+
+        entered_values = list(np.fromstring(entered_text, dtype=int, sep=','))
+
+        return entered_values
+
+
     # define functions before they are used in the database frame------------------------------------------
     # action when the button to browse for a DB fie is pressed
     def SAPMnetbrowseclick(self):
@@ -6869,10 +6886,13 @@ class SAPMFrame:
         betascale = copy.deepcopy(settings['SAPMbetascale'])
         Lweight = copy.deepcopy(settings['SAPMLweight'])
         alphascale = copy.deepcopy(settings['SAPMalphascale'])
-        levelthrehold = copy.deepcopy(settings['SAPMlevelthrehold'])
+        levelthrehold = copy.deepcopy(settings['SAPMlevelthreshold'])
+        leveliter = copy.deepcopy(settings['SAPMleveliter'])
+        leveltrials = copy.deepcopy(settings['SAPMleveltrials'])
 
         output = pysapm.run_null_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterdataname, timepoint=timepoint,
-                                epoch=epoch, betascale=betascale, Lweight=Lweight, alphascale = alphascale, levelthrehold = levelthreshold)
+                                epoch=epoch, betascale=betascale, Lweight=Lweight, alphascale = alphascale, levelthrehold = levelthreshold,
+                                leveliter = leveliter, leveltrials = leveltrials)
         print('results of network null test ({} samples) written to {}'.format(nsims, output))
 
         #--------------temporary for testing-------------------------------------------------
@@ -7057,6 +7077,64 @@ class SAPMFrame:
         self.SAPMlevelthresholdbox.insert(0, self.SAPMlevelthreshold)
 
         settings['SAPMlevelthreshold'] = self.SAPMlevelthreshold
+        np.save(settingsfile, settings)
+
+
+    def SAPMlevelitersubmitaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        SAPMleveliter = self.SAPMleveliterbox.get()
+
+        # parse the entered values into a list
+        entered_values = self.SAPMleveliterparse(SAPMleveliter)
+        print('entered values = {}'.format(entered_values))
+
+        # make sure there are 3 values
+        checkvals = 1200*np.ones(3)
+        nvals = len(entered_values)
+        print('nvals = {}'.format(nvals))
+        if nvals < 3:
+            checkvals[:nvals] = entered_values
+        if nvals >= 3:
+            checkvals = entered_values[:3]
+
+        print('checkvals = {}'.format(checkvals))
+        self.SAPMleveliter = copy.deepcopy(list(checkvals))
+
+        # write the result to the label box for display
+        self.SAPMleveliterbox.delete(0, 'end')
+        self.SAPMleveliterbox.insert(0, self.SAPMleveliter)
+
+        settings['SAPMleveliter'] = self.SAPMleveliter
+        np.save(settingsfile, settings)
+
+
+    def SAPMleveltrialssubmitaction(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        SAPMleveltrials = self.SAPMleveltrialsbox.get()
+
+        # parse the entered values into a list
+        entered_values = self.SAPMleveliterparse(SAPMleveltrials)
+        print('entered values = {}'.format(entered_values))
+
+        # make sure there are 3 values
+        checkvals = 30*np.ones(3)
+        nvals = len(entered_values)
+        print('nvals = {}'.format(nvals))
+        if nvals < 3:
+            checkvals[:nvals] = entered_values
+        if nvals >= 3:
+            checkvals = entered_values[:3]
+
+        print('checkvals = {}'.format(checkvals))
+        self.SAPMleveltrials = copy.deepcopy(list(checkvals))
+
+        # write the result to the label box for display
+        self.SAPMleveltrialsbox.delete(0, 'end')
+        self.SAPMleveltrialsbox.insert(0, self.SAPMleveltrials)
+
+        settings['SAPMleveltrials'] = self.SAPMleveltrials
         np.save(settingsfile, settings)
 
 
@@ -7388,8 +7466,10 @@ class SAPMFrame:
         # best_clusters = pysapm.SAPM_cluster_search(self.SAPMresultsdir, SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, self.SAPMregionname,
         #                     self.SAPMclustername, nprocessors, samplesplit, samplestart, initial_clusters=clusterstart)
 
-        best_clusters = pysapm.SAPM_cluster_stepsearch(self.SAPMresultsdir, SAPMresultsname, SAPMparamsname, self.networkmodel, self.SAPMregionname,
-                    self.SAPMclustername, samplesplit, samplestart, initial_clusters=clusterstart, timepoint='all', epoch='all', betascale=self.SAPMbetascale, Lweight = self.SAPMLweight)
+        best_clusters = pysapm.SAPM_cluster_stepsearch(self.SAPMresultsdir, SAPMresultsname, SAPMparamsname, self.networkmodel,
+                                        self.SAPMregionname, self.SAPMclustername, samplesplit, samplestart, initial_clusters=clusterstart,
+                                        timepoint='all', epoch='all', betascale=self.SAPMbetascale, Lweight = self.SAPMLweight,
+                                        levelthreshold= self.SAPMlevelthreshold, leveliter=self.SAPMleveliter, leveltrials=self.SAPMleveltrials)
 
         self.SAPMcnums = copy.deepcopy(list(best_clusters))
         self.SAPMcnumsbox.delete(0, 'end')
@@ -7448,21 +7528,6 @@ class SAPMFrame:
         else:
             clusterstart = self.SAPMcnums
 
-
-        # print('SAPMrandomclusterstart = {}'.format(self.SAPMrandomclusterstart))
-        # print('clusterstart set to {}'.format(clusterstart))
-        # np.save(search_data_file, {'SAPMresultsdir': self.SAPMresultsdir, 'SAPMresultsname': SAPMresultsname,
-        #                            'SAPMparamsname': SAPMparamsname,
-        #                            'networkmodel': self.networkmodel, 'DBname': self.DBname,
-        #                            'SAPMregionname': self.SAPMregionname,
-        #                            'SAPMclustername': self.SAPMclustername, 'initial_clusters': clusterstart,
-        #                            'betascale': self.SAPMbetascale})
-        #
-        # best_clusters = pysapm.SAPM_cluster_stepsearch(self.SAPMresultsdir, SAPMresultsname, SAPMparamsname,
-        #                                                self.networkmodel, self.SAPMregionname,
-        #                                                self.SAPMclustername, samplesplit, samplestart,
-        #                                                initial_clusters=clusterstart, timepoint='all', epoch='all',
-        #                                                betascale=self.SAPMbetascale, Lweight=self.SAPMLweight)
 
         best_clusters = pysapm.cluster_search_pca(self.SAPMregionname, self.networkmodel, initial_clusters=clusterstart)
 
@@ -7524,7 +7589,8 @@ class SAPMFrame:
         multiple_output = False
         pysapm.SAPMrun_V2(self.SAPMcnums, self.SAPMregionname, self.SAPMclustername,
                        SAPMresultsname, SAPMparamsname, self.networkmodel, self.SAPMtimepoint,
-                       self.SAPMepoch, self.SAPMbetascale, self.SAPMLweight, self.SAPMalphascale, self.SAPMlevelthreshold,
+                       self.SAPMepoch, self.SAPMbetascale, self.SAPMLweight, self.SAPMalphascale,
+                       self.SAPMleveltrials, self.SAPMleveliter, self.SAPMlevelthreshold,
                        reload_existing=False, multiple_output = multiple_output)
         # most recent changes - May 8, 2023
 
@@ -7798,6 +7864,8 @@ class SAPMFrame:
         self.SAPMbetascale = settings['SAPMbetascale']
         self.SAPMalphascale = settings['SAPMalphascale']
         self.SAPMlevelthreshold = settings['SAPMlevelthreshold']
+        self.SAPMleveltrials = settings['SAPMleveltrials']
+        self.SAPMleveliter = settings['SAPMleveliter']
         self.SAPMLweight = settings['SAPMLweight']
         self.SAPMtimepoint = settings['SAPMtimepoint']
         self.SAPMepoch = settings['SAPMepoch']
@@ -7996,6 +8064,27 @@ class SAPMFrame:
         self.SAPMalphascalesubmit.grid(row=rownum, column=3, sticky='N')
 
         rownum = 13
+        self.SAPMleveltrialslabel = tk.Label(self.parent, text = 'Level trials:', font = labelfont)
+        self.SAPMleveltrialslabel.grid(row=rownum, column=1, sticky='N')
+        self.SAPMleveltrialsbox = tk.Entry(self.parent, width = 20, bg="white",justify = 'right')
+        self.SAPMleveltrialsbox.grid(row=rownum, column=2, sticky='N')
+        self.SAPMleveltrialsbox.insert(0,self.SAPMleveltrials)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SAPMleveltrialssubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMleveltrialssubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.SAPMleveltrialssubmit.grid(row=rownum, column=3, sticky='N')
+
+        rownum = 14
+        self.SAPMleveliterlabel = tk.Label(self.parent, text = 'Level iter.:', font = labelfont)
+        self.SAPMleveliterlabel.grid(row=rownum, column=1, sticky='N')
+        self.SAPMleveliterbox = tk.Entry(self.parent, width = 20, bg="white",justify = 'right')
+        self.SAPMleveliterbox.grid(row=rownum, column=2, sticky='N')
+        self.SAPMleveliterbox.insert(0,self.SAPMleveliter)
+        # the entry boxes need a "submit" button so that the program knows when to take the entered values
+        self.SAPMlevelitersubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMlevelitersubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.SAPMlevelitersubmit.grid(row=rownum, column=3, sticky='N')
+
+
+        rownum = 15
         self.SAPMlevelthreshlabel = tk.Label(self.parent, text = 'Level thresholds:', font = labelfont)
         self.SAPMlevelthreshlabel.grid(row=rownum, column=1, sticky='N')
         self.SAPMlevelthresholdbox = tk.Entry(self.parent, width = 20, bg="white",justify = 'right')
@@ -8005,10 +8094,9 @@ class SAPMFrame:
         self.SAPMlevelthresholdsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMlevelthresholdsubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SAPMlevelthresholdsubmit.grid(row=rownum, column=3, sticky='N')
 
-
         #
         # Lweight definition ---------------------------------------------
-        rownum = 14
+        rownum = 16
         self.SAPMLweightlabel = tk.Label(self.parent, text = 'Initial L weight:', font = labelfont)
         self.SAPMLweightlabel.grid(row=rownum, column=1, sticky='N')
         self.SAPMLweightbox = tk.Entry(self.parent, width = 30, bg="white",justify = 'right')
@@ -8019,7 +8107,7 @@ class SAPMFrame:
         self.SAPMLweightsubmit.grid(row=rownum, column=3, sticky='N')
 
 
-        rownum = 15
+        rownum = 17
         # indicate which "personal characteristics" to use - selected from database
         self.SAPMlabel6 = tk.Label(self.parent, text = "Select characteristic:", font = labelfont)
         self.SAPMlabel6.grid(row=rownum,column=1, sticky='W')
@@ -8057,7 +8145,7 @@ class SAPMFrame:
         self.SAPMcharacteristicsdisplay.grid(row=rownum+1, column=2, columnspan=2, sticky='N')
 
 
-        rownum = 17
+        rownum = 19
         self.varS1 = tk.IntVar()
         self.SAPMrandomcluster = tk.Checkbutton(self.parent, text = 'Random search start?', width = bigbigbuttonsize, fg = fgletter2,
                                           command = self.SAPMcheckboxes, variable = self.varS1)
@@ -8080,7 +8168,7 @@ class SAPMFrame:
             self.SAPMrunsearchbutton2.grid(row=rownum, column=3, columnspan = 2, sticky='W')
 
 
-        rownum = 18
+        rownum = 20
         self.varS2 = tk.IntVar()
         self.SAPMsavebetascale = tk.Checkbutton(self.parent, text = 'Save beta init?', width = bigbigbuttonsize, fg = fgletter2,
                                           command = self.SAPMbetainitcheckboxes, variable = self.varS2)
