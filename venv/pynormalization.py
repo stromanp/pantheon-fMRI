@@ -771,21 +771,25 @@ def py_apply_normalization(input_image, T, Tfine = 'none', map_to_normalized_spa
     # T = {'Xs':X_fit, 'Ys':Y_fit, 'Zs':Z_fit, 'Xt':Xt_fit, 'Yt':Yt_fit, 'Zt':Zt_fit}
     # Tfine = {'dXs': dX, 'dYs': dY, 'dZs': dZ, 'dXt': dXt, 'dYt': dYt, 'dZt': dZt}
 
+    Tfine_exists = False
+    if type(Tfine) == dict:
+        Tfine_exists = True
+
     if map_to_normalized_space:
         # reverse_map_image is the mapping of the image data into the template space
         # "reverse" mapping because we had the coordinates of where template voxels mapped into
         # the original image data, and we are calculating where the original image data belongs in the
         # template space
-        if Tfine.lower() == 'none':
-            norm_image = i3d.warp_image(input_image, T['Xs'], T['Ys'], T['Zs'])
-        else:
+        if Tfine_exists:
             norm_image = i3d.warp_image(input_image, T['Xs']+Tfine['dXs'], T['Ys']+Tfine['dYs'], T['Zs']+Tfine['dZs'])
+        else:
+            norm_image = i3d.warp_image(input_image, T['Xs'], T['Ys'], T['Zs'])
     else:
         # forward mapping is the mapping of a normalized template, or image, into the original image space
-        if Tfine.lower() == 'none':
-            norm_image = i3d.warp_image(input_image, T['Xt'], T['Yt'], T['Zt'])
-        else:
+        if Tfine_exists:
             norm_image = i3d.warp_image(input_image, T['Xt']+Tfine['dXt'], T['Yt']+Tfine['dYt'], T['Zt']+Tfine['dZt'])
+        else:
+            norm_image = i3d.warp_image(input_image, T['Xt'], T['Yt'], T['Zt'])
 
     return norm_image
 
@@ -953,8 +957,9 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         results_img = py_display_sections_local(template, background2, warpdata[:ss+1])
         x = np.round(xs2/2).astype('int')
         display_image = results_img[x, :, :]
-        image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
-        displayrecord.append(image_tk)
+        if display_output:
+            image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+            displayrecord.append(image_tk)
         imagerecord.append({'img':display_image})
 
     # 2) check results for initial sections
@@ -1021,7 +1026,8 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         results_img = py_display_sections_local(template, background2, warpdata[:ninitial_fixed_segments])
         x = np.round(xs2/2).astype('int')
         display_image = results_img[x, :, :]
-        image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+        if display_output:
+            image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
 
     # 3) map the remaining sections based on the initial sections
     # the later sections are guided by the first section
@@ -1120,8 +1126,9 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
             # display the result again
             # need to figure out how to control which figure is used for display  - come back to this ....
             display_image = results_img[midline, :, :]
-            image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
-            displayrecord.append(image_tk)
+            if display_output:
+                image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+                displayrecord.append(image_tk)
             imagerecord.append({'img':display_image})
 
             # show fixed point
@@ -1644,7 +1651,7 @@ def define_sections(template_name, dataname):
 
 #------------run_rough_normalization_calculations--------------------------------------------------------
 #-----------------------------------------------------------------------------------
-def run_rough_normalization_calculations(niiname, normtemplatename, template_img, fit_parameters):  # , display_window = 'None', display_image1 = 'None', display_window2 = 'None', display_image2 = 'None'
+def run_rough_normalization_calculations(niiname, normtemplatename, template_img, fit_parameters, reftime = 3):  # , display_window = 'None', display_image1 = 'None', display_window2 = 'None', display_image2 = 'None'
     # this might go in a separate module or function
     section_defs, ninitial_fixed_segments, reverse_order = define_sections(normtemplatename, niiname)
     # resolution = 1
@@ -1659,8 +1666,8 @@ def run_rough_normalization_calculations(niiname, normtemplatename, template_img
     # print('Updating initial display in Window 1 ...')
     if np.ndim(input_datar) > 3:
         x,y,z,t = np.shape(input_datar)
-        if t > 3:
-            t0 = 3
+        if t > reftime:
+            t0 = reftime
         else:
             t0=0
         input_image = input_datar[:,:,:,t0]
