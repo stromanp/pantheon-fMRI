@@ -6891,7 +6891,7 @@ class SAPMFrame:
         leveltrials = copy.deepcopy(settings['SAPMleveltrials'])
 
         output = pysapm.run_null_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterdataname, timepoint=timepoint,
-                                epoch=epoch, betascale=betascale, Lweight=Lweight, alphascale = alphascale, levelthrehold = levelthreshold,
+                                epoch=epoch, betascale=betascale, Lweight=Lweight, alphascale = alphascale, levelthreshold = levelthreshold,
                                 leveliter = leveliter, leveltrials = leveltrials)
         print('results of network null test ({} samples) written to {}'.format(nsims, output))
 
