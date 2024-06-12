@@ -6886,7 +6886,7 @@ class SAPMFrame:
         betascale = copy.deepcopy(settings['SAPMbetascale'])
         Lweight = copy.deepcopy(settings['SAPMLweight'])
         alphascale = copy.deepcopy(settings['SAPMalphascale'])
-        levelthrehold = copy.deepcopy(settings['SAPMlevelthreshold'])
+        levelthreshold = copy.deepcopy(settings['SAPMlevelthreshold'])
         leveliter = copy.deepcopy(settings['SAPMleveliter'])
         leveltrials = copy.deepcopy(settings['SAPMleveltrials'])
 
