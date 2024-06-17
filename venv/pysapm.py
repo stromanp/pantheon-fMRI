@@ -916,7 +916,7 @@ def prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdatanam
         if csource[nn] >= nregions  and ctarget[nn] < nregions:
             found_latent_list += [csource[nn]]
             occurence = np.count_nonzero(found_latent_list == csource[nn])
-            latent_flag[nn] = csource[nn]-nregions+1
+            latent_flag[nn] = csource[nn] >= nregions
 
     reciprocal_flag = np.zeros(len(ctarget))
     for nn in range(len(ctarget)):
@@ -1131,6 +1131,9 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
             nsteps_stage1 = 1
         else:
             beta_initial = betascale*np.random.randn(nsteps_stage1,nbeta)
+            cc = np.where(latent_flag)[0]
+            for aa in range(nsteps_stage1):
+                beta_initial[aa,cc] = 1.0
             nregion,ntotal = np.shape(Minput)
 
         # initialize deltavals
@@ -1170,6 +1173,7 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
             ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals, deltavals, regular_flag)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
 
             ssqd_starting = copy.deepcopy(ssqd)
+            ssqd_starting0 = copy.deepcopy(ssqd)
             ssqd_old = copy.deepcopy(ssqd)
             ssqd_record += [ssqd]
 
@@ -1236,7 +1240,7 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
 
                 if verbose:
                     print('SAPM  {} stage1 pass {} iter {} alpha {:.3e}  ssqd {:.2f} error {:.2f} error2 {:.2f} change {:.3f}  percent {:.1f}  R2 avg {:.3f}  R2 total {:.3f}'.format(nperson,
-                                    ns, iter, alpha, ssqd, error, error2, ssqchange, 100.*ssqd/ssqd_starting, R2avg, R2total))
+                                    ns, iter, alpha, ssqd, error, error2, ssqchange, 100.*ssqd/ssqd_starting0, R2avg, R2total))
                 ssqd_old = copy.deepcopy(ssqd)
                 # now repeat it ...
             stage1_ssqd[ns] = ssqd
@@ -1351,7 +1355,7 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
 
             if verbose:
                 print('SAPM  {} beta vals:  iter {} alpha {:.3e}  ssqd {:.2f} error {:.2f} error2 {:.2f} change {:.3f}  percent {:.1f}  R2 avg {:.3f}  R2 total {:.3f}'.format(
-                        nperson,iter, alpha, ssqd, error, error2, ssqchange, 100. * ssqd / ssqd_starting, R2avg, R2total))
+                        nperson,iter, alpha, ssqd, error, error2, ssqchange, 100. * ssqd / ssqd_starting0, R2avg, R2total))
             ssqd_old = copy.deepcopy(ssqd)
             # now repeat it ...
 
@@ -1558,6 +1562,9 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
             nsteps_stage1 = 1
         else:
             beta_initial = betascale*np.random.randn(nsteps_stage1,nbeta)
+            cc = np.where(latent_flag)[0]
+            for aa in range(nsteps_stage1):
+                beta_initial[aa,cc] = 1.0
             nregion,ntotal = np.shape(Minput)
 
         # initialize deltavals
@@ -1599,6 +1606,7 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
             ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals, deltavals, regular_flag)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
 
             ssqd_starting = copy.deepcopy(ssqd)
+            ssqd_starting0 = copy.deepcopy(ssqd)
             ssqd_old = copy.deepcopy(ssqd)
             ssqd_record += [ssqd]
 
@@ -1671,7 +1679,7 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
 
                 if verbose and not silentrunning:
                     print('SAPM  {} stage1 pass {} iter {} alpha {:.3e}  ssqd {:.2f} error {:.2f} error2 {:.2f} change {:.3f}  percent {:.1f}  R2 avg {:.3f}  R2 total {:.3f}'.format(nperson,
-                                    ns, iter, alpha, ssqd, error, error2, ssqchange, 100.*ssqd/ssqd_starting, R2avg, R2total))
+                                    ns, iter, alpha, ssqd, error, error2, ssqchange, 100.*ssqd/ssqd_starting0, R2avg, R2total))
                 ssqd_old = copy.deepcopy(ssqd)
                 # now repeat it ...
             stage1_ssqd[ns] = ssqd
@@ -1813,7 +1821,7 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
 
                 if verbose and not silentrunning:
                     print('SAPM  {} stage2 pass {} iter {} alpha {:.3e}  ssqd {:.2f} error {:.2f} error2 {:.2f} change {:.3f}  percent {:.1f}  R2 avg {:.3f}  R2 total {:.3f}'.format(nperson,
-                                    ns, iter, alpha, ssqd, error, error2, ssqchange, 100.*ssqd/ssqd_starting, R2avg, R2total))
+                                    ns, iter, alpha, ssqd, error, error2, ssqchange, 100.*ssqd/ssqd_starting0, R2avg, R2total))
                 ssqd_old = copy.deepcopy(ssqd)
                 # now repeat it ...
             stage2_ssqd[ns] = ssqd
@@ -1931,7 +1939,7 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
 
             if verbose and not silentrunning:
                 print('SAPM  {} stage 3  beta vals:  iter {} alpha {:.3e}  ssqd {:.2f} error {:.2f} error2 {:.2f} change {:.3f}  percent {:.1f}  R2 avg {:.3f}  R2 total {:.3f}'.format(
-                        nperson,iter, alpha, ssqd, error, error2, ssqchange, 100. * ssqd / ssqd_starting, R2avg, R2total))
+                        nperson,iter, alpha, ssqd, error, error2, ssqchange, 100. * ssqd / ssqd_starting0, R2avg, R2total))
             ssqd_old = copy.deepcopy(ssqd)
             # now repeat it ...
 
