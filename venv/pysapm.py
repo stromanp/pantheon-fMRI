@@ -339,8 +339,9 @@ def update_betavals_V3(Sinput, components, loadings, Minput, Mconn, betavals, de
                                         deltavals, ctarget, csource, dtarget, dsource, dval,
                                         fintrinsic_count, vintrinsic_count, beta_int1, fintrinsic1, Lweight, regular_flag, ncomponents_to_fit)
 
-    c = np.where(csource >= nregion)[0]   # latent inputs
-    dssq_db[c] = 0.0   # over-ride changing the beta values from 1.0, for latent inputs
+    # c = np.where(csource >= nregion)[0]   # latent inputs
+    # dssq_db[c] = 0.0   # over-ride changing the beta values from 1.0, for latent inputs
+    #              get rid of this because the outputs (DB values) can be scaled, but the inputs (D) are not
 
     change_betavals = alpha * dssq_db
     change_deltavals = 0.2*alpha * dssq_dd
