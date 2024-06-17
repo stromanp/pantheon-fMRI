@@ -1132,9 +1132,9 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
             nsteps_stage1 = 1
         else:
             beta_initial = betascale*np.random.randn(nsteps_stage1,nbeta)
-            cc = np.where(latent_flag)[0]
-            for aa in range(nsteps_stage1):
-                beta_initial[aa,cc] = 1.0
+            # cc = np.where(latent_flag)[0]
+            # for aa in range(nsteps_stage1):
+            #     beta_initial[aa,cc] = 1.0
             nregion,ntotal = np.shape(Minput)
 
         # initialize deltavals
@@ -1563,9 +1563,9 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
             nsteps_stage1 = 1
         else:
             beta_initial = betascale*np.random.randn(nsteps_stage1,nbeta)
-            cc = np.where(latent_flag)[0]
-            for aa in range(nsteps_stage1):
-                beta_initial[aa,cc] = 1.0
+            # cc = np.where(latent_flag)[0]
+            # for aa in range(nsteps_stage1):
+            #     beta_initial[aa,cc] = 1.0
             nregion,ntotal = np.shape(Minput)
 
         # initialize deltavals
