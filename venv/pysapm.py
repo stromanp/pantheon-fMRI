@@ -204,17 +204,14 @@ def sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, 
 
     error = np.mean(S_fit_diff_squared_per_person / (S_var + 1.0e-10) )
 
-    # R2list = 1.0 - np.sum((Sinput - fit) ** 2, axis=1) / (np.sum(Sinput ** 2, axis=1) + 1.0e-10)
-    # R2avg = np.mean(R2list)
-    # R2total = 1.0 - np.sum((Sinput - fit) ** 2) / (np.sum(Sinput ** 2) + 1.0e-10)
-    #
-    # error = np.mean(np.sum((Sinput - fit) ** 2, axis=1) / (np.var(Sinput, axis=1) + 1.0e-10) )
+    # change cost function June 23 2024 - PWS
+    # cr = np.where(regular_flag > 0)[0]
+    # cost = np.mean(np.abs(betavals[cr]))  # L1 regularization, ignoring latents
+    # cost2 = np.mean(np.abs(deltavals-1.0))  # L1 regularization, ignoring latents
 
-    cr = np.where(regular_flag > 0)[0]
-    cost = np.mean(np.abs(betavals[cr]))  # L1 regularization, ignoring latents
-    cost2 = np.mean(np.abs(deltavals-1.0))  # L1 regularization, ignoring latents
+    cost = np.mean(np.abs(betavals))  # L1 regularization
 
-    costfactor = Lweight*(cost + cost2)
+    costfactor = Lweight*cost
     ssqd = error + costfactor
     return ssqd, error, cost, costfactor
 
@@ -1132,9 +1129,6 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
             nsteps_stage1 = 1
         else:
             beta_initial = betascale*np.random.randn(nsteps_stage1,nbeta)
-            # cc = np.where(latent_flag)[0]
-            # for aa in range(nsteps_stage1):
-            #     beta_initial[aa,cc] = 1.0
             nregion,ntotal = np.shape(Minput)
 
         # initialize deltavals
@@ -1563,9 +1557,6 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
             nsteps_stage1 = 1
         else:
             beta_initial = betascale*np.random.randn(nsteps_stage1,nbeta)
-            # cc = np.where(latent_flag)[0]
-            # for aa in range(nsteps_stage1):
-            #     beta_initial[aa,cc] = 1.0
             nregion,ntotal = np.shape(Minput)
 
         # initialize deltavals
@@ -1582,6 +1573,8 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
         stage1_ssqd = np.zeros(nsteps_stage1)
         stage1_slope = np.zeros(nsteps_stage1)
         stage1_r2final = np.zeros(nsteps_stage1)
+        stage1_ssqd_slope = np.zeros(nsteps_stage1)
+        stage1_ssqd_final = np.zeros(nsteps_stage1)
         stage1_results = []
         for ns in range(nsteps_stage1):
             ssqd_record_stage1 = []
@@ -1628,7 +1621,6 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                                                     vintrinsic_count, beta_int1,fintrinsic1, Lweight, regular_flag, alpha,alphabint,
                                                     ncomponents_to_fit, latent_flag=latent_flag)  # kappavals, ktarget, ksource,
 
-                ssqd_record_stage1 += [ssqd]
 
                 if ssqd > ssqd_original:
                     alpha *= 0.5
@@ -1655,6 +1647,7 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                                                     ncomponents_to_fit)
                 # Soutput = Meigv @ Mintrinsic  # signalling over each connection
                 ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals, deltavals, regular_flag)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+                ssqd_record_stage1 += [ssqd]
 
                 err_total = Sinput - fit
                 Smean = np.mean(Sinput)
@@ -1669,7 +1662,13 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                     y = np.array(R2avg_record[-N:])
                     x = np.array(range(N))
                     R2avg_slope = (N*np.sum(x*y) - np.sum(x)*np.sum(y))/(N*np.sum(x*x) - np.sum(x)*np.sum(x) )
-                    if R2avg_slope < converging_slope_limit[0]:
+                    # if R2avg_slope < converging_slope_limit[0]:
+                    #     converging = False
+
+                    y = np.array(ssqd_record_stage1[-N:])
+                    x = np.array(range(N))
+                    ssqd_slope = (N*np.sum(x*y) - np.sum(x)*np.sum(y))/(N*np.sum(x*x) - np.sum(x)*np.sum(x) )
+                    if ssqd_slope > -converging_slope_limit[0]:
                         converging = False
 
                 R2total = 1.0 - np.sum((Sinput - fit) ** 2) / np.sum(Sinput ** 2)
@@ -1686,6 +1685,9 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
             stage1_ssqd[ns] = ssqd
             stage1_slope[ns] = R2avg_slope
             stage1_r2final[ns] = R2avg_record[-1]
+
+            stage1_ssqd_slope[ns] = ssqd_slope
+            stage1_ssqd_final[ns] = ssqd_record_stage1[-1]
             stage1_results.append({'betavals':betavals, 'deltavals':deltavals})
 
             if save_test_record and nperson == test_person:
@@ -1696,9 +1698,10 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
         #--------end of stage 1, finding the trajectories to continue on...
         # ...based on lowest ssqd, highest slope, some combination of these ...
         projected_r2 = stage1_r2final + stage1_slope*50.0   # project 50 iterations forward with the final slope
+        projected_ssqd = stage1_ssqd_final + stage1_ssqd_slope*50.0   # project 50 iterations forward with the final slope
 
         nset = np.ceil(nsteps_stage2/2.0).astype(int)
-        xd = np.argsort(stage1_slope)  # want the highest values
+        xd = np.argsort(-stage1_ssqd_slope)  # want the highest values
         xs1 = xd[-nset:]
         xsearch = np.array([a for a in range(nsteps_stage1) if a not in xs1]).astype(int)
         xs2 = np.argsort(stage1_ssqd[xsearch])  # want the lowest values that are not already included
@@ -1725,6 +1728,8 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
         stage2_ssqd = np.zeros(nsteps_stage2)
         stage2_slope = np.zeros(nsteps_stage2)
         stage2_r2final = np.zeros(nsteps_stage2)
+        stage2_ssqd_slope = np.zeros(nsteps_stage2)
+        stage2_ssqd_final = np.zeros(nsteps_stage2)
         stage2_results = []
         for ns in range(nsteps_stage2):
             ssqd_record_stage2 = []
@@ -1770,7 +1775,6 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                                                     vintrinsic_count, beta_int1,fintrinsic1, Lweight, regular_flag, alpha,alphabint,
                                                     ncomponents_to_fit, latent_flag=latent_flag)  # kappavals, ktarget, ksource,
 
-                ssqd_record_stage2 += [ssqd]
 
                 if ssqd > ssqd_original:
                     alpha *= 0.5
@@ -1797,6 +1801,7 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                                                     ncomponents_to_fit)
                 # Soutput = Meigv @ Mintrinsic  # signalling over each connection
                 ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals, deltavals, regular_flag)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+                ssqd_record_stage2 += [ssqd]
 
                 err_total = Sinput - fit
                 Smean = np.mean(Sinput)
@@ -1811,7 +1816,13 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                     y = np.array(R2avg_record[-N:])
                     x = np.array(range(N))
                     R2avg_slope = (N*np.sum(x*y) - np.sum(x)*np.sum(y))/(N*np.sum(x*x) - np.sum(x)*np.sum(x) )
-                    if R2avg_slope < converging_slope_limit[1]:
+                    # if R2avg_slope < converging_slope_limit[1]:
+                    #     converging = False
+
+                    y = np.array(ssqd_record_stage2[-N:])
+                    x = np.array(range(N))
+                    ssqd_slope = (N*np.sum(x*y) - np.sum(x)*np.sum(y))/(N*np.sum(x*x) - np.sum(x)*np.sum(x) )
+                    if ssqd_slope > -converging_slope_limit[1]:
                         converging = False
 
                 R2total = 1.0 - np.sum((Sinput - fit) ** 2) / np.sum(Sinput ** 2)
@@ -1828,6 +1839,8 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
             stage2_ssqd[ns] = ssqd
             stage2_slope[ns] = R2avg_slope
             stage2_r2final[ns] = R2avg_record[-1]
+            stage2_ssqd_slope[ns] = ssqd_slope
+            stage2_ssqd_final[ns] = ssqd_record_stage2[-1]
             stage2_results.append({'betavals':betavals, 'deltavals':deltavals})
 
             if save_test_record and nperson == test_person:
@@ -1888,8 +1901,6 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                                    vintrinsic_count, beta_int1, fintrinsic1, Lweight, regular_flag, alpha, alphabint,
                                    ncomponents_to_fit, latent_flag=latent_flag)   #, kappavals, ktarget, ksource
 
-            ssqd_record_stage3 += [ssqd]
-
             if ssqd > ssqd_original:
                 alpha *= 0.5
                 alphabint *= 0.5
@@ -1915,6 +1926,7 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                                                 ncomponents_to_fit)
             # Soutput = Meigv @ Mintrinsic  # signalling over each connection
             ssqd, error, error2, costfactor = sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals, deltavals, regular_flag)  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
+            ssqd_record_stage3 += [ssqd]
 
             err_total = Sinput - fit
             Smean = np.mean(Sinput)
@@ -1929,7 +1941,13 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                 y = np.array(R2avg_record[-N:])
                 x = np.array(range(N))
                 R2avg_slope = (N*np.sum(x*y) - np.sum(x)*np.sum(y))/(N*np.sum(x*x) - np.sum(x)*np.sum(x) )
-                if R2avg_slope < converging_slope_limit[2]:
+                # if R2avg_slope < converging_slope_limit[2]:
+                #     converging = False
+
+                y = np.array(ssqd_record_stage3[-N:])
+                x = np.array(range(N))
+                ssqd_slope = (N*np.sum(x*y) - np.sum(x)*np.sum(y))/(N*np.sum(x*x) - np.sum(x)*np.sum(x) )
+                if ssqd_slope > -converging_slope_limit[2]:
                     converging = False
 
             R2total = 1.0 - np.sum((Sinput - fit) ** 2) / np.sum(Sinput ** 2)
