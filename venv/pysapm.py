@@ -210,8 +210,9 @@ def sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, 
     # cost2 = np.mean(np.abs(deltavals-1.0))  # L1 regularization, ignoring latents
 
     cost = np.mean(np.abs(betavals))  # L1 regularization
+    cost2 = np.mean(np.abs(deltavals-1.0))  # L1 regularization
 
-    costfactor = Lweight*cost
+    costfactor = Lweight*(cost + cost2)
     ssqd = error + costfactor
     return ssqd, error, cost, costfactor
 
