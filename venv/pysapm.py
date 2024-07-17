@@ -1395,14 +1395,15 @@ def sem_physio_model1_V3(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
 def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMparametersname, fixed_beta_vals = [],
                     betascale = 0.1, alphascale = 0.01, Lweight = 1.0, normalizevar=False, nitermax_stage3 = 1200,
                     nitermax_stage2 = 300, nitermax_stage1 = 100, nsteps_stage2 = 4, nsteps_stage1 = 30,
-                    levelthreshold = [1e-4, 1e-5, 1e-6], verbose = True, silentrunning = False):
+                    levelthreshold = [1e-4, 1e-5, 1e-6], verbose = True, silentrunning = False, run_whole_group = False):
 
 # this version fits to principal components of Sinput
     save_test_record = True
     p,f = os.path.split(SAPMresultsname)
     test_record_name = os.path.join(p,'gradient_descent_record.npy')
+    betavals_savename = os.path.join(p,'betavals_save_record.npy')
     test_record = []
-    test_person = 1
+    test_person = 0
 
     starttime = time.ctime()
 
@@ -1462,7 +1463,15 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
     first_pass_results = []
     second_pass_results = []
     beta_init_record = []
-    for nperson in range(NP):
+
+    # -----------option for fitting to data from all participants at the same time----------
+    if run_whole_group:
+        NP_to_run = 1
+    else:
+        NP_to_run = copy.deepcopy(NP)
+    #---------------------------------------------------------------------------------------
+
+    for nperson in range(NP_to_run):
         if not silentrunning:
             if verbose:
                 print('starting person {} at {}'.format(nperson,time.ctime()))
@@ -1470,9 +1479,16 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                 # print('starting person {} at {}'.format(nperson,time.ctime()), end = '\r')
                 print('.', end = '')
 
-        tp = tplist_full[epochnum][nperson]['tp']
+        if run_whole_group:
+            tp = []
+            for pcounter in range(NP):
+                tp += tplist_full[epochnum][pcounter]['tp']
+            nruns = np.sum(nruns_per_person)
+        else:
+            tp = tplist_full[epochnum][nperson]['tp']
+            nruns = nruns_per_person[nperson]
+
         tsize_total = len(tp)
-        nruns = nruns_per_person[nperson]
 
         # get tc data for each region/cluster
         rnumlist = []
@@ -1522,7 +1538,7 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
             epoch = et2 - et1
 
             ftemp = fintrinsic_base[0,et1:et2]
-            fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
+            fintrinsic1 = np.array(list(ftemp) * nruns)
             # print('shape of fintrinsic1 is {}'.format(np.shape(fintrinsic1)))
             if np.var(ftemp) > 1.0e-3:
                 Sint = Sinput[fintrinsic_region,:]
@@ -1548,14 +1564,16 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                                                     ncomponents_to_fit, nreps=10000)
 
                 beta_initial = beta_initial[np.newaxis,:]
-                nitermax_stage1 = 0
+                # nitermax_stage1 = 0
             else:
                 # read saved beta_initial values
                 b = np.load(betascale,allow_pickle=True).flat[0]
                 beta_initial = b['beta_initial']
                 beta_initial = beta_initial[np.newaxis,:]
-                nitermax_stage1 = 0
-            nsteps_stage1 = 1
+                # nitermax_stage1 = 0
+                nsteps_stage1 = 1
+                nsteps_stage2 = 1
+                nsteps_stage3 = 1
         else:
             beta_initial = betascale*np.random.randn(nsteps_stage1,nbeta)
             nregion,ntotal = np.shape(Minput)
@@ -1990,6 +2008,17 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
 
     np.save(SAPMresultsname, SAPMresults)
 
+    # save betavals for use as starting point for other fits
+    nb = len(betavals)
+    betarecord = np.zeros((nb,NP_to_run))
+    for nperson in range(NP_to_run):
+        betarecord[:,nperson] = SAPMresults[nperson]['betavals']
+    betainit = np.mean(betarecord, axis = 1)
+    b = {'beta_initial':betainit}
+    np.save(betavals_savename, b)
+    print('record of average betavals saved to {}'.format(betavals_savename))
+
+
     if verbose and not silentrunning:
         print('finished SAPM at {}'.format(time.ctime()))
         print('     started at {}'.format(starttime))
@@ -2046,7 +2075,7 @@ def betaval_init_shotgun(Lweight, csource, ctarget, Sinput, Minput, Mconn, compo
 def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, networkfile, regiondataname,
                         clusterdataname, samplesplit, samplestart=0, initial_clusters=[], timepoint='all', epoch='all',
                         betascale=0.1, alphascale = 0.01, Lweight = 1.0, levelthreshold = [1e-4, 1e-5, 1e-6],
-                        leveliter = [100, 250, 1200], leveltrials = [30, 4, 1]):
+                        leveliter = [100, 250, 1200], leveltrials = [30, 4, 1], run_whole_group = True):
 
     overall_start_time_text = time.ctime()
     overall_start_time = time.time()
@@ -2134,7 +2163,7 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
                                 normalizevar=False, nitermax_stage3=nitermax,
                                 nitermax_stage2=nitermax_stage2, nsteps_stage2=nsteps_stage2,
                                 nitermax_stage1=nitermax_stage1, nsteps_stage1=nsteps_stage1,
-                                levelthreshold=levelthreshold, verbose = False)
+                                levelthreshold=levelthreshold, verbose = False, run_whole_group = run_whole_group)
     print('\r  finished running baseline clusters....                                         ')
 
     # now, correct the results for normalizing the variance
@@ -2174,7 +2203,7 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
                                                       fixed_beta_vals=[], betascale=betascale, alphascale = alphascale, Lweight=Lweight,
                                                       normalizevar=False, nitermax_stage3=nitermax, nitermax_stage2=nitermax_stage2,
                                                       nsteps_stage2=nsteps_stage2, nitermax_stage1=nitermax_stage1, nsteps_stage1=nsteps_stage1,
-                                                      levelthreshold=levelthreshold, verbose = False)
+                                                      levelthreshold=levelthreshold, verbose = False, run_whole_group = True)
 
                         output = sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, verbose=False)
                         SAPMresults = np.load(output, allow_pickle=True)
@@ -2705,10 +2734,11 @@ def sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, ve
     tcdata_std = copy.deepcopy(SAPMparams['tcdata_std'])
     std_scale = copy.deepcopy(SAPMparams['std_scale'])
 
-    ntime, NP = np.shape(tplist_full)
     Nintrinsics = vintrinsic_count + fintrinsic_count
 
     SAPMresults_load = np.load(SAPMresultsname, allow_pickle=True)
+    NP = len(SAPMresults_load)
+
     for nperson in range(NP):
         Sinput = copy.deepcopy(SAPMresults_load[nperson]['Sinput'])
         Sinput_original = copy.deepcopy(SAPMresults_load[nperson]['Sinput_original'])
@@ -2770,7 +2800,7 @@ def sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, ve
 # main program
 def SAPMrun_V2(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkfile, timepoint,
             epoch, betascale = 0.01, Lweight = 1.0, alphascale = 0.01, leveltrials = [30, 4, 1], leveliter = [100, 250, 1200],
-               levelthreshold = [1e-4, 1e-5, 1e-6], reload_existing = False, multiple_output = False):
+               levelthreshold = [1e-4, 1e-5, 1e-6], reload_existing = False, multiple_output = False, run_whole_group = False):
 
     # load some data, setup some parameters...
     network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base = load_network_model_w_intrinsics(networkfile)
@@ -2809,7 +2839,7 @@ def SAPMrun_V2(cnums, regiondataname, clusterdataname, SAPMresultsname, SAPMpara
                                   fixed_beta_vals=[], betascale=betascale, alphascale = alphascale, Lweight=Lweight,
                                   normalizevar=False, nitermax_stage3 = leveliter[2], nitermax_stage2 = leveliter[1],
                                   nitermax_stage1 = leveliter[0], nsteps_stage2 = leveltrials[1],
-                                  nsteps_stage1 = leveltrials[0], levelthreshold=levelthreshold)
+                                  nsteps_stage1 = leveltrials[0], levelthreshold=levelthreshold, run_whole_group = run_whole_group)
 
 
     # now, correct the results for normalizing the variance
@@ -3725,9 +3755,13 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         Meigv = SAPMresults_load[nperson]['Meigv']
         betavals = SAPMresults_load[nperson]['betavals']
 
-        nruns = nruns_per_person[nperson]
+        if (NP == 1) & (len(nruns_per_person) > 1):
+            nruns = np.sum(nruns_per_person)   # analysis of whole group together
+        else:
+            nruns = nruns_per_person[nperson]
+
         if fintrinsic_count > 0:
-            fintrinsic1 = np.array(list(ftemp) * nruns_per_person[nperson])
+            fintrinsic1 = np.array(list(ftemp) * nruns)
 
         fit = Minput @ Sconn
 
@@ -3796,14 +3830,25 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
     #-------------------------------------------------------------------------------------
     # significance of average Mconn values -----------------------------------------------
     # outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel', 'Plot_SourceModel', 'DrawSAPMdiagram', 'Paired_diff']
-    DB_avg = np.mean(DBrecord[:, :, g1], axis=2)
-    DB_sem = np.std(DBrecord[:, :, g1], axis=2) / np.sqrt(len(g1))
+    if NP > 1:
+        DB_avg = np.mean(DBrecord[:, :, g1], axis=2)
+        DB_sem = np.std(DBrecord[:, :, g1], axis=2) / np.sqrt(len(g1))
 
-    D_avg = np.mean(Drecord[:, :, g1], axis=2)
-    D_sem = np.std(Drecord[:, :, g1], axis=2) / np.sqrt(len(g1))
+        D_avg = np.mean(Drecord[:, :, g1], axis=2)
+        D_sem = np.std(Drecord[:, :, g1], axis=2) / np.sqrt(len(g1))
 
-    B_avg = np.mean(Brecord[:, :, g1], axis=2)
-    B_sem = np.std(Brecord[:, :, g1], axis=2) / np.sqrt(len(g1))
+        B_avg = np.mean(Brecord[:, :, g1], axis=2)
+        B_sem = np.std(Brecord[:, :, g1], axis=2) / np.sqrt(len(g1))
+    else:
+        DB_avg = copy.deepcopy(DBrecord[:,:,0])
+        DB_sem = 1e-5*np.ones(np.shape(DB_avg))
+
+        D_avg = copy.deepcopy(Drecord[:,:,0])
+        D_sem = 1e-5*np.ones(np.shape(D_avg))
+
+        B_avg = copy.deepcopy(Brecord[:,:,0])
+        B_sem = 1e-5*np.ones(np.shape(B_avg))
+
 
     if two_group_comparison:
         nruns_per_person2 = SAPMparams2['nruns_per_person']
@@ -3824,9 +3869,13 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
             Meigv2 = SAPMresults_load2[nperson]['Meigv']
             betavals2 = SAPMresults_load2[nperson]['betavals']
 
-            nruns = nruns_per_person2[nperson]
+            if (NP2 == 1) & (len(nruns_per_person2) > 1):
+                nruns = np.sum(nruns_per_person2)  # analysis of whole group together
+            else:
+                nruns = nruns_per_person2[nperson]
+
             if fintrinsic_count > 0:
-                fintrinsic1 = np.array(list(ftemp) * nruns_per_person2[nperson])
+                fintrinsic1 = np.array(list(ftemp) * nruns)
 
             fit2 = Minput2 @ Sconn2
 
@@ -3873,14 +3922,24 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         # -------------------------------------------------------------------------------------
         # significance of average Mconn values -----------------------------------------------
         # outputoptions = ['B_Significance', 'B_Regression', 'Plot_BOLDModel', 'Plot_SourceModel', 'DrawSAPMdiagram', 'Paired_diff']
-        DB_avg2 = np.mean(DBrecord2, axis=2)
-        DB_sem2 = np.std(DBrecord2, axis=2) / np.sqrt(NP2)
+        if NP2 > 1:
+            DB_avg2 = np.mean(DBrecord2, axis=2)
+            DB_sem2 = np.std(DBrecord2, axis=2) / np.sqrt(NP2)
 
-        D_avg2 = np.mean(Drecord2, axis=2)
-        D_sem2 = np.std(Drecord2, axis=2) / np.sqrt(NP2)
+            D_avg2 = np.mean(Drecord2, axis=2)
+            D_sem2 = np.std(Drecord2, axis=2) / np.sqrt(NP2)
 
-        B_avg2 = np.mean(Brecord2, axis=2)
-        B_sem2 = np.std(Brecord2, axis=2) / np.sqrt(NP2)
+            B_avg2 = np.mean(Brecord2, axis=2)
+            B_sem2 = np.std(Brecord2, axis=2) / np.sqrt(NP2)
+        else:
+            DB_avg2 = copy.deepcopy(DBrecord2[:,:,0])
+            DB_sem2 = 1e-5*np.ones(np.shape(DB_avg2))
+
+            D_avg2 = copy.deepcopy(Drecord2[:,:,0])
+            D_sem2 = 1e-5*np.ones(np.shape(D_avg2))
+
+            B_avg2 = copy.deepcopy(Brecord2[:,:,0])
+            B_sem2 = 1e-5*np.ones(np.shape(B_avg2))
 
 
     if outputtype == 'B_Significance':
@@ -3900,9 +3959,9 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         # sort output by magnitude of T
         si = np.argsort(np.abs(T))[::-1]
         T = np.array(T)[si]
-        si2 = np.where(T < 1e3)  # dont write out values where B is always = 1
-        textoutputs = {'regions': np.array(labeltext)[si[si2]], 'B': np.array(valuetext)[si[si2]], 'T': np.array(Ttext)[si[si2]],
-                       'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]], 'stat ref': np.array(reftext)[si[si2]]}
+        # si2 = np.where(T < 1e10)  # dont write out values where B is always = 1
+        textoutputs = {'regions': np.array(labeltext)[si], 'B': np.array(valuetext)[si], 'T': np.array(Ttext)[si],
+                       'T thresh': np.array(Tthresh_list)[si], 'p thresh': np.array(pthresh_list)[si], 'stat ref': np.array(reftext)[si]}
         df = pd.DataFrame(textoutputs)
 
         xlname = os.path.join(outputdir, descriptor + '.xlsx')
@@ -3924,10 +3983,10 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         # sort output by magnitude of T
         si = np.argsort(np.abs(T))[::-1]
         T = np.array(T)[si]
-        si2 = np.where(T < 1e3)  # dont write out values where B is always = 1
-        textoutputs = {'regions': np.array(labeltext)[si[si2]], 'D': np.array(valuetext)[si[si2]],
-                       'T': np.array(Ttext)[si[si2]],
-                       'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]], 'stat ref': np.array(reftext)[si[si2]]}
+        # si2 = np.where(T < 1e3)  # dont write out values where B is always = 1
+        textoutputs = {'regions': np.array(labeltext)[si], 'D': np.array(valuetext)[si],
+                       'T': np.array(Ttext)[si],
+                       'T thresh': np.array(Tthresh_list)[si], 'p thresh': np.array(pthresh_list)[si], 'stat ref': np.array(reftext)[si]}
         df = pd.DataFrame(textoutputs)
 
         xlname = os.path.join(outputdir, descriptor + '.xlsx')
@@ -3950,10 +4009,10 @@ def display_SAPM_results(window, outputnametag, covariates, outputtype, outputdi
         # sort output by magnitude of T
         si = np.argsort(np.abs(T))[::-1]
         T = np.array(T)[si]
-        si2 = np.where(T < 1e3)  # dont write out values where B is always = 1
-        textoutputs = {'regions': np.array(labeltext)[si[si2]], 'DB': np.array(valuetext)[si[si2]],
-                       'T': np.array(Ttext)[si[si2]],
-                       'T thresh': np.array(Tthresh_list)[si[si2]], 'p thresh': np.array(pthresh_list)[si[si2]], 'stat ref': np.array(reftext)[si[si2]]}
+        # si2 = np.where(T < 1e3)  # dont write out values where B is always = 1
+        textoutputs = {'regions': np.array(labeltext)[si], 'DB': np.array(valuetext)[si],
+                       'T': np.array(Ttext)[si],
+                       'T thresh': np.array(Tthresh_list)[si], 'p thresh': np.array(pthresh_list)[si], 'stat ref': np.array(reftext)[si]}
         df = pd.DataFrame(textoutputs)
 
         xlname = os.path.join(outputdir, descriptor + '.xlsx')
@@ -5470,7 +5529,7 @@ def run_null_test_on_network(nsims, networkmodel, cnums, regiondataname, cluster
 
     SAPMrun_V2(cnums, null_regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkmodel, timepoint,
                 epoch, betascale = betascale, Lweight = Lweight, alphascale = alphascale, leveltrials=leveltrials,
-               leveliter=leveliter, levelthreshold = levelthreshold, reload_existing = False, multiple_output = False)
+               leveliter=leveliter, levelthreshold = levelthreshold, reload_existing = False, multiple_output = False, run_whole_group = False)
 
     # compile stats distributions for each connection
     results = np.load(SAPMresultsname, allow_pickle=True)
@@ -5516,7 +5575,7 @@ def run_null_test_on_network(nsims, networkmodel, cnums, regiondataname, cluster
 
 def run_sim_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterdataname, timepoint = 'all', epoch = 'all',
                             betascale = 0.1, Lweight = 1.0, alphascale = 0.01, leveltrials=[30, 4, 1],
-                            leveliter=[100, 250, 1200], levelthreshold = [1e-4, 1e-5, 1e-6]):
+                            leveliter=[100, 250, 1200], levelthreshold = [1e-4, 1e-5, 1e-6], run_whole_group = False):
 
     resultsdir, networkfilename = os.path.split(networkmodel)
     networkbasename, ext = os.path.splitext(networkfilename)
@@ -5530,7 +5589,8 @@ def run_sim_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterd
 
     SAPMrun_V2(cnums, sim_regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkmodel, timepoint,
                 epoch, betascale = betascale, Lweight = Lweight, alphascale = alphascale, leveltrials=leveltrials,
-               leveliter=leveliter, levelthreshold = levelthreshold, reload_existing = False, multiple_output = False)
+               leveliter=leveliter, levelthreshold = levelthreshold, reload_existing = False, multiple_output = False,
+               run_whole_group = run_whole_group)
 
     # compile stats distributions for each connection
     results = np.load(SAPMresultsname, allow_pickle=True)

@@ -249,10 +249,12 @@ def check_settings_file(settingsfile):
                     'SAPMleveliter': [100, 250, 1200],
                     'SAPMleveltrials': [30, 4, 1],
                     'SAPMLweight': 1.0,
+                    'SAPMgrouplevel': False,
                     # 'SRvariant': 0,
                     'DISPconndefnamefull': '',
                     'CLcrazythreshold':3.0,
                     'CLvarcheckmethod':'median',
+                    'CLoverwrite':False,
                     'SAPMcharacteristicscount':0,
                     'SAPMcharacteristicslist':[],
                     'SAPMcharacteristicsvalues':[],
@@ -3931,6 +3933,24 @@ class CLFrame:
         return self
 
 
+    def CLsetoverwriteflag(self):
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        self.CLoverwrite = settings['CLoverwrite']
+
+        value = self.CLconfirmoverwriteval.get()
+        if value == 0:
+            self.CLoverwrite = False
+        else:
+            self.CLoverwrite = True
+
+        print('setting overwrite to {}'.format(self.CLoverwrite))
+
+        settings['CLoverwrite'] = self.CLoverwrite
+        np.save(settingsfile,settings)
+
+        return self
+
+
     def CLcrazythreshsubmitaction(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
@@ -3955,45 +3975,54 @@ class CLFrame:
         self.CLclustername = settings['CLclustername']
         self.CLregionname = settings['CLregionname']
         self.CLnmaskvol = settings['CLnmaskvol']
+        self.CLoverwrite= settings['CLoverwrite']
 
         self.CLcrazythreshold = settings['CLcrazythreshold']
         self.CLvarcheckmethod = settings['CLvarcheckmethod']
 
-        xls = pd.ExcelFile(self.DBname, engine = 'openpyxl')
-        df1 = pd.read_excel(xls, 'datarecord')
+        # check if okay to overwrite existing cluster definition file
+        print('Writing to {}'.format(self.CLclustername))
+        print('      ... the file altready exist? {}'.format(os.path.isfile(self.CLclustername)))
+        print('       ... overwrite status set to {}'.format(self.CLoverwrite))
 
-        normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
-        resolution = 1
-        template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = \
-            load_templates.load_template_and_masks(normtemplatename, resolution)
+        if os.path.isfile(self.CLclustername) & (self.CLoverwrite == False):
+            print('Cluster defnition file already exists ... \n   ... new definition aborted')
+        else:
+            xls = pd.ExcelFile(self.DBname, engine = 'openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
 
-        if normtemplatename.lower() == 'brain':
-            # for brain data, need to match the template, region map, etc., to the data size/position
-            dbhome = df1.loc[self.DBnum[0], 'datadir']
-            fname = df1.loc[self.DBnum[0], 'niftiname']
-            niiname = os.path.join(dbhome, fname)
-            fullpath, filename = os.path.split(niiname)
-            prefix_niiname = os.path.join(fullpath, self.CLprefix + filename)
-            temp_data = nib.load(prefix_niiname)
-            img_data_affine = temp_data.affine
-            hdr = temp_data.header
-            template_img = i3d.convert_affine_matrices_nearest(template_img, template_affine, img_data_affine, hdr['dim'][1:4])
-            regionmap_img = i3d.convert_affine_matrices_nearest(regionmap_img, template_affine, img_data_affine, hdr['dim'][1:4])
+            normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
+            resolution = 1
+            template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = \
+                load_templates.load_template_and_masks(normtemplatename, resolution)
 
-        cluster_properties, region_properties = \
-            pyclustering.define_clusters_and_load_data(self.DBname, self.DBnum, self.CLprefix, self.CLnmaskvol, self.networkmodel,
-                                        regionmap_img, anatlabels, varcheckmethod = self.CLvarcheckmethod, varcheckthresh = self.CLcrazythreshold)
+            if normtemplatename.lower() == 'brain':
+                # for brain data, need to match the template, region map, etc., to the data size/position
+                dbhome = df1.loc[self.DBnum[0], 'datadir']
+                fname = df1.loc[self.DBnum[0], 'niftiname']
+                niiname = os.path.join(dbhome, fname)
+                fullpath, filename = os.path.split(niiname)
+                prefix_niiname = os.path.join(fullpath, self.CLprefix + filename)
+                temp_data = nib.load(prefix_niiname)
+                img_data_affine = temp_data.affine
+                hdr = temp_data.header
+                template_img = i3d.convert_affine_matrices_nearest(template_img, template_affine, img_data_affine, hdr['dim'][1:4])
+                regionmap_img = i3d.convert_affine_matrices_nearest(regionmap_img, template_affine, img_data_affine, hdr['dim'][1:4])
 
-        cluster_definition = {'cluster_properties':cluster_properties, 'template_img':template_img,'regionmap_img':regionmap_img}
-        region_data = {'region_properties':region_properties, 'DBname':self.DBname, 'DBnum':self.DBnum}
+            cluster_properties, region_properties = \
+                pyclustering.define_clusters_and_load_data(self.DBname, self.DBnum, self.CLprefix, self.CLnmaskvol, self.networkmodel,
+                                            regionmap_img, anatlabels, varcheckmethod = self.CLvarcheckmethod, varcheckthresh = self.CLcrazythreshold)
 
-        # save the results
-        np.save(self.CLclustername,cluster_definition)
-        np.save(self.CLregionname,region_data)
-        messagetext = 'defining clusters and loading data \ncompleted: ' + time.ctime(time.time())
-        self.CLdefinebuttontext.set(messagetext)
-        print(messagetext)
-        self.CLupdate_network_info()
+            cluster_definition = {'cluster_properties':cluster_properties, 'template_img':template_img,'regionmap_img':regionmap_img}
+            region_data = {'region_properties':region_properties, 'DBname':self.DBname, 'DBnum':self.DBnum}
+
+            # save the results
+            np.save(self.CLclustername,cluster_definition)
+            np.save(self.CLregionname,region_data)
+            messagetext = 'defining clusters and loading data \ncompleted: ' + time.ctime(time.time())
+            self.CLdefinebuttontext.set(messagetext)
+            print(messagetext)
+            self.CLupdate_network_info()
 
 
     def CLload(self):
@@ -4162,6 +4191,11 @@ class CLFrame:
 
 
         # label, button, for running the definition of clusters, and loading data
+        self.CLconfirmoverwriteval = tk.IntVar()
+        self.CLoverwrite = tk.Checkbutton(self.parent, text = 'Overwrite?', width = smallbuttonsize, fg = fgletter2, font = radiofont,
+                                          command = self.CLsetoverwriteflag, variable = self.CLconfirmoverwriteval, highlightbackground = widgetbg)
+        self.CLoverwrite.grid(row = 8, column = 1, sticky="E")
+
         self.CLdefineandloadbutton = tk.Button(self.parent, text="Define Clusters", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
                                         command=self.CLdefineandload, relief='raised', bd=5, highlightbackground = widgetbg)
         self.CLdefineandloadbutton.grid(row=8, column=2)
@@ -7157,8 +7191,42 @@ class SAPMFrame:
 
 
     def SAPMbetainitcheckboxes(self):
-        self.SAPMsavebetainit = self.varS2.get()
+        self.SAPMsavebetainit = self.varS3.get()
         print('SAPMsavebetainit = {}'.format(self.SAPMsavebetainit))
+        return self
+
+
+    def SAPMgroupcheckboxes1(self):
+        groupcheck = self.varS2.get()
+        self.varS4.set(groupcheck)
+
+        if groupcheck > 0:
+            self.SAPMgroupdata = True
+        else:
+            self.SAPMgroupdata = False
+
+        print('SAPMgroupdata  set to {}'.format(self.SAPMgroupdata))
+
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        settings['SAPMgrouplevel'] = self.SAPMgroupdata
+        np.save(settingsfile, settings)
+        return self
+
+
+    def SAPMgroupcheckboxes2(self):
+        groupcheck = self.varS4.get()
+        self.varS2.set(groupcheck)
+
+        if groupcheck > 0:
+            self.SAPMgroupdata = True
+        else:
+            self.SAPMgroupdata = False
+
+        print('SAPMgroupdata  set to {}'.format(self.SAPMgroupdata))
+
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        settings['SAPMgrouplevel'] = self.SAPMgroupdata
+        np.save(settingsfile, settings)
         return self
 
 
@@ -7402,6 +7470,7 @@ class SAPMFrame:
         self.SAPMresultsdir = settings['SAPMresultsdir']
         self.SAPMbetascale = settings['SAPMbetascale']
         self.SAPMLweight = settings['SAPMLweight']
+        self.SAPMgrouplevel= settings['SAPMgrouplevel']
         # self.SAPMsavetag = settings['SAPMsavetag']
 
         self.SAPMupdate_network_info()
@@ -7469,7 +7538,8 @@ class SAPMFrame:
         best_clusters = pysapm.SAPM_cluster_stepsearch(self.SAPMresultsdir, SAPMresultsname, SAPMparamsname, self.networkmodel,
                                         self.SAPMregionname, self.SAPMclustername, samplesplit, samplestart, initial_clusters=clusterstart,
                                         timepoint='all', epoch='all', betascale=self.SAPMbetascale, Lweight = self.SAPMLweight,
-                                        levelthreshold= self.SAPMlevelthreshold, leveliter=self.SAPMleveliter, leveltrials=self.SAPMleveltrials)
+                                        levelthreshold= self.SAPMlevelthreshold, leveliter=self.SAPMleveliter, leveltrials=self.SAPMleveltrials,
+                                        run_whole_group = self.SAPMgrouplevel)
 
         self.SAPMcnums = copy.deepcopy(list(best_clusters))
         self.SAPMcnumsbox.delete(0, 'end')
@@ -7559,6 +7629,7 @@ class SAPMFrame:
         self.SAPMcnums = settings['SAPMcnums']
         self.SAPMbetascale = settings['SAPMbetascale']
         self.SAPMLweight = settings['SAPMLweight']
+        self.SAPMgrouplevel= settings['SAPMgrouplevel']
         # self.SEMresumerun = settings['SEMresumerun']
         self.SAPMkeyinfo1.config(text=' ', fg='gray')
 
@@ -7591,7 +7662,7 @@ class SAPMFrame:
                        SAPMresultsname, SAPMparamsname, self.networkmodel, self.SAPMtimepoint,
                        self.SAPMepoch, self.SAPMbetascale, self.SAPMLweight, self.SAPMalphascale,
                        self.SAPMleveltrials, self.SAPMleveliter, self.SAPMlevelthreshold,
-                       reload_existing=False, multiple_output = multiple_output)
+                       reload_existing=False, multiple_output = multiple_output, run_whole_group = self.SAPMgrouplevel)
         # most recent changes - May 8, 2023
 
         # get beta values and save for future betascale (initializing beta values)
@@ -7821,7 +7892,7 @@ class SAPMFrame:
         else:
             self.field_var.set('empty')
 
-        rownum = 13
+        rownum = 17
         self.SAPMfield_menu = tk.OptionMenu(self.parent, self.field_var, *self.fields, command=self.SAPMfieldchoice)
         self.SAPMfield_menu.config(bg=bgcol)
         self.SAPMfield_menu.grid(row=rownum, column=2, sticky='EW')
@@ -8151,10 +8222,15 @@ class SAPMFrame:
                                           command = self.SAPMcheckboxes, variable = self.varS1)
         self.SAPMrandomcluster.grid(row=rownum, column=1, columnspan = 1, sticky='E')
 
+        self.varS2 = tk.IntVar()
+        self.SAPMgroupdata1 = tk.Checkbutton(self.parent, text = 'Group-level fit?', width = bigbigbuttonsize, fg = fgletter2,
+                                          command = self.SAPMgroupcheckboxes1, variable = self.varS2)
+        self.SAPMgroupdata1.grid(row=rownum, column=2, columnspan = 1, sticky='E')
+
         # label, button, for running the definition of clusters, and loading data
-        self.SAPMrunsearchbutton = tk.Button(self.parent, text="Best clusters?", width=bigbigbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
+        self.SAPMrunsearchbutton = tk.Button(self.parent, text="Search Best clusters?", width=bigbigbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
                                         command=self.SAPMbestclusters, relief='raised', bd=5, highlightbackground = widgetbg)
-        self.SAPMrunsearchbutton.grid(row=rownum, column=2, columnspan = 2, sticky='W')
+        self.SAPMrunsearchbutton.grid(row=rownum, column=3, columnspan = 2, sticky='W')
 
         self.SAPMkeyinfo1 = tk.Label(self.parent, text = " ", fg = 'gray', justify = 'left')
         self.SAPMkeyinfo1.grid(row=rownum,column=5, sticky='W')
@@ -8169,15 +8245,20 @@ class SAPMFrame:
 
 
         rownum = 20
-        self.varS2 = tk.IntVar()
+        self.varS3 = tk.IntVar()
         self.SAPMsavebetascale = tk.Checkbutton(self.parent, text = 'Save beta init?', width = bigbigbuttonsize, fg = fgletter2,
-                                          command = self.SAPMbetainitcheckboxes, variable = self.varS2)
+                                          command = self.SAPMbetainitcheckboxes, variable = self.varS3)
         self.SAPMsavebetascale.grid(row=rownum, column=1, columnspan = 1, sticky='E')
+
+        self.varS4 = tk.IntVar()
+        self.SAPMgroupdata2 = tk.Checkbutton(self.parent, text = 'Group-level fit?', width = bigbigbuttonsize, fg = fgletter2,
+                                          command = self.SAPMgroupcheckboxes2, variable = self.varS4)
+        self.SAPMgroupdata2.grid(row=rownum, column=2, columnspan = 1, sticky='E')
 
         # label, button, for running the definition of clusters, and loading data
         self.SAPMrunnetworkbutton = tk.Button(self.parent, text="Run SAPM", width=bigbigbuttonsize, bg=fgcol1, fg = fgletter1, font = widgetfont,
                                         command=self.SAPMrunnetwork, relief='raised', bd=5, highlightbackground = widgetbg)
-        self.SAPMrunnetworkbutton.grid(row=rownum, column=2, columnspan = 2, sticky='W')
+        self.SAPMrunnetworkbutton.grid(row=rownum, column=3, columnspan = 2, sticky='W')
 
 
 
