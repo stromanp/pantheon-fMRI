@@ -190,13 +190,14 @@ def load_network_model_w_intrinsics(networkmodel):
 def sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, betavals, deltavals, regular_flag):  # , deltavals, beta_int1, Minput, Mintrinsic, Meigv
     nr, ncomponents_to_fit = np.shape(loadings_fit)
 
+    nv,nt = np.shape(Sinput)
     S_fit_diff_squared_per_person = np.sum((Sinput - fit) ** 2, axis=1)
     # S_fit_diff_squared_total = np.sum((Sinput - fit) ** 2)
     S_fit_diff_squared_total = np.sum(S_fit_diff_squared_per_person)
     S_squared_per_person = np.sum(Sinput ** 2, axis=1)
     # S_squared_total = np.sum(Sinput ** 2)
     S_squared_total = np.sum(S_squared_per_person)
-    S_var = np.var(Sinput, axis=1)
+    S_var = np.sqrt(nt)*np.var(Sinput, axis=1)   # keep the error terms consistent in scale across different numbers of time points
 
     R2list = 1.0 - S_fit_diff_squared_per_person / (S_squared_per_person + 1.0e-10)
     R2avg = np.mean(R2list)
@@ -209,8 +210,10 @@ def sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, 
     # cost = np.mean(np.abs(betavals[cr]))  # L1 regularization, ignoring latents
     # cost2 = np.mean(np.abs(deltavals-1.0))  # L1 regularization, ignoring latents
 
-    cost = np.mean(np.abs(betavals))  # L1 regularization
+    cost1 = np.mean(np.abs(betavals))  # L1 regularization
     cost2 = np.mean(np.abs(deltavals-1.0))  # L1 regularization
+
+    cost = np.sqrt(nt)*(cost1 + cost2)   # try to keep the magnitude similar to the error term for different size data sets
 
     costfactor = Lweight*(cost + cost2)
     ssqd = error + costfactor
@@ -1400,8 +1403,9 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
 # this version fits to principal components of Sinput
     save_test_record = True
     p,f = os.path.split(SAPMresultsname)
+    f1,e = os.path.splitext(f)
     test_record_name = os.path.join(p,'gradient_descent_record.npy')
-    betavals_savename = os.path.join(p,'betavals_save_record.npy')
+    betavals_savename = os.path.join(p,'betavals_' + f1[:20] + '.npy')
     test_record = []
     test_person = 0
 
@@ -1448,6 +1452,8 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
     DBname = SAPMparams['DBname']
     DBnum = SAPMparams['DBnum']
 
+
+    nregion, ntotal = np.shape(Minput)
     regular_flag = 1-latent_flag   # flag where connections are not latent or reciprocal
 
     ntime, NP = np.shape(tplist_full)
@@ -1566,17 +1572,18 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
                 beta_initial = beta_initial[np.newaxis,:]
                 # nitermax_stage1 = 0
             else:
+                beta_initial = 0.1*np.random.randn(nsteps_stage1,nbeta)
                 # read saved beta_initial values
+
+
                 b = np.load(betascale,allow_pickle=True).flat[0]
-                beta_initial = b['beta_initial']
-                beta_initial = beta_initial[np.newaxis,:]
-                # nitermax_stage1 = 0
-                nsteps_stage1 = 1
-                nsteps_stage2 = 1
-                nsteps_stage3 = 1
+                beta_initial1 = b['beta_initial']
+                beta_initial[0,:] = copy.deepcopy(beta_initial1)
+                # nsteps_stage1 = 1
+                # nsteps_stage2 = 1
+                # nsteps_stage3 = 1
         else:
             beta_initial = betascale*np.random.randn(nsteps_stage1,nbeta)
-            nregion,ntotal = np.shape(Minput)
 
         # initialize deltavals
         ndelta = len(dtarget)
@@ -1629,6 +1636,8 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
             dssq_count = 0
             sequence_count = 0
             R2avg_record = []
+            R2avg_slope = 0.
+            ssqd_slope = 0.
 
             while alpha > alpha_limit and iter < nitermax_stage1 and converging:
                 iter += 1
@@ -1783,6 +1792,8 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
             dssq_count = 0
             sequence_count = 0
             R2avg_record = []
+            R2avg_slope = 0.
+            ssqd_slope = 0.
 
             while alpha > alpha_limit and iter < nitermax_stage2 and converging:
                 iter += 1
@@ -1911,6 +1922,8 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
         sequence_count = 0
         R2avg_record = []
         ssqd_record_stage3 = []
+        R2avg_slope = 0.
+        ssqd_slope = 0.
 
         while alpha > alpha_limit and iter < nitermax_stage3 and converging:
             iter += 1
@@ -2016,10 +2029,9 @@ def sem_physio_model1_V4(clusterlist, fintrinsic_base, SAPMresultsname, SAPMpara
     betainit = np.mean(betarecord, axis = 1)
     b = {'beta_initial':betainit}
     np.save(betavals_savename, b)
-    print('record of average betavals saved to {}'.format(betavals_savename))
-
 
     if verbose and not silentrunning:
+        print('record of average betavals saved to {}'.format(betavals_savename))
         print('finished SAPM at {}'.format(time.ctime()))
         print('     started at {}'.format(starttime))
         print('     results written to {}'.format(SAPMresultsname))
@@ -2203,7 +2215,7 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
                                                       fixed_beta_vals=[], betascale=betascale, alphascale = alphascale, Lweight=Lweight,
                                                       normalizevar=False, nitermax_stage3=nitermax, nitermax_stage2=nitermax_stage2,
                                                       nsteps_stage2=nsteps_stage2, nitermax_stage1=nitermax_stage1, nsteps_stage1=nsteps_stage1,
-                                                      levelthreshold=levelthreshold, verbose = False, run_whole_group = True)
+                                                      levelthreshold=levelthreshold, verbose = False, run_whole_group = run_whole_group)
 
                         output = sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, verbose=False)
                         SAPMresults = np.load(output, allow_pickle=True)
@@ -5516,8 +5528,8 @@ def generate_simulated_data_set(regiondataname, covariatesname, networkfile, clu
 
 
 def run_null_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterdataname, timepoint = 'all', epoch = 'all',
-                             betascale = 0.1, Lweight = 1.0, alphascale = 0.01, levelthreshold = [1e-4, 1e-5, 1e-6],
-                             leveliter = [100, 250, 1200], leveltrials = [30, 4, 1]):
+                             betascale = 0.1, Lweight = 1.0, alphascale = 0.01, levelthreshold = [1e-5, 1e-6, 1e-6],
+                             leveliter = [100, 250, 1200], leveltrials = [30, 4, 1], run_whole_group = False):
     resultsdir, networkfilename = os.path.split(networkmodel)
     networkbasename, ext = os.path.splitext(networkfilename)
 
@@ -5527,9 +5539,25 @@ def run_null_test_on_network(nsims, networkmodel, cnums, regiondataname, cluster
     SAPMresultsname = os.path.join(resultsdir,'null_results.npy')
     SAPMparametersname = os.path.join(resultsdir,'null_params.npy')
 
-    SAPMrun_V2(cnums, null_regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkmodel, timepoint,
-                epoch, betascale = betascale, Lweight = Lweight, alphascale = alphascale, leveltrials=leveltrials,
-               leveliter=leveliter, levelthreshold = levelthreshold, reload_existing = False, multiple_output = False, run_whole_group = False)
+    if run_whole_group:
+        # first run the whole group and then run the individuals using the group resutls to guide the choice of beta_init
+        SAPMrun_V2(cnums, null_regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkmodel, timepoint,
+                    epoch, betascale = betascale, Lweight = Lweight, alphascale = alphascale, leveltrials=leveltrials,
+                   leveliter=leveliter, levelthreshold = levelthreshold, reload_existing = False, multiple_output = False,
+                   run_whole_group = True)
+
+        betavals_savename = os.path.join(resultsdir, 'betavals_save_record.npy')
+        SAPMrun_V2(cnums, null_regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkmodel, timepoint,
+                    epoch, betascale = betavals_savename, Lweight = Lweight, alphascale = alphascale, leveltrials=leveltrials,
+                   leveliter=leveliter, levelthreshold = levelthreshold, reload_existing = False, multiple_output = False,
+                   run_whole_group = False)
+        run_whole_group = False
+
+    else:
+        SAPMrun_V2(cnums, null_regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkmodel, timepoint,
+                    epoch, betascale = betascale, Lweight = Lweight, alphascale = alphascale, leveltrials=leveltrials,
+                   leveliter=leveliter, levelthreshold = levelthreshold, reload_existing = False, multiple_output = False,
+                   run_whole_group = False)
 
     # compile stats distributions for each connection
     results = np.load(SAPMresultsname, allow_pickle=True)
@@ -5544,13 +5572,20 @@ def run_null_test_on_network(nsims, networkmodel, cnums, regiondataname, cluster
     for nn in range(vintrinsic_count): rnamelist_full += ['latent{}'.format(fintrinsic_count+nn)]
 
     ncon = len(results[0]['betavals'])
-    betavals = np.zeros((ncon,nsims))
-    for nn in range(nsims): betavals[:,nn] = results[nn]['betavals']
+    if run_whole_group:
+        betavals = results[0]['betavals'][:,np.newaxis]
+    else:
+        betavals = np.zeros((ncon,nsims))
+        for nn in range(nsims): betavals[:,nn] = results[nn]['betavals']
+
     bstats = []
     for nn in range(ncon):
         conname = '{}-{}'.format(rnamelist_full[csource[nn]], rnamelist_full[ctarget[nn]])
         b = copy.deepcopy(betavals[nn,:])
-        entry = {'name':conname, 'mean':np.mean(b), 'std':np.std(b), 'skewness':scipy.stats.skew(b), 'kurtosis':scipy.stats.kurtosis(b)}
+        if run_whole_group:
+            entry = {'name':conname, 'mean':b[0], 'std':0., 'skewness':0., 'kurtosis':0.}
+        else:
+            entry = {'name':conname, 'mean':np.mean(b), 'std':np.std(b), 'skewness':scipy.stats.skew(b), 'kurtosis':scipy.stats.kurtosis(b)}
         bstats.append(entry)
 
     npyname = os.path.join(resultsdir, networkbasename + '_bstats.npy')
@@ -5587,10 +5622,24 @@ def run_sim_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterd
     SAPMresultsname = os.path.join(resultsdir,'sim_results.npy')
     SAPMparametersname = os.path.join(resultsdir,'sim_params.npy')
 
-    SAPMrun_V2(cnums, sim_regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkmodel, timepoint,
-                epoch, betascale = betascale, Lweight = Lweight, alphascale = alphascale, leveltrials=leveltrials,
-               leveliter=leveliter, levelthreshold = levelthreshold, reload_existing = False, multiple_output = False,
-               run_whole_group = run_whole_group)
+    if run_whole_group:
+        # first run the whole group and then run the individuals using the group resutls to guide the choice of beta_init
+        SAPMrun_V2(cnums, sim_regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkmodel, timepoint,
+                    epoch, betascale = betascale, Lweight = Lweight, alphascale = alphascale, leveltrials=leveltrials,
+                   leveliter=leveliter, levelthreshold = levelthreshold, reload_existing = False, multiple_output = False,
+                   run_whole_group = True)
+
+        betavals_savename = os.path.join(resultsdir, 'betavals_save_record.npy')
+        SAPMrun_V2(cnums, sim_regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkmodel, timepoint,
+                    epoch, betascale = betavals_savename, Lweight = Lweight, alphascale = alphascale, leveltrials=leveltrials,
+                   leveliter=leveliter, levelthreshold = levelthreshold, reload_existing = False, multiple_output = False,
+                   run_whole_group = False)
+    else:
+        SAPMrun_V2(cnums, sim_regiondataname, clusterdataname, SAPMresultsname, SAPMparametersname, networkmodel, timepoint,
+                    epoch, betascale = betascale, Lweight = Lweight, alphascale = alphascale, leveltrials=leveltrials,
+                   leveliter=leveliter, levelthreshold = levelthreshold, reload_existing = False, multiple_output = False,
+                   run_whole_group = False)
+
 
     # compile stats distributions for each connection
     results = np.load(SAPMresultsname, allow_pickle=True)
