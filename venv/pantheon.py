@@ -1457,8 +1457,8 @@ class NCFrame:
         self.NCrun.grid(row = 7, column = 4)
 
         # button to refresh displays during manual over-ride
-        self.NCrefreshdisplays= tk.Button(self.parent, text = 'Refresh', width = bigbigbuttonsize, bg = fgcol3, fg = fgletter3, command = self.NC_refresh_display_during_override, font = widgetfont, relief='raised', bd = 5, highlightbackground = widgetbg)
-        self.NCrefreshdisplays.grid(row = 10, column = 1)
+        self.NCrefreshdisplays= tk.Button(self.parent, text = 'Refresh', width = bigbuttonsize, bg = fgcol3, fg = fgletter3, command = self.NC_refresh_display_during_override, font = widgetfont, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.NCrefreshdisplays.grid(row = 10, column = 0)
 
         # entry box and button to copy rough normalization from another database number
         self.NCcopy_label = tk.Label(self.parent, text="Copy rough normalization from another data set:", font = labelfont)
@@ -1639,7 +1639,7 @@ class NCFrame:
 
                 nfordisplay = len(self.NCresult_copy)
                 if nfordisplay > 0:
-                    image_tk = copy.deepcopy(self.controller.img1d)
+                    image_tk = self.controller.img1d
                     # self.window1.configure(width=image_tk.width(), height=image_tk.height())
                     self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
 
@@ -1899,7 +1899,7 @@ class NCFrame:
                     img1 = copy.deepcopy(imagerecord[nf]['img'])
                     img1 = (255. * img1 / np.max(img1)).astype(np.uint8)
                     image_tk = ImageTk.PhotoImage(Image.fromarray(img1))
-                    self.controller.img1d = copy.deepcopy(image_tk)
+                    self.controller.img1d = image_tk
                     self.window1.configure(width=image_tk.width(), height=image_tk.height())
                     self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
                     time.sleep(1)
@@ -1928,7 +1928,7 @@ class NCFrame:
                 #     display_imager = copy.deepcopy(display_image)
                 image_tk = ImageTk.PhotoImage(Image.fromarray(display_imager))
 
-                self.controller.img2d = copy.deepcopy(image_tk)   # keep a copy so it persists
+                self.controller.img2d = image_tk   # keep a copy so it persists
                 self.window2.configure(width=image_tk.width(), height=image_tk.height())
                 self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
 
@@ -1946,7 +1946,7 @@ class NCFrame:
                 # else:
                 #     display_imager = copy.deepcopy(display_image)
                 image_tk = ImageTk.PhotoImage(Image.fromarray(display_imager))
-                self.controller.img3d = copy.deepcopy(image_tk)   # keep a copy so it persists
+                self.controller.img3d = image_tk   # keep a copy so it persists
                 self.window3.configure(width=image_tk.width(), height=image_tk.height())
                 self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
                 self.window3.create_text(np.round(image_tk.width()/2),image_tk.height()-5,text = 'reference template', fill = 'white')
@@ -1972,7 +1972,7 @@ class NCFrame:
                 img2r = i3d.resize_2D(img2, vscale)
                 # img2r = i3d.resize_2D(img2, 0.5)
                 image_tk = ImageTk.PhotoImage(Image.fromarray(img2r))
-                self.controller.img2d = copy.deepcopy(image_tk)   # keep a copy so it persists
+                self.controller.img2d = image_tk   # keep a copy so it persists
                 self.window2.configure(width=image_tk.width(), height=image_tk.height())
                 self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
 
@@ -1984,11 +1984,11 @@ class NCFrame:
                 img3r = i3d.resize_2D(img3, vscale)
                 # img3r = i3d.resize_2D(img3, 0.5)
                 image_tk = ImageTk.PhotoImage(Image.fromarray(img3r))
-                self.controller.img3d = copy.deepcopy(image_tk)   # keep a copy so it persists
+                self.controller.img3d = image_tk   # keep a copy so it persists
                 self.window3.configure(width=image_tk.width(), height=image_tk.height())
                 self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
 
-                image_tk = copy.deepcopy(self.controller.img1d)
+                image_tk = self.controller.img1d
                 self.window1.configure(width=image_tk.width(), height=image_tk.height())
                 self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
                 time.sleep(0.1)
@@ -2076,7 +2076,7 @@ class NCFrame:
             img2r = i3d.resize_2D(img2, vscale)
             # img2r = i3d.resize_2D(img2, 0.5)
             image_tk = ImageTk.PhotoImage(Image.fromarray(img2r))
-            self.controller.img2d = copy.deepcopy(image_tk)  # keep a copy so it persists
+            self.controller.img2d = image_tk  # keep a copy so it persists
             self.window2.configure(width=image_tk.width(), height=image_tk.height())
             self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
 
@@ -2086,7 +2086,7 @@ class NCFrame:
             img3 = template_img[xmid, :, :]
             img3 = (255. * img3 / np.max(img3)).astype(np.uint8)
             image_tk = ImageTk.PhotoImage(Image.fromarray(img3))
-            self.controller.img3d = copy.deepcopy(image_tk)  # keep a copy so it persists
+            self.controller.img3d = image_tk  # keep a copy so it persists
             self.window3.configure(width=image_tk.width(), height=image_tk.height())
             self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
 
@@ -2111,6 +2111,134 @@ class NCFrame:
             self.NCmanomode = 'ON'
             self.button_funcid = self.window1.bind("<Button-1>",self.mouseleftclick,"+")
             self.button_funcidL = self.window1.bind("<Button-3>",self.mouserightclick,"+")
+
+            # first get the necessary input data
+            settings = np.load(settingsfile, allow_pickle=True).flat[0]
+            self.NCdatabasename = settings['DBname']
+            self.NCdatabasenum = settings['DBnum']
+            xls = pd.ExcelFile(self.NCdatabasename, engine='openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
+            fit_parameters = self.fitparameters
+            normdatasavename = self.normdatasavename
+
+            # display original image for first dbnum entry-------------------
+            dbnum = self.NCdatabasenum[0]
+            dbhome = df1.loc[dbnum, 'datadir']
+            fname = df1.loc[dbnum, 'niftiname']
+            seriesnumber = df1.loc[dbnum, 'seriesnumber']
+            niiname = os.path.join(dbhome, fname)
+            input_data, new_affine = i3d.load_and_scale_nifti(niiname)
+            print('shape of input_data is ', np.shape(input_data))
+            print('niiname = ', niiname)
+            if np.ndim(input_data) == 4:
+                xs, ys, zs, ts = np.shape(input_data)
+                xmid = np.round(xs / 2).astype(int)
+                img = input_data[xmid, :, :, 0]
+                img = (255. * img / np.max(img)).astype(np.uint8)
+                image_tk = ImageTk.PhotoImage(Image.fromarray(img))
+            else:
+                xs, ys, zs = np.shape(input_data)
+                xmid = np.round(xs / 2).astype(int)
+                img = input_data[xmid, :, :]
+                img = (255. * img / np.max(img)).astype(np.uint8)
+                image_tk = ImageTk.PhotoImage(Image.fromarray(img))
+            verticalsize = ys
+            self.controller.img1d = image_tk  # keep a copy so it persists
+            self.window1.configure(width=image_tk.width(), height=image_tk.height())
+            self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+            time.sleep(0.1)
+            # -----------end of display--------------------------------
+
+            try:
+                dbnum = copy.deepcopy(NCdatabasenum[0])
+            except:
+                dbnum = copy.deepcopy(NCdatabasenum)
+
+            print('NC manuaal override refresh: databasenum ', dbnum)
+            dbhome = df1.loc[dbnum, 'datadir']
+            fname = df1.loc[dbnum, 'niftiname']
+            seriesnumber = df1.loc[dbnum, 'seriesnumber']
+            normtemplatename = df1.loc[dbnum, 'normtemplatename']
+            niiname = os.path.join(dbhome, fname)
+            fullpath, filename = os.path.split(niiname)
+            # prefix_niiname = os.path.join(fullpath,self.prefix+filename)
+            tag = '_s' + str(seriesnumber)
+            normdataname_full = os.path.join(fullpath, normdatasavename + tag + '.npy')
+
+            resolution = 1
+            # template_img, regionmap_img, template_affine, anatlabels = load_templates.load_template(normtemplatename, resolution)
+            template_img, regionmap_img, template_affine, anatlabels, wmmap_img, roi_map, gmwm_img = load_templates.load_template_and_masks(
+                normtemplatename, resolution)
+            # still need to write the resulting normdata file name to the database excel file
+
+            # set the cursor to reflect being busy ...
+            self.controller.master.config(cursor="wait")
+            self.controller.master.update()
+            T, warpdata, reverse_map_image, displayrecord, imagerecord, resultsplot, result = pynormalization.run_rough_normalization_calculations(
+                niiname, normtemplatename,
+                template_img, fit_parameters)  # , display_window1, image_in_W1, display_window2, image_in_W2
+            self.NCresult = result  # need this for manual over-ride etc.
+            self.NCresult_copy = copy.deepcopy(self.NCresult)  # need this for manual over-ride etc.
+            Tfine = 'none'
+            norm_image_fine = 'none'
+            self.controller.master.config(cursor="")
+            self.controller.master.update()
+
+            # display results-----------------------------------------------------
+            nfordisplay = len(imagerecord)
+            for nf in range(nfordisplay):
+                img1 = copy.deepcopy(imagerecord[nf]['img'])
+                img1 = (255. * img1 / np.max(img1)).astype(np.uint8)
+                image_tk = ImageTk.PhotoImage(Image.fromarray(img1))
+                self.controller.img1d = image_tk
+                self.window1.configure(width=image_tk.width(), height=image_tk.height())
+                self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+                time.sleep(1)
+
+            nfordisplay = len(result)
+            for nf in range(nfordisplay):
+                # draw the rectangular regions for each section
+                p0, p1, p2, p3, coords, angle, sectionsize, smallestside = self.outline_section(nf)
+                self.window1.create_line(p0[0], p0[1], p1[0], p1[1], p2[0], p2[1], p3[0], p3[1], p0[0], p0[1],
+                                         fill='yellow', width=2)
+
+            self.window1.create_text(np.round(image_tk.width() / 2), image_tk.height() - 5,
+                                     text='template sections mapped onto image', fill='white')
+
+            display_image = copy.deepcopy(imagerecord[0]['img'])
+            display_image = (255. * display_image / np.max(display_image)).astype(np.uint8)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+            # show normalization result instead
+            xs, ys, zs = np.shape(reverse_map_image)
+            xmid = np.round(xs / 2).astype(int)
+            display_image = copy.deepcopy(reverse_map_image[xmid, :, :])
+            display_image = (255. * display_image / np.max(display_image)).astype(np.uint8)
+            vscale = 0.5 * (verticalsize / ys)
+            display_imager = i3d.resize_2D(display_image, vscale)
+
+            image_tk = ImageTk.PhotoImage(Image.fromarray(display_imager))
+
+            self.controller.img2d = image_tk  # keep a copy so it persists
+            self.window2.configure(width=image_tk.width(), height=image_tk.height())
+            self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+            self.window2.create_text(np.round(image_tk.width() / 2), image_tk.height() - 5,
+                                     text='normalization result', fill='white')
+
+            # show template
+            xs, ys, zs = np.shape(template_img)
+            xmid = np.round(xs / 2).astype(int)
+            display_image = copy.deepcopy(template_img[xmid, :, :])
+            display_image = (255. * display_image / np.max(display_image)).astype(np.uint8)
+            vscale = 0.5 * (verticalsize / ys)
+            display_imager = i3d.resize_2D(display_image, vscale)
+
+            image_tk = ImageTk.PhotoImage(Image.fromarray(display_imager))
+            self.controller.img3d = image_tk  # keep a copy so it persists
+            self.window3.configure(width=image_tk.width(), height=image_tk.height())
+            self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
+            self.window3.create_text(np.round(image_tk.width() / 2), image_tk.height() - 5,
+                                     text='reference template', fill='white')
         else:
             self.NCmanomode = 'OFF'
             self.window1.unbind("<Button-1>", self.button_funcid)
@@ -2123,7 +2251,7 @@ class NCFrame:
             # refresh the display
             nfordisplay = len(self.NCresult_copy)
             if nfordisplay > 0:
-                image_tk = copy.deepcopy(self.controller.img1d)
+                image_tk = self.controller.img1d
                 # self.window1.configure(width=image_tk.width(), height=image_tk.height())
                 self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
 
@@ -2139,6 +2267,7 @@ class NCFrame:
                     p0, p1, p2, p3, coords, angle, sectionsize, smallestside = self.outline_section(nf)
                     self.window1.create_line(p0[0], p0[1], p1[0], p1[1], p2[0], p2[1], p3[0], p3[1], p0[0], p0[1],
                                              fill=fillcolor, width=1)
+
 
 
     def NC_refresh_display_during_override(self):
@@ -2179,7 +2308,7 @@ class NCFrame:
                 image_tk = ImageTk.PhotoImage(Image.fromarray(img))
                 input_image = copy.deepcopy(input_data)
             verticalsize = ys
-            self.controller.img1d = copy.deepcopy(image_tk)  # keep a copy so it persists
+            self.controller.img1d = image_tk  # keep a copy so it persists
             self.window1.configure(width=image_tk.width(), height=image_tk.height())
             self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
 
@@ -2205,7 +2334,7 @@ class NCFrame:
             display_imager = i3d.resize_2D(display_image, vscale)
             image_tk = ImageTk.PhotoImage(Image.fromarray(display_imager))
 
-            self.controller.img3d = copy.deepcopy(image_tk)  # keep a copy so it persists
+            self.controller.img3d = image_tk  # keep a copy so it persists
             self.window3.configure(width=image_tk.width(), height=image_tk.height())
             self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
             self.window3.create_text(np.round(image_tk.width() / 2), image_tk.height() - 5, text='template',
@@ -2265,7 +2394,7 @@ class NCFrame:
             image_tk = ImageTk.PhotoImage(Image.fromarray(img))
             input_image = copy.deepcopy(input_data)
         verticalsize = ys
-        self.controller.img1d = copy.deepcopy(image_tk)  # keep a copy so it persists
+        self.controller.img1d = image_tk  # keep a copy so it persists
         self.window1.configure(width=image_tk.width(), height=image_tk.height())
         self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
         time.sleep(0.1)
@@ -2317,7 +2446,7 @@ class NCFrame:
             img1 = imagerecord[nf]['img']
             img1 = (255. * img1 / np.max(img1)).astype(np.uint8)
             image_tk = ImageTk.PhotoImage(Image.fromarray(img1))
-            self.controller.img1d = copy.deepcopy(image_tk)
+            self.controller.img1d = image_tk
             self.window1.configure(width=image_tk.width(), height=image_tk.height())
             self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
             time.sleep(1)
@@ -2369,7 +2498,7 @@ class NCFrame:
         #     display_imager = copy.deepcopy(display_image)
         image_tk = ImageTk.PhotoImage(Image.fromarray(display_imager))
 
-        self.controller.img3d = copy.deepcopy(image_tk)  # keep a copy so it persists
+        self.controller.img3d = image_tk  # keep a copy so it persists
         self.window3.configure(width=image_tk.width(), height=image_tk.height())
         self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
         self.window3.create_text(np.round(image_tk.width() / 2), image_tk.height() - 5, text='template',
