@@ -2008,7 +2008,7 @@ class NCFrame:
             if self.finetune == 1:
                 inprogressfile = os.path.join(basedir, 'underconstruction.gif')
                 image_tk = tk.PhotoImage('photo', file=inprogressfile)
-                image_tk = copy.deepcopy(image_tk.subsample(2))
+                image_tk = image_tk.subsample(2)
                 self.controller.img2d = image_tk  # keep a copy so it persists
                 self.window2.configure(width=image_tk.width(), height=image_tk.height())
                 self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
@@ -2150,11 +2150,11 @@ class NCFrame:
             # -----------end of display--------------------------------
 
             try:
-                dbnum = copy.deepcopy(NCdatabasenum[0])
+                dbnum = copy.deepcopy(self.NCdatabasenum[0])
             except:
-                dbnum = copy.deepcopy(NCdatabasenum)
+                dbnum = copy.deepcopy(self.NCdatabasenum)
 
-            print('NC manuaal override refresh: databasenum ', dbnum)
+            print('NC manual override refresh: databasenum ', dbnum)
             dbhome = df1.loc[dbnum, 'datadir']
             fname = df1.loc[dbnum, 'niftiname']
             seriesnumber = df1.loc[dbnum, 'seriesnumber']
@@ -2171,18 +2171,28 @@ class NCFrame:
                 normtemplatename, resolution)
             # still need to write the resulting normdata file name to the database excel file
 
+            normdata = {'T':T, 'Tfine':Tfine, 'warpdata':warpdata, 'reverse_map_image':reverse_map_image, 'norm_image_fine':norm_image_fine, 'template_affine':template_affine, 'imagerecord':imagerecord, 'result':result}
+            normdata = np.load(normdataname_full, allow_pickle = True).flat[0]
+
+            T = copy.deepcopy(normdata['T'])
+            Tfine = copy.deepcopy(normdata['Tfine'])
+            warpdata = copy.deepcopy(normdata['warpdata'])
+            reverse_map_image = copy.deepcopy(normdata['reverse_map_image'])
+            norm_image_fine = copy.deepcopy(normdata['norm_image_fine'])
+            template_affine = copy.deepcopy(normdata['template_affine'])
+            imagerecord = copy.deepcopy(normdata['imagerecord'])
+            result = copy.deepcopy(normdata['result'])
+            print('normalization loaded from ',normdataname_full)
+
             # set the cursor to reflect being busy ...
-            self.controller.master.config(cursor="wait")
-            self.controller.master.update()
-            T, warpdata, reverse_map_image, displayrecord, imagerecord, resultsplot, result = pynormalization.run_rough_normalization_calculations(
-                niiname, normtemplatename,
-                template_img, fit_parameters)  # , display_window1, image_in_W1, display_window2, image_in_W2
-            self.NCresult = result  # need this for manual over-ride etc.
+            # self.controller.master.config(cursor="wait")
+            # self.controller.master.update()
+            # T, warpdata, reverse_map_image, displayrecord, imagerecord, resultsplot, result = pynormalization.run_rough_normalization_calculations(
+            #     niiname, normtemplatename,
+            #     template_img, fit_parameters)  # , display_window1, image_in_W1, display_window2, image_in_W2
+
+            self.NCresult = copy.deepcopy(result)  # need this for manual over-ride etc.
             self.NCresult_copy = copy.deepcopy(self.NCresult)  # need this for manual over-ride etc.
-            Tfine = 'none'
-            norm_image_fine = 'none'
-            self.controller.master.config(cursor="")
-            self.controller.master.update()
 
             # display results-----------------------------------------------------
             nfordisplay = len(imagerecord)
@@ -2267,7 +2277,6 @@ class NCFrame:
                     p0, p1, p2, p3, coords, angle, sectionsize, smallestside = self.outline_section(nf)
                     self.window1.create_line(p0[0], p0[1], p1[0], p1[1], p2[0], p2[1], p3[0], p3[1], p0[0], p0[1],
                                              fill=fillcolor, width=1)
-
 
 
     def NC_refresh_display_during_override(self):
