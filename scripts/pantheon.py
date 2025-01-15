@@ -79,6 +79,7 @@ from scipy import ndimage
 import pydisplay
 import pysem
 import pysapm
+import pypcaid
 import py2ndlevelanalysis
 import copy
 import math
@@ -190,6 +191,7 @@ def check_settings_file(settingsfile):
                     'SEMtimepoints': [11, 18],
                     'SEMepoch': 7,
                     'SEMresumerun': False,
+                    'SAPMresumerun': False,
                     'SRoptionvalue': 'unknown',
                     'SRcovname': 'unknown',
                     'SRpvalue': 0.05,
@@ -211,7 +213,7 @@ def check_settings_file(settingsfile):
                     'GRPpvalue': 0.05,
                     'NCBparameters': [(10000, 1000, 100), (3.0, 1.0, 0.0), (4, 2, 1)],
                     'braintemplate': 'avg152T2.nii',
-                    'SAPMcnums': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    'SAPMcnums': [{'cnums':[0]}, {'cnums':[0]}, {'cnums':[0]}, {'cnums':[0]}, {'cnums':[0]}, {'cnums':[0]}, {'cnums':[0]}, {'cnums':[0]}, {'cnums':[0]}, {'cnums':[0]}],
                     'SAPMresultsdir': '',
                     'SAPMresultsname': '',
                     'SAPMparamsname': '',
@@ -802,7 +804,6 @@ class DBFrame:
         self.DBnametext.set(settings['DBname'])
         # change the current working directory to the folder where the database file is, for future convenience
         pathsections = os.path.split(filechoice)
-        # os.chdir(pathsections[0])   # don't do it
         # save the updated settings file again
         np.save(settingsfile,settings)
 
@@ -1047,10 +1048,7 @@ class DBFrame:
         searchtext = ''
         self.searchterm_text.set(searchtext)
         self.DBsearchtext.configure(text = self.searchterm_text.get())
-
-        # self.info_text2.set('')
         self.DBinfo2.configure(text = ' ')
-
         return self
 
 
@@ -1091,6 +1089,7 @@ class DBFrame:
         np.save(settingsfile,settings)
 
         return self
+
 
     def DBfieldchoice(self,value):
         # get the field value choices for the selected field
@@ -1196,6 +1195,7 @@ class DBFrame:
         self.DBsearchtext.configure(text = self.searchterm_text.get())
 
         return self
+
 
     def DBrunconvertOS(self):
         # determine the operating system and change database entries to use the correct file separators
@@ -2185,13 +2185,6 @@ class NCFrame:
             result = copy.deepcopy(normdata['result'])
             print('normalization loaded from ',normdataname_full)
 
-            # set the cursor to reflect being busy ...
-            # self.controller.master.config(cursor="wait")
-            # self.controller.master.update()
-            # T, warpdata, reverse_map_image, displayrecord, imagerecord, resultsplot, result = pynormalization.run_rough_normalization_calculations(
-            #     niiname, normtemplatename,
-            #     template_img, fit_parameters)  # , display_window1, image_in_W1, display_window2, image_in_W2
-
             self.NCresult = copy.deepcopy(result)  # need this for manual over-ride etc.
             self.NCresult_copy = copy.deepcopy(self.NCresult)  # need this for manual over-ride etc.
 
@@ -2349,8 +2342,6 @@ class NCFrame:
             self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
             self.window3.create_text(np.round(image_tk.width() / 2), image_tk.height() - 5, text='template',
                                      fill='white')
-
-
         else:
             print('Manual over-ride not turned on, so the displays were not refreshed.')
 
@@ -3142,7 +3133,6 @@ class PPFrame:
         self.PPslicesubmit.grid(row=srow+1, column=scol+6, columnspan = 4)
         ttk.Separator(self.parent).grid(row=srow+2, column=scol, columnspan=6, sticky="nswe", padx=2, pady=5)
 
-
         # now define entry boxes so that the user can indicate the smoothing parameters
         # give the group of boxes a label first
         srow = 3; scol = 1;
@@ -3215,11 +3205,6 @@ class PPFrame:
         self.PPprefixdisplaytitle.grid(row=srow+2, column=3, sticky='E')
         self.PPprefixdisplay = tk.Label(self.parent, textvariable = self.predictedprefixtext, fg = 'gray', font = labelfont)
         self.PPprefixdisplay.grid(row=srow+2, column=4, sticky='W')
-
-        # self.DBnametext = tk.StringVar()
-        # self.DBnametext.set(self.DBname)
-        # self.DBnamelabel2 = tk.Label(self.parent, textvariable=self.DBnametext, bg=bgcol, fg="black", font="none 10",
-        #                              wraplength=200, justify='left')
 
 
     def PPsliceorderchoice(self,value):
@@ -3330,7 +3315,6 @@ class PPFrame:
         # update the text in the box, in case it has changed
         self.smoothwidth = smoothwidth
         return self
-
 
     # action when the button is pressed to organize dicom data into folders based on series numbers
     def PPrunclick(self):
@@ -3737,7 +3721,6 @@ class GLMFrame:
         np.save(settingsfile,settings)
 
         return self
-
 
 
     # define functions before they are used in the database frame------------------------------------------
@@ -4433,10 +4416,7 @@ class CLFrame:
                                      wraplength=200, justify='left')
         self.CLloadbuttonlabel.grid(row=9, column=3, sticky='N')
 
-
 # inputs needed:   network model definition, existing cluster definition (if needed), run buttons
-
-
 
 #-----------SEM FRAME--------------------------------------------------
 # Definition of the frame that has inputs for the database name, and entry numbers to use
@@ -5837,7 +5817,7 @@ class GRPFrame:
                 # data in clustername is the same for every group
 
                 networkname = data['network']
-                network, ncluster_list, sem_region_list = pyclustering.load_network_model(networkname)
+                network, nclusterlist, sem_region_list = pyclustering.load_network_model(networkname)
 
                 # data in resultsnames
                 resultsnames = data['resultsnames']
@@ -7017,20 +6997,92 @@ class DisplayFrame2:
 # Definition of the frame that has inputs for the database name, and entry numbers to use
 class SAPMFrame:
 
+    def SAPMcreatecnumtext(self, cnums, fully_connected):
+        cnumtext = ''
+        for x in range(len(cnums)):
+            if fully_connected:
+                shorttext = ''
+                if cnums[x]['cnums'][0] == 'all':
+                    shorttext = 'all,'
+                else:
+                    for xx in cnums[x]['cnums']:
+                        shorttext += '{},'.format(xx)
+                cnumtext += '[{}],'.format(shorttext[:-1])
+            else:
+                cnumtext += '{},'.format(cnums[x]['cnums'][0])
+        cnumtext = cnumtext[:-1]
+
+        return cnumtext
+
+
     def SAPMcnumparse(self, entered_text):
         # need to make sure we are working with numbers, not text
         # first, replace any double spaces with single spaces, and then replace spaces with commas
         entered_text = re.sub('\ +', ',', entered_text)
         entered_text = re.sub('\,\,+', ',', entered_text)
-        # replace x's with -1's
-        entered_text = re.sub('x+', '-1', entered_text)
         # remove any leading or trailing commas
         if entered_text[0] == ',': entered_text = entered_text[1:]
         if entered_text[-1] == ',': entered_text = entered_text[:-1]
 
-        entered_values = list(np.fromstring(entered_text, dtype=int, sep=','))
+        #-----------new Dec 2024-----------------------------------
+        fully_connected = False
+        if ('[' in entered_text) or ('x' in entered_text) or ('all' in entered_text):
+            fully_connected = True
+        else:
+            fully_connected = False
 
-        return entered_values
+        if fully_connected:
+            if '[' in entered_text:
+                # get rid of nested brackets
+                entered_text = re.sub('\[\[+', '[', entered_text)
+                entered_text = re.sub('\]\]+', ']', entered_text)
+                searching = True
+                cnums_out = []
+                while '[' in entered_text:
+                    c1 = entered_text.index('[')
+                    c2 = entered_text[(c1+1):].index(']')
+                    cset = entered_text[(c1+1):(c1+1+c2)]
+                    if ('x' in cset) or ('all' in cset):
+                        cnums_out.append({'cnums':['all']})
+                    else:
+                        cnums_out.append({'cnums':list(np.fromstring(cset, dtype=int, sep=','))})
+                    entered_text = entered_text[(c1+1+c2):]
+            else:
+                cnums_out = []
+                entered_text += ','  # end with a comma for convenience
+                while ',' in entered_text:
+                    c1 = entered_text.index(',')
+                    cset = entered_text[:c1]
+                    if ('x' in cset) or ('all' in cset):
+                        cnums_out.append({'cnums':['all']})
+                    else:
+                        cnums_out.append({'cnums':[int(cset)]})
+                    entered_text = entered_text[(c1+1):]
+        else:
+            # replace x's with -1's
+            # entered_text = re.sub('x+', '-1', entered_text)
+
+            if ',' in entered_text:
+                entered_values = list(np.fromstring(entered_text, dtype=int, sep=','))
+            else:
+                entered_values = list(np.fromstring(entered_text, dtype=int, sep=' '))
+
+            fcheck = np.where(np.array(entered_values) < 0)[0]
+            if len(fcheck) > 0:
+                fully_connected = True
+                for x in range(len(entered_values)):
+                    if x < 0:
+                        cnums_out.append({'cnums':['all']})
+                    else:
+                        cnums_out.append({'cnums':[entered_values[x]]})
+            else:
+                cnums_out = []
+                for x in range(len(entered_values)):
+                    cnums_out.append({'cnums':[entered_values[x]]})
+
+        cnumtext = self.SAPMcreatecnumtext(cnums_out, fully_connected)
+                
+        return cnums_out, cnumtext, fully_connected
 
 
     def SAPMlevelthreshparse(self, entered_text):
@@ -7080,13 +7132,19 @@ class SAPMFrame:
         self.SAPMnetnametext.set(nfname)
         self.SAPMnetdirtext.set(npname)
 
-        network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base = pysapm.load_network_model_w_intrinsics(self.networkmodel)
+        network, nclusterdict, sem_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base = pysapm.load_network_model_w_intrinsics(self.networkmodel)
         # update cnums to have the correct number of entries for the selected network
         nregions = len(network)
         if 'SAPMcnums' in settings.keys():
             SAPMcnums = settings['SAPMcnums']
         else:
-            SAPMcnums = [0]
+            # change format of cnums - Nov 30 2024
+            SAPMcnums = [{'cnums':[0]}]
+
+        # change format of cnums - Nov 30 2024
+        if type(self.SAPMcnums[0]) != dict:
+            temp = copy.deepcopy(self.SAPMcnums)
+            self.SAPMcnums = [{'cnums':[x]} for x in temp]
 
         if len(SAPMcnums) < nregions:
             temp = list(np.zeros(nregions).astype(int))
@@ -7095,9 +7153,18 @@ class SAPMFrame:
         if len(SAPMcnums) > nregions:
             SAPMcnums = SAPMcnums[:nregions]
 
+        # put in actual cluster numbers, if missing
+        checktype = [type(self.SAPMcnums[x]['cnums'][0]) for x in range(len(self.SAPMcnums))]
+        if str in checktype:
+            for x in nregions:
+                if type(self.SAPMcnums[x]['cnums'][0]) == str:
+                    self.SAPMcnums[x]['cnums'] = list(range(nclusterdict[x]['nclusters']))
+
         self.SAPMcnums = copy.deepcopy(SAPMcnums)
         self.SAPMcnumsbox.delete(0, 'end')
-        self.SAPMcnumsbox.insert(0, self.SAPMcnums)
+        self.SAPMcnumtext = self.SAPMcreatecnumtext(self.SAPMcnums, self.SAPMfullyconnected)
+
+        self.SAPMcnumsbox.insert(0, self.SAPMcnumtext)
         settings['SAPMcnums'] = self.SAPMcnums
 
         self.SAPMkeyinfo1.config(text=' ', fg='gray')
@@ -7141,15 +7208,16 @@ class SAPMFrame:
         leveliter = copy.deepcopy(settings['SAPMleveliter'])
         leveltrials = copy.deepcopy(settings['SAPMleveltrials'])
         run_whole_group= copy.deepcopy(settings['SAPMgrouplevel'])
+        resumerun= copy.deepcopy(settings['SAPMresumerun'])
 
         output = pysapm.run_null_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterdataname, timepoint=timepoint,
                                 epoch=epoch, betascale=betascale, Lweight=Lweight, alphascale = alphascale, levelthreshold = levelthreshold,
-                                leveliter = leveliter, leveltrials = leveltrials, run_whole_group = run_whole_group)
+                                leveliter = leveliter, leveltrials = leveltrials, run_whole_group = run_whole_group, resumerun = resumerun)
         print('results of network null test ({} samples) written to {}'.format(nsims, output))
 
         #--------------temporary for testing-------------------------------------------------
         # output = pysapm.run_sim_test_on_network(nsims, networkmodel, cnums, regiondataname, clusterdataname, timepoint=timepoint,
-        #                         epoch=epoch, betascale=betascale, Lweight=Lweight)
+        #                         epoch=epoch, betascale=betascale, Lweight=Lweight, resumerun = resumerun)
         # print('results of network sim test ({} samples) written to {}'.format(nsims, output))
 
 
@@ -7563,44 +7631,61 @@ class SAPMFrame:
     def SAPMcnumssubmitaction(self):
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
-        SAPMcnums = self.SAPMcnumsbox.get()
+        SAPMcnumsentered = self.SAPMcnumsbox.get()
 
         # parse the entered values into a list
-        entered_values = self.SAPMcnumparse(SAPMcnums)
-        self.SAPMcnums = copy.deepcopy(list(entered_values))
+        # entered_values = self.SAPMcnumparse(SAPMcnumsentered)
+        cnums, cnumtext, fully_connected = self.SAPMcnumparse(SAPMcnumsentered)
 
-        # check for full-connected model
-        if np.max(entered_values) < 0:
-            self.SAPMfullyconnected = True
+        # self.SAPMcnums = copy.deepcopy(list(entered_values))
+        # change format of cnums - Nov 30 2024
+        # self.SAPMcnums = [{'cnums':[x]} for x in list(entered_values)]
+        self.SAPMcnums = copy.deepcopy(cnums)
+        self.SAPMcnumtext = copy.deepcopy(cnumtext)
+        self.SAPMfullyconnected = copy.deepcopy(fully_connected)
+        if self.SAPMfullyconnected:
             print('SAPM: set to run a fully-connected model ...')
         else:
-            self.SAPMfullyconnected = False
             print('SAPM: set to run a model with one cluster per region ...')
 
         network = []
         try:
-            network, nclusterlist, sem_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base = pysapm.load_network_model_w_intrinsics(self.networkmodel)
+            network, nclusterdict, sem_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base = pysapm.load_network_model_w_intrinsics(self.networkmodel)
             # update cnums to have the correct number of entries for the selected network
+
             nregions = len(network)
             if len(self.SAPMcnums) < nregions:
-                temp = list(np.zeros(nregions).astype(int))
+                # temp = list(np.zeros(nregions).astype(int))
+                temp = [{'cnums':[0]} for x in range(nregions)]
                 temp[:len(self.SAPMcnums)] = self.SAPMcnums
                 self.SAPMcnums = copy.deepcopy(temp)
             if len(self.SAPMcnums ) > nregions:
                 self.SAPMcnums = self.SAPMcnums[:nregions]
 
-            self.SAPMcnumsbox.delete(0, 'end')
-            self.SAPMcnumsbox.insert(0, self.SAPMcnums)
+            # put in actual cluster numbers, if missing
+            checktype = [type(self.SAPMcnums[x]['cnums'][0]) for x in range(len(self.SAPMcnums))]
+            if str in checktype:
+                for x in range(nregions):
+                    if type(self.SAPMcnums[x]['cnums'][0]) == str:
+                        self.SAPMcnums[x]['cnums'] = list(range(nclusterdict[x]['nclusters']))
 
+            self.SAPMcnumsbox.delete(0, 'end')
+            # self.SAPMcnumlist = [self.SAPMcnums[x]['cnums'][0] for x in range(len(self.SAPMcnums))]
+            self.SAPMcnumtext = self.SAPMcreatecnumtext(self.SAPMcnums, self.SAPMfullyconnected)
+            self.SAPMcnumsbox.insert(0, self.SAPMcnumtext)
         except:
             print('valid network file not yet defined - cannot check if number of clusters entered matches the network')
+
+        print('cnums = {}'.format(cnums))
+        print('cnumtext = {}'.format(cnumtext))
 
         settings['SAPMcnums'] = self.SAPMcnums
         settings['SAPMfullyconnected'] = self.SAPMfullyconnected
 
         # write the result to the label box for display
         self.SAPMcnumsbox.delete(0, 'end')
-        self.SAPMcnumsbox.insert(0, self.SAPMcnums)
+        # self.SAPMcnumlist = [self.SAPMcnums[x]['cnums'][0] for x in range(len(self.SAPMcnums))]
+        self.SAPMcnumsbox.insert(0, self.SAPMcnumtext)
 
         self.SAPMkeyinfo1.config(text=' ', fg='gray')
         np.save(settingsfile, settings)
@@ -7702,6 +7787,11 @@ class SAPMFrame:
 
         self.SAPMupdate_network_info()
 
+        # change format of cnums - Nov 30 2024
+        if type(self.SAPMcnums[0]) != dict:
+            temp = [{'cnums':[x]} for x in self.SAPMcnums]
+            self.SAPMcnums = copy.deepcopy(temp)
+
         xls = pd.ExcelFile(self.DBname, engine='openpyxl')
         df1 = pd.read_excel(xls, 'datarecord')
 
@@ -7724,9 +7814,10 @@ class SAPMFrame:
         search_data_file = os.path.join(self.SAPMresultsdir,'SAPM_search_parameters.npy')
 
         if self.SAPMrandomclusterstart > 0:
-            clusterstart = []
+            nclusterlist = [cluster_properties[i]['nclusters'] for i in range(len(cluster_properties))]
+            clusterstart = [{'cnums':list(range(x))} for x in nclusterlist]   # use all clusters
         else:
-            clusterstart = self.SAPMcnums
+            clusterstart = copy.deepcopy(self.SAPMcnums)
         print('SAPMrandomclusterstart = {}'.format(self.SAPMrandomclusterstart))
         print('clusterstart set to {}'.format(clusterstart))
         np.save(search_data_file, {'SAPMresultsdir':self.SAPMresultsdir, 'SAPMresultsname':SAPMresultsname, 'SAPMparamsname':SAPMparamsname,
@@ -7768,10 +7859,15 @@ class SAPMFrame:
                                         levelthreshold= self.SAPMlevelthreshold, leveliter=self.SAPMleveliter, leveltrials=self.SAPMleveltrials,
                                         run_whole_group = self.SAPMgrouplevel)
 
-        self.SAPMcnums = copy.deepcopy(list(best_clusters))
+        self.SAPMcnums = copy.deepcopy(best_clusters)
         self.SAPMcnumsbox.delete(0, 'end')
-        self.SAPMcnumsbox.insert(0, self.SAPMcnums)
-        message_text = 'Best clusters appear to be\n{}\nstarting clusters were\n{}'.format(self.SAPMcnums,clusterstart)
+        # self.SAPMcnumlist = [self.SAPMcnums[x]['cnums'][0] for x in range(len(self.SAPMcnums))]
+        self.SAPMcnumtext = self.SAPMcreatecnumtext(self.SAPMcnums, self.SAPMfullyconnected)
+        self.SAPMcnumsbox.insert(0, self.SAPMcnumtext)
+        # clusterstartlist = [clusterstart[x]['cnums'][0] for x in range(len(clusterstart))]
+        best_cluster_summary = [best_clusters[x]['cnums'][0] for x in range(len(best_clusters))]
+        clusterstart_summary = [clusterstart[x]['cnums'][0] for x in range(len(clusterstart))]
+        message_text = 'Best clusters appear to be\n{}\nstarting clusters were\n{}'.format(best_cluster_summary,clusterstart_summary)
         self.SAPMkeyinfo1.config(text = message_text, fg = 'red')
         settings['SAPMcnums'] = self.SAPMcnums
         np.save(settingsfile,settings)
@@ -7790,52 +7886,62 @@ class SAPMFrame:
         self.SAPMresultsdir = settings['SAPMresultsdir']
         self.SAPMregionname = settings['SAPMregionname']
         self.networkmodel = settings['networkmodel']
+        self.SAPMclustername = settings['SAPMclustername']
+        self.SAPMparamsname = settings['SAPMparamsname']
+        self.SAPMresultsname = settings['SAPMresultsname']
+        self.SAPMresultsdir = settings['SAPMresultsdir']
+        self.SAPMresumerun = settings['SAPMresumerun']
 
-        self.SAPMcnums = settings['SAPMcnums']
-        # self.DBname = settings['DBname']
-        # self.DBnum = settings['DBnum']
-        # self.networkmodel = settings['networkmodel']
-        # self.SAPMclustername = settings['SAPMclustername']
-        # self.SAPMresultsname = settings['SAPMresultsname']
-        # self.SAPMupdate_network_info()
-        #
-        # xls = pd.ExcelFile(self.DBname, engine='openpyxl')
-        # df1 = pd.read_excel(xls, 'datarecord')
-        #
-        # normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
-        # resolution = 1
-        # template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = \
-        #     load_templates.load_template_and_masks(normtemplatename, resolution)
-        #
-        # region_data = np.load(self.SAPMregionname, allow_pickle=True).flat[0]
-        # region_properties = region_data['region_properties']
-        #
-        # cluster_data = np.load(self.SAPMclustername, allow_pickle=True).flat[0]
-        # cluster_properties = cluster_data['cluster_properties']
-        #
-        # print('running search for best clusters to use with SAPM ...')
-        #
-        # SAPMresultsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
-        # SAPMparamsname = os.path.join(self.SAPMresultsdir, self.SAPMparamsname)
+        self.SAPMtimepoint = settings['SAPMtimepoint']
+        self.SAPMepoch = settings['SAPMepoch']
 
-        # search_data_file = os.path.join(self.SAPMresultsdir, 'SAPM_search_parameters.npy')
+        self.SAPMcharacteristicscount = settings['SAPMcharacteristicscount']
+        self.SAPMcharacteristicslist = settings['SAPMcharacteristicslist']
+        self.SAPMcharacteristicsvalues = settings['SAPMcharacteristicsvalues']
 
-        if self.SAPMrandomclusterstart > 0:
-            clusterstart = []
-        else:
-            clusterstart = self.SAPMcnums
+        p,f1 = os.path.split(self.networkmodel)
+        net_f,e = os.path.splitext(f1)
+        p,f1 = os.path.split(self.SAPMregionname)
+        reg_f,e = os.path.splitext(f1)
 
+        # use the first covariate in the list, if it is defined
+        if len(self.SAPMcharacteristicslist) > 0:
+            covname = self.SAPMcharacteristicslist[0]
+            covvals = self.SAPMcharacteristicsvalues[0,:]
+            print('using covariate {} with {} values'.format(covname, np.shape(covvals)))
 
-        best_clusters = pysapm.cluster_search_pca(self.SAPMregionname, self.networkmodel, initial_clusters=clusterstart)
+        savename = os.path.join(self.SAPMresultsdir, net_f + reg_f + '.npy')
 
-        self.SAPMcnums = copy.deepcopy(list(best_clusters))
+        best_clusters = pypcaid.search_by_pca(savename, self.SAPMregionname, self.SAPMclustername, self.SAPMparamsname, self.networkmodel,
+                      leaveout=[], np_step=1, timepoint=self.SAPMtimepoint, epoch=self.SAPMepoch, covariate = covvals, resume = self.SAPMresumerun)
+
+        self.SAPMcnums = copy.deepcopy(best_clusters)
+        self.SAPMfullyconnected = False
         self.SAPMcnumsbox.delete(0, 'end')
-        self.SAPMcnumsbox.insert(0, self.SAPMcnums)
-        message_text = 'Best clusters appear to be\n{}\nstarting clusters were\n{}'.format(self.SAPMcnums,clusterstart)
+        # self.SAPMcnumlist = [self.SAPMcnums[x]['cnums'][0] for x in range(len(self.SAPMcnums))]
+        self.SAPMcnumtext = self.SAPMcreatecnumtext(self.SAPMcnums, self.SAPMfullyconnected)
+        self.SAPMcnumsbox.insert(0, self.SAPMcnumtext)
+        best_cluster_summary = [best_clusters[x]['cnums'][0] for x in range(len(best_clusters))]
+        message_text = 'Best clusters appear to be\n{}'.format(best_cluster_summary)
         self.SAPMkeyinfo1.config(text = message_text, fg = 'red')
+
         settings['SAPMcnums'] = self.SAPMcnums
+        settings['SAPMfullyconnected'] = self.SAPMfullyconnected
         np.save(settingsfile,settings)
 
+
+    # action when checkboxes are selected/deselected
+    def SAPMresumecheck(self):
+        settings = np.load(settingsfile, allow_pickle=True).flat[0]
+        self.SAPMresumerun = self.var7.get() == 1
+        settings['SAPMresumerun'] = self.SAPMresumerun
+        np.save(settingsfile, settings)
+        if self.SAPMresumerun:
+            print('choice to resume previous SAPM run set to ',self.SAPMresumerun)
+            print('     previous in-progress data will be reloaded and run will be resumed from closest possible point')
+        else:
+            print('choice to resume previous SAPM run set to ',self.SAPMresumerun)
+        return self
 
 
     def SAPMrunnetwork(self):
@@ -7858,7 +7964,7 @@ class SAPMFrame:
         self.SAPMLweight = settings['SAPMLweight']
         self.SAPMgrouplevel= settings['SAPMgrouplevel']
         self.SAPMfullyconnected = settings['SAPMfullyconnected']
-        # self.SEMresumerun = settings['SEMresumerun']
+        self.SAPMresumerun = settings['SAPMresumerun']
         self.SAPMkeyinfo1.config(text=' ', fg='gray')
 
         self.SAPMupdate_network_info()
@@ -7885,12 +7991,13 @@ class SAPMFrame:
         SAPMresultsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
         SAPMparamsname = os.path.join(self.SAPMresultsdir, self.SAPMparamsname)
 
-        multiple_output = copy.deepcopy(self.SAPMfullyconnected)
+        fully_connected = copy.deepcopy(self.SAPMfullyconnected)
         pysapm.SAPMrun_V2(self.SAPMcnums, self.SAPMregionname, self.SAPMclustername,
                        SAPMresultsname, SAPMparamsname, self.networkmodel, self.SAPMtimepoint,
                        self.SAPMepoch, self.SAPMbetascale, self.SAPMLweight, self.SAPMalphascale,
                        self.SAPMleveltrials, self.SAPMleveliter, self.SAPMlevelthreshold,
-                       reload_existing=False, multiple_output = multiple_output, run_whole_group = self.SAPMgrouplevel)
+                       reload_existing=False, fully_connected = fully_connected, run_whole_group = self.SAPMgrouplevel,
+                       resumerun = self.SAPMresumerun)
 
         # get beta values and save for future betascale (initializing beta values)
         if self.SAPMsavebetainit:
@@ -8147,6 +8254,14 @@ class SAPMFrame:
         keylist = settings.keys()
         # if 'SAPMcnums' in keylist:
         self.SAPMcnums = settings['SAPMcnums']
+        self.SAPMfullyconnected = settings['SAPMfullyconnected']
+
+        # change format of cnums - Nov 30 2024
+        if type(self.SAPMcnums[0]) != dict:
+            temp = [{'cnums':[x]} for x in self.SAPMcnums]
+            self.SAPMcnums = copy.deepcopy(temp)
+            settings['SAPMcnums'] = copy.deepcopy(self.SAPMcnums)
+
         self.SAPMresultsdir = settings['SAPMresultsdir']
         self.SAPMresultsname = settings['SAPMresultsname']
         # self.SAPMresultsdir2 =  ''
@@ -8177,6 +8292,9 @@ class SAPMFrame:
         # settings['SAPMtimepoint'] = self.SAPMtimepoint
         # settings['SAPMepoch'] = self.SAPMepoch
         self.SAPMtimetext = str(self.SAPMtimepoint)
+
+        self.SAPMgroupdata = False
+        settings['SAPMgroupdata'] = self.SAPMgroupdata
 
         if 'SAPMsavebetainit' not in list(settings.keys()): settings['SAPMsavebetainit'] = False
         self.SAPMsavebetainit = settings['SAPMsavebetainit']
@@ -8283,7 +8401,9 @@ class SAPMFrame:
         self.SAPMcnumslabel.grid(row=rownum, column=1, sticky='N')
         self.SAPMcnumsbox = tk.Entry(self.parent, width = 30, bg="white",justify = 'right')
         self.SAPMcnumsbox.grid(row=rownum, column=2, sticky='N')
-        self.SAPMcnumsbox.insert(0,self.SAPMcnums)
+        # self.SAPMcnumlist = [self.SAPMcnums[x]['cnums'][0] for x in range(len(self.SAPMcnums))]
+        self.SAPMcnumtext = self.SAPMcreatecnumtext(self.SAPMcnums, self.SAPMfullyconnected)
+        self.SAPMcnumsbox.insert(0,self.SAPMcnumtext)
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
         self.SAPMcnumssubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SAPMcnumssubmitaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SAPMcnumssubmit.grid(row=rownum, column=3, sticky='N')
@@ -8455,7 +8575,7 @@ class SAPMFrame:
         self.SAPMgroupdata1.grid(row=rownum, column=2, columnspan = 1, sticky='E')
 
         # label, button, for running the definition of clusters, and loading data
-        self.SAPMrunsearchbutton = tk.Button(self.parent, text="Search Best clusters?", width=bigbigbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
+        self.SAPMrunsearchbutton = tk.Button(self.parent, text="Step Cluster Search", width=bigbigbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
                                         command=self.SAPMbestclusters, relief='raised', bd=5, highlightbackground = widgetbg)
         self.SAPMrunsearchbutton.grid(row=rownum, column=3, columnspan = 2, sticky='W')
 
@@ -8464,11 +8584,11 @@ class SAPMFrame:
 
 
         # label, button, for running the definition of clusters, and loading data
-        include_PCA_option  =False
+        include_PCA_option = True
         if include_PCA_option:
-            self.SAPMrunsearchbutton2 = tk.Button(self.parent, text="PCA clusters?", width=bigbigbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
+            self.SAPMrunsearchbutton2 = tk.Button(self.parent, text="PCA Cluster ID", width=bigbigbuttonsize, bg=fgcol2, fg = fgletter2, font = widgetfont,
                                             command=self.SAPMbestclusters_pca, relief='raised', bd=5, highlightbackground = widgetbg)
-            self.SAPMrunsearchbutton2.grid(row=rownum, column=3, columnspan = 2, sticky='W')
+            self.SAPMrunsearchbutton2.grid(row=rownum, column=5, columnspan = 2, sticky='W')
 
 
         rownum = 20
@@ -8487,12 +8607,35 @@ class SAPMFrame:
                                         command=self.SAPMrunnetwork, relief='raised', bd=5, highlightbackground = widgetbg)
         self.SAPMrunnetworkbutton.grid(row=rownum, column=3, columnspan = 2, sticky='W')
 
+        # check to indicate to resume a failed run
+        self.var7 = tk.IntVar()
+        self.SAPMresumebox = tk.Checkbutton(self.parent, text = 'Resume previous', width = bigbigbuttonsize, fg = fgletter2,
+                                          command = self.SAPMresumecheck, variable = self.var7, highlightbackground = widgetbg)
+        self.SAPMresumebox.grid(row = rownum, column = 5, sticky="E")
+
 
 
 #-----------SAPM Results FRAME--------------------------------------------------
 # Definition of the frame that has inputs for viewing the results of SAPM analysis
 class SAPMResultsFrame:
 
+    def SRcreatecnumtext(self, cnums, fully_connected):
+        cnumtext = ''
+        for x in range(len(cnums)):
+            if fully_connected:
+                shorttext = ''
+                if cnums[x]['cnums'][0] == 'all':
+                    shorttext = 'all,'
+                else:
+                    for xx in cnums[x]['cnums']:
+                        shorttext += '{},'.format(xx)
+                cnumtext += '[{}],'.format(shorttext[:-1])
+            else:
+                cnumtext += '{},'.format(cnums[x]['cnums'][0])
+        cnumtext = cnumtext[:-1]
+
+        return cnumtext
+    
     # define functions before they are used in the database frame------------------------------------------
     # action when the button to browse for a DB fie is pressed
     def SRupdatevaluesclick(self):
@@ -8510,7 +8653,9 @@ class SAPMResultsFrame:
 
         # np.save(settingsfile,settings)
         self.SRnetnametext.set(self.networkmodel)
-        self.SRcnumtext.set(self.SAPMcnums)
+        # self.SAPMcnumlist = [self.SAPMcnums[x]['cnums'][0] for x in range(len(self.SAPMcnums))]
+        self.SAPMcnumtext = self.SRcreatecnumtext(self.SAPMcnums, self.SAPMfullyconnected)
+        self.SRcnumtext.set(self.SAPMcnumtext)
         self.SRresultsdirtext.set(self.SRresultsdir)
         self.SRresultsnametext.set(self.SRresultsname)
         self.SRresultsnametext2.set(self.SRresultsname2)
@@ -8525,7 +8670,7 @@ class SAPMResultsFrame:
         # update network
         self.SRtargetregion_opt.destroy()  # remove it
         try:
-            network, nclusterlist, sapm_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base \
+            network, nclusterdict, sapm_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base \
                 = pysapm.load_network_model_w_intrinsics(self.networkmodel)
             region_list = [x for x in sapm_region_list if 'intrinsic' not in x]
             nregions = len(region_list)
@@ -8576,12 +8721,21 @@ class SAPMResultsFrame:
         try:
             results = np.load(self.SRresultsname,allow_pickle=True)
             params = np.load(self.SRparamsname,allow_pickle=True).flat[0]
-            nclusterlist = params['nclusterlist']
+            nclusterlist = copy.deepcopy(params['nclusterlist'])
             full_rnum_base = [np.sum(nclusterlist[:x]) for x in range(len(nclusterlist))]
-            clusterlist = results[0]['clusterlist']
-            self.SAPMcnums = (np.array(clusterlist) - np.array(full_rnum_base)).astype(int)
+            clusterlist = copy.deepcopy(results[0]['clusterlist'])
+            self.SAPMcnums = copy.deepcopy(results[0]['cnums'])
+
+            # self.SAPMcnumlist = (np.array(clusterlist) - np.array(full_rnum_base)).astype(int)
+            # self.SAPMcnums = [{'cnums':[]} for x in range(len(nclusterlist))] # initialise
+            # for x in range(len(clusterlist)):
+            #     rnum = np.where(clusterlist[x] >= full_rnum_base)[0][-1]
+            #     self.SAPMcnums[rnum]['cnums'] += [clusterlist[x] - full_rnum_base[rnum]]
+
             settings['SAPMcnums'] = copy.deepcopy(list(self.SAPMcnums))
-            self.SRcnumtext.set(self.SAPMcnums)
+            # self.SAPMcnumlist = [self.SAPMcnums[x]['cnums'][0] for x in range(len(self.SAPMcnums))]
+            self.SAPMcnumtext = self.SRcreatecnumtext(self.SAPMcnums, self.SAPMfullyconnected)
+            self.SRcnumtext.set(self.SAPMcnumtext)
         except:
             print('cluster numbers could not be updated based on filenames set for results and parameters')
 
@@ -8647,12 +8801,19 @@ class SAPMResultsFrame:
         try:
             results = np.load(self.SRresultsname, allow_pickle=True)
             params = np.load(self.SRparamsname, allow_pickle=True).flat[0]
-            nclusterlist = params['nclusterlist']
+            nclusterlist = copy.deepcopy(params['nclusterlist'])
             full_rnum_base = [np.sum(nclusterlist[:x]) for x in range(len(nclusterlist))]
-            clusterlist = results[0]['clusterlist']
-            self.SAPMcnums = (np.array(clusterlist) - np.array(full_rnum_base)).astype(int)
-            settings['SAPMcnums'] = copy.deepcopy(list(self.SAPMcnums))
-            self.SRcnumtext.set(self.SAPMcnums)
+            clusterlist = copy.deepcopy(results[0]['clusterlist'])
+            self.SAPMcnums = copy.deepcopy(results[0]['cnums'])
+            settings['SAPMcnums'] = copy.deepcopy(self.SAPMcnums)
+
+            # self.SAPMcnumlist = [self.SAPMcnums[x]['cnums'][0] for x in range(len(self.SAPMcnums))]
+            self.SAPMcnumtext = self.SRcreatecnumtext(self.SAPMcnums, self.SAPMfullyconnected)
+            self.SRcnumtext.set(self.SAPMcnumtext)
+            # self.SAPMfullyconnected = False
+            # for x in range(len(cnums)):
+            #     if len(cnums[x]['cnums']) > 1:
+            #         self.SAPMfullyconnected = True
         except:
             print('cluster numbers could not be updated based on filenames set for results and parameters')
 
@@ -8963,12 +9124,12 @@ class SAPMResultsFrame:
         print('SRnametag:  {}'.format(self.SRnametag))
         # print('SRvariant:  {}'.format(self.SRvariant))
 
-        multiple_output = copy.deepcopy(self.SAPMfullyconnected)
+        fully_connected = copy.deepcopy(self.SAPMfullyconnected)
 
         # self.SRPlotFigure = 123
         outputname = pysapm.display_SAPM_results(123, self.SRnametag, self.covariatesvalues, self.SRoptionvalue,
                             self.SRresultsdir, self.SRparamsname, self.SRresultsname,
-                            self.SRgroup, self.SRtargetregion, self.SRpvalue, self.SRstatsname, [], self.SRCanvas, True, multiple_output,
+                            self.SRgroup, self.SRtargetregion, self.SRpvalue, self.SRstatsname, [], self.SRCanvas, True, fully_connected,
                             self.SRresultsname2, self.SRparamsname2, self.covariatesvalues2)
 
         if ('Plot' in self.SRoptionvalue):     # or ('Draw' in self.SRoptionvalue)
@@ -8976,7 +9137,7 @@ class SAPMResultsFrame:
             # self.SRPlotFigure = 124
             outputname = pysapm.display_SAPM_results(124, self.SRnametag, self.covariatesvalues, self.SRoptionvalue,
                                 self.SRresultsdir, self.SRparamsname, self.SRresultsname,
-                                self.SRgroup, self.SRtargetregion, self.SRpvalue, self.SRstatsname, [], 'none', False, multiple_output = multiple_output,
+                                self.SRgroup, self.SRtargetregion, self.SRpvalue, self.SRstatsname, [], 'none', False, fully_connected = fully_connected,
                                 SRresultsname2 = '', SRparametersname2 = '', covariates2 = [])
 
         if self.SRoptionvalue == 'DrawSAPMdiagram':
@@ -9000,16 +9161,16 @@ class SAPMResultsFrame:
             statname = self.SRBcolumn
             figurenumber = 200
             scalefactor = 'auto'
-            cnums = self.SAPMcnums
+            cnums = copy.deepcopy(self.SAPMcnums)
             threshold_text = self.SRthresholdtext
             writefigure = True
 
             regions = pysapm.define_drawing_regions_from_file(drawregionsfile)
-            # multiple_output = False
+            # fully_connected = False
 
             print('SRgenerateoutput: regions = {}'.format(regions))
 
-            # if multiple_output:
+            # if fully_connected:
             #     outputname = pysapm.draw_sapm_plot(results_file, sheetname, regionnames, regions, statname,
             #                                        figurenumber, scalefactor, cnums, threshold_text, writefigure)
             # else:
@@ -9020,37 +9181,45 @@ class SAPMResultsFrame:
 
         if  'DrawAnatomy' in self.SRoptionvalue:
             clusterdataname = self.SAPMclustername
-            targetcluster_list = self.SAPMcnums
-            network, nclusterlist, region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base = pysapm.load_network_model_w_intrinsics(self.networkmodel)
+            targetcluster_list = copy.deepcopy(self.SAPMcnums)
+            network, nclusterdict, region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base = pysapm.load_network_model_w_intrinsics(self.networkmodel)
             rnamelist = [r for r in region_list if 'intrinsic' not in r]
-            ncluster_list = np.array([nclusterlist[x]['nclusters'] for x in range(len(nclusterlist))])
+            nclusterlist = np.array([nclusterdict[x]['nclusters'] for x in range(len(nclusterdict))])
 
-            if multiple_output:
+            if fully_connected:
                 rnamelist_fc = []
                 targetcluster_list_fc = []
                 for nc1 in range(len(rnamelist)):
-                    for nc2 in range(ncluster_list[nc1]):
+                    for nc2 in range(nclusterlist[nc1]):
                         rnamelist_fc += [rnamelist[nc1]]
                         targetcluster_list_fc += [nc2]
                         print('creating anatomy figures for {} cluster {}'.format(rnamelist_fc[-1],targetcluster_list_fc[-1]))
                 rnamelist = copy.deepcopy(rnamelist_fc)
                 targetcluster_list = copy.deepcopy(targetcluster_list_fc)
+            else:
+                target_clusterlist_nfc = []
+                for nc1 in range(len(rnamelist)):
+                    target_clusterlist_nfc += [targetcluster_list[nc1]['cnums'][0]]
+                targetcluster_list = copy.deepcopy(target_clusterlist_nfc)
 
             xls = pd.ExcelFile(self.DBname, engine='openpyxl')
             df1 = pd.read_excel(xls, 'datarecord')
             normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
 
             print('SRgenerateoutput: clusterdataname = {}'.format(clusterdataname))
+            print('SRgenerateoutput: targetcluster_list = {}'.format(targetcluster_list))
             print('SRgenerateoutput: rnamelist = {}'.format(rnamelist))
 
             if self.SRoptionvalue == 'DrawAnatomy_axial':
                 for nn, targetname in enumerate(rnamelist):
-                    outputimg, outputname = pysapm.display_anatomical_cluster(clusterdataname, targetname, targetcluster_list[nn], orientation = 'axial',
+                    print('DrawAnatomy_axial:  nn = {}  targetname = {}   targetcluster = {}'.format(nn,targetname, targetcluster_list[nn]))
+                    outputimg, outputname = pysapm.display_anatomical_cluster(clusterdataname, self.networkmodel, targetname, targetcluster_list[nn], orientation = 'axial',
                                                       regioncolor = [0,1,1], templatename = normtemplatename, write_output = True)
 
             if self.SRoptionvalue == 'DrawAnatomy_sagittal':
                 for nn, targetname in enumerate(rnamelist):
-                    outputimg, outputname = pysapm.display_anatomical_cluster(clusterdataname, targetname, targetcluster_list[nn], orientation = 'sagittal',
+                    print('DrawAnatomy_sagittal:  nn = {}  targetname = {}   targetcluster = {}'.format(nn,targetname, targetcluster_list[nn]))
+                    outputimg, outputname = pysapm.display_anatomical_cluster(clusterdataname, self.networkmodel, targetname, targetcluster_list[nn], orientation = 'sagittal',
                                                       regioncolor = [0,1,1], templatename = normtemplatename, write_output = True)
 
 
@@ -9158,7 +9327,15 @@ class SAPMResultsFrame:
 
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         keylist = settings.keys()
-        self.SAPMcnums = settings['SAPMcnums']
+        self.SAPMcnums = copy.deepcopy(settings['SAPMcnums'])
+        self.SAPMfullyconnected = copy.deepcopy(settings['SAPMfullyconnected'])
+
+        # change format of cnums - Nov 30 2024
+        if type(self.SAPMcnums[0]) != dict:
+            temp = [{'cnums':[x]} for x in self.SAPMcnums]
+            self.SAPMcnums = copy.deepcopy(temp)
+            settings['SAPMcnums'] = copy.deepcopy(self.SAPMcnums)
+
         self.SAPMresultsdir = settings['SAPMresultsdir']
         # self.SAPMresultsdir2 = settings['SAPMresultsdir2']
         self.SAPMresultsname = settings['SAPMresultsname']
@@ -9246,7 +9423,9 @@ class SAPMResultsFrame:
         self.SRL0.grid(row=rownum+1, column=columnum, sticky='W')
         # make a label to show the current setting of the network definition file name
         self.SRcnumtext = tk.StringVar()
-        self.SRcnumtext.set(self.SAPMcnums)
+        # self.SAPMcnumlist = [self.SAPMcnums[x]['cnums'][0] for x in range(len(self.SAPMcnums))]
+        self.SAPMcnumtext = self.SRcreatecnumtext(self.SAPMcnums, self.SAPMfullyconnected)
+        self.SRcnumtext.set(self.SAPMcnumtext)
         self.SRcnumtextbox = tk.Label(self.parent, textvariable=self.SRcnumtext, bg=bgcol, fg="#4B4B4B", font = infofont,
                                      wraplength=300, justify='left')
         self.SRcnumtextbox.grid(row=rownum+2, column=columnum, columnspan=1, sticky='W')
@@ -9431,7 +9610,7 @@ class SAPMResultsFrame:
         # specify target region for generating outputs (if applicable)
         rownum = 9
         try:
-            network, nclusterlist, sapm_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base \
+            network, nclusterdict, sapm_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base \
                 = pysapm.load_network_model_w_intrinsics(self.networkmodel)
             region_list = [x for x in sapm_region_list if 'intrinsic' not in x]
             region_list_full = copy.deepcopy(region_list)
