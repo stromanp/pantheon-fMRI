@@ -2314,6 +2314,7 @@ def sem_physio_model1_V4(cnums, fintrinsic_base, SAPMresultsname, SAPMparameters
             if np.ndim(beta_initial1) > 1:   # beta_initial1 had to have been saved as size nbeta x NP
                 beta_initial = 0.1*np.random.randn(nsteps_stage1,nbeta)
                 beta_initial[0,:] = copy.deepcopy(beta_initial1[:,nperson])
+
             else: # beta_initial1 had to have been saved as size nbeta
                 beta_initial = 0.1*np.random.randn(nsteps_stage1,nbeta)
                 beta_initial[0,:] = copy.deepcopy(beta_initial1)

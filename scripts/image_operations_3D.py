@@ -59,7 +59,7 @@ import nibabel as nib
 import copy
 
 
-def resize_3D(input_data, newsize, mode = 'nearest'):
+def resize_3D(input_data, newsize, mode = 'constant'):
     original_size = np.shape(input_data)
     matrix = [ [original_size[0]/newsize[0], 0, 0], 
               [0, original_size[1]/newsize[1], 0], 
@@ -69,7 +69,7 @@ def resize_3D(input_data, newsize, mode = 'nearest'):
     return output_image
 
 
-def resize_2D(input_data, newsize_input, mode = 'nearest'):
+def resize_2D(input_data, newsize_input, mode = 'constant'):
     original_size = np.shape(input_data)
     if np.ndim(newsize_input) == 0:
         newsize = np.floor(np.array(original_size)*newsize_input).astype(int)

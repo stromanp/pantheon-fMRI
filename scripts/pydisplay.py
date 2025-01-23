@@ -181,7 +181,7 @@ def pydisplaystatmap(Tmap, Tthreshold, template, mask,templatename):
             x2 = (colnum+1)*xs
             y1 = rownum*ys2
             y2 = (rownum+1)*ys2
-            # need to rotate each from by 90 degrees
+            # need to rotate each by 90 degrees
             redrot = red[:,yc1:yc2,zz];  redrot = redrot[:,::-1].T
             greenrot = green[:,yc1:yc2,zz];  greenrot = greenrot[:,::-1].T
             bluerot = blue[:,yc1:yc2,zz];  bluerot = bluerot[:,::-1].T
@@ -205,16 +205,18 @@ def pydisplayanatregions(templatename, anatnames, colorlist = []):
 
     nregions = len(anatnames)
     colsize = [3,nregions]
-    if colsize != np.array(colorlist).shape:
+    if np.ndim(colorlist) != 2:
         values = np.mgrid[-1:1:nregions*1j]
         r,g,b = colormap(values)
         colorlist = np.stack((r,g,b))
+        print('using colorlist: {}'.format(colorlist))
 
-    regionindices = np.zeros(nregions).astype(int)
+    regionindices = []
     for nn,name in enumerate(anatnames):
         try:
             rnum  = anatnamelist.index(name)
-            regionindices[nn] = anatlabels['numbers'][rnum]
+            numlist = [x for x in range(len(anatlabels['names'])) if anatlabels['names'][x] == name]
+            regionindices.append({'numlist':numlist, 'name':name})
         except:
             print('pydisplayanatregions: region ',name,' is not in the anatomical map (ignoring this region)')
             rnum = 0
@@ -226,8 +228,10 @@ def pydisplayanatregions(templatename, anatnames, colorlist = []):
     blue = copy.deepcopy(background)
 
     # color the regions
-    for nn,index in enumerate(regionindices):
-        if index > 0:
+    for nn in range(len(regionindices)):
+        numlist = copy.deepcopy(regionindices[nn]['numlist'])
+        for regionnum in numlist:
+            index = anatlabels['numbers'][regionnum]
             cx, cy, cz = np.where(regionmap_img == index)
             red[cx,cy,cz] = colorlist[0,nn]
             green[cx,cy,cz] = colorlist[1,nn]
@@ -245,11 +249,12 @@ def pydisplayanatregions(templatename, anatnames, colorlist = []):
 
         for zz in range(zs):
             colnum = zz % ncols
-            rownum = np.floor(zz/ncols)
-            x1 = rownum*xs
-            x2 = (rownum+1)*xs-1
-            y1 = colnum*ys
-            y2 = (colnum+1)*ys-1
+            rownum = np.floor(zz/ncols).astype(int)
+            x1 = colnum*xs
+            x2 = (colnum+1)*xs
+            y1 = rownum*ys
+            y2 = (rownum+1)*ys
+
             redrot = red[:,:,zz];  redrot = redrot[:,::-1].T
             greenrot = green[:,:,zz];  greenrot = greenrot[:,::-1].T
             bluerot = blue[:,:,zz];  bluerot = bluerot[:,::-1].T
