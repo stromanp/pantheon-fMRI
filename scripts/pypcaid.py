@@ -233,6 +233,8 @@ def search_by_pca(savename, regiondataname, clusterdataname, SAPMparametersname,
                 ncombostart = 0
         else:
             ncombostart = 0
+    else:
+        ncombostart = 0
 
     pca = sklearn.decomposition.PCA(n_components=n_components)
     for combonumber in range(ncombostart,ncombos):
