@@ -579,21 +579,25 @@ def analyze_pca_results(savename, excelsavename = ''):
 
 
     # look at clusters with top correlation with covariate
-    corr_sort = np.argsort(EVcorr_cov_record)
-    corr_sort = corr_sort[::-1]
-    for index in range(10):
-        cnums_corr_sorted = ind2sub_ndims(nclusterlist_small, corr_sort[index])
-        EV_corr_sorted = EVrecord_avg[corr_sort[index], :]
+    if len(EVcorr_cov_record) > 1:
+        corr_sort = np.argsort(EVcorr_cov_record)
+        corr_sort = corr_sort[::-1]
+        for index in range(10):
+            cnums_corr_sorted = ind2sub_ndims(nclusterlist_small, corr_sort[index])
+            EV_corr_sorted = EVrecord_avg[corr_sort[index], :]
 
-        text = 'number {} cnums: {}  EV  '.format(index, cnums_corr_sorted)
-        for vv in range(vintrinsic_count + 1):
-            text += '{:.4f}  '.format(EV_corr_sorted[vv])
+            text = 'number {} cnums: {}  EV  '.format(index, cnums_corr_sorted)
+            for vv in range(vintrinsic_count + 1):
+                text += '{:.4f}  '.format(EV_corr_sorted[vv])
 
-        if fintrinsic_count > 0:
-            EVf_corr_sorted = fixedlatent_EVrecord_avg[corr_sort[index]]
-            text += '   EVf {:.4f} '.format(EVf_corr_sorted)
+            if fintrinsic_count > 0:
+                EVf_corr_sorted = fixedlatent_EVrecord_avg[corr_sort[index]]
+                text += '   EVf {:.4f} '.format(EVf_corr_sorted)
 
-        print(text)
+            print(text)
+    else:
+        EV_corr_sorted = 0.0
+        EVf_corr_sorted = 0.0
 
     # write out the top combinations-----------------------------
     # create the headings

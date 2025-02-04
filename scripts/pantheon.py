@@ -7909,6 +7909,8 @@ class SAPMFrame:
             covname = self.SAPMcharacteristicslist[0]
             covvals = self.SAPMcharacteristicsvalues[0,:]
             print('using covariate {} with {} values'.format(covname, np.shape(covvals)))
+        else:
+            covvals = []
 
         savename = os.path.join(self.SAPMresultsdir, net_f + reg_f + '.npy')
 
