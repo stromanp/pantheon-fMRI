@@ -7972,16 +7972,18 @@ class SAPMFrame:
         self.SAPMupdate_network_info()
 
         SAPMresultsname = os.path.join(self.SAPMresultsdir, self.SAPMresultsname)
-        xls = pd.ExcelFile(self.DBname, engine='openpyxl')
-        df1 = pd.read_excel(xls, 'datarecord')
-
-        normtemplatename = df1.loc[self.DBnum[0], 'normtemplatename']
-        resolution = 1
-        template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = \
-            load_templates.load_template_and_masks(normtemplatename, resolution)
 
         region_data = np.load(self.SAPMregionname, allow_pickle=True).flat[0]
         region_properties = region_data['region_properties']
+        region_dbname = region_data['DBname']
+        region_dbnum = region_data['DBnum']
+
+        xls = pd.ExcelFile(region_dbname, engine='openpyxl')
+        df1 = pd.read_excel(xls, 'datarecord')
+        normtemplatename = df1.loc[region_dbnum[0], 'normtemplatename']
+        resolution = 1
+        template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = \
+            load_templates.load_template_and_masks(normtemplatename, resolution)
 
         cluster_data = np.load(self.SAPMclustername, allow_pickle=True).flat[0]
         cluster_properties = cluster_data['cluster_properties']

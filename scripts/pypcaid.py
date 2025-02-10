@@ -126,9 +126,9 @@ def search_by_pca(savename, regiondataname, clusterdataname, SAPMparametersname,
 
     n_components = vintrinsic_count + 1   # add one more for flexibility
 
-    if not os.path.isfile(SAPMparametersname):
-        pysapm.prep_data_sem_physio_model_SO_FC(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch,
-                                         cnums=cnums, run_whole_group=False, normalizevar=True, filter_tcdata=False)
+    # if not os.path.isfile(SAPMparametersname):
+    pysapm.prep_data_sem_physio_model_SO_FC(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch,
+                                     cnums=cnums, run_whole_group=False, normalizevar=True, filter_tcdata=False)
     #------------------------------
     # determine which cnums to use for the pruned network
     #  ... base this on the R2 of the fit to the original data
