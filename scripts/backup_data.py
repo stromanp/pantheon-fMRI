@@ -3,7 +3,7 @@ import numpy as np
 import os
 import shutil
 
-def backup_data(source_directory, target_directory, exclude = ['.IMA']):
+def backup_data(source_directory, target_directory, exclude = ['.IMA'], overwriteexisting = True):
     # makes a copy of the entire directory tree, excluding DICOM format files by default
     # change which files are excluded, if any, by changing the "exclude" input
     # i.e. exclude = [] to copy all files, or exclude = ['.docx','.pdf'] to exclude text docs etc.
@@ -23,5 +23,12 @@ def backup_data(source_directory, target_directory, exclude = ['.IMA']):
                 singlefile = os.path.join(dirName,filename)
                 new_singlefile = os.path.join(newdirName,filename)
 
-                print('copy {} to {}'.format(singlefile,new_singlefile))
-                shutil.copyfile(singlefile, new_singlefile)
+                if os.path.isfile(new_singlefile):
+                    if overwriteexisting:
+                        print('overwrite {} to {}'.format(singlefile,new_singlefile))
+                        shutil.copyfile(singlefile, new_singlefile)
+                    else:
+                        print('already exists - not overwriting: {}'.format(new_singlefile))
+                else:
+                    print('copy {} to {}'.format(singlefile,new_singlefile))
+                    shutil.copyfile(singlefile, new_singlefile)
