@@ -1176,7 +1176,7 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         coords_list[nn, 0:3]= result[nn]['coords']
 
     # getting ready to create a warping map for the entire image now
-    temp, ee = np.unique(coords_list[:,2], return_index = True);
+    temp, ee = np.unique(coords_list[:,2], return_index = True)
     # use a spline interpolation
     tck = interpolate.splrep(coords_list[ee, 2], coords_list[ee, 1], s=0)
     yy = interpolate.splev(range(zs2), tck, der=0)
@@ -1203,7 +1203,7 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         if Ymap_check | (fit_order[1] <= 2):
             found_stable = True
         else:
-            fit_order[1] = fit_order[1]-1
+            fit_order[1] -= 1
 
     print('py_auto_cord_normalize:  Found a stable warp field solution')
 
@@ -1620,7 +1620,7 @@ def define_sections(template_name, dataname):
 
         # cord sections
         dz = 13
-        ncsections = np.floor(121/dz).astype('int')
+        ncsections = np.floor(121/dz).astype('int') + 1   # add an extra 1 to account for curvature
 
         # initialize_section_defs
         single_def = {'name': 0, 'center': 0, 'dims': 0, 'xrot':0, 'yrot':0, 'pos_estimate': 0, 'fixdistance': 0, 'fixedpoint1': 0, 'fixedpoint2': 0, 'first_region_connection_point':0}
@@ -1669,7 +1669,7 @@ def run_rough_normalization_calculations(niiname, normtemplatename, template_img
         if t > reftime:
             t0 = reftime
         else:
-            t0=0
+            t0 = 0
         input_image = input_datar[:,:,:,t0]
     else:
         x,y,z = np.shape(input_datar)

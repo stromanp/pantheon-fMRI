@@ -7,8 +7,9 @@ import shutil
 import scipy.io
 
 # read mat file
-matname = r'D:\Howie_FM2_Brain_Data\participant_trait_and_experiment_data.mat'
-matname = r'Y:\pain_data_sets_brain\Howie_FM2_Brain_Data\participant_trait_and_experiment_data.mat'
+# matname = r'D:\Howie_FM2_Brain_Data\participant_trait_and_experiment_data.mat'
+# matname = r'Y:\pain_data_sets_brain\Howie_FM2_Brain_Data\participant_trait_and_experiment_data.mat'
+matname = r'F:\pain_data_sets\TwoPain\TwoPain_database.mat'
 
 sheetname = 'datarecord'
 # fieldnames = {'participantid', 'sex', 'gender', 'handedness', 'age', 'bmi', 'studygroup', 'STAI_Y_1', 'STAI_Y_2', 'SDS', 'BDS', 'PCS_Total', 'PCS_Rum', \

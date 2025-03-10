@@ -1677,7 +1677,7 @@ class NCFrame:
         dbnum = self.NCdatabasenum[0]
         dbhome = df1.loc[dbnum, 'datadir']
         fname = df1.loc[dbnum, 'niftiname']
-        seriesnumber = df1.loc[dbnum, 'seriesnumber']
+        seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
         normtemplatename = df1.loc[dbnum, 'normtemplatename']
         niiname = os.path.join(dbhome, fname)
 
@@ -1817,7 +1817,7 @@ class NCFrame:
         dbnum = self.NCdatabasenum[0]
         dbhome = df1.loc[dbnum, 'datadir']
         fname = df1.loc[dbnum, 'niftiname']
-        seriesnumber = df1.loc[dbnum, 'seriesnumber']
+        seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
         niiname = os.path.join(dbhome, fname)
         input_data, new_affine = i3d.load_and_scale_nifti(niiname)
         print('shape of input_data is ',np.shape(input_data))
@@ -1866,7 +1866,7 @@ class NCFrame:
             print('NCrunclick: databasenum ',dbnum)
             dbhome = df1.loc[dbnum, 'datadir']
             fname = df1.loc[dbnum, 'niftiname']
-            seriesnumber = df1.loc[dbnum, 'seriesnumber']
+            seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
             normtemplatename = df1.loc[dbnum, 'normtemplatename']
             niiname = os.path.join(dbhome, fname)
             fullpath, filename = os.path.split(niiname)
@@ -2126,7 +2126,7 @@ class NCFrame:
             dbnum = self.NCdatabasenum[0]
             dbhome = df1.loc[dbnum, 'datadir']
             fname = df1.loc[dbnum, 'niftiname']
-            seriesnumber = df1.loc[dbnum, 'seriesnumber']
+            seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
             niiname = os.path.join(dbhome, fname)
             input_data, new_affine = i3d.load_and_scale_nifti(niiname)
             print('shape of input_data is ', np.shape(input_data))
@@ -2158,13 +2158,15 @@ class NCFrame:
             print('NC manual override refresh: databasenum ', dbnum)
             dbhome = df1.loc[dbnum, 'datadir']
             fname = df1.loc[dbnum, 'niftiname']
-            seriesnumber = df1.loc[dbnum, 'seriesnumber']
+            seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
             normtemplatename = df1.loc[dbnum, 'normtemplatename']
+            normdataname = df1.loc[dbnum, 'normdataname']
             niiname = os.path.join(dbhome, fname)
             fullpath, filename = os.path.split(niiname)
             # prefix_niiname = os.path.join(fullpath,self.prefix+filename)
-            tag = '_s' + str(seriesnumber)
-            normdataname_full = os.path.join(fullpath, normdatasavename + tag + '.npy')
+            # tag = '_s' + str(seriesnumber)
+            # normdataname_full = os.path.join(fullpath, normdatasavename + tag + '.npy')
+            normdataname_full = os.path.join(dbhome, normdataname)
 
             resolution = 1
             # template_img, regionmap_img, template_affine, anatlabels = load_templates.load_template(normtemplatename, resolution)
@@ -2172,7 +2174,7 @@ class NCFrame:
                 normtemplatename, resolution)
             # still need to write the resulting normdata file name to the database excel file
 
-            normdata = {'T':T, 'Tfine':Tfine, 'warpdata':warpdata, 'reverse_map_image':reverse_map_image, 'norm_image_fine':norm_image_fine, 'template_affine':template_affine, 'imagerecord':imagerecord, 'result':result}
+            # normdata = {'T':T, 'Tfine':Tfine, 'warpdata':warpdata, 'reverse_map_image':reverse_map_image, 'norm_image_fine':norm_image_fine, 'template_affine':template_affine, 'imagerecord':imagerecord, 'result':result}
             normdata = np.load(normdataname_full, allow_pickle = True).flat[0]
 
             T = copy.deepcopy(normdata['T'])
@@ -2285,13 +2287,15 @@ class NCFrame:
             dbnum = self.NCdatabasenum[0]
             dbhome = df1.loc[dbnum, 'datadir']
             fname = df1.loc[dbnum, 'niftiname']
-            seriesnumber = df1.loc[dbnum, 'seriesnumber']
+            seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
             normtemplatename = df1.loc[dbnum, 'normtemplatename']
+            normdataname = df1.loc[dbnum, 'normdataname']
             niiname = os.path.join(dbhome, fname)
             fullpath, filename = os.path.split(niiname)
             # prefix_niiname = os.path.join(fullpath,self.prefix+filename)
-            tag = '_s' + str(seriesnumber)
-            normdataname_full = os.path.join(fullpath, normdatasavename + tag + '.npy')
+            # tag = '_s' + str(seriesnumber)
+            # normdataname_full = os.path.join(fullpath, normdatasavename + tag + '.npy')
+            normdataname_full = os.path.join(dbhome, normdataname)
 
             input_data, new_affine = i3d.load_and_scale_nifti(niiname)
             print('shape of input_data is ',np.shape(input_data))
@@ -2369,13 +2373,15 @@ class NCFrame:
         dbnum = self.NCdatabasenum[0]
         dbhome = df1.loc[dbnum, 'datadir']
         fname = df1.loc[dbnum, 'niftiname']
-        seriesnumber = df1.loc[dbnum, 'seriesnumber']
+        seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
         normtemplatename = df1.loc[dbnum, 'normtemplatename']
+        normdataname = df1.loc[dbnum, 'normdataname']
         niiname = os.path.join(dbhome, fname)
         fullpath, filename = os.path.split(niiname)
         # prefix_niiname = os.path.join(fullpath,self.prefix+filename)
-        tag = '_s' + str(seriesnumber)
-        normdataname_full = os.path.join(fullpath, normdatasavename + tag + '.npy')
+        # tag = '_s' + str(seriesnumber)
+        # normdataname_full = os.path.join(fullpath, normdatasavename + tag + '.npy')
+        normdataname_full = os.path.join(dbhome, normdataname)
 
         input_data, new_affine = i3d.load_and_scale_nifti(niiname)
         print('shape of input_data is ',np.shape(input_data))
@@ -2838,7 +2844,7 @@ class NCbrainFrame:
         dbnum = self.NCdatabasenum[0]
         dbhome = df1.loc[dbnum, 'datadir']
         fname = df1.loc[dbnum, 'niftiname']
-        seriesnumber = df1.loc[dbnum, 'seriesnumber']
+        seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
         niiname = os.path.join(dbhome, fname)
 
         # input_data, new_affine = i3d.load_and_scale_nifti(niiname)  # this also scales to 1 mm cubic voxels
@@ -2893,13 +2899,15 @@ class NCbrainFrame:
             print('NCrunclick: databasenum ', dbnum)
             dbhome = df1.loc[dbnum, 'datadir']
             fname = df1.loc[dbnum, 'niftiname']
-            seriesnumber = df1.loc[dbnum, 'seriesnumber']
+            seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
             normtemplatename = df1.loc[dbnum, 'normtemplatename']
+            normdataname = df1.loc[dbnum, 'normdataname']
             niiname = os.path.join(dbhome, fname)
             fullpath, filename = os.path.split(niiname)
             # prefix_niiname = os.path.join(fullpath,self.prefix+filename)
-            tag = '_s' + str(seriesnumber)
-            normdataname_full = os.path.join(fullpath, normdatasavename + tag + '.npy')
+            # tag = '_s' + str(seriesnumber)
+            # normdataname_full = os.path.join(fullpath, normdatasavename + tag + '.npy')
+            normdataname_full = os.path.join(dbhome, normdataname)
 
             # load the nifti data
             # input_datar, affiner = i3d.load_and_scale_nifti(niiname)

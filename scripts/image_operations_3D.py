@@ -57,6 +57,7 @@ from scipy import signal
 import math
 import nibabel as nib
 import copy
+import os
 
 
 def resize_3D(input_data, newsize, mode = 'constant'):
@@ -381,4 +382,23 @@ def load_and_scale_nifti(niiname):
     new_affine[:,1] = affine[:,1]/voxel_sizes[1]
     new_affine[:,2] = affine[:,2]/voxel_sizes[2]
     return input_datar, new_affine
+
+
+def create_avg_img(niiname):
+    p,f1 = os.path.split(niiname)
+    f,e= os.path.splitext(f1)
+    outputname = os.path.join(p,f+'_avg.nii')
+
+    input_datar, new_affine = load_and_scale_nifti(niiname)
+    ndims = np.ndim(input_datar)
+    if ndims == 3:
+        output_images = copy.deepcopy(input_datar)
+    if ndims == 4:
+        xs,ys,zs,ts = np.shape(input_datar)
+        if ts > 5:
+            output_images = np.mean(input_datar[:,:,:,3:],axis=3)
+        else:
+            output_images = np.mean(input_datar,axis=3)
+    resulting_img = nib.Nifti1Image(output_images, new_affine)
+    nib.save(resulting_img, outputname)
 
