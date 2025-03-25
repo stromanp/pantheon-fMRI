@@ -156,7 +156,7 @@ def check_settings_file(settingsfile):
                     'DBnumstring': 'none',
                     'NIbasename': 'Series',
                     'CRprefix': '',
-                    'NCparameters': [50, 50, 5, 6, -10, 20, -10, 10],
+                    'NCparameters': [50, 50, 5, 6, -16, 20, -16, 16],
                     'NCsavename': 'normdata',
                     'coreg_choice': 'Yes.',
                     'slicetime_choice': 'Yes.',
@@ -1330,7 +1330,7 @@ class NCFrame:
 
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         self.normdatasavename = settings['NCsavename']  # default prefix value
-        self.fitparameters = settings['NCparameters'] #  [50,50,5,6,-10,20,-10,10]  # default prefix value
+        self.fitparameters = settings['NCparameters'] #  [50,50,5,6,-16,20,-16,16]  # default prefix value
         self.fitp0 = self.fitparameters[0]
         self.fitp1 = self.fitparameters[1]
         self.fitp2 = self.fitparameters[2]

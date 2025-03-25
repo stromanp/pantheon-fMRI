@@ -96,7 +96,8 @@ def py_calculate_section_positions(template, img, section_defs, angle_list, pos_
 
     # section_defs relate to the template
     zpos = section_defs['center'][2]
-    dz = section_defs['dims'][2]
+    dz = section_defs['dims'][2]  # allow sections to run off the end of the template
+    if zpos < dz: zpos = dz
     zr = [zpos - dz, zpos + dz]
     ypos = section_defs['center'][1]
     dy = section_defs['dims'][1]
@@ -107,7 +108,7 @@ def py_calculate_section_positions(template, img, section_defs, angle_list, pos_
 
     dzm = dz
     dym = dy
-    zpos2 = zpos
+    zpos2 = copy.deepcopy(zpos)
     x1 = 0
     x2 = 2 * dx + 1
     y1 = 0
@@ -124,15 +125,6 @@ def py_calculate_section_positions(template, img, section_defs, angle_list, pos_
         if np.size(angle) < 1:
             angle = 0
         angley = 0
-        # dzm = dz
-        # dym = dy
-        # zpos2 = zpos
-        # x1 = 0
-        # x2 = 2*dx + 1
-        # y1 = dym - dy
-        # y2 = dym + dy
-        # z1 = dzm - dz
-        # z2 = dzm + dz
     else:
         if np.size(angle_estimate) == 0:
             angle_weight = np.ones((np.size(angle_list)))
@@ -140,18 +132,6 @@ def py_calculate_section_positions(template, img, section_defs, angle_list, pos_
             aw = angle_stiffness
             angle_diff = np.abs(angle_list - angle_estimate)
             angle_weight = 1/(aw*angle_diff + 1)
-
-        # dzm = dz
-        # dym = dy
-        # zpos2 = zpos
-        # x1 = 0
-        # x2 = 2 * dx + 1
-        # y1 = dym - dy
-        # y2 = dym + dy
-        # z1 = dzm - dz
-        # z2 = dzm + dz
-        # print('coords x ',x1,' ',x2,'  y ',y1,' ',y2,'  z ',z1,' ',z2)
-        # print('template coords x ',xpos-dx,' ',xpos+dx,'  y ',ypos-dym,' ',ypos+dym,'  z ',zpos2-dzm,' ',zpos2+dzm)
 
         # rotate the template if desired around xpos, ypos, zpos, then select
         # the rectangular region, and subtract / add the rotation angle from the result
@@ -206,6 +186,8 @@ def py_calculate_section_positions(template, img, section_defs, angle_list, pos_
                 imgRR = np.where(np.isnan(imgRR),0,imgRR)
                 # calculate the cross-correlation between the rotated image and the template section
                 cc = i3d.normxcorr3(imgRR/np.max(imgRR), temp, shape='same')
+
+                # print('py_calculate_section_positions: anglex {:.3f}  angley {:.3f}  pos_estimate: {}'.format(angle, angley, pos_estimate))
 
                 if np.size(pos_estimate) < 1:
                     pos_weight = np.ones((xs, ys, zs))
@@ -375,8 +357,7 @@ def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fi
     # else:
     #     vcenter_fixedpoint = section_defs['center'] - section_defs['fixedpoint1'] # vector from fixed_point to section center, in the template
     # correction --------------
-    vcenter_fixedpoint = section_defs['center'] - section_defs[
-        'fixedpoint1']  # vector from fixed_point to section center, in the template
+    vcenter_fixedpoint = section_defs['center'] - section_defs['fixedpoint1']  # vector from fixed_point to section center, in the template
 
     aw = angle_stiffness
     angle_diff = np.abs(angle_list - angle_estimate) # angle_estimate must be provided
@@ -459,7 +440,7 @@ def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fi
             imgRR = i3d.rotate3D(imgR, angley, fixedpoint, 1)
             R = np.corrcoef(temp[xc,yc,zc].flatten(), imgRR[xi,yi,zi].flatten())   # check on the form out output from np.corrcoef
             mlist[nn, mm] = R[0,1]
-            cclist[nn, mm, 0:3] = section_position  # this actually doesn't change
+            cclist[nn, mm, 0:3] = copy.deepcopy(section_position)  # this actually doesn't change
 
     w1 = angle_weight[:,np.newaxis]
     w2 = angley_weight[np.newaxis, :]
@@ -472,7 +453,7 @@ def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fi
         nc = nc[0]
         mc = mc[0]
     # bestposR = np.squeeze(cclist[nc, mc, 0:3])
-    bestposR = section_position  # the position in the rotated image is the same for every angle, it rotates around in the unrotated image
+    bestposR = copy.deepcopy(section_position)  # the position in the rotated image is the same for every angle, it rotates around in the unrotated image
     angle = angle_list[nc]
     angley = angley_list[mc]
 
@@ -491,12 +472,13 @@ def py_calculate_chainlink_positions(template, img, section_defs, angle_list, fi
     coords = bestpos   # coordinates of the section center in the non-rotated image
     coordsR = bestposR # coordinates of the section center in the rotated image
 
+    if (coords[2] < 7) or (coords[2] > zs-7):
+        map_success = False
+
     print('best angle = ',angle,' angley = ', angley)
     print('    angle prediction = ',angle_estimate)
     print('best position:  ',coords)
-
-    if (coords[2] < 10) or (coords[2] > zs-10):
-        map_success = False
+    print('map_success:  ',map_success)
 
     # get the coordinates for the template section and corresponding image location that it maps to
     # get the coordinates for the image, where the template section maps to
@@ -913,7 +895,7 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
         angle_stiffness = fit_parameters[2]
 
         nsearchvalues = np.round((fit_parameters[5] - fit_parameters[4]) / 2 + 1).astype('int')
-        if nsearchvalues > 11: nsearchvalues = 11
+        # if nsearchvalues > 11: nsearchvalues = 11
         angle_list = np.linspace(fit_parameters[4],fit_parameters[5],nsearchvalues)
         # angle_list = np.linspace(fit_parameters[4],fit_parameters[5],np.round((fit_parameters[5]-fit_parameters[4])/2 + 1).astype('int'))
 
@@ -1036,6 +1018,7 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
     resultsplot = []
     dtor = np.pi/180   # convert degrees to radians
     ncordsegments = np.size(section_defs) - ninitial_fixed_segments
+    print('py_auto_cord_normalize:  ncordsegments = {}'.format(ncordsegments))
     for ss in range(ncordsegments):
         position_stiffness = fit_parameters[1]
         angle_stiffness = fit_parameters[3]
@@ -1571,7 +1554,7 @@ def define_sections(template_name, dataname):
 
         thoracic_start_ref_pos = Mapped_coords
         section_defs[0]['start_ref_pos'] = np.round(thoracic_start_ref_pos).astype('int')
-        section_defs[0]['start_angle'] = refdata['warpdata'][11]['angle']
+        section_defs[0]['start_angle'] = refdata['warpdata'][-1]['angle']
         section_defs[0]['pos_estimate'] = thoracic_start_ref_pos
         section_defs[0]['fixdistance'] = 1
         section_defs[0]['xrot'] = 0
@@ -1586,7 +1569,7 @@ def define_sections(template_name, dataname):
         FOV = hdr['pixdim'][1:4]*hdr['dim'][1:4]
         pos_estimate = [FOV[0]/2, FOV[1]/2, np.round(FOV[2]*0.75)]
         # put the initial sections anywhere in the right half of the image
-        first_region_connection_point = np.array([12, 31, 122]); # point on the section that links to the first cord section
+        first_region_connection_point = np.array([12, 31, 122]) # point on the section that links to the first cord section
 
         # define template sections
         # ccbs template sections, 1mm resolution
@@ -1620,7 +1603,7 @@ def define_sections(template_name, dataname):
 
         # cord sections
         dz = 13
-        ncsections = np.floor(121/dz).astype('int') + 1   # add an extra 1 to account for curvature
+        ncsections = np.floor(121/dz).astype('int') + 3   # add an extra 3 to account for curvature
 
         # initialize_section_defs
         single_def = {'name': 0, 'center': 0, 'dims': 0, 'xrot':0, 'yrot':0, 'pos_estimate': 0, 'fixdistance': 0, 'fixedpoint1': 0, 'fixedpoint2': 0, 'first_region_connection_point':0}

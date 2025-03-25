@@ -2311,9 +2311,14 @@ def sem_physio_model1_V4(cnums, fintrinsic_base, SAPMresultsname, SAPMparameters
             # read saved beta_initial values
             b = np.load(betascale,allow_pickle=True).flat[0]
             beta_initial1 = copy.deepcopy(b['beta_initial'])
-            if np.ndim(beta_initial1) > 1:   # beta_initial1 had to have been saved as size nbeta x NP
-                beta_initial = 0.1*np.random.randn(nsteps_stage1,nbeta)
-                beta_initial[0,:] = copy.deepcopy(beta_initial1[:,nperson])
+            if np.ndim(beta_initial1) > 1:
+                if np.ndim(beta_initial1) > 2:  # beta_initial1 had to have been saved with multiple estimates x nbeta x NP
+                    nest,nbetaest,npersonest = np.shape(beta_initial1)
+                    beta_initial = 0.1*np.random.randn(nsteps_stage1,nbeta)
+                    beta_initial[:nest,:] = copy.deepcopy(beta_initial1[:,:,nperson])
+                else:  # beta_initial1 had to have been saved as size nbeta x NP
+                    beta_initial = 0.1*np.random.randn(nsteps_stage1,nbeta)
+                    beta_initial[0,:] = copy.deepcopy(beta_initial1[:,nperson])
 
             else: # beta_initial1 had to have been saved as size nbeta
                 beta_initial = 0.1*np.random.randn(nsteps_stage1,nbeta)
