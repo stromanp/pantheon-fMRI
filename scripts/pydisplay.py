@@ -318,6 +318,8 @@ def pydisplayclusters(clusterdataname, regionnames, clusternumbers, colorlist = 
         ncolors = len(clusternumbers)
         colors = np.zeros((ncolors,3))
         colors[:,0] = 1  # make all the clusters red
+    else:
+        colors = copy.deepcopy(colorlist)
 
     background = template_img.astype('double')
     background = background/np.max(background)

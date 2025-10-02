@@ -1,6 +1,6 @@
 """
 pantheon.py
-version 1.0.0
+version 2.0.0  Sept 15 2025
 
 This is the main calling function for all of the components of the Pantheon analysis
 package. It includes definititions of the graphical user interface to guide the setup
@@ -48,6 +48,16 @@ and inputs of parameters for calling all other functions.
 # stromanp@queensu.ca
 #-----------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------------------
+# The key changes between version 1 and version 2 (Sept 2025) are:
+#  1) how regions with different variance  are handled for SAPM anlayses. The problem
+#     stems from regions with high and low variance contributing differently to assessments
+#     of goodness-of-fit. High variance regions tend to be given more weight. Previously,
+#     BOLD responses were scaled to have equal variacne in all regions to avoid this problem.
+#     Now, the calculations of R2 (fraction of explained variance) include scaling to account
+#     for different variance across regions
+#  2) some additional functions have been added for checking data quality etc
+#  3) spatial normalization methods have been modified slightly to improve performance
+#
 """
 
 # import necessary modules 
@@ -156,7 +166,7 @@ def check_settings_file(settingsfile):
                     'DBnumstring': 'none',
                     'NIbasename': 'Series',
                     'CRprefix': '',
-                    'NCparameters': [50, 50, 5, 6, -16, 20, -16, 16],
+                    'NCparameters': [50, 50, 5, 20, -24, 20, -24, 20],
                     'NCsavename': 'normdata',
                     'coreg_choice': 'Yes.',
                     'slicetime_choice': 'Yes.',
@@ -193,7 +203,6 @@ def check_settings_file(settingsfile):
                     'SEMresumerun': False,
                     'SAPMresumerun': False,
                     'SRoptionvalue': 'unknown',
-                    'SRcovname': 'unknown',
                     'SRpvalue': 0.05,
                     'SRgroup': 'unknown',
                     'SRtargetregion': 'unknown',
@@ -226,6 +235,7 @@ def check_settings_file(settingsfile):
                     'SRoptionvalue': 1,
                     'SRcovname': 'not defined',
                     'SRcovname2': 'not defined',
+                    'SRcovfield': '',
                     'SRpvalue': 0.05,
                     'SRstatsname': 'not defined',
                     'SRgroup': '',
@@ -1056,7 +1066,6 @@ class DBFrame:
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         last_folder  = settings['last_folder']
 
-        self.searchkeys
         print('search values are: ',self.searchkeys)
         dbnumlist = pydatabase.get_dbnumlists_by_keyword(self.DBname, self.searchkeys)
         self.dbnumlist = dbnumlist
@@ -1327,6 +1336,7 @@ class NCFrame:
         self.overridesection = 0
         self.NCresult = []
         self.NCresult_copy = []
+        self.currentDBindex = 0
 
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         self.normdatasavename = settings['NCsavename']  # default prefix value
@@ -1446,12 +1456,22 @@ class NCFrame:
         self.NCfinetune.grid(row = 5, column = 0, sticky="E")
 
         # button to call the normalization program
-        self.NCrun = tk.Button(self.parent, text = 'Calculate Normalization', width = bigbigbuttonsize, bg = fgcol1, fg = fgletter1, command = self.NCrunclick, font = widgetfont, relief='raised', bd = 5, highlightbackground = widgetbg)
-        self.NCrun.grid(row = 6, column = 1)
+        self.NCrun = tk.Button(self.parent, text = 'Calculate All Normalization', width = bigbigbuttonsize, bg = fgcol1, fg = fgletter1, command = self.NCrunclick, font = widgetfont, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.NCrun.grid(row = 6, column = 0)
+        self.NCrun1 = tk.Button(self.parent, text = 'Calculate 1 Normalization', width = bigbigbuttonsize, bg = fgcol1, fg = fgletter1, command = self.NCrun1click, font = widgetfont, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.NCrun1.grid(row = 6, column = 1)
 
         # button to run program to manually adjust rough normalization sections
         self.NCmano = tk.Button(self.parent, text = 'Manual Over-ride', width = bigbuttonsize, bg = fgcol3, fg = fgletter3, command = self.NCmanoclick, font = widgetfont, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.NCmano.grid(row = 6, column = 2)
+
+        self.NCdbnumlabel = tk.Label(self.parent, text = "Working on DBnum {}".format(self.NCdbnum[self.currentDBindex]), fg = 'gray')
+        self.NCdbnumlabel.grid(row=6,column=3, sticky='W')
+
+        self.NCdbplus = tk.Button(self.parent, text = 'db +', width = smallbuttonsize, bg = fgcol1, fg = fgletter1, command = self.NCdbplusaction, font = widgetfont, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.NCdbplus.grid(row = 6, column = 5)
+        self.NCdbminus = tk.Button(self.parent, text = 'db -', width = smallbuttonsize, bg = fgcol1, fg = fgletter1, command = self.NCdbminusaction, font = widgetfont, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.NCdbminus.grid(row = 6, column = 4)
 
         # button to recalculate normalization after manual over-ride
         self.NCrun = tk.Button(self.parent, text = 'Recalculate', width = bigbigbuttonsize, bg = fgcol3, fg = fgletter3, command = self.NCrecalculate_after_override, font = widgetfont, relief='raised', bd = 5, highlightbackground = widgetbg)
@@ -1459,12 +1479,12 @@ class NCFrame:
 
         # button to refresh displays during manual over-ride
         self.NCrefreshdisplays= tk.Button(self.parent, text = 'Refresh', width = bigbuttonsize, bg = fgcol3, fg = fgletter3, command = self.NC_refresh_display_during_override, font = widgetfont, relief='raised', bd = 5, highlightbackground = widgetbg)
-        self.NCrefreshdisplays.grid(row = 10, column = 0)
+        self.NCrefreshdisplays.grid(row = 11, column = 0)
 
         # entry box and button to copy rough normalization from another database number
         self.NCcopy_label = tk.Label(self.parent, text="Copy rough normalization from another data set:", font = labelfont)
         self.NCcopy_label.grid(row=8, column=4, columnspan = 3, sticky='SE')
-        self.NCcopy_label2 = tk.Label(self.parent, text="Datbase number:", font = labelfont)
+        self.NCcopy_label2 = tk.Label(self.parent, text="Database number:", font = labelfont)
         self.NCcopy_label2.grid(row=9, column=4, sticky='E')
         # create the Entry box, for position stiffness upper
         self.NCcopyentry = tk.Entry(self.parent, width=8, bg="white")
@@ -1477,7 +1497,7 @@ class NCFrame:
         img1 = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
         controller.img1d = img1  # need to keep a copy so it is not cleared from memory
         self.window1 = tk.Canvas(master = self.parent, width=img1.width(), height=img1.height(), bg='black')
-        self.window1.grid(row=7, column=0,rowspan = 3, columnspan = 2, sticky='NW')
+        self.window1.grid(row=7, column=0,rowspan = 4, columnspan = 2, sticky='NW')
         self.windowdisplay1 = self.window1.create_image(0, 0, image=img1, anchor=tk.NW)
 
         img2 = tk.PhotoImage(file=os.path.join(basedir, 'smily.gif'))
@@ -1674,7 +1694,7 @@ class NCFrame:
         df1 = pd.read_excel(xls, 'datarecord')
 
         # get current normdataname, etc.
-        dbnum = self.NCdatabasenum[0]
+        dbnum = self.NCdatabasenum[self.currentDBindex]
         dbhome = df1.loc[dbnum, 'datadir']
         fname = df1.loc[dbnum, 'niftiname']
         seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
@@ -1719,14 +1739,14 @@ class NCFrame:
 
         # display results-----------------------------------------------------
         nfordisplay = len(imagerecord)
-        for nf in range(nfordisplay):
-            img1 = imagerecord[nf]['img']
-            img1 = (255. * img1 / np.max(img1)).astype(np.uint8)
-            image_tk = ImageTk.PhotoImage(Image.fromarray(img1))
-            self.controller.img1d = image_tk
-            self.window1.configure(width=image_tk.width(), height=image_tk.height())
-            self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
-            time.sleep(1)
+        # for nf in range(nfordisplay):   # this was for showing progression
+        img1 = imagerecord[-1]['img']
+        img1 = (255. * img1 / np.max(img1)).astype(np.uint8)
+        image_tk = ImageTk.PhotoImage(Image.fromarray(img1))
+        self.controller.img1d = image_tk
+        self.window1.configure(width=image_tk.width(), height=image_tk.height())
+        self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+        time.sleep(1)
 
         nfordisplay = len(result)
         for nf in range(nfordisplay):
@@ -1813,32 +1833,6 @@ class NCFrame:
         fit_parameters = self.fitparameters
         normdatasavename = self.normdatasavename
 
-        # display original image for first dbnum entry-------------------
-        dbnum = self.NCdatabasenum[0]
-        dbhome = df1.loc[dbnum, 'datadir']
-        fname = df1.loc[dbnum, 'niftiname']
-        seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
-        niiname = os.path.join(dbhome, fname)
-        input_data, new_affine = i3d.load_and_scale_nifti(niiname)
-        print('shape of input_data is ',np.shape(input_data))
-        print('niiname = ', niiname)
-        if np.ndim(input_data) == 4:
-            xs,ys,zs,ts = np.shape(input_data)
-            xmid = np.round(xs/2).astype(int)
-            img = input_data[xmid,:,:,0]
-            img = (255.*img/np.max(img)).astype(np.uint8)
-            image_tk = ImageTk.PhotoImage(Image.fromarray(img))
-        else:
-            xs,ys,zs = np.shape(input_data)
-            xmid = np.round(xs/2).astype(int)
-            img = input_data[xmid,:,:]
-            img = (255.*img/np.max(img)).astype(np.uint8)
-            image_tk = ImageTk.PhotoImage(Image.fromarray(img))
-        verticalsize = ys
-        self.controller.img1d = image_tk  # keep a copy so it persists
-        self.window1.configure(width=image_tk.width(), height=image_tk.height())
-        self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
-
         inprogressfile = os.path.join(basedir, 'underconstruction.gif')
         image_tk = tk.PhotoImage('photo', file=inprogressfile)
         image_tk = image_tk.subsample(2)
@@ -1853,16 +1847,48 @@ class NCFrame:
         self.window3.configure(width=image_tk.width(), height=image_tk.height())
         self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
 
-        time.sleep(0.1)
-        #-----------end of display--------------------------------
+        # display original image for first dbnum entry-------------------
+        # dbnum = self.NCdatabasenum[0]
+        for nn, dbnum in enumerate(self.NCdatabasenum):
+            self.currentDBindex = copy.deepcopy(nn)
+            infotext = 'Working on DBnum {}'.format(dbnum)
+            self.NCdbnumlabel.configure(text=infotext)
 
-        print('Normalization: databasename ',self.NCdatabasename)
-        print('Normalization: started organizing at ', time.ctime(time.time()))
+
+            dbhome = df1.loc[dbnum, 'datadir']
+            fname = df1.loc[dbnum, 'niftiname']
+            seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
+            niiname = os.path.join(dbhome, fname)
+            input_data, new_affine = i3d.load_and_scale_nifti(niiname)
+            print('shape of input_data is ',np.shape(input_data))
+            print('niiname = ', niiname)
+            if np.ndim(input_data) == 4:
+                xs,ys,zs,ts = np.shape(input_data)
+                xmid = np.round(xs/2).astype(int)
+                img = input_data[xmid,:,:,0]
+                img = (255.*img/np.max(img)).astype(np.uint8)
+                image_tk = ImageTk.PhotoImage(Image.fromarray(img))
+            else:
+                xs,ys,zs = np.shape(input_data)
+                xmid = np.round(xs/2).astype(int)
+                img = input_data[xmid,:,:]
+                img = (255.*img/np.max(img)).astype(np.uint8)
+                image_tk = ImageTk.PhotoImage(Image.fromarray(img))
+            verticalsize = ys
+            self.controller.img1d = image_tk  # keep a copy so it persists
+            self.window1.configure(width=image_tk.width(), height=image_tk.height())
+            self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+            time.sleep(0.1)
+            #-----------end of display--------------------------------
+
+            print('Normalization: databasename ',self.NCdatabasename)
+            print('Normalization: started organizing at ', time.ctime(time.time()))
 
         # assume that all the data sets being normalized in a group are from the same region
         # and have the same template and anatomical region - no need to load these for each dbnum
 
-        for nn, dbnum in enumerate(self.NCdatabasenum):
+        # for nn, dbnum in enumerate(self.NCdatabasenum):
             print('NCrunclick: databasenum ',dbnum)
             dbhome = df1.loc[dbnum, 'datadir']
             fname = df1.loc[dbnum, 'niftiname']
@@ -1874,10 +1900,10 @@ class NCFrame:
             tag = '_s'+str(seriesnumber)
             normdataname_full  = os.path.join(fullpath,normdatasavename+tag+'.npy')
 
-            resolution = 1
-            # template_img, regionmap_img, template_affine, anatlabels = load_templates.load_template(normtemplatename, resolution)
-            template_img, regionmap_img, template_affine, anatlabels, wmmap_img, roi_map, gmwm_img = load_templates.load_template_and_masks(normtemplatename, resolution)
-            # still need to write the resulting normdata file name to the database excel file
+            if nn == 0:
+                resolution = 1
+                template_img, regionmap_img, template_affine, anatlabels, wmmap_img, roi_map, gmwm_img = load_templates.load_template_and_masks(normtemplatename, resolution)
+                # still need to write the resulting normdata file name to the database excel file
 
             # run the rough normalization
             print('self.roughnorm = ', self.roughnorm)
@@ -1896,14 +1922,14 @@ class NCFrame:
 
                 # display results-----------------------------------------------------
                 nfordisplay = len(imagerecord)
-                for nf in range(nfordisplay):
-                    img1 = copy.deepcopy(imagerecord[nf]['img'])
-                    img1 = (255. * img1 / np.max(img1)).astype(np.uint8)
-                    image_tk = ImageTk.PhotoImage(Image.fromarray(img1))
-                    self.controller.img1d = image_tk
-                    self.window1.configure(width=image_tk.width(), height=image_tk.height())
-                    self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
-                    time.sleep(1)
+                # for nf in range(nfordisplay):   # this was for showing progression
+                img1 = copy.deepcopy(imagerecord[-1]['img'])
+                img1 = (255. * img1 / np.max(img1)).astype(np.uint8)
+                image_tk = ImageTk.PhotoImage(Image.fromarray(img1))
+                self.controller.img1d = image_tk
+                self.window1.configure(width=image_tk.width(), height=image_tk.height())
+                self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+                time.sleep(0.1)
 
                 nfordisplay = len(result)
                 for nf in range(nfordisplay):
@@ -2007,12 +2033,12 @@ class NCFrame:
             # run the normalization fine-tuning
             print('self.finetune = ', self.finetune)
             if self.finetune == 1:
-                inprogressfile = os.path.join(basedir, 'underconstruction.gif')
-                image_tk = tk.PhotoImage('photo', file=inprogressfile)
-                image_tk = image_tk.subsample(2)
-                self.controller.img2d = image_tk  # keep a copy so it persists
-                self.window2.configure(width=image_tk.width(), height=image_tk.height())
-                self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+                # inprogressfile = os.path.join(basedir, 'underconstruction.gif')
+                # image_tk = tk.PhotoImage('photo', file=inprogressfile)
+                # image_tk = image_tk.subsample(2)
+                # self.controller.img2d = image_tk  # keep a copy so it persists
+                # self.window2.configure(width=image_tk.width(), height=image_tk.height())
+                # self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
                 Tfine, norm_image_fine = pynormalization.py_norm_fine_tuning(reverse_map_image, template_img, T, input_type = 'normalized')
 
             # check the quality of the resulting normalization
@@ -2090,6 +2116,313 @@ class NCFrame:
             self.controller.img3d = image_tk  # keep a copy so it persists
             self.window3.configure(width=image_tk.width(), height=image_tk.height())
             self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
+            time.sleep(1)
+
+        print('Normalization: finished processing data ...', time.ctime(time.time()))
+
+
+
+    # action when the button is pressed to calculate normalization information
+    def NCrun1click(self):
+        # first get the necessary input data
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.NCdatabasename = settings['DBname']
+        self.NCdatabasenum = settings['DBnum']
+        # BASEdir = os.path.dirname(self.NCdatabasename)
+        xls = pd.ExcelFile(self.NCdatabasename, engine = 'openpyxl')
+        df1 = pd.read_excel(xls, 'datarecord')
+        fit_parameters = self.fitparameters
+        normdatasavename = self.normdatasavename
+
+        print('working on number {} in the DBnum list'.format(self.currentDBindex))
+        nn = copy.deepcopy(self.currentDBindex)
+        dbnum = copy.deepcopy(self.NCdatabasenum[self.currentDBindex])
+        infotext = 'Working on DBnum {}'.format(dbnum)
+        self.NCdbnumlabel.configure(text=infotext)
+
+        inprogressfile = os.path.join(basedir, 'underconstruction.gif')
+        image_tk = tk.PhotoImage('photo', file=inprogressfile)
+        image_tk = image_tk.subsample(2)
+        self.controller.img2d = image_tk  # keep a copy so it persists
+        self.window2.configure(width=image_tk.width(), height=image_tk.height())
+        self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+        inprogressfile = os.path.join(basedir, 'underconstruction.gif')
+        image_tk = tk.PhotoImage('photo', file=inprogressfile)
+        image_tk = image_tk.subsample(2)
+        self.controller.img3d = image_tk  # keep a copy so it persists
+        self.window3.configure(width=image_tk.width(), height=image_tk.height())
+        self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+        # display original image for first dbnum entry-------------------
+        # dbnum = self.NCdatabasenum[0]
+        # for nn, dbnum in enumerate(self.NCdatabasenum):
+
+        self.currentDBindex = copy.deepcopy(nn)
+        infotext = 'Working on DBnum {}'.format(dbnum)
+        self.NCdbnumlabel.configure(text=infotext)
+
+        dbhome = df1.loc[dbnum, 'datadir']
+        fname = df1.loc[dbnum, 'niftiname']
+        seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
+        niiname = os.path.join(dbhome, fname)
+        input_data, new_affine = i3d.load_and_scale_nifti(niiname)
+        print('shape of input_data is ',np.shape(input_data))
+        print('niiname = ', niiname)
+        if np.ndim(input_data) == 4:
+            xs,ys,zs,ts = np.shape(input_data)
+            xmid = np.round(xs/2).astype(int)
+            img = input_data[xmid,:,:,0]
+            img = (255.*img/np.max(img)).astype(np.uint8)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(img))
+        else:
+            xs,ys,zs = np.shape(input_data)
+            xmid = np.round(xs/2).astype(int)
+            img = input_data[xmid,:,:]
+            img = (255.*img/np.max(img)).astype(np.uint8)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(img))
+        verticalsize = ys
+        self.controller.img1d = image_tk  # keep a copy so it persists
+        self.window1.configure(width=image_tk.width(), height=image_tk.height())
+        self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+        time.sleep(0.1)
+        #-----------end of display--------------------------------
+
+        print('Normalization: databasename ',self.NCdatabasename)
+        print('Normalization: started organizing at ', time.ctime(time.time()))
+
+    # assume that all the data sets being normalized in a group are from the same region
+    # and have the same template and anatomical region - no need to load these for each dbnum
+
+    # for nn, dbnum in enumerate(self.NCdatabasenum):
+        print('NCrun1click: databasenum ',dbnum)
+        dbhome = df1.loc[dbnum, 'datadir']
+        fname = df1.loc[dbnum, 'niftiname']
+        seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
+        normtemplatename = df1.loc[dbnum, 'normtemplatename']
+        niiname = os.path.join(dbhome, fname)
+        fullpath, filename = os.path.split(niiname)
+        # prefix_niiname = os.path.join(fullpath,self.prefix+filename)
+        tag = '_s'+str(int(seriesnumber))
+        normdataname_full  = os.path.join(fullpath,normdatasavename+tag+'.npy')
+
+        resolution = 1
+        template_img, regionmap_img, template_affine, anatlabels, wmmap_img, roi_map, gmwm_img = load_templates.load_template_and_masks(normtemplatename, resolution)
+        # still need to write the resulting normdata file name to the database excel file
+
+        # run the rough normalization
+        print('self.roughnorm = ', self.roughnorm)
+        if self.roughnorm == 1:
+            # set the cursor to reflect being busy ...
+            self.controller.master.config(cursor = "wait")
+            self.controller.master.update()
+            T, warpdata, reverse_map_image, displayrecord, imagerecord, resultsplot, result = pynormalization.run_rough_normalization_calculations(niiname, normtemplatename,
+                                template_img, fit_parameters)  # , display_window1, image_in_W1, display_window2, image_in_W2
+            self.NCresult = result  # need this for manual over-ride etc.
+            self.NCresult_copy = copy.deepcopy(self.NCresult)  # need this for manual over-ride etc.
+            Tfine = 'none'
+            norm_image_fine = 'none'
+            self.controller.master.config(cursor = "")
+            self.controller.master.update()
+
+            # display results-----------------------------------------------------
+            nfordisplay = len(imagerecord)
+            # for nf in range(nfordisplay):   # this was for showing progression
+            img1 = copy.deepcopy(imagerecord[-1]['img'])
+            img1 = (255. * img1 / np.max(img1)).astype(np.uint8)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(img1))
+            self.controller.img1d = image_tk
+            self.window1.configure(width=image_tk.width(), height=image_tk.height())
+            self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+            time.sleep(0.1)
+
+            nfordisplay = len(result)
+            for nf in range(nfordisplay):
+                # draw the rectangular regions for each section
+                p0, p1, p2, p3, coords, angle, sectionsize, smallestside = self.outline_section(nf)
+                self.window1.create_line(p0[0],p0[1],p1[0],p1[1],p2[0],p2[1],p3[0],p3[1],p0[0],p0[1], fill = 'yellow', width = 2)
+
+            self.window1.create_text(np.round(image_tk.width()/2),image_tk.height()-5,text = 'template sections mapped onto image', fill = 'white')
+
+            display_image = copy.deepcopy(imagerecord[0]['img'])
+            display_image = (255. * display_image / np.max(display_image)).astype(np.uint8)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+            # show normalization result instead
+            xs,ys,zs = np.shape(reverse_map_image)
+            xmid = np.round(xs/2).astype(int)
+            display_image = copy.deepcopy(reverse_map_image[xmid,:,:])
+            display_image = (255. * display_image / np.max(display_image)).astype(np.uint8)
+            vscale = 0.5*(verticalsize/ys)
+            display_imager = i3d.resize_2D(display_image, vscale)
+            # if ys > 128:
+            #     display_imager = i3d.resize_2D(display_image, 0.5)
+            # else:
+            #     display_imager = copy.deepcopy(display_image)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(display_imager))
+
+            self.controller.img2d = image_tk   # keep a copy so it persists
+            self.window2.configure(width=image_tk.width(), height=image_tk.height())
+            self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+            self.window2.create_text(np.round(image_tk.width()/2),image_tk.height()-5,text = 'normalization result', fill = 'white')
+
+            # show template
+            xs,ys,zs = np.shape(template_img)
+            xmid = np.round(xs/2).astype(int)
+            display_image = copy.deepcopy(template_img[xmid,:,:])
+            display_image = (255. * display_image / np.max(display_image)).astype(np.uint8)
+            vscale = 0.5*(verticalsize/ys)
+            display_imager = i3d.resize_2D(display_image, vscale)
+            # if ys > 128:
+            #     display_imager = i3d.resize_2D(display_image, 0.5)
+            # else:
+            #     display_imager = copy.deepcopy(display_image)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(display_imager))
+            self.controller.img3d = image_tk   # keep a copy so it persists
+            self.window3.configure(width=image_tk.width(), height=image_tk.height())
+            self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
+            self.window3.create_text(np.round(image_tk.width()/2),image_tk.height()-5,text = 'reference template', fill = 'white')
+
+        else:
+            # if rough norm is not being run, then assume that it has already been done and the results need to be loaded
+            normdata = np.load(normdataname_full, allow_pickle=True).flat[0]
+            T = normdata['T']
+            warpdata = copy.deepcopy(normdata['warpdata'])
+            reverse_map_image = copy.deepcopy(normdata['reverse_map_image'])
+            Tfine = copy.deepcopy(normdata['Tfine'])
+            norm_image_fine = copy.deepcopy(normdata['norm_image_fine'])
+            imagerecord = copy.deepcopy(normdata['imagerecord'])
+            result = copy.deepcopy(normdata['result'])
+            self.NCresult = copy.deepcopy(result)
+            self.NCresult_copy = copy.deepcopy(self.NCresult)
+
+            xs,ys,zs = np.shape(reverse_map_image)
+            xmid = np.round(xs/2).astype(int)
+            img2 = copy.deepcopy(reverse_map_image[xmid,:,:])
+            img2 = (255. * img2 / np.max(img2)).astype(np.uint8)
+            vscale = 0.5*(verticalsize/ys)
+            img2r = i3d.resize_2D(img2, vscale)
+            # img2r = i3d.resize_2D(img2, 0.5)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(img2r))
+            self.controller.img2d = image_tk   # keep a copy so it persists
+            self.window2.configure(width=image_tk.width(), height=image_tk.height())
+            self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+            xs,ys,zs = np.shape(template_img)
+            xmid = np.round(xs/2).astype(int)
+            img3 = template_img[xmid,:,:]
+            img3 = (255. * img3 / np.max(img3)).astype(np.uint8)
+            vscale = 0.5*(verticalsize/ys)
+            img3r = i3d.resize_2D(img3, vscale)
+            # img3r = i3d.resize_2D(img3, 0.5)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(img3r))
+            self.controller.img3d = image_tk   # keep a copy so it persists
+            self.window3.configure(width=image_tk.width(), height=image_tk.height())
+            self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+            image_tk = self.controller.img1d
+            self.window1.configure(width=image_tk.width(), height=image_tk.height())
+            self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+            time.sleep(0.1)
+
+            nfordisplay = len(result)
+            for nf in range(nfordisplay):
+                # draw the rectangular regions for each section
+                p0, p1, p2, p3, coords, angle, sectionsize, smallestside = self.outline_section(nf)
+                self.window1.create_line(p0[0],p0[1],p1[0],p1[1],p2[0],p2[1],p3[0],p3[1],p0[0],p0[1], fill = 'yellow', width = 2)
+            # arial6 = tkFont.Font(family='Arial', size=6)
+            self.window1.create_text(np.round(image_tk.width()/2),image_tk.height()-5,text = 'template sections mapped onto image', fill = 'white')
+
+        # manual over-ride?
+
+        # run the normalization fine-tuning
+        print('self.finetune = ', self.finetune)
+        if self.finetune == 1:
+            # inprogressfile = os.path.join(basedir, 'underconstruction.gif')
+            # image_tk = tk.PhotoImage('photo', file=inprogressfile)
+            # image_tk = image_tk.subsample(2)
+            # self.controller.img2d = image_tk  # keep a copy so it persists
+            # self.window2.configure(width=image_tk.width(), height=image_tk.height())
+            # self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+            Tfine, norm_image_fine = pynormalization.py_norm_fine_tuning(reverse_map_image, template_img, T, input_type = 'normalized')
+
+        # check the quality of the resulting normalization
+        if np.ndim(norm_image_fine) >= 3:
+            norm_result_image = copy.deepcopy(norm_image_fine)
+        else:
+            norm_result_image = copy.deepcopy(reverse_map_image)
+        norm_result_image[np.isnan(norm_result_image)] = 0.0
+        norm_result_image[np.isinf(norm_result_image)] = 0.0
+        # dilate the roi_map
+        dstruct = ndimage.generate_binary_structure(3, 3)
+        roi_map2 = ndimage.binary_dilation(roi_map, structure=dstruct).astype(roi_map.dtype)
+        cx,cy,cz = np.where(roi_map2)
+        vimg = norm_result_image[cx,cy,cz]
+        vtemp = template_img[cx,cy,cz]
+        Q = np.corrcoef(vimg,vtemp)
+        print('normalization quality (correlation with template) = {}'.format(Q[0,1]))
+
+        # now write the new database values
+        xls = pd.ExcelFile(self.NCdatabasename, engine = 'openpyxl')
+        df1 = pd.read_excel(xls, 'datarecord')
+        keylist = df1.keys()
+        for kname in keylist:
+            if 'Unnamed' in kname: df1.pop(kname)  # remove blank fields from the database
+        # df1.pop('Unnamed: 0')
+        normdataname_small = normdataname_full.replace(dbhome, '')  # need to strip off dbhome before writing the name
+        # df1.loc[dbnum.astype('int'), 'normdataname'] = normdataname_small[1:]
+        if normdataname_small[0] == os.path.sep:
+            normdataname_small = normdataname_small[1:]
+        df1.loc[dbnum.astype('int'), 'normdataname'] = normdataname_small
+        #
+        # add normalization quality to database
+        if 'norm_quality' not in keylist:
+            df1['norm_quality'] = 0
+        df1.loc[dbnum.astype('int'), 'norm_quality'] = Q[0,1]
+
+        # need to delete the existing sheet before writing the new version
+        existing_sheet_names = xls.sheet_names
+        if 'datarecord' in existing_sheet_names:
+            # delete sheet - need to use openpyxl
+            workbook = openpyxl.load_workbook(self.NCdatabasename)
+            # std = workbook.get_sheet_by_name('datarecord')
+            # workbook.remove_sheet(std)
+            del workbook['datarecord']
+            workbook.save(self.NCdatabasename)
+
+        # write it to the database by appending a sheet to the excel file
+        # remove old version of datarecord first
+        with pd.ExcelWriter(self.NCdatabasename, engine="openpyxl", mode='a') as writer:
+            df1.to_excel(writer, sheet_name='datarecord')
+
+        normdata = {'T':T, 'Tfine':Tfine, 'warpdata':warpdata, 'reverse_map_image':reverse_map_image, 'norm_image_fine':norm_image_fine, 'template_affine':template_affine, 'imagerecord':imagerecord, 'result':result}
+        np.save(normdataname_full, normdata)
+        print('normalization data saved in ',normdataname_full)
+
+        # display the resulting normalized image
+        xs, ys, zs = np.shape(norm_result_image)
+        xmid = np.round(xs / 2).astype(int)
+        img2 = norm_result_image[xmid, :, :]
+        img2 = (255. * img2 / np.max(img2)).astype(np.uint8)
+        vscale = 0.5 * (verticalsize / ys)
+        img2r = i3d.resize_2D(img2, vscale)
+        # img2r = i3d.resize_2D(img2, 0.5)
+        image_tk = ImageTk.PhotoImage(Image.fromarray(img2r))
+        self.controller.img2d = image_tk  # keep a copy so it persists
+        self.window2.configure(width=image_tk.width(), height=image_tk.height())
+        self.windowdisplay2 = self.window2.create_image(0, 0, image=image_tk, anchor=tk.NW)
+
+        # display the template
+        xs, ys, zs = np.shape(template_img)
+        xmid = np.round(xs / 2).astype(int)
+        img3 = template_img[xmid, :, :]
+        img3 = (255. * img3 / np.max(img3)).astype(np.uint8)
+        image_tk = ImageTk.PhotoImage(Image.fromarray(img3))
+        self.controller.img3d = image_tk  # keep a copy so it persists
+        self.window3.configure(width=image_tk.width(), height=image_tk.height())
+        self.windowdisplay3 = self.window3.create_image(0, 0, image=image_tk, anchor=tk.NW)
+        time.sleep(1)
 
         print('Normalization: finished processing data ...', time.ctime(time.time()))
 
@@ -2123,12 +2456,13 @@ class NCFrame:
             normdatasavename = self.normdatasavename
 
             # display original image for first dbnum entry-------------------
-            dbnum = self.NCdatabasenum[0]
+            dbnum = self.NCdatabasenum[self.currentDBindex]
             dbhome = df1.loc[dbnum, 'datadir']
             fname = df1.loc[dbnum, 'niftiname']
             seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
             niiname = os.path.join(dbhome, fname)
             input_data, new_affine = i3d.load_and_scale_nifti(niiname)
+
             print('shape of input_data is ', np.shape(input_data))
             print('niiname = ', niiname)
             if np.ndim(input_data) == 4:
@@ -2136,12 +2470,14 @@ class NCFrame:
                 xmid = np.round(xs / 2).astype(int)
                 img = input_data[xmid, :, :, 0]
                 img = (255. * img / np.max(img)).astype(np.uint8)
+                base_img = copy.deepcopy(img)
                 image_tk = ImageTk.PhotoImage(Image.fromarray(img))
             else:
                 xs, ys, zs = np.shape(input_data)
                 xmid = np.round(xs / 2).astype(int)
                 img = input_data[xmid, :, :]
                 img = (255. * img / np.max(img)).astype(np.uint8)
+                base_img = copy.deepcopy(img)
                 image_tk = ImageTk.PhotoImage(Image.fromarray(img))
             verticalsize = ys
             self.controller.img1d = image_tk  # keep a copy so it persists
@@ -2151,7 +2487,7 @@ class NCFrame:
             # -----------end of display--------------------------------
 
             try:
-                dbnum = copy.deepcopy(self.NCdatabasenum[0])
+                dbnum = copy.deepcopy(self.NCdatabasenum[self.currentDBindex])
             except:
                 dbnum = copy.deepcopy(self.NCdatabasenum)
 
@@ -2192,14 +2528,16 @@ class NCFrame:
 
             # display results-----------------------------------------------------
             nfordisplay = len(imagerecord)
-            for nf in range(nfordisplay):
-                img1 = copy.deepcopy(imagerecord[nf]['img'])
-                img1 = (255. * img1 / np.max(img1)).astype(np.uint8)
-                image_tk = ImageTk.PhotoImage(Image.fromarray(img1))
-                self.controller.img1d = image_tk
-                self.window1.configure(width=image_tk.width(), height=image_tk.height())
-                self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
-                time.sleep(1)
+            # for nf in range(nfordisplay):   # this was for showing progression
+            img1 = copy.deepcopy(imagerecord[-1]['img'])
+            # temporary
+            img1 = copy.deepcopy(base_img)
+            img1 = (255. * img1 / np.max(img1)).astype(np.uint8)
+            image_tk = ImageTk.PhotoImage(Image.fromarray(img1))
+            self.controller.img1d = image_tk
+            self.window1.configure(width=image_tk.width(), height=image_tk.height())
+            self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+            time.sleep(1)
 
             nfordisplay = len(result)
             for nf in range(nfordisplay):
@@ -2283,8 +2621,8 @@ class NCFrame:
             df1 = pd.read_excel(xls, 'datarecord')
             normdatasavename = self.normdatasavename
 
-            # display original image for first dbnum entry-------------------
-            dbnum = self.NCdatabasenum[0]
+            # display original image -------------------
+            dbnum = self.NCdatabasenum[self.currentDBindex]
             dbhome = df1.loc[dbnum, 'datadir']
             fname = df1.loc[dbnum, 'niftiname']
             seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
@@ -2350,6 +2688,28 @@ class NCFrame:
             print('Manual over-ride not turned on, so the displays were not refreshed.')
 
 
+    def NCdbplusaction(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.NCdatabasenum = settings['DBnum']
+        self.NCmanomode = 'OFF'
+        indexmax = len(self.NCdatabasenum)
+        self.currentDBindex += 1
+        if self.currentDBindex >= indexmax:
+            self.currentDBindex = 0
+        infotext = 'Working on DBnum {}'.format(self.NCdatabasenum[self.currentDBindex])
+        self.NCdbnumlabel.configure(text=infotext)
+
+    def NCdbminusaction(self):
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        self.NCdatabasenum = settings['DBnum']
+        self.NCmanomode = 'OFF'
+        indexmax = len(self.NCdatabasenum)
+        self.currentDBindex -= 1
+        if self.currentDBindex < 0:
+            self.currentDBindex = indexmax-1
+        infotext = 'Working on DBnum {}'.format(self.NCdatabasenum[self.currentDBindex])
+        self.NCdbnumlabel.configure(text=infotext)
+
 
     def NCrecalculate_after_override(self):
         # calculate new normalization based on sections with manual over-ride applied
@@ -2370,7 +2730,7 @@ class NCFrame:
         normdatasavename = self.normdatasavename
 
         # display original image for first dbnum entry-------------------
-        dbnum = self.NCdatabasenum[0]
+        dbnum = self.NCdatabasenum[self.currentDBindex]
         dbhome = df1.loc[dbnum, 'datadir']
         fname = df1.loc[dbnum, 'niftiname']
         seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
@@ -2449,14 +2809,14 @@ class NCFrame:
 
         # display results-----------------------------------------------------
         nfordisplay = len(imagerecord)
-        for nf in range(nfordisplay):
-            img1 = imagerecord[nf]['img']
-            img1 = (255. * img1 / np.max(img1)).astype(np.uint8)
-            image_tk = ImageTk.PhotoImage(Image.fromarray(img1))
-            self.controller.img1d = image_tk
-            self.window1.configure(width=image_tk.width(), height=image_tk.height())
-            self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
-            time.sleep(1)
+        # for nf in range(nfordisplay):   # this was for showing progression
+        img1 = imagerecord[-1]['img']
+        img1 = (255. * img1 / np.max(img1)).astype(np.uint8)
+        image_tk = ImageTk.PhotoImage(Image.fromarray(img1))
+        self.controller.img1d = image_tk
+        self.window1.configure(width=image_tk.width(), height=image_tk.height())
+        self.windowdisplay1 = self.window1.create_image(0, 0, image=image_tk, anchor=tk.NW)
+        time.sleep(1)
 
         nfordisplay = len(result)
         for nf in range(nfordisplay):
@@ -2814,6 +3174,7 @@ class NCbrainFrame:
 
     def NCBrunclick(self):
         # first get the necessary input data
+        print('working on all elements in the DBnum list')
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
         self.NCdatabasename = settings['DBname']
         self.NCdatabasenum = settings['DBnum']
@@ -2896,7 +3257,6 @@ class NCbrainFrame:
         # and have the same template and anatomical region - no need to load these for each dbnum
 
         for nn, dbnum in enumerate(self.NCdatabasenum):
-            print('NCrunclick: databasenum ', dbnum)
             dbhome = df1.loc[dbnum, 'datadir']
             fname = df1.loc[dbnum, 'niftiname']
             seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
@@ -3064,6 +3424,7 @@ class NCbrainFrame:
             print('normalization data saved in ', normdataname_full)
 
         print('Normalization: finished processing data ...', time.ctime(time.time()))
+
 
 
 #--------------------Image Pre-Processing FRAME---------------------------------------------------------------
@@ -3981,6 +4342,38 @@ class CLFrame:
         self.CLnetdirtext.set(npname)
         np.save(settingsfile,settings)
 
+
+    # define functions before they are used in the database frame------------------------------------------
+    # action when the button to browse for a DB fie is pressed
+    def CLnetcheckclick(self):
+        # first load the settings file so that values can be used later
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        networkmodelname = copy.deepcopy(settings['networkmodel'])
+        print('check network model {}'.format(networkmodelname))
+
+        # insert function to check networkmodel
+        status, status_message = pysapm.network_model_check(networkmodelname)
+        print('Checked on network: {}'.format(networkmodelname))
+        print('            Status: {}'.format(status))
+        for mm in range(len(status_message)):
+            print('        {}'.format(status_message[mm]))
+
+        # write the result to the label box for display
+        npname, nfname = os.path.split(networkmodelname)
+        if len(status_message) > 0:
+            message1 = '{}  {}'.format(nfname[:15], status_message[0])
+        else:
+            message1 = '{}'.format(nfname)
+
+        if len(status_message) > 1:
+            message2 = '{}  {}'.format(npname[-15:], status_message[1])
+        else:
+            message2 = '{}'.format(npname)
+
+        self.CLnetnametext.set(message1)
+        self.CLnetdirtext.set(message2)
+
+
     def CLprefixsubmitaction(self):
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         CLprefix = self.CLprefixbox.get()
@@ -4324,6 +4717,11 @@ class CLFrame:
         self.CLnetworkbrowse = tk.Button(self.parent, text='Browse', width=smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont,
                                   command=self.CLnetbrowseclick, relief='raised', bd=5, highlightbackground = widgetbg)
         self.CLnetworkbrowse.grid(row=0, column=3)
+
+        # add button to run function to check the network model for problems
+        self.CLnetworkcheck = tk.Button(self.parent, text='Check Net.', width=smallbuttonsize, bg = fgcol1, fg = fgletter1, font = widgetfont,
+                                  command=self.CLnetcheckclick, relief='raised', bd=5, highlightbackground = widgetbg)
+        self.CLnetworkcheck.grid(row=1, column=3)
 
         # create entry box for the nifti data name prefix (indicates which preprocessing steps were done)
         self.CLpreflabel = tk.Label(self.parent, text = 'Data name prefix:', font = labelfont)
@@ -7070,23 +7468,37 @@ class SAPMFrame:
             # replace x's with -1's
             # entered_text = re.sub('x+', '-1', entered_text)
 
-            if ',' in entered_text:
-                entered_values = list(np.fromstring(entered_text, dtype=int, sep=','))
-            else:
-                entered_values = list(np.fromstring(entered_text, dtype=int, sep=' '))
-
-            fcheck = np.where(np.array(entered_values) < 0)[0]
-            if len(fcheck) > 0:
-                fully_connected = True
-                for x in range(len(entered_values)):
-                    if x < 0:
-                        cnums_out.append({'cnums':['all']})
-                    else:
-                        cnums_out.append({'cnums':[entered_values[x]]})
-            else:
+            if 'f' in entered_text:
                 cnums_out = []
-                for x in range(len(entered_values)):
-                    cnums_out.append({'cnums':[entered_values[x]]})
+                entered_text += ','  # end with a comma for convenience
+                while ',' in entered_text:
+                    c1 = entered_text.index(',')
+                    cset = entered_text[:c1]
+                    if ('f' in cset):
+                        cset = cset.replace('f','')
+                        cnums_out.append({'cnums':[-int(cset)-1]})
+                    else:
+                        cnums_out.append({'cnums':[int(cset)]})
+                    entered_text = entered_text[(c1+1):]
+            else:
+                if ',' in entered_text:
+                    entered_values = list(np.fromstring(entered_text, dtype=int, sep=','))
+                else:
+                    entered_values = list(np.fromstring(entered_text, dtype=int, sep=' '))
+
+                fcheck = np.where(np.array(entered_values) < 0)[0]
+                if len(fcheck) > 0:
+                    cnums_out = []
+                    fully_connected = True
+                    for x in range(len(entered_values)):
+                        if x < 0:
+                            cnums_out.append({'cnums':['all']})
+                        else:
+                            cnums_out.append({'cnums':[entered_values[x]]})
+                else:
+                    cnums_out = []
+                    for x in range(len(entered_values)):
+                        cnums_out.append({'cnums':[entered_values[x]]})
 
         cnumtext = self.SAPMcreatecnumtext(cnums_out, fully_connected)
                 
@@ -7454,6 +7866,10 @@ class SAPMFrame:
             checkvals[:nvals] = entered_values
         if nvals >= 3:
             checkvals = entered_values[:3]
+
+        # make sure the first value is 1, or an even number
+        if checkvals[0] > 1:
+            checkvals[0] = (2*np.ceil(checkvals[0]/2)).astype(int)
 
         print('checkvals = {}'.format(checkvals))
         self.SAPMleveltrials = copy.deepcopy(list(checkvals))
@@ -7861,7 +8277,7 @@ class SAPMFrame:
         # best_clusters = pysapm.SAPM_cluster_search(self.SAPMresultsdir, SAPMresultsname, SAPMparamsname, self.networkmodel, self.DBname, self.SAPMregionname,
         #                     self.SAPMclustername, nprocessors, samplesplit, samplestart, initial_clusters=clusterstart)
 
-        best_clusters = pysapm.SAPM_cluster_stepsearch(self.SAPMresultsdir, SAPMresultsname, SAPMparamsname, self.networkmodel,
+        best_clusters, outputmessages = pysapm.SAPM_cluster_stepsearch(self.SAPMresultsdir, SAPMresultsname, SAPMparamsname, self.networkmodel,
                                         self.SAPMregionname, self.SAPMclustername, samplesplit, samplestart, initial_clusters=clusterstart,
                                         timepoint='all', epoch='all', betascale=self.SAPMbetascale, Lweight = self.SAPMLweight,
                                         levelthreshold= self.SAPMlevelthreshold, leveliter=self.SAPMleveliter, leveltrials=self.SAPMleveltrials,
@@ -7889,7 +8305,7 @@ class SAPMFrame:
 
 
     def SAPMbestclusters_pca(self):
-        # do a gradient-descent search with estimates of variance based on PCA components
+        # identify best clusters based on variance accounted for by a few common components
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
         self.SAPMresultsdir = settings['SAPMresultsdir']
         self.SAPMregionname = settings['SAPMregionname']
@@ -7920,7 +8336,7 @@ class SAPMFrame:
         else:
             covvals = []
 
-        savename = os.path.join(self.SAPMresultsdir, net_f + reg_f + '.npy')
+        savename = os.path.join(self.SAPMresultsdir, 'PCid_' + net_f[:15] + reg_f[:15] + '.npy')
 
         best_clusters = pypcaid.search_by_pca(savename, self.SAPMregionname, self.SAPMclustername, self.SAPMparamsname, self.networkmodel,
                       leaveout=[], np_step=1, timepoint=self.SAPMtimepoint, epoch=self.SAPMepoch, covariate = covvals, resume = self.SAPMresumerun)
@@ -8004,12 +8420,13 @@ class SAPMFrame:
         SAPMparamsname = os.path.join(self.SAPMresultsdir, self.SAPMparamsname)
 
         fully_connected = copy.deepcopy(self.SAPMfullyconnected)
+        normalizevar = False
         pysapm.SAPMrun_V2(self.SAPMcnums, self.SAPMregionname, self.SAPMclustername,
                        SAPMresultsname, SAPMparamsname, self.networkmodel, self.SAPMtimepoint,
                        self.SAPMepoch, self.SAPMbetascale, self.SAPMLweight, self.SAPMalphascale,
                        self.SAPMleveltrials, self.SAPMleveliter, self.SAPMlevelthreshold,
                        reload_existing=False, fully_connected = fully_connected, run_whole_group = self.SAPMgrouplevel,
-                       resumerun = self.SAPMresumerun)
+                       resumerun = self.SAPMresumerun, normalizevar = normalizevar)
 
         # get beta values and save for future betascale (initializing beta values)
         if self.SAPMsavebetainit:
@@ -8875,6 +9292,35 @@ class SAPMResultsFrame:
         settings['SRcovname'] = self.SRcovname
         settings['SRcovnamelist'] = copy.deepcopy(self.covnamelist)
         settings['SRallcovariatesvalues'] = copy.deepcopy(self.allcovariatesvalues)
+        settings['SRcovfield'] = ''
+        np.save(settingsfile, settings)
+
+        return self
+
+
+    def SRcovnameclearaction(self):
+        print('clearing covariates ... ')
+        self.SRcovname = ''
+        self.SRcovnametext.set('none chosen')
+
+        self.covnamelist = []
+        self.allcovariatesvalues = []
+
+        # destroy the old pulldown menu and create a new one with the new choices
+        self.SRcovfield_var = tk.StringVar()
+        self.SRcovfield_var.set('empty')
+        self.SRcovfieldvaluesearch_opt.destroy()  # remove it
+        SRcovfieldvalue_menu = tk.OptionMenu(self.parent, self.SRcovfield_var, *fieldvalues,
+                                        command=self.SRcovfieldvaluechoice)
+        SRcovfieldvalue_menu.config(bg=bgcol)
+        SRcovfieldvalue_menu.grid(row=8, column=2, sticky='EW')
+        self.SRcovfieldvaluesearch_opt = SRcovfieldvalue_menu  # save this way so that values are not cleared
+
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        settings['SRcovname'] = ''
+        settings['SRcovnamelist'] = []
+        settings['SRallcovariatesvalues'] = []
+        settings['SRcovfield'] = ''
         np.save(settingsfile, settings)
 
         return self
@@ -8896,6 +9342,23 @@ class SAPMResultsFrame:
         settings['SRcovname2'] = self.SRcovname2
         settings['SRcovnamelist2'] = covariatesdata2['GRPcharacteristicslist']
         settings['SRallcovariatesvalues2'] = covariatesdata2['GRPcharacteristicsvalues']
+        np.save(settingsfile, settings)
+
+        return self
+
+
+    def SRcovnameclearaction2(self):
+        print('clearing covariates ... ')
+        self.SRcovname2 = ''
+        self.SRcovnametext2.set('none chosen')
+
+        self.covnamelist = []
+        self.allcovariatesvalues = []
+
+        settings = np.load(settingsfile, allow_pickle = True).flat[0]
+        settings['SRcovname2'] = ''
+        settings['SRcovnamelist2'] = []
+        settings['SRallcovariatesvalues2'] = []
         np.save(settingsfile, settings)
 
         return self
@@ -8983,6 +9446,7 @@ class SAPMResultsFrame:
         self.SRcovvaluesearch_opt = SRcovvalue_menu  # save this way so that values are not cleared
         settings['SRcovariatesvalues'] = copy.deepcopy(self.covariatesvalues)
         settings['SRcovariatesvalues2'] = copy.deepcopy(self.covariatesvalues2)
+        settings['SRcovfield'] = copy.deepcopy(self.SRcovfield)
         np.save(settingsfile, settings)
         return self
 
@@ -9117,6 +9581,7 @@ class SAPMResultsFrame:
         self.covnamelist2 = settings['SRcovnamelist2']
         self.allcovariatesvalues2 = settings['SRallcovariatesvalues2']
         self.covariatesvalues = copy.deepcopy(settings['SRcovariatesvalues'])
+        self.covariatename = copy.deepcopy(settings['SRcovfield'])
         self.covariatesvalues2 = copy.deepcopy(settings['SRcovariatesvalues2'])
         self.SRresultsdir = copy.deepcopy(settings['SRresultsdir'])
         self.SAPMclustername = settings['SAPMclustername']
@@ -9139,7 +9604,7 @@ class SAPMResultsFrame:
         fully_connected = copy.deepcopy(self.SAPMfullyconnected)
 
         # self.SRPlotFigure = 123
-        outputname = pysapm.display_SAPM_results(123, self.SRnametag, self.covariatesvalues, self.SRoptionvalue,
+        outputname = pysapm.display_SAPM_results(123, self.SRnametag, self.covariatesvalues, self.covariatename, self.SRoptionvalue,
                             self.SRresultsdir, self.SRparamsname, self.SRresultsname,
                             self.SRgroup, self.SRtargetregion, self.SRpvalue, self.SRstatsname, [], self.SRCanvas, True, fully_connected,
                             self.SRresultsname2, self.SRparamsname2, self.covariatesvalues2)
@@ -9147,7 +9612,7 @@ class SAPMResultsFrame:
         if ('Plot' in self.SRoptionvalue):     # or ('Draw' in self.SRoptionvalue)
             print('generating figures to save as svg files ...')
             # self.SRPlotFigure = 124
-            outputname = pysapm.display_SAPM_results(124, self.SRnametag, self.covariatesvalues, self.SRoptionvalue,
+            outputname = pysapm.display_SAPM_results(124, self.SRnametag, self.covariatesvalues, self.covariatename, self.SRoptionvalue,
                                 self.SRresultsdir, self.SRparamsname, self.SRresultsname,
                                 self.SRgroup, self.SRtargetregion, self.SRpvalue, self.SRstatsname, [], 'none', False, fully_connected = fully_connected,
                                 SRresultsname2 = '', SRparametersname2 = '', covariates2 = [])
@@ -9524,6 +9989,8 @@ class SAPMResultsFrame:
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
         self.SRcovnamebrowse = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRcovnamebrowseaction, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRcovnamebrowse.grid(row=rownum, column=4, sticky='N')
+        self.SRcovnameclear = tk.Button(self.parent, text = "Clear", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRcovnameclearaction, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.SRcovnameclear.grid(row=rownum, column=5, sticky='N')
 
         # options for group comparisons
 
@@ -9574,6 +10041,8 @@ class SAPMResultsFrame:
         # the entry boxes need a "submit" button so that the program knows when to take the entered values
         self.SRcovnamebrowse2 = tk.Button(self.parent, text = "Browse", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRcovnamebrowseaction2, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.SRcovnamebrowse2.grid(row=rownum, column=4, sticky='N')
+        self.SRcovnameclear2 = tk.Button(self.parent, text = "Clear", width = smallbuttonsize, bg = fgcol2, fg = fgletter2, font = widgetfont, command = self.SRcovnameclearaction2, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.SRcovnameclear2.grid(row=rownum, column=5, sticky='N')
 
 
         rownum = 8

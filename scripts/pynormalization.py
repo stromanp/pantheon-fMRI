@@ -121,7 +121,7 @@ def py_calculate_section_positions(template, img, section_defs, angle_list, pos_
 
     if fix_position_flag > 0:
         coords = pos_estimate  # estimates of position and angle are relative to the image, not the template
-        angle = angle_estimate
+        angle = copy.deepcopy(angle_estimate)
         if np.size(angle) < 1:
             angle = 0
         angley = 0
@@ -789,6 +789,7 @@ def apply_normalization_to_nifti(niiname, T, Tfine = 'None', input_affine = [], 
 
     for tt in range(ts):
         output_images[:,:,:,tt] = py_apply_normalization(input_image[:, :, :, tt], T, Tfine)
+    print('applied py_apply_normalization to {} volumes'.format(ts))
 
     # write result as new NIfTI format image set
     pname, fname = os.path.split(niiname)
@@ -796,8 +797,12 @@ def apply_normalization_to_nifti(niiname, T, Tfine = 'None', input_affine = [], 
     if len(input_affine) == 0:
         affine = np.array([[-1.,0.,0.,0.],[0.,1.,0.,0.],[0.,0.,1.,0.],[0.,0.,0.,1.]])
     else:
-        affine = input_affine
+        affine = copy.deepcopy(input_affine)
+    print('output name = {}'.format(output_niiname))
     resulting_img = nib.Nifti1Image(output_images, affine)
+
+    print('converted to NIfTI format: {}'.format(output_niiname))
+
     nib.save(resulting_img, output_niiname)
 
     return output_niiname
@@ -1075,7 +1080,7 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
             #     fixedpoint = coords + rvpos  # mapped location of fixedpoint in the image data
             fixedpoint = coords + rvpos  # mapped location of fixedpoint in the image data
 
-        angle_estimate = angle
+        angle_estimate = copy.deepcopy(angle)
         # angle_stiffness = 1e-3
 
         print('cord section ',ss,'   fixed point: ', fixedpoint)   # fixed point is in the image coordinates
@@ -1143,6 +1148,11 @@ def py_auto_cord_normalize(background2, template, fit_parameters_input, section_
             result = result[:(ninitial_fixed_segments+ncordsegments)]
             warpdata = warpdata[:(ninitial_fixed_segments+ncordsegments)]
             break
+
+    # keep a copy of the original for display purposes
+    xs,ys,zs = np.shape(background2)
+    midline = np.ceil(xs/2).astype(int)
+    imagerecord.append({'img': background2[midline,:,:]})
 
     if display_output:
         fig = plt.figure(1), plt.imshow(background2[np.round(xs2/2).astype(int),:,:], 'gray')
@@ -1894,9 +1904,12 @@ def py_load_modified_normalization(niiname, normtemplatename, new_result):   # ,
         # display the result again
         # need to figure out how to control which figure is used for display  - come back to this ....
         display_image = results_img[midline, :, :]
-        image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
-        displayrecord.append(image_tk)
         imagerecord.append({'img':display_image})
+        # try:
+        #     image_tk = ImageTk.PhotoImage(Image.fromarray(display_image))
+        #     displayrecord.append(image_tk)
+        # except:
+        #     print('could not display normalization result...')
 
     # 4) combine the warp fields from each section into one map
     fit_order = [2, 4, 2]  # "fit_order" could be an input parameter

@@ -117,6 +117,7 @@ def search_by_pca(savename, regiondataname, clusterdataname, SAPMparametersname,
 
     p,f = os.path.split(savename)
     bigsavename = os.path.join(p, 'big'+f)
+    R2savename = os.path.join(p, 'R2'+f)
     if np_step < 1:  np_step = 1
 
     # load some data, setup some parameters...
@@ -159,6 +160,7 @@ def search_by_pca(savename, regiondataname, clusterdataname, SAPMparametersname,
         print('search_by_pca:   results will NOT be tested for correlation with a covariate')
 
     Sinput_data = []
+    person_exclude_list = []
     for nperson in range(NP):
         tp = tplist_full[0][nperson]['tp']
         nruns = nruns_per_person[nperson]
@@ -187,6 +189,10 @@ def search_by_pca(savename, regiondataname, clusterdataname, SAPMparametersname,
         else:
             data_sample = {'Sinput':Sinput, 'Sinput_original':Sinput_original}
 
+        if (np.sum(Sinput**2, axis = 1) == 0.0).any():
+            print('data set for person {} is excluded because of zero values in at least one region'.format(nperson))
+            person_exclude_list += [nperson]
+
         Sinput_data.append(data_sample)
 
 
@@ -195,20 +201,19 @@ def search_by_pca(savename, regiondataname, clusterdataname, SAPMparametersname,
     smalllist = [x for x in range(len(nclusterlist)) if x not in leaveout]
     ncombos = np.prod(np.array(nclusterlist)[smalllist])
     print('ncombinations avialable to run in total: {}'.format(ncombos))
-    # ncombos = 1000
-    print('ncombinations to be run: {}'.format(ncombos))
-
 
     # leave out people----------------------------------------
-    pplist = list(range(0,NP,np_step))
+    pplist_temp = list(range(0,NP,np_step))
+    pplist = [pplist_temp[x] for x in range(len(pplist_temp)) if pplist_temp[x] not in person_exclude_list]
     NP2 = len(pplist)
 
     EVrecord = np.zeros((ncombos,n_components, NP2))
     fixedlatent_EV = np.zeros((ncombos, NP2))
+    R2record = np.zeros((ncombos,nr, NP2))
     starttime = time.time()
 
     clusteroffset = np.array([0] + list(np.cumsum(nclusterlist)))[:-1]
-    reportinterval = np.floor(ncombos/20).astype(int)
+    reportinterval = np.floor(ncombos/10).astype(int)
 
     nclusterlist_small = np.array(nclusterlist)[smalllist]
     clusteroffset_small = clusteroffset[smalllist]
@@ -217,6 +222,7 @@ def search_by_pca(savename, regiondataname, clusterdataname, SAPMparametersname,
         if os.path.isfile(bigsavename):
             try:
                 EVrecord = np.load(bigsavename, allow_pickle = True)
+                R2record = np.load(R2savename, allow_pickle = True)
                 ncombocheck, ncompcheck, npcheck = np.shape(EVrecord)
                 if (ncombocheck == ncombos) & (ncompcheck == n_components) & (npcheck == NP2):
                     check = np.mean(EVrecord,axis=2)
@@ -226,10 +232,12 @@ def search_by_pca(savename, regiondataname, clusterdataname, SAPMparametersname,
                     print('RESUMING PREVIOUS SEARCH:  starting from {} of {}'.format(ncombostart,ncombos))
                 else:
                     EVrecord = np.zeros((ncombos, n_components, NP2))
+                    R2record = np.zeros((ncombos, nr, NP2))
                     ncombostart = 0
                     print('ATTEMPTED TO RESUME PREVIOUS SEARCH:\n   ...previous data size does not match current search settings')
             except:
                 EVrecord = np.zeros((ncombos, n_components, NP2))
+                R2record = np.zeros((ncombos, nr, NP2))
                 ncombostart = 0
         else:
             ncombostart = 0
@@ -245,26 +253,37 @@ def search_by_pca(savename, regiondataname, clusterdataname, SAPMparametersname,
             # Sin_sample = copy.deepcopy(SAPMresults_previous[nn]['Sinput'][cc,:])
             Sin_sample = copy.deepcopy(Sinput_data[pp]['Sinput'][cc,:])
             pca.fit(Sin_sample)
+
+            #------------addition May 25 2025--------------
+            components = pca.components_
+            mu = np.mean(Sin_sample, axis=0)  # the average component is separate and messes up everything because
+            mu = np.repeat(mu[np.newaxis, :], nr, axis=0)
+
+            loadings = pca.transform(Sin_sample)
+            fit_check = (loadings[:,:vintrinsic_count] @ components[:vintrinsic_count,:]) + mu
+            R2_per_region = 1.0 - np.sum((Sin_sample-fit_check)**2, axis = 1)/np.sum(Sin_sample**2, axis = 1)
+            #--------------end of addition------------------
+
             EVrecord[combonumber,:,nn] = pca.explained_variance_ratio_
+            R2record[combonumber,:,nn] = copy.deepcopy(R2_per_region)
 
             if fintrinsic_count > 0:
                 fixed_var_fraction = copy.deepcopy(Sinput_data[pp]['fixed_var_fraction'][cc])
                 fixedlatent_EV[combonumber,nn] = np.mean(fixed_var_fraction)
-            # else:
-            #     fixed_var_fraction = np.zeros(len(cc))
 
-        if (combonumber > 0) and (combonumber % reportinterval == 0):
+        if combonumber % reportinterval == 0:
             print('{:.1f} percent done {}'.format(100.0*combonumber/ncombos, time.ctime()))
             EVrecord_avg = np.mean(EVrecord, axis = 2)
+            R2record_avg = np.mean(R2record, axis=2)
             if fintrinsic_count > 0:
                 fixedlatent_EVrecord_avg = np.mean(fixedlatent_EV, axis = 1)
-                data = {'EVrecord_avg': EVrecord_avg, 'fixedlatent_EVrecord_avg':fixedlatent_EVrecord_avg}
+                data = {'EVrecord_avg': EVrecord_avg, 'fixedlatent_EVrecord_avg':fixedlatent_EVrecord_avg, 'R2record_avg':R2record_avg}
             else:
-                data = {'EVrecord_avg': EVrecord_avg}
-            # bigdata = {'EVrecord': EVrecord}
+                data = {'EVrecord_avg': EVrecord_avg, 'R2record_avg':R2record_avg}
 
             np.save(savename, data)
-            np.save(bigsavename, EVrecord)
+            np.save(bigsavename, EVrecord)  # is this necessary?
+            np.save(R2savename, R2record)  # is this necessary?
 
     endtime = time.time()
     print('{:.1f} seconds to check {} combinations'.format(endtime-starttime, ncombos))
@@ -286,11 +305,12 @@ def search_by_pca(savename, regiondataname, clusterdataname, SAPMparametersname,
     if fintrinsic_count > 0:
         fixedlatent_EVrecord_avg = np.mean(fixedlatent_EV, axis = 1)
         data = {'EVrecord_avg': EVrecord_avg, 'fixedlatent_EVrecord_avg':fixedlatent_EVrecord_avg,
+                'R2record_avg': R2record_avg,
                 'pplist':pplist, 'nclusterlist':nclusterlist, 'leaveout':leaveout,
                 'fintrinsic_count':fintrinsic_count, 'vintrinsic_count':vintrinsic_count,
                 'EVcorr_cov_record':EVcorr_cov_record}
     else:
-        data = {'EVrecord_avg': EVrecord_avg, 'pplist':pplist, 'nclusterlist':nclusterlist,
+        data = {'EVrecord_avg': EVrecord_avg, 'R2record_avg': R2record_avg, 'pplist':pplist, 'nclusterlist':nclusterlist,
                 'leaveout':leaveout, 'fintrinsic_count':fintrinsic_count, 'vintrinsic_count':vintrinsic_count,
                 'EVcorr_cov_record':EVcorr_cov_record}
     np.save(savename, data)
@@ -299,7 +319,9 @@ def search_by_pca(savename, regiondataname, clusterdataname, SAPMparametersname,
     f,e = os.path.splitext(f1)
     excelsavename = os.path.join(p,f+'.xlsx')
     print('finished PCA analysis of clusters .... analyzing results and summarizing ...')
-    bestclusters = analyze_pca_results(savename, excelsavename)
+
+    bestclusters = analyze_pca_results(savename, excelsavename) # update this
+
     print('best clusters appear to be {}'.format(bestclusters))
 
     bestclusters_out = [{'cnums':[x]} for x in bestclusters]
@@ -438,6 +460,7 @@ def analyze_pca_results(savename, excelsavename = ''):
     #         'fintrinsic_count': fintrinsic_count, 'vintrinsic_count': vintrinsic_count}
 
     EVrecord_avg = copy.deepcopy(data['EVrecord_avg'])
+    R2record_avg = copy.deepcopy(data['R2record_avg'])
     EVcorr_cov_record = copy.deepcopy(data['EVcorr_cov_record'])
     pplist = copy.deepcopy(data['pplist'])
     nclusterlist = copy.deepcopy(data['nclusterlist'])
@@ -455,7 +478,13 @@ def analyze_pca_results(savename, excelsavename = ''):
         fixedlatent_EVrecord_avg = copy.deepcopy(data['fixedlatent_EVrecord_avg'])
         EVtotal += fixedlatent_EVrecord_avg
 
-    # find interesting combinations
+    # R2record_avg is the average across people, with R2 values for each region
+    # average of R2 across regions?  minimum R2 across regions?  max R2 for a region of interest?
+    ncombosR2, nregions = np.shape(R2record_avg)
+    R2avg = np.mean(R2record_avg, axis = 1)
+    R2min = np.min(R2record_avg, axis = 1)
+
+    # find interesting combinations based on EV (explained variance)
     combo_max = np.argmax(EVtotal)
     combo_min = np.argmin(EVtotal)
     combo_sort = np.argsort(EVtotal)
@@ -643,12 +672,145 @@ def analyze_pca_results(savename, excelsavename = ''):
         if len(EVcorr_cov_record) > 100:
             df3 = pd.DataFrame(topcorrdata)
 
+
+        #
+        # try:
+        #     with pd.ExcelWriter(excelsavename) as writer:
+        #         df1.to_excel(writer, sheet_name='top clusters')
+        #         df2.to_excel(writer, sheet_name='best per cluster')
+        #         if len(EVcorr_cov_record) > 100:
+        #             df3.to_excel(writer, sheet_name='best corr')
+        #         print('cluster information written to {}'.format(excelsavename))
+        # except:   # excel file is probably open
+        #     p,f1 = os.path.split(excelsavename)
+        #     f1,e = os.path.splitext(f1)
+        #     timetext = time.ctime()
+        #     timetext = timetext.replace('  ',' ')
+        #     timetext = timetext.replace(':','')
+        #     timetext = timetext.replace(' ','_')
+        #     excelsavename2 = os.path.join(p,f1+timetext+'xlsx')
+        #     with pd.ExcelWriter(excelsavename2) as writer:
+        #         df1.to_excel(writer, sheet_name='top clusters')
+        #         df2.to_excel(writer, sheet_name='best per cluster')
+        #         if len(EVcorr_cov_record) > 100:
+        #             df3.to_excel(writer, sheet_name='best corr')
+        #         print('cluster information written to {}'.format(excelsavename2))
+
+
+    # write out interesting combinations based on R2 values
+    combo_R2avg_max = np.argmax(R2avg)
+    combo_R2avg_min = np.argmin(R2avg)
+    combo_R2avg_sort = np.argsort(R2avg)
+    combo_R2avg_sort = combo_R2avg_sort[::-1]
+
+    combo_R2min_sort = np.argsort(R2min)
+    combo_R2min_sort = combo_R2min_sort[::-1]
+
+    cnumsx_R2 = ind2sub_ndims(nclusterlist_small, combo_R2avg_max)
+    cnumsn_R2 = ind2sub_ndims(nclusterlist_small, combo_R2avg_min)
+
+    # write out the top combinations-----------------------------
+    # create the headings
+    headings = ['rank', 'cnums']
+    for vv in range(nregions):
+        headings += ['region{}'.format(vv)]
+
+    # look at top 100 cluster combinations
+    topcombodata_R2avg = []
+    topcombodata_R2min = []
+    for index in range(100):
+        cnums_avg_sorted = ind2sub_ndims(nclusterlist_small, combo_R2avg_sort[index])
+        R2avg_sorted = R2record_avg[combo_R2avg_sort[index], :]
+
+        cnums_min_sorted = ind2sub_ndims(nclusterlist_small, combo_R2min_sort[index])
+        R2min_sorted = R2record_avg[combo_R2min_sort[index], :]
+
+        ranktext = ['{}'.format(index)]
+        cnumsavgtext = ['{}'.format(cnums_avg_sorted)]
+        cnumsmintext = ['{}'.format(cnums_min_sorted)]
+
+        regionR2avgtext = []
+        regionR2mintext = []
+        for vv in range(nregions):
+            regionR2avgtext += ['{:.3f}  '.format(R2avg_sorted[vv])]
+            regionR2mintext += ['{:.3f}  '.format(R2min_sorted[vv])]
+
+        allavgtext = ranktext + cnumsavgtext + regionR2avgtext
+        allmintext = ranktext + cnumsmintext + regionR2mintext
+        entry_avg = dict(zip(headings,allavgtext))
+        entry_min = dict(zip(headings,allmintext))
+
+        topcombodata_R2avg.append(entry_avg)
+        topcombodata_R2min.append(entry_min)
+
+    # look at top combinations for each cluster
+    # i.e. find all combinations with cluster 2 in region 3 for example
+    # and then find the best one of these combinations
+    top_percluster_R2avg_data = []
+    top_percluster_R2min_data = []
+    for nr in range(len(nclusterlist_small)):
+        for cc in range(nclusterlist_small[nr]):
+            print('identifying best clusters with subregion {} in region {}'.format(cc,nr))
+            m = indices_for_1fixedcluster(nclusterlist_small, nr, cc)
+            combo_R2avg = np.argmax(R2avg[m])
+            combo_R2min = np.argmax(R2min[m])
+
+            R2avg_this = R2record_avg[m[combo_R2avg], :]
+            cnums_R2avg = ind2sub_ndims(nclusterlist_small,m[combo_R2avg])
+
+            R2min_this = R2record_avg[m[combo_R2min], :]
+            cnums_R2min = ind2sub_ndims(nclusterlist_small,m[combo_R2min])
+
+            rankindex_R2avg = np.where(combo_R2avg_sort == m[combo_R2avg])[0]
+            ranktext_R2avg = ['{}'.format(rankindex_R2avg[0])]
+            cnumstext_R2avg = ['{}'.format(cnums_R2avg)]
+
+            rankindex_R2min = np.where(combo_R2min_sort == m[combo_R2min])[0]
+            ranktext_R2min = ['{}'.format(rankindex_R2min[0])]
+            cnumstext_R2min = ['{}'.format(cnums_R2min)]
+
+            componentsR2avgtext = []
+            for vv in range(nregions):
+                componentsR2avgtext += ['{:.3f}  '.format(R2avg_this[vv])]
+
+            componentsR2mintext = []
+            for vv in range(nregions):
+                componentsR2mintext += ['{:.3f}  '.format(R2min_this[vv])]
+
+            alltext_R2avg = ranktext_R2avg + cnumstext_R2avg + componentsR2avgtext
+            alltext_R2min = ranktext_R2min + cnumstext_R2min + componentsR2mintext
+            entry_R2avg = dict(zip(headings, alltext_R2avg))
+            entry_R2min = dict(zip(headings, alltext_R2min))
+
+            top_percluster_R2avg_data.append(entry_R2avg)
+            top_percluster_R2min_data.append(entry_R2min)
+
+
+    # write out the top combinations-----------------------------
+
+    # if a name is provided for writing the results to an excel file ...
+    f, e = os.path.splitext(excelsavename)
+    if e == '.xlsx':  # write the results out
+
+        # now write it to excel sheet
+        df4 = pd.DataFrame(topcombodata_R2avg)
+        df5 = pd.DataFrame(top_percluster_R2avg_data)
+        df6 = pd.DataFrame(topcombodata_R2min)
+        df7 = pd.DataFrame(top_percluster_R2min_data)
+
         try:
             with pd.ExcelWriter(excelsavename) as writer:
+
                 df1.to_excel(writer, sheet_name='top clusters')
                 df2.to_excel(writer, sheet_name='best per cluster')
                 if len(EVcorr_cov_record) > 100:
                     df3.to_excel(writer, sheet_name='best corr')
+                print('cluster information written to {}'.format(excelsavename))
+
+                df4.to_excel(writer, sheet_name='R2avg top clusters')
+                df5.to_excel(writer, sheet_name='R2avg best per cluster')
+                df6.to_excel(writer, sheet_name='R2min top clusters')
+                df7.to_excel(writer, sheet_name='R2min best per cluster')
                 print('cluster information written to {}'.format(excelsavename))
         except:   # excel file is probably open
             p,f1 = os.path.split(excelsavename)
@@ -659,13 +821,20 @@ def analyze_pca_results(savename, excelsavename = ''):
             timetext = timetext.replace(' ','_')
             excelsavename2 = os.path.join(p,f1+timetext+'xlsx')
             with pd.ExcelWriter(excelsavename2) as writer:
+
                 df1.to_excel(writer, sheet_name='top clusters')
                 df2.to_excel(writer, sheet_name='best per cluster')
                 if len(EVcorr_cov_record) > 100:
                     df3.to_excel(writer, sheet_name='best corr')
+                print('cluster information written to {}'.format(excelsavename))
+
+                df4.to_excel(writer, sheet_name='R2avg top clusters')
+                df5.to_excel(writer, sheet_name='R2avg best per cluster')
+                df6.to_excel(writer, sheet_name='R2min top clusters')
+                df7.to_excel(writer, sheet_name='R2min best per cluster')
                 print('cluster information written to {}'.format(excelsavename2))
 
-    return cnumsx
+    return cnumsx_R2
 
 #-----------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------------

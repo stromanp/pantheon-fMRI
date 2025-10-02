@@ -698,12 +698,12 @@ def run_preprocessing(settingsfile):
             print('pre-processing:  coregistration: databasenum ', dbnum)
             dbhome = df1.loc[dbnum, 'datadir']
             fname = df1.loc[dbnum, 'niftiname']
-            seriesnumber = df1.loc[dbnum, 'seriesnumber']
+            seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
             niiname = os.path.join(dbhome, fname)
             fullpath, filename = os.path.split(niiname)
             prefix_niiname = os.path.join(fullpath, prefix + filename)
             # run the coregistration ...
-            nametag = '_s{}'.format(seriesnumber)
+            nametag = '_s{}'.format(int(seriesnumber))
 
             # new guided coregistration method
             normtemplatename = df1.loc[dbnum, 'normtemplatename']
@@ -870,13 +870,13 @@ def run_preprocessing(settingsfile):
             TR = df1.loc[dbnum, 'TR']
             normtemplatename = df1.loc[dbnum, 'normtemplatename']
             normdataname = df1.loc[dbnum, 'normdataname']
-            seriesnumber = df1.loc[dbnum, 'seriesnumber']
+            seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
             normdataname_full = os.path.join(dbhome, normdataname)
 
             # generate main effects - saved as sheet in database file
             sheetname = pybasissets.calculate_maineffects(PPdatabasename, dbnum, TR, nvols)
             # generate white matter confounds - saved as excel file with nifti data, named ..._motiondata.xlsx
-            nametag = '_s{}'.format(seriesnumber)
+            nametag = '_s{}'.format(int(seriesnumber))
 
             if normtemplatename == 'brain':
                 # need special case for brain data....
@@ -905,12 +905,12 @@ def run_preprocessing(settingsfile):
             print('pre-processing:  cleaning the data: databasenum ', dbnum)
             dbhome = df1.loc[dbnum, 'datadir']
             fname = df1.loc[dbnum, 'niftiname']
-            seriesnumber = df1.loc[dbnum, 'seriesnumber']
+            seriesnumber = df1.loc[dbnum, 'seriesnumber'].astype(int)
             niiname = os.path.join(dbhome, fname)
             fullpath, filename = os.path.split(niiname)
             prefix_niiname = os.path.join(fullpath, prefix + filename)
 
-            nametag = '_s{}'.format(seriesnumber)
+            nametag = '_s{}'.format(int(seriesnumber))
             niiname = cleandata(prefix_niiname, prefix, nametag)
 
         print('Finished cleaning the data ...', time.ctime(time.time()))
