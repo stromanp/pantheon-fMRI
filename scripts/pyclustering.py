@@ -437,9 +437,11 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel,
         check = np.sum(tcr**2, axis = 2)
         cbad, rbad = np.where(check == 0)
         if len(cbad) > 0:
+            print('rbad = {}'.format(rbad))
+            print('size of DBnum = {}'.format(np.shape(DBnum)))
             print('\n-----------------------------------------------------------')
             print('pyclustering, define_clusters_and_load_data:')
-            print('possible bad data sets in database numbers {}'.format(DBnum(rbad)))
+            print('possible bad data sets in database numbers {}'.format(DBnum[rbad]))
             print('    ... values are all zeros')
             print('-----------------------------------------------------------\n')
 
@@ -461,7 +463,8 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel,
         # tc_sem = np.reshape(tcr_sem,(nclusters,ts))
 
         clusterdef_entry = {'cx':cx, 'cy':cy, 'cz':cz,'IDX':IDX, 'nclusters':nclusters, 'rname':rname, 'regionindex':regionindex, 'regionnum':regionnum, 'occurrence':occurrence}
-        regiondata_entry = {'tc':tc, 'tc_sem':tc_sem, 'tc_original':tc_original, 'tc_sem_original':tc_sem_original, 'nruns_per_person':nruns_per_person, 'tsize':tsize, 'rname':rname, 'DBname':DBname, 'DBnum':DBnum, 'prefix':prefix, 'occurrence':occurrence}
+        # Oct 8 2025 - removed 'DBname':DBname, 'DBnum':DBnum from regiondata_entry
+        regiondata_entry = {'tc':tc, 'tc_sem':tc_sem, 'tc_original':tc_original, 'tc_sem_original':tc_sem_original, 'nruns_per_person':nruns_per_person, 'tsize':tsize, 'rname':rname, 'prefix':prefix, 'occurrence':occurrence}
         region_properties.append(regiondata_entry)
         cluster_properties.append(clusterdef_entry)
 
@@ -489,8 +492,8 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel,
                         tc_sem = region_properties[cc]['tc_sem']
                         nruns_per_person = region_properties[cc]['nruns_per_person']
                         tsize = region_properties[cc]['tsize']
-                        DBname = region_properties[cc]['DBname']
-                        DBnum = region_properties[cc]['DBnum']
+                        # DBname = region_properties[cc]['DBname']
+                        # DBnum = region_properties[cc]['DBnum']
                         prefix = region_properties[cc]['prefix']
                         ncluster_total += nclusters
                     else:
@@ -511,7 +514,8 @@ def define_clusters_and_load_data(DBname, DBnum, prefix, nvolmask, networkmodel,
                         tc_sem = np.concatenate((tc,tc_sem2),axis=0)
 
                 clusterdef_entry_temp = {'cx': cx, 'cy': cy, 'cz': cz, 'IDX': IDX, 'nclusters': ncluster_total, 'rname': rname, 'regionindex': regionindex, 'regionnum': regionnum}
-                regiondata_entry_temp = {'tc': tc, 'tc_sem': tc_sem, 'nruns_per_person': nruns_per_person, 'tsize': tsize, 'rname': rname, 'DBname': DBname, 'DBnum': DBnum, 'prefix': prefix}
+                # Oct 8 2025 - removed 'DBname':DBname, 'DBnum':DBnum from regiondata_entry_temp
+                regiondata_entry_temp = {'tc': tc, 'tc_sem': tc_sem, 'nruns_per_person': nruns_per_person, 'tsize': tsize, 'rname': rname, 'prefix': prefix}
 
                 cluster_properties2.append(clusterdef_entry_temp)
                 region_properties2.append(regiondata_entry_temp)
@@ -767,9 +771,11 @@ def update_oneregion_and_load_data(DBname, DBnum, prefix, nvolmask, cluster_prop
         check = np.sum(tcr**2, axis = 2)
         cbad, rbad = np.where(check == 0)
         if len(cbad) > 0:
+            print('rbad = {}'.format(rbad))
+            print('size of DBnum = {}'.format(np.shape(DBnum)))
             print('\n-----------------------------------------------------------')
             print('pyclustering, define_clusters_and_load_data:')
-            print('possible bad data sets in database numbers {}'.format(DBnum(rbad)))
+            print('possible bad data sets in database numbers {}'.format(DBnum[rbad]))
             print('    ... values are all zeros')
             print('-----------------------------------------------------------\n')
 
@@ -777,7 +783,8 @@ def update_oneregion_and_load_data(DBname, DBnum, prefix, nvolmask, cluster_prop
         tc_sem = np.reshape(tcr_sem, (nclusters, ts))
 
         clusterdef_entry = {'cx':cx, 'cy':cy, 'cz':cz,'IDX':IDX, 'nclusters':nclusters, 'rname':rname, 'regionindex':regionindex, 'regionnum':regionnum, 'occurrence':occurrence}
-        regiondata_entry = {'tc':tc, 'tc_sem':tc_sem, 'tc_original':tc_original, 'tc_sem_original':tc_sem_original, 'nruns_per_person':nruns_per_person, 'tsize':tsize, 'rname':rname, 'DBname':DBname, 'DBnum':DBnum, 'prefix':prefix, 'occurrence':occurrence}
+        # Oct 8 2025 - removed 'DBname':DBname, 'DBnum':DBnum from regiondata_entry
+        regiondata_entry = {'tc':tc, 'tc_sem':tc_sem, 'tc_original':tc_original, 'tc_sem_original':tc_sem_original, 'nruns_per_person':nruns_per_person, 'tsize':tsize, 'rname':rname, 'prefix':prefix, 'occurrence':occurrence}
 
         new_region_properties.append(regiondata_entry)
         new_cluster_properties.append(clusterdef_entry)
@@ -807,8 +814,8 @@ def update_oneregion_and_load_data(DBname, DBnum, prefix, nvolmask, cluster_prop
                     tc_sem = new_region_properties[cc]['tc_sem']
                     nruns_per_person = new_region_properties[cc]['nruns_per_person']
                     tsize = new_region_properties[cc]['tsize']
-                    DBname = new_region_properties[cc]['DBname']
-                    DBnum = new_region_properties[cc]['DBnum']
+                    # DBname = new_region_properties[cc]['DBname']
+                    # DBnum = new_region_properties[cc]['DBnum']
                     prefix = new_region_properties[cc]['prefix']
                     ncluster_total += nclusters
                 else:
@@ -829,7 +836,8 @@ def update_oneregion_and_load_data(DBname, DBnum, prefix, nvolmask, cluster_prop
                     tc_sem = np.concatenate((tc,tc_sem2),axis=0)
 
             clusterdef_entry_temp = {'cx': cx, 'cy': cy, 'cz': cz, 'IDX': IDX, 'nclusters': ncluster_total, 'rname': rname, 'regionindex': regionindex, 'regionnum': regionnum}
-            regiondata_entry_temp = {'tc': tc, 'tc_sem': tc_sem, 'nruns_per_person': nruns_per_person, 'tsize': tsize, 'rname': rname, 'DBname': DBname, 'DBnum': DBnum, 'prefix': prefix}
+            # Oct 8 2025 - removed 'DBname':DBname, 'DBnum':DBnum from regiondata_entry_temp
+            regiondata_entry_temp = {'tc': tc, 'tc_sem': tc_sem, 'nruns_per_person': nruns_per_person, 'tsize': tsize, 'rname': rname, 'prefix': prefix}
 
             new_cluster_properties2.append(clusterdef_entry_temp)
             new_region_properties2.append(regiondata_entry_temp)
@@ -1025,6 +1033,8 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, netwo
         check = np.sum(tcr**2, axis = 2)
         cbad, rbad = np.where(check == 0)
         if len(cbad) > 0:
+            print('rbad = {}'.format(rbad))
+            print('size of DBnum = {}'.format(np.shape(DBnum)))
             print('\n-----------------------------------------------------------')
             print('pyclustering, load_cluster_data:')
             print('possible bad data sets in database numbers {}'.format(DBnum[rbad]))
@@ -1032,7 +1042,8 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, netwo
             print('-----------------------------------------------------------\n')
 
         clusterdef_entry = {'cx':cx, 'cy':cy, 'cz':cz,'IDX':IDX, 'nclusters':nclusters, 'rname':rname, 'regionindex':regionindex, 'regionnum':regionnum, 'occurrence':occurrence}
-        regiondata_entry = {'tc':tc, 'tc_sem':tc_sem, 'tc_original':tc_original, 'tc_sem_original':tc_sem_original, 'nruns_per_person':nruns_per_person, 'tsize':tsize, 'rname':rname, 'DBname':DBname, 'DBnum':DBnum, 'prefix':prefix, 'occurrence':occurrence}
+        # Oct 8 2025 - removed 'DBname':DBname, 'DBnum':DBnum from regiondata_entry
+        regiondata_entry = {'tc':tc, 'tc_sem':tc_sem, 'tc_original':tc_original, 'tc_sem_original':tc_sem_original, 'nruns_per_person':nruns_per_person, 'tsize':tsize, 'rname':rname, 'prefix':prefix, 'occurrence':occurrence}
         region_properties.append(regiondata_entry)
         cluster_properties.append(clusterdef_entry)
 
@@ -1203,6 +1214,8 @@ def load_oneregion_cluster_data(cluster_properties, region_properties, DBname, D
         check = np.sum(tcr**2, axis = 2)
         cbad, rbad = np.where(check == 0)
         if len(cbad) > 0:
+            print('rbad = {}'.format(rbad))
+            print('size of DBnum = {}'.format(np.shape(DBnum)))
             print('\n-----------------------------------------------------------')
             print('pyclustering, load_cluster_data:')
             print('possible bad data sets in database numbers {}'.format(DBnum[rbad]))
@@ -1210,7 +1223,8 @@ def load_oneregion_cluster_data(cluster_properties, region_properties, DBname, D
             print('-----------------------------------------------------------\n')
 
         # clusterdef_entry = {'cx':cx, 'cy':cy, 'cz':cz,'IDX':IDX, 'nclusters':nclusters, 'rname':rname, 'regionindex':regionindex, 'regionnum':regionnum, 'occurrence':occurrence}
-        regiondata_entry = {'tc':tc, 'tc_sem':tc_sem, 'tc_original':tc_original, 'tc_sem_original':tc_sem_original, 'nruns_per_person':nruns_per_person, 'tsize':tsize, 'rname':rname, 'DBname':DBname, 'DBnum':DBnum, 'prefix':prefix, 'occurrence':occurrence}
+        # Oct 8 2025 - removed 'DBname':DBname, 'DBnum':DBnum from regiondata_entry
+        regiondata_entry = {'tc':tc, 'tc_sem':tc_sem, 'tc_original':tc_original, 'tc_sem_original':tc_sem_original, 'nruns_per_person':nruns_per_person, 'tsize':tsize, 'rname':rname, 'prefix':prefix, 'occurrence':occurrence}
         new_region_properties.append(regiondata_entry)
 
     # update region_properties
@@ -1337,7 +1351,8 @@ def load_cluster_data_original(cluster_properties, DBname, DBnum, prefix, nvolma
                 tc[aa, :] = np.mean(regiondata[cc, :], axis=0)
                 tc_sem[aa, :] = np.std(regiondata[cc, :], axis=0) / np.sqrt(nvox)
 
-            regiondata_entry = {'tc': tc, 'tc_sem': tc_sem, 'nruns_per_person': nruns_per_person, 'tsize': tsize, 'rname':rname, 'DBname':DBname, 'DBnum':DBnum, 'prefix':prefix}
+            # Oct 8 2025 - removed 'DBname':DBname, 'DBnum':DBnum from regiondata_entry
+            regiondata_entry = {'tc': tc, 'tc_sem': tc_sem, 'nruns_per_person': nruns_per_person, 'tsize': tsize, 'rname':rname, 'prefix':prefix}
             region_properties.append(regiondata_entry)
 
     return region_properties
@@ -1542,4 +1557,59 @@ def load_data_from_region(filename_list, nvolmask, mode, cx, cy, cz, definingclu
 
     return group_data
 
+
+def load_all_voxel_data(DBname, DBnum, prefix, normtemplatename, nametag):
+    # October 2025
+    # This function is not used in Pantheon, it is a special case
+    # This function is to load all of the data from every voxel within a region mask
+    # in order to check for voxel-to-region correlations later. The purpose is to
+    # check anatomical region maps
+    #
+    outputdir, f = os.path.split(DBname)
+    outputfname = '{}_allvoxel_data.npy'.format(nametag)
+    outputname = os.path.join(outputdir, outputfname)
+
+    # the voxels in the regions of interest need to be extracted
+    filename_list, dbnum_person_list, NP = pydatabase.get_datanames_by_person(DBname, DBnum, prefix, mode='list')
+    nruns_per_person = np.zeros(NP).astype(int)
+    for nn in range(NP):
+        nruns_per_person[nn] = len(filename_list[nn])
+    nruns_total = np.sum(nruns_per_person)
+
+    # load templates and region masks
+    resolution = 1
+    template_img, regionmap_img, template_affine, anatlabels, wmmap, roi_map, gmwm_map = \
+        load_templates.load_template_and_masks(normtemplatename, resolution)
+
+    if normtemplatename.lower() == 'brain':
+        # for brain data, need to match the template, region map, etc., to the data size/position
+        dbhome = df1.loc[self.DBnum[0], 'datadir']
+        fname = df1.loc[self.DBnum[0], 'niftiname']
+        niiname = os.path.join(dbhome, fname)
+        fullpath, filename = os.path.split(niiname)
+        prefix_niiname = os.path.join(fullpath, self.CLprefix + filename)
+        temp_data = nib.load(prefix_niiname)
+        img_data_affine = temp_data.affine
+        hdr = temp_data.header
+        template_img = i3d.convert_affine_matrices_nearest(template_img, template_affine, img_data_affine,
+                                                           hdr['dim'][1:4])
+        regionmap_img = i3d.convert_affine_matrices_nearest(regionmap_img, template_affine, img_data_affine,
+                                                            hdr['dim'][1:4])
+
+    # now load all the voxel data
+    cx, cy, cz = np.where(regionmap_img > 0)
+    nvolmask = 2
+
+    mode = 'concatenate'
+    allregiondata = load_data_from_region(filename_list, nvolmask, mode, cx, cy, cz)
+    nvox,ts = np.shape(allregiondata)
+    print('nvox = {}   ts = {}'.format(nvox,ts))
+
+
+    # outputname = r'Y:\BigAnatomicalAnalysis\allpain_allvoxel_data.npy'
+    np.save(outputname, {'voxeldata':allregiondata, 'DBname':DBname, 'DBnum':DBnum,
+        'cx':cx, 'cy':cy, 'cz':cz, 'regionmap_img':regionmap_img, 'template_img':template_img})
+
+    print('loading voxel data complete.')
+    return outputname
 

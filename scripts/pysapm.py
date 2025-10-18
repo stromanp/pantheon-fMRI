@@ -1632,13 +1632,8 @@ def prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdatanam
         max_std = np.max(tcdata_std)
         min_std = np.min(tcdata_std)
 
-        # new_min_std = 0.75*avg_std
-        # new_max_std = 1.25*avg_std
-
         new_std = copy.deepcopy(avg_std)    # normalize everything to the same variance
         std_scale = new_std/(tcdata_std + 1.0e-20)
-        # testing idea about std_scale
-        # std_scale = (0.5*tcdata_std + 0.5*new_std)/(tcdata_std + 1.0e-20)
 
         # flag extreme values
         print('max/min of std_scale = {:.3e} / {:.3e}'.format(np.max(std_scale), np.min(std_scale)))
@@ -1670,6 +1665,30 @@ def prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdatanam
         tpgroup_full.append(tpgroup)
         tplist_full = copy.deepcopy(tpgroup_full)
         nruns_per_person = [np.sum(nruns_per_person)]
+
+    if run_whole_group_averaged:  # averaged data
+        # special case to fit the full group together
+        # treat the whole group like one person
+        tcdata_centered_avg = np.zeros((nregions, tsize))
+        tpgroup_full = []
+        tpgroup = []
+        tp = []
+        for nn in range(NP):
+            r1 = sum(nruns_per_person[:nn])
+            r2 = sum(nruns_per_person[:(nn + 1)])
+            for ee2 in range(r1, r2):
+                t1 = ee2*tsize
+                t2 = (ee2+1)*tsize
+                tcdata_centered_avg += tcdata_centered[:,t1:t2]
+
+        tcdata_centered_avg /= nruns_total
+        nruns_per_person_new = [1]
+        tplist_full_new = []
+        tplist_full_new[0][0]['tp'] = tplist_full[0][0]['tp']
+
+        nruns_per_person = copy.deepcopy(nruns_per_person_new)
+        tplist_full = copy.deepcopy(tplist_full_new)
+        tcdata_centered = copy.deepcopy(tcdata_centered_avg)
 
     Nintrinsic = fintrinsic_count + vintrinsic_count
     nregions = len(rnamelist)

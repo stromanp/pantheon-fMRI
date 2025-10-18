@@ -132,11 +132,17 @@ def load_template(region_name, resolution, verbose = False):
             if resolution == 0.5:
                 template_file = 'brain_template_aligned_with_stitched_PAM50_icbm152_T2.nii.gz'
                 regionmap_file = 'wholeCNS_region_map_cordsegments.nii.gz'
+                # temporary testing
+                regionmap_file = 'wholeCNS_region_map_cordsegments_October2025_experimental.nii.gz'
+
                 match_affine = False
                 crop = False
             else:
                 template_file = 'brain_template_aligned_with_stitched_PAM50_icbm152_T2_1mm.nii.gz'
                 regionmap_file = 'wholeCNS_region_map_cordsegments_1mm.nii.gz'
+                # temporary testing
+                regionmap_file = 'wholeCNS_region_map_cordsegments_October2025_experimental_1mm.nii.gz'
+
                 match_affine = True
                 crop = False
                 
@@ -144,11 +150,16 @@ def load_template(region_name, resolution, verbose = False):
             if resolution == 0.5:
                 template_file = 'CCBS_template_aligned_with_stitched_PAM50_icbm152.nii.gz'
                 regionmap_file = 'CCBS_region_map_cordsegments.nii.gz'
+                # temporary testing
+                regionmap_file = 'CCBS_region_map_cordsegments_October2025_experimental.nii.gz'
+
                 match_affine = False
                 crop = False
             else:
                 template_file = 'CCBS_template_aligned_with_stitched_PAM50_icbm152_1mm.nii.gz'
                 regionmap_file = 'CCBS_region_map_cordsegments_1mm.nii.gz'
+                # temporary testing
+                regionmap_file = 'CCBS_region_map_cordsegments_October2025_experimental_1mm.nii.gz'
                 match_affine = False
                 crop = False
                 
@@ -157,11 +168,17 @@ def load_template(region_name, resolution, verbose = False):
         if resolution == 0.5:
             template_file = 'stitched_PAM50_icbm152_May2020_T2.nii.gz'
             regionmap_file = 'wholeCNS_region_map_cordsegments.nii.gz'
+            # temporary testing
+            regionmap_file = 'wholeCNS_region_map_cordsegments_October2025_experimental.nii.gz'
+
             match_affine = False
             crop = True
         else:
             template_file = 'stitched_PAM50_icbm152_May2020_T2_1mm.nii.gz'
             regionmap_file = 'wholeCNS_region_map_cordsegments_1mm.nii.gz'
+            # temporary testing
+            regionmap_file = 'wholeCNS_region_map_cordsegments_October2025_experimental_1mm.nii.gz'
+
             match_affine = False
             crop = True
             
@@ -327,6 +344,9 @@ def load_template_and_masks(region_name, resolution, verbose=False):
             if resolution == 0.5:
                 template_file = 'brain_template_aligned_with_stitched_PAM50_icbm152_T2.nii.gz'
                 regionmap_file = 'wholeCNS_region_map_cordsegments.nii.gz'
+                # temporary testing
+                regionmap_file = 'wholeCNS_region_map_cordsegments_October2025_experimental.nii.gz'
+
                 wmmap_file = 'wholeCNS_wm_map.nii.gz'
                 gm_wm_mask_file = 'none'
                 match_affine = True
@@ -334,6 +354,9 @@ def load_template_and_masks(region_name, resolution, verbose=False):
             else:
                 template_file = 'brain_template_aligned_with_stitched_PAM50_icbm152_T2_1mm.nii.gz'
                 regionmap_file = 'wholeCNS_region_map_cordsegments_1mm.nii.gz'
+                # temporary testing
+                regionmap_file = 'wholeCNS_region_map_cordsegments_October2025_experimental_1mm.nii.gz'
+
                 wmmap_file = 'wholeCNS_wm_map_1mm.nii.gz'
                 gm_wm_mask_file = 'none'
                 match_affine = True
@@ -343,6 +366,9 @@ def load_template_and_masks(region_name, resolution, verbose=False):
             if resolution == 0.5:
                 template_file = 'CCBS_template_aligned_with_stitched_PAM50_icbm152.nii.gz'
                 regionmap_file = 'CCBS_region_map_cordsegments.nii.gz'
+                # temporary testing
+                regionmap_file = 'CCBS_region_map_cordsegments_October2025_experimental.nii.gz'
+
                 wmmap_file = 'CCBS_wm_map.nii.gz'
                 gm_wm_mask_file = 'CCBS_cord_wm_gm_mask.nii.gz'
                 match_affine = False
@@ -350,6 +376,9 @@ def load_template_and_masks(region_name, resolution, verbose=False):
             else:
                 template_file = 'CCBS_template_aligned_with_stitched_PAM50_icbm152_1mm.nii.gz'
                 regionmap_file = 'CCBS_region_map_cordsegments_1mm.nii.gz'
+                # temporary testing
+                regionmap_file = 'CCBS_region_map_cordsegments_October2025_experimental_1mm.nii.gz'
+
                 wmmap_file = 'CCBS_wm_map_1mm.nii.gz'
                 gm_wm_mask_file = 'CCBS_cord_wm_gm_mask_1mm.nii.gz'
                 match_affine = False
@@ -360,6 +389,9 @@ def load_template_and_masks(region_name, resolution, verbose=False):
         if resolution == 0.5:
             template_file = 'stitched_PAM50_icbm152_May2020_T2.nii.gz'
             regionmap_file = 'wholeCNS_region_map_cordsegments.nii.gz'
+            # temporary testing
+            regionmap_file = 'wholeCNS_region_map_cordsegments_October2025_experimental.nii.gz'
+
             wmmap_file = 'wholeCNS_wm_map.nii.gz'
             gm_wm_mask_file = 'CNS_cord_wm_gm_mask.nii.gz'
             match_affine = False
@@ -367,6 +399,9 @@ def load_template_and_masks(region_name, resolution, verbose=False):
         else:
             template_file = 'stitched_PAM50_icbm152_May2020_T2_1mm.nii.gz'
             regionmap_file = 'wholeCNS_region_map_cordsegments_1mm.nii.gz'
+            # temporary testing
+            regionmap_file = 'wholeCNS_region_map_cordsegments_October2025_experimental_1mm.nii.gz'
+
             wmmap_file = 'wholeCNS_wm_map_1mm.nii.gz'
             gm_wm_mask_file = 'CNS_cord_wm_gm_mask_1mm.nii.gz'
             match_affine = False
@@ -570,13 +605,19 @@ def load_wm_maps(region_name, resolution, verbose=False):
             if resolution == 0.5:
                 template_file = 'brain_template_aligned_with_stitched_PAM50_icbm152_T2.nii.gz'
                 regionmap_file = 'wholeCNS_region_map_cordsegments.nii.gz'
+                # temporary testing
+                regionmap_file = 'wholeCNS_region_map_cordsegments_October2025_experimental.nii.gz'
+
                 wmmap_file = 'wholeCNS_wm_map.nii.gz'
                 gm_wm_mask_file = 'none'
                 match_affine = True
                 crop = False
             else:
                 template_file = 'brain_template_aligned_with_stitched_PAM50_icbm152_T2_1mm.nii.gz'
-                regionmap_file = 'wholeCNS_region_map_cordsegments.nii.gz'
+                regionmap_file = 'wholeCNS_region_map_cordsegments_1mm.nii.gz'
+                # temporary testing
+                regionmap_file = 'wholeCNS_region_map_cordsegments_October2025_experimental_1mm.nii.gz'
+
                 wmmap_file = 'wholeCNS_wm_map_1mm.nii.gz'
                 gm_wm_mask_file = 'none'
                 match_affine = True
@@ -586,6 +627,9 @@ def load_wm_maps(region_name, resolution, verbose=False):
             if resolution == 0.5:
                 template_file = 'CCBS_template_aligned_with_stitched_PAM50_icbm152.nii.gz'
                 regionmap_file = 'CCBS_region_map_cordsegments.nii.gz'
+                # temporary testing
+                regionmap_file = 'CCBS_region_map_cordsegments_October2025_experimental.nii.gz'
+
                 wmmap_file = 'CCBS_wm_map.nii.gz'
                 gm_wm_mask_file = 'CCBS_cord_wm_gm_mask.nii.gz'
                 match_affine = False
@@ -593,6 +637,9 @@ def load_wm_maps(region_name, resolution, verbose=False):
             else:
                 template_file = 'CCBS_template_aligned_with_stitched_PAM50_icbm152_1mm.nii.gz'
                 regionmap_file = 'CCBS_region_map_cordsegments_1mm.nii.gz'
+                # temporary testing
+                regionmap_file = 'CCBS_region_map_cordsegments_October2025_experimental_1mm.nii.gz'
+
                 wmmap_file = 'CCBS_wm_map_1mm.nii.gz'
                 gm_wm_mask_file = 'CCBS_cord_wm_gm_mask_1mm.nii.gz'
                 match_affine = False
@@ -603,6 +650,9 @@ def load_wm_maps(region_name, resolution, verbose=False):
         if resolution == 0.5:
             template_file = 'stitched_PAM50_icbm152_May2020_T2.nii.gz'
             regionmap_file = 'wholeCNS_region_map_cordsegments.nii.gz'
+            # temporary testing
+            regionmap_file = 'wholeCNS_region_map_cordsegments_October2025_experimental.nii.gz'
+
             wmmap_file = 'wholeCNS_wm_map.nii.gz'
             gm_wm_mask_file = 'CNS_cord_wm_gm_mask.nii.gz'
             match_affine = False
@@ -610,6 +660,9 @@ def load_wm_maps(region_name, resolution, verbose=False):
         else:
             template_file = 'stitched_PAM50_icbm152_May2020_T2_1mm.nii.gz'
             regionmap_file = 'wholeCNS_region_map_cordsegments_1mm.nii.gz'
+            # temporary testing
+            regionmap_file = 'wholeCNS_region_map_cordsegments_October2025_experimental_1mm.nii.gz'
+
             wmmap_file = 'wholeCNS_wm_map_1mm.nii.gz'
             gm_wm_mask_file = 'CNS_cord_wm_gm_mask_1mm.nii.gz'
             match_affine = False
