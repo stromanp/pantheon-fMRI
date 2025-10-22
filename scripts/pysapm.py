@@ -1666,6 +1666,7 @@ def prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdatanam
         tplist_full = copy.deepcopy(tpgroup_full)
         nruns_per_person = [np.sum(nruns_per_person)]
 
+    run_whole_group_averaged = False   # special test case
     if run_whole_group_averaged:  # averaged data
         # special case to fit the full group together
         # treat the whole group like one person
@@ -1689,6 +1690,7 @@ def prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdatanam
         nruns_per_person = copy.deepcopy(nruns_per_person_new)
         tplist_full = copy.deepcopy(tplist_full_new)
         tcdata_centered = copy.deepcopy(tcdata_centered_avg)
+
 
     Nintrinsic = fintrinsic_count + vintrinsic_count
     nregions = len(rnamelist)

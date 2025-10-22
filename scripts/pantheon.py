@@ -682,7 +682,7 @@ class DBFrame:
         self.DBnumenter.insert(0,settings['DBnumstring'])
 
         # the entry box needs a "submit" button so that the program knows when to take the entered values
-        self.DBnumsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol1, fg = fgletter1, command = self.DBnumsubmitclick, relief='raised', bd = 5, highlightbackground = widgetbg)
+        self.DBnumsubmit = tk.Button(self.parent, text = "Submit", width = smallbuttonsize, bg = fgcol1, fg = fgletter1, font = widgetfont, command = self.DBnumsubmitclick, relief='raised', bd = 5, highlightbackground = widgetbg)
         self.DBnumsubmit.grid(row = 1, column = 2)
 
         # the entry box needs a "submit" button so that the program knows when to take the entered values
