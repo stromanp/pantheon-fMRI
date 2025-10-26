@@ -1033,11 +1033,11 @@ def load_cluster_data(cluster_properties, DBname, DBnum, prefix, nvolmask, netwo
         check = np.sum(tcr**2, axis = 2)
         cbad, rbad = np.where(check == 0)
         if len(cbad) > 0:
-            print('rbad = {}'.format(rbad))
+            print('rbad = {}'.format(rbad[0]))
             print('size of DBnum = {}'.format(np.shape(DBnum)))
             print('\n-----------------------------------------------------------')
             print('pyclustering, load_cluster_data:')
-            print('possible bad data sets in database numbers {}'.format(DBnum[rbad]))
+            print('possible bad data sets in database numbers {}'.format(DBnum[rbad[0]]))
             print('    ... values are all zeros')
             print('-----------------------------------------------------------\n')
 

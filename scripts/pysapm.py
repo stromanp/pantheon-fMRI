@@ -1653,7 +1653,8 @@ def prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdatanam
 
     tplist_full.append(tplist1)
 
-    if run_whole_group:  # concatentated data
+    run_whole_group_original = False  # was run_whole_group
+    if run_whole_group_original:  # concatentated data
         # special case to fit the full group together
         # treat the whole group like one person
         tpgroup_full = []
@@ -1667,7 +1668,7 @@ def prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdatanam
         nruns_per_person = [np.sum(nruns_per_person)]
 
     run_whole_group_averaged = False   # special test case
-    if run_whole_group_averaged:  # averaged data
+    if run_whole_group:  # averaged data, test case, originally run_whole_group_averaged
         # special case to fit the full group together
         # treat the whole group like one person
         tcdata_centered_avg = np.zeros((nregions, tsize))

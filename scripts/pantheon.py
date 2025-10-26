@@ -8599,8 +8599,8 @@ class SAPMFrame:
         self.SAPMcnumtext = self.SAPMcreatecnumtext(self.SAPMcnums, self.SAPMfullyconnected)
         self.SAPMcnumsbox.insert(0, self.SAPMcnumtext)
         # clusterstartlist = [clusterstart[x]['cnums'][0] for x in range(len(clusterstart))]
-        best_cluster_summary = [best_clusters[x]['cnums'][0] for x in range(len(best_clusters))]
-        clusterstart_summary = [clusterstart[x]['cnums'][0] for x in range(len(clusterstart))]
+        best_cluster_summary = [int(best_clusters[x]['cnums'][0]) for x in range(len(best_clusters))]
+        clusterstart_summary = [int(clusterstart[x]['cnums'][0]) for x in range(len(clusterstart))]
         message_text = 'Best clusters appear to be\n{}\nstarting clusters were\n{}'.format(best_cluster_summary,clusterstart_summary)
         self.SAPMkeyinfo1.config(text = message_text, fg = 'red')
         settings['SAPMcnums'] = self.SAPMcnums
