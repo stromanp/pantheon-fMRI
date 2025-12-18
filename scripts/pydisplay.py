@@ -56,6 +56,7 @@ import pandas as pd
 import os
 import py2ndlevelanalysis
 import pydatabase
+import matplotlib
 import matplotlib.pyplot as plt
 import pyclustering
 import pysem
@@ -63,6 +64,8 @@ import re
 import nibabel as nib
 import matplotlib.patches as mpatches
 import pysapm
+
+matplotlib.use('TkAgg')
 
 # setup color scales for displays
 def colormap(values):
@@ -845,8 +848,8 @@ def pydisplayvoxelregionslice(templatename, template_img, cx, cy, cz, orientatio
 def parsenumlist(entered_text):
     # need to make sure we are working with numbers, not text
     # first, replace any double spaces with single spaces, and then replace spaces with commas
-    entered_text = re.sub('\ +', ',', entered_text)
-    entered_text = re.sub('\,\,+', ',', entered_text)
+    entered_text = re.sub(r'\ +', ',', entered_text)
+    entered_text = re.sub(r'\,\,+', ',', entered_text)
     # remove any leading or trailing commas
     if entered_text[0] == ',': entered_text = entered_text[1:]
     if entered_text[-1] == ',': entered_text = entered_text[:-1]
@@ -1608,3 +1611,53 @@ def define_drawing_regions_from_file(regionfilename):
         regions.append(entry)
 
     return regions
+
+
+def plot_region_timecourses(regiondataname, windownum = 88):
+
+    regiondataname = r'Y:\BigAnatomicalAnalysis\HCfastF_regiondata_Nov2025_exp.npy'
+    regiondataname = r'Y:\BigAnatomicalAnalysis\HCfastF_regiondata_Oct2025_exp.npy'
+    regiondataname = r'Y:/BigAnatomicalAnalysis\HCfast_regiondata_NovTest_2025_exp.npy'
+
+    p,f1 = os.path.split(regiondataname)
+    f,e = os.path.splitext(f1)
+    svgname = os.path.join(p, f + '.svg')
+
+    regiondata = np.load(regiondataname, allow_pickle=True).flat[0]
+    rp = copy.deepcopy(regiondata['region_properties'])
+    nregions = len(rp)
+
+    nclusterlist = np.array([np.shape(rp[x]['tc'])[0] for x in range(len(rp))])
+    maxcluster = np.max(nclusterlist)
+
+    ncols = maxcluster
+    nrows = nregions
+
+    plt.close(windownum)
+    fig, axs = plt.subplots(nrows, ncols, sharey=False, figsize=(10, 10), dpi=100, num=windownum)
+
+    for rr in range(nregions):
+        tc = copy.deepcopy(rp[rr]['tc'])
+        nruns_per_person = copy.deepcopy(rp[rr]['nruns_per_person'])
+        nrunstotal = np.sum(nruns_per_person)
+        tsize = copy.deepcopy(rp[rr]['tsize'])
+        rname = copy.deepcopy(rp[rr]['rname'])
+        timevals = np.array(range(tsize))
+
+        for cc in range(nclusterlist[rr]):
+            tc1 = np.reshape(tc[cc,:], (nrunstotal, tsize))
+            tc1m = np.mean(tc1, axis = 0)
+
+            axs[rr,cc].plot(timevals, tc1m, '-b')
+            axs[rr,cc].set_title('{} {}'.format(rname,cc), fontsize = 9)
+
+    plt.pause(0.1)
+    plt.show(block = False)
+    plt.savefig(svgname)
+
+
+
+
+
+
+

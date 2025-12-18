@@ -113,7 +113,8 @@ def testfunction():
 
 
 def search_by_pca(savename, regiondataname, clusterdataname, SAPMparametersname, networkfile,
-                  leaveout = [], np_step = 1, timepoint = 'all', epoch = 'all', covariate = [], resume = False):
+                  leaveout = [], np_step = 1, timepoint = 'all', epoch = 'all', covariate = [], resume = False,
+                  run_whole_group = False):
 
     p,f = os.path.split(savename)
     bigsavename = os.path.join(p, 'big'+f)
@@ -129,7 +130,7 @@ def search_by_pca(savename, regiondataname, clusterdataname, SAPMparametersname,
 
     # if not os.path.isfile(SAPMparametersname):
     pysapm.prep_data_sem_physio_model_SO_FC(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch,
-                                     cnums=cnums, run_whole_group=False, normalizevar=True, filter_tcdata=False)
+                                     cnums=cnums, run_whole_group=run_whole_group, normalizevar=True, filter_tcdata=False)
     #------------------------------
     # determine which cnums to use for the pruned network
     #  ... base this on the R2 of the fit to the original data
@@ -243,6 +244,10 @@ def search_by_pca(savename, regiondataname, clusterdataname, SAPMparametersname,
             ncombostart = 0
     else:
         ncombostart = 0
+
+    print('getting ready to run PCA on combinations of clusters ...')
+    print('running data for {} people'.format(NP2))
+    print('shape of Sinput per person is {}'.format(np.shape(Sinput_data[0]['Sinput'])))
 
     pca = sklearn.decomposition.PCA(n_components=n_components)
     for combonumber in range(ncombostart,ncombos):

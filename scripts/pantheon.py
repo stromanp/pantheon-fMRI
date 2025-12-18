@@ -360,7 +360,7 @@ class main_fmri_analysis_window:
 
         NCbase = tk.Frame(self.master, relief='raised', bd=5, highlightcolor=fgcol1)
         NCbase.grid(row=1, column=1, sticky="nsew")
-        NCFrame(NCbase, self)
+        self.NChandle = NCFrame(NCbase, self)
         page_name = NCFrame.__name__
         self.frames[page_name] = NCbase
 
@@ -1028,6 +1028,7 @@ class DBFrame:
         else:
             dbnum_max = 0
 
+
         entered_text = self.DBnumenter.get()  # collect the text from the text entry box
         # allow for "all" to be entered
         if entered_text == 'all': entered_text = str(0) + ':' + str(dbnum_max)
@@ -1053,6 +1054,26 @@ class DBFrame:
         infotext = 'Selected data for {} runs'.format(len(entered_values))
         self.DBinfo1.configure(text = infotext)
         # self.info_text1.set(infotext)
+
+
+        # check database file for the normalization region, for other sections
+        if os.path.isfile(self.DBname):
+            xls = pd.ExcelFile(self.DBname, engine = 'openpyxl')
+            df1 = pd.read_excel(xls, 'datarecord')
+            del df1['Unnamed: 0']  # get rid of the unwanted header column
+
+            try:
+                self.controller.NChandle.normtemplatename = df1.loc[entered_values[0], 'normtemplatename']
+            except:
+                self.controller.NChandle.normtemplatename = 'notdefined'
+        else:
+            dbnum_max = 0
+
+        try:
+            print('updating normalizing region label to {}'.format(str(self.controller.NChandle.normtemplatename)))
+            self.controller.NChandle.NCtemplatelabel.config(text='Normalizing region: ' + str(self.controller.NChandle.normtemplatename))
+        except:
+            print('could not update normalizing region label')
 
         return self
 
@@ -8625,6 +8646,7 @@ class SAPMFrame:
         self.SAPMresultsname = settings['SAPMresultsname']
         self.SAPMresultsdir = settings['SAPMresultsdir']
         self.SAPMresumerun = settings['SAPMresumerun']
+        self.SAPMgrouplevel= settings['SAPMgrouplevel']
 
         self.SAPMtimepoint = settings['SAPMtimepoint']
         self.SAPMepoch = settings['SAPMepoch']
@@ -8649,7 +8671,8 @@ class SAPMFrame:
         savename = os.path.join(self.SAPMresultsdir, 'PCid_' + net_f[:15] + reg_f[:15] + '.npy')
 
         best_clusters = pypcaid.search_by_pca(savename, self.SAPMregionname, self.SAPMclustername, self.SAPMparamsname, self.networkmodel,
-                      leaveout=[], np_step=1, timepoint=self.SAPMtimepoint, epoch=self.SAPMepoch, covariate = covvals, resume = self.SAPMresumerun)
+                      leaveout=[], np_step=1, timepoint=self.SAPMtimepoint, epoch=self.SAPMepoch, covariate = covvals,
+                      resume = self.SAPMresumerun, run_whole_group = self.SAPMgrouplevel)
 
         self.SAPMcnums = copy.deepcopy(best_clusters)
         self.SAPMfullyconnected = False
@@ -8657,7 +8680,7 @@ class SAPMFrame:
         # self.SAPMcnumlist = [self.SAPMcnums[x]['cnums'][0] for x in range(len(self.SAPMcnums))]
         self.SAPMcnumtext = self.SAPMcreatecnumtext(self.SAPMcnums, self.SAPMfullyconnected)
         self.SAPMcnumsbox.insert(0, self.SAPMcnumtext)
-        best_cluster_summary = [best_clusters[x]['cnums'][0] for x in range(len(best_clusters))]
+        best_cluster_summary = [int(best_clusters[x]['cnums'][0]) for x in range(len(best_clusters))]
         message_text = 'Best clusters appear to be\n{}'.format(best_cluster_summary)
         self.SAPMkeyinfo1.config(text = message_text, fg = 'red')
 
@@ -9323,7 +9346,7 @@ class SAPMFrame:
         self.SAPMrunsearchbutton.grid(row=rownum, column=3, columnspan = 2, sticky='W')
 
         self.SAPMkeyinfo1 = tk.Label(self.parent, text = " ", fg = 'gray', justify = 'left', font = labelfont)
-        self.SAPMkeyinfo1.grid(row=rownum,column=5, sticky='W')
+        self.SAPMkeyinfo1.grid(row=rownum,column=6, sticky='W')
 
 
         # label, button, for running the definition of clusters, and loading data

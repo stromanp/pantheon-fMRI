@@ -1438,7 +1438,7 @@ def prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdatanam
 
     region_properties = copy.deepcopy(region_data1['region_properties'])
     DBname = copy.deepcopy(region_data1['DBname'])
-    DBnum = copy.deepcopy(region_data1['DBnum'])
+    DBnum = copy.deepcopy(np.array(region_data1['DBnum']))
 
 
     # subsample the data if requested
@@ -1610,7 +1610,7 @@ def prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdatanam
                 cutoff_high = 0.1  # for lowpass filter
                 cutoff_low = 0.01  # for highpass filter
                 TR = 6.75
-                for ii in range(nregions):
+                for ii in range(nclusterstotal):
                     # tcdata_centered[ii, tp] = butter_lowpass_filter(tcdata_centered[ii, tp], cutoff, fs, order=5)
                     for rr in range(nruns_per_person[nn]):
                         rt1 = rr*tsize
@@ -1671,7 +1671,7 @@ def prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdatanam
     if run_whole_group:  # averaged data, test case, originally run_whole_group_averaged
         # special case to fit the full group together
         # treat the whole group like one person
-        tcdata_centered_avg = np.zeros((nregions, tsize))
+        tcdata_centered_avg = np.zeros((nclusterstotal, tsize))
         tpgroup_full = []
         tpgroup = []
         tp = []
@@ -1686,10 +1686,11 @@ def prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdatanam
         tcdata_centered_avg /= nruns_total
         nruns_per_person_new = [1]
         tplist_full_new = []
-        tplist_full_new[0][0]['tp'] = tplist_full[0][0]['tp']
+        # tplist_full_new[0][0]['tp'] = tplist_full[0][0]['tp']
+        tplist_full[0][0]['tp'] = list(range(et1,et2))
 
         nruns_per_person = copy.deepcopy(nruns_per_person_new)
-        tplist_full = copy.deepcopy(tplist_full_new)
+        # tplist_full = copy.deepcopy(tplist_full_new)
         tcdata_centered = copy.deepcopy(tcdata_centered_avg)
 
 
@@ -1979,7 +1980,8 @@ def prep_data_sem_physio_model_SO_FC(networkfile, regiondataname, clusterdatanam
 
     tplist_full.append(tplist1)
 
-    if run_whole_group:  # concatentated data
+    run_whole_group_original = False  # was run_whole_group
+    if run_whole_group_original:  # concatentated data
         # special case to fit the full group together
         # treat the whole group like one person
         tpgroup_full = []
@@ -1991,6 +1993,37 @@ def prep_data_sem_physio_model_SO_FC(networkfile, regiondataname, clusterdatanam
         tpgroup_full.append(tpgroup)
         tplist_full = copy.deepcopy(tpgroup_full)
         nruns_per_person = [np.sum(nruns_per_person)]
+
+    run_whole_group_averaged = False   # special test case
+    if run_whole_group:  # averaged data, test case, originally run_whole_group_averaged
+        # special case to fit the full group together
+        # treat the whole group like one person
+        print('nclusters_to_use_total = {}'.format(nclusters_to_use_total))
+        print('nregions = {}'.format(nregions))
+        Nintrinsic = fintrinsic_count + vintrinsic_count
+        print('Nintrinsic = {}'.format(Nintrinsic))
+        print('size of tcdata_centered = {}'.format(np.shape(tcdata_centered)))
+
+        tcdata_centered_avg = np.zeros((nclusters_to_use_total-Nintrinsic, tsize))
+        tpgroup_full = []
+        tpgroup = []
+        tp = []
+        for nn in range(NP):
+            r1 = sum(nruns_per_person[:nn])
+            r2 = sum(nruns_per_person[:(nn + 1)])
+            for ee2 in range(r1, r2):
+                t1 = ee2*tsize
+                t2 = (ee2+1)*tsize
+                tcdata_centered_avg += tcdata_centered[:,t1:t2]
+
+        tcdata_centered_avg /= nruns_total
+        nruns_per_person_new = [1]
+        tplist_full[0][0]['tp'] = list(range(et1,et2))
+
+        nruns_per_person = copy.deepcopy(nruns_per_person_new)
+        # tplist_full = copy.deepcopy(tplist_full_new)
+        tcdata_centered = copy.deepcopy(tcdata_centered_avg)
+
 
     Nintrinsic = fintrinsic_count + vintrinsic_count
     nregions = len(rnamelist)
@@ -3471,10 +3504,12 @@ def sem_physio_model1_V5(cnums, fintrinsic_base, SAPMresultsname, SAPMparameters
                 print('.', end = '')
 
         if run_whole_group:
+            # print('Using group average data, NP = {}'.format(NP_to_run))
             tp = []
-            for pcounter in range(NP):
+            for pcounter in range(NP_to_run):
                 tp += tplist_full[epochnum][pcounter]['tp']
             nruns = np.sum(nruns_per_person)
+            # print('tp = {}'.format(tp))
         else:
             tp = tplist_full[epochnum][nperson]['tp']
             nruns = nruns_per_person[nperson]
@@ -4408,7 +4443,7 @@ def run_sapm_stage_V2(nperson, stagenum, nsteps_stage, beta_initial, delta_initi
                 lastgood_deltavals = copy.deepcopy(deltavals)
                 lastgood_beta_int1 = copy.deepcopy(beta_int1)
                 dsequence_count += 1
-                if dsequence_count > 4:
+                if dsequence_count > 7:
                     alphad = np.min([1.3 * alphad, initial_alpha])
                     alphabint = np.min([1.3 * alphabint, initial_alpha])
                     dsequence_count = 0
@@ -4431,7 +4466,7 @@ def run_sapm_stage_V2(nperson, stagenum, nsteps_stage, beta_initial, delta_initi
                 lastgood_deltavals = copy.deepcopy(deltavals)
                 lastgood_beta_int1 = copy.deepcopy(beta_int1)
                 dsequence_count += 1
-                if dsequence_count > 4:
+                if dsequence_count > 7:
                     alphad = np.min([1.3 * alphad, initial_alpha])
                     alphabint = np.min([1.3 * alphabint, initial_alpha])
                     bsequence_count = 0
@@ -4452,7 +4487,7 @@ def run_sapm_stage_V2(nperson, stagenum, nsteps_stage, beta_initial, delta_initi
             else:
                 lastgood_betavals = copy.deepcopy(betavals)
                 sequence_count += 1
-                if sequence_count > 4:
+                if sequence_count > 7:
                     alpha = np.min([1.3 * alpha, initial_alpha])
                     sequence_count = 0
 
@@ -4590,7 +4625,7 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
     normalizevar = False
     subsample = [samplesplit,samplestart]  # [2,0] use every 2nd data set, starting with samplestart
     prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch,
-                                  run_whole_group=False, normalizevar=normalizevar, filter_tcdata = filter_tcdata,
+                                  run_whole_group=run_whole_group, normalizevar=normalizevar, filter_tcdata = filter_tcdata,
                                   subsample = subsample)
 
     print('best cluster search:  loading parameters ...')
@@ -4840,7 +4875,7 @@ def SAPM_cluster_stepsearch(outputdir, SAPMresultsname, SAPMparametersname, netw
         print('\nbest cluster set so far is : {}'.format(cluster_numbers))
         print('average R2 across data sets = {:.3f} {} {:.3f}'.format(np.mean(best_R2list),chr(177),np.std(R2list)))
         print('total R2 across data sets = {:.3f} {} {:.3f}'.format(np.mean(best_R2list2),chr(177),np.std(R2list2)))
-        print('average R2 range {:.3f} to {:.3f}'.format(np.min(best_R2list),np.max(best_R2list2)))
+        print('average R2 range {:.3f} to {:.3f}'.format(np.min(best_R2list),np.max(best_R2list)))
 
         R2avg_text = '{:.3f} {} {:.3f}'.format(np.mean(best_R2list),chr(177),np.std(best_R2list))
         R2total_text = '{:.3f} {} {:.3f}'.format(np.mean(best_R2list2),chr(177),np.std(best_R2list2))
@@ -6733,6 +6768,7 @@ def display_SAPM_results(window, outputnametag, covariates, covnametag, outputty
         two_group_comparison = False
 
     NP = len(SAPMresults_load)
+    print('NP = {}   number of covariates entered = {}'.format(NP,len(covariates)))
     if len(covariates) == NP:
         covariates_entered = True
     else:
@@ -6864,12 +6900,13 @@ def display_SAPM_results(window, outputnametag, covariates, covnametag, outputty
 
     print('g1:  {} values'.format(len(g1)))
     print('g2:  {} values'.format(len(g2)))
+    print('covariates_entered = {}'.format(covariates_entered))
 
     #-------------------------------------------------------------------------------
     #-------------prep for regression with continuous covariate------------------------------
     if covariates_entered:
         p = covariates[np.newaxis, g1]
-        if len(np.unique(p)) > len(g1)/3:  # assume the values are continuous
+        if len(np.unique(p)) > 2:  # assume the values are continuous
             continuouscov = True
             # p -= np.mean(p)   # this shifts the intercept value to the mean covariate value
             G = np.concatenate((np.ones((1, len(g1))),p), axis=0) # put the intercept term first
@@ -7120,7 +7157,7 @@ def display_SAPM_results(window, outputnametag, covariates, covnametag, outputty
 
         else:
             xlname = 'NA'
-            print('Regression of B values with covariate ... no significant values found at p < {}'.format(pthresh))
+            print('Regression of B values with covariate ... no significant values found at p < {}  R > {:.4f}'.format(pthresh, Rthresh))
         outputname = xlname
 
         print('finished generating results for B_Regression...')
@@ -7167,7 +7204,7 @@ def display_SAPM_results(window, outputnametag, covariates, covnametag, outputty
 
         else:
             xlname = 'NA'
-            print('Regression of D values with covariate ... no significant values found at p < {}'.format(pthresh))
+            print('Regression of D values with covariate ... no significant values found at p < {}  R > {:.4f}'.format(pthresh, Rthresh))
         outputname = xlname
 
 
@@ -7213,7 +7250,7 @@ def display_SAPM_results(window, outputnametag, covariates, covnametag, outputty
 
         else:
             xlname = 'NA'
-            print('Regression of DB values with covariate ... no significant values found at p < {}'.format(pthresh))
+            print('Regression of DB values with covariate ... no significant values found at p < {}  R > {:.4f}'.format(pthresh, Rthresh))
         outputname = xlname
 
         print('finished generating regression results ...\n')
@@ -7759,7 +7796,7 @@ def display_SAPM_results(window, outputnametag, covariates, covnametag, outputty
                 df.to_excel(writer, sheet_name='dB_v_dCreg')
         else:
             xlname = 'NA'
-            print('Regression of B values with covariate ... no significant values found at p < {}'.format(pthresh))
+            print('Regression of B values with covariate ... no significant values found at p < {}  R > {:.4f}'.format(pthresh, Rthresh))
 
 
         # regression of D values with covariate-----------------------------------
@@ -7798,7 +7835,7 @@ def display_SAPM_results(window, outputnametag, covariates, covnametag, outputty
                 df.to_excel(writer, sheet_name='dD_v_dCreg')
         else:
             xlname = 'NA'
-            print('Regression of D values with covariate ... no significant values found at p < {}'.format(pthresh))
+            print('Regression of D values with covariate ... no significant values found at p < {}  R > {:.4f}'.format(pthresh, Rthresh))
 
         # regression of DB values with covariate-----------------------------------
         print('\n\ngenerating results for DB_Regression...')
@@ -7837,7 +7874,7 @@ def display_SAPM_results(window, outputnametag, covariates, covnametag, outputty
                 df.to_excel(writer, sheet_name='dDB_v_dCreg')
         else:
             xlname = 'NA'
-            print('Regression of DB values with covariate ... no significant values found at p < {}'.format(pthresh))
+            print('Regression of DB values with covariate ... no significant values found at p < {}  R > {:.4f}'.format(pthresh, Rthresh))
 
         return xlname
 

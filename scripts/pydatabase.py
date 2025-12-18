@@ -176,8 +176,6 @@ def unique_in_list(input_list):
     return unique_list, unique_index, original_index
 
 
-
-
 def convert_database_OS(databasename):
     xls = pd.ExcelFile(databasename, engine='openpyxl')
     df1 = pd.read_excel(xls, 'datarecord')
