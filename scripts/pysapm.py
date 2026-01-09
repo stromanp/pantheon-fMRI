@@ -3567,6 +3567,8 @@ def sem_physio_model1_V5(cnums, fintrinsic_base, SAPMresultsname, SAPMparameters
             ftemp = fintrinsic_base[0,et1:et2]
             fintrinsic1 = np.array(list(ftemp) * nruns)
 
+            print('pysapm 3570: tsize_total = {}   size of fintrinsic1 is {}'.format(tsize_total, np.shape(fintrinsic1)))
+
             try:
                 Nfintrinsic = len(fintrinsic_region)
                 Sint = np.mean(Sinput[fintrinsic_region, :], axis=0)
@@ -9073,6 +9075,159 @@ def network_model_check(networkmodelname):
         output_message += ['network model is good.']
 
     return status, output_message
+
+
+
+# gradient descent method to find best clusters------------------------------------
+def SAPM_cluster_checkeffect(outputdir, SAPMresultsname, SAPMparametersname, networkfile, regiondataname,
+                        clusterdataname, initial_clusters, samplesplit, samplestart=0, timepoint='all', epoch='all',
+                        betascale=0.1, alphascale = 0.01, Lweight = 0.01, levelthreshold = [1e-4, 1e-5, 1e-6],
+                        leveliter = [100, 250, 1200], leveltrials = [30, 4, 1], run_whole_group = False):
+
+    overall_start_time_text = time.ctime()
+    overall_start_time = time.time()
+
+    if not os.path.exists(outputdir): os.mkdir(outputdir)
+
+    # load some data, setup some parameters...
+    network, nclusterdict, sem_region_list, fintrinsic_count, vintrinsic_count, fintrinsic_base = load_network_model_w_intrinsics(networkfile)
+    nclusterlist = np.array([nclusterdict[x]['nclusters'] for x in range(len(nclusterdict))])
+    cluster_name = [nclusterdict[x]['name'] for x in range(len(nclusterdict))]
+    not_latent = [x for x in range(len(cluster_name)) if 'intrinsic' not in cluster_name[x]]
+    nclusterlist = nclusterlist[not_latent]
+    full_rnum_base = [np.sum(nclusterlist[:x]) for x in range(len(nclusterlist))]
+    namelist = [cluster_name[x] for x in not_latent]
+    namelist += ['Rtotal']
+    namelist += ['R ' + cluster_name[x] for x in not_latent]
+
+    nregions = len(nclusterlist)
+
+    print('best cluster search:  preparing data ...')
+    filter_tcdata = False
+    normalizevar = False
+    subsample = [samplesplit,samplestart]  # [2,0] use every 2nd data set, starting with samplestart
+    prep_data_sem_physio_model_SO_V2(networkfile, regiondataname, clusterdataname, SAPMparametersname, timepoint, epoch,
+                                  run_whole_group=run_whole_group, normalizevar=normalizevar, filter_tcdata = filter_tcdata,
+                                  subsample = subsample)
+
+    print('best cluster search:  loading parameters ...')
+    SAPMparams = np.load(SAPMparametersname, allow_pickle=True).flat[0]
+
+    # check for bad data
+    tcdata = copy.deepcopy(SAPMparams['tcdata_centered'])  # data for all regions/clusters concatenated along time dimension for all runs
+    nclusters_total, tsize_total = np.shape(tcdata)
+    # need to get principal components for each region to model the clusters as a continuum
+
+    maxiter = 1
+
+    full_rnum_base = np.array([np.sum(nclusterlist[:x]) for x in range(len(nclusterlist))]).astype(int)
+
+    # change format of cnums (and initial_clusters) - Nov 30 2024
+    if (len(initial_clusters) > nregions):
+        initial_clusters = initial_clusters[:nregions]
+    if (len(initial_clusters) < nregions):
+        temp_clusters = copy.deepcopy(initial_clusters)
+        for x in range(len(initial_clusters),nregions):
+            temp_clusters.append({'cnums':list(range(nclusterlist[x]))})
+        initial_clusters = copy.deepcopy(temp_clusters)
+
+    # n_initial_clusters = [len(initial_clusters[x]['cnums']) for x in range(len(initial_clusters))]
+    n_initial_clusters = copy.deepcopy(nclusterlist)   # check all the clusters
+
+    print('n_initial_clusters = {}'.format(n_initial_clusters))
+    print('checking compared to clusters: {}'.format(initial_clusters))
+    print('starting check of clusters at {}'.format(time.ctime()))
+    # converging = True
+
+    if betascale == 0:
+        nitermax = 1
+        nitermax_stage1 = 1
+        nsteps_stage1 = 10
+    else:
+        nitermax = leveliter[2]
+        nsteps_stage1 = leveltrials[0]
+        nitermax_stage1 = leveliter[0]
+        nsteps_stage2 = leveltrials[1]
+        nitermax_stage2 = leveliter[1]
+        nitermax_stage3 = leveliter[2]
+
+    print('checking cluster effect ... vary one cluster at a time ...')
+    results_record = []
+    for rr in range(nregions):
+        for cn in range(nclusterlist[rr]):
+            cluster_numbers = copy.deepcopy(initial_clusters)
+            cluster_numbers[rr] = cn
+
+            cnums = [{'cnums':[x]} for x in cluster_numbers]
+            output = sem_physio_model1_V5(cnums, fintrinsic_base, SAPMresultsname, SAPMparametersname,
+                                          fixed_beta_vals=[], betascale=betascale, alphascale=alphascale, Lweight=Lweight,
+                                          nitermax_stage3=nitermax,
+                                          nitermax_stage2=nitermax_stage2, nsteps_stage2=nsteps_stage2,
+                                          nitermax_stage1=nitermax_stage1, nsteps_stage1=nsteps_stage1,
+                                          levelthreshold=levelthreshold, verbose=False, run_whole_group=run_whole_group,
+                                          resumerun=False, silentrunning = True)
+
+            # now, correct the results for normalizing the variance
+            if normalizevar:
+                output = sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, verbose = False)
+            else:
+                output = copy.deepcopy(SAPMresultsname)
+
+            SAPMresults = np.load(output,allow_pickle=True)
+
+            R2list = np.array([SAPMresults[x]['R2avg'] for x in range(len(SAPMresults))])
+            R2list2 = np.array([SAPMresults[x]['R2total'] for x in range(len(SAPMresults))])
+
+
+            # peek at results
+            print('\ncluster numbers : {}'.format(cluster_numbers))
+            print(
+                'average R2 across data sets = {:.3f} {} {:.3f}'.format(np.mean(R2list), chr(177), np.std(R2list)))
+            print(
+                'total R2 across data sets = {:.3f} {} {:.3f}'.format(np.mean(R2list2), chr(177), np.std(R2list2)))
+            print('average R2 range {:.3f} to {:.3f}'.format(np.min(R2list), np.max(R2list)))
+
+            R2avg_text = '{:.3f} {} {:.3f}'.format(np.mean(R2list), chr(177), np.std(R2list))
+            R2total_text = '{:.3f} {} {:.3f}'.format(np.mean(R2list2), chr(177), np.std(R2list2))
+            R2range_text = '{:.3f} to {:.3f}'.format(np.min(R2list), np.max(R2list))
+            results_record.append(
+                {'cluster numbers': cluster_numbers, 'R2avg': R2avg_text, 'R2total': R2total_text,
+                 'R2range': R2range_text})
+
+    clustertext = str(initial_clusters)
+    clustertext = clustertext.replace(' ','')
+    clustertext = clustertext.replace(',','')
+    clustertext = clustertext.replace('[','')
+    clustertext = clustertext.replace(']','')
+
+    outputname = os.path.join(outputdir, 'check_clusters_{}.npy'.format(clustertext))
+    np.save(outputname, results_record)
+    print('results record written to {}'.format(outputname))
+
+    overall_end_time_text = time.ctime()
+    overall_end_time = time.time()
+    dtime = overall_end_time-overall_start_time
+    dtimem = np.floor(dtime/60).astype(int)
+    dtimes = np.round(dtime % 60).astype(int)
+    print('Cluster check started at {}\n             and ended at {}\n     {} minutes {} sec total'.format(overall_start_time_text, overall_end_time_text, dtimem,dtimes))
+
+
+    # write to excel
+    xlsname = os.path.join(outputdir, 'check_clusters_{}.xlsx'.format(clustertext))
+    data = copy.deepcopy(results_record)
+    for nn in range(len(data)):
+        cnums = data[nn]['cluster numbers']
+        clustertext = str(cnums)
+        clustertext = clustertext.replace(' ', '')
+        clustertext = clustertext.replace(',', '')
+        clustertext = clustertext.replace('[', '')
+        clustertext = clustertext.replace(']', '')
+        data[nn]['cluster numbers'] = clustertext
+    df1 = pd.DataFrame(list(data))
+    with pd.ExcelWriter(xlsname) as writer:
+        df1.to_excel(writer, sheet_name='cluster_effect')
+
+    return outputname
 
 
 #
