@@ -109,7 +109,8 @@ def single_source_fit(y,X):
     fit = b*X
     err = y - fit
     res_var = np.sum(err**2)
-    total_var = np.sum(y**2)
+    my = np.mean(y)
+    total_var = np.sum((y-my)**2)
 
     R2 = 1.0 - res_var / (total_var + 1.0e-20)
     if R2 > 1.0: R2 = 0.99999
@@ -195,7 +196,8 @@ def gradient_descent(b0, y, X, Lweight, alpha, deltab, tol=1e-6, maxiter=1000):
     fit = b0 @ X
     err = y - fit
     ssqd = np.sum(err**2)
-    total_var = np.sum(y**2)
+    my = np.mean(y)
+    total_var = np.sum((y-my)**2)
     res_var = copy.deepcopy(ssqd)
     R2 = 1.0 - res_var / (total_var + 1.0e-20)
     if R2 > 1.0: R2 = 0.99999

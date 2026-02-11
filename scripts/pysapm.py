@@ -235,6 +235,7 @@ def sapm_error_function_V3(Sinput, Mconn, fit, loadings, loadings_fit, Lweight, 
     S_fit_diff_squared_per_person = np.sum((Sinput - fit) ** 2, axis=1)
     # S_fit_diff_squared_total = np.sum((Sinput - fit) ** 2)
     S_fit_diff_squared_total = np.sum(S_fit_diff_squared_per_person)
+    # the average of every timeseries has been set to zero already, so S_squared_per_person is proportional to the variance
     S_squared_per_person = np.sum(Sinput ** 2, axis=1)
     # S_squared_total = np.sum(Sinput ** 2)
     S_squared_total = np.sum(S_squared_per_person)
@@ -2995,6 +2996,7 @@ def sem_physio_model1_V4(cnums, fintrinsic_base, SAPMresultsname, SAPMparameters
                 Smean = np.mean(Sinput)
                 errmean = np.mean(err_total)
 
+                # the average of every timeseries in Sinput is already equal to zero
                 R2list = 1.0 - np.sum((Sinput - fit) ** 2, axis=1) / np.sum(Sinput ** 2, axis=1)
                 R2avg = np.mean(R2list)
                 R2avg_record += [R2avg]
@@ -3010,6 +3012,7 @@ def sem_physio_model1_V4(cnums, fintrinsic_base, SAPMresultsname, SAPMparameters
                     if ssqd_slope > -converging_slope_limit[0]:
                         converging = False
 
+                # the average of every timeseries in Sinput is already equal to zero
                 R2total = 1.0 - np.sum((Sinput - fit) ** 2) / np.sum(Sinput ** 2)
 
                 results_record.append({'Sinput': Sinput, 'fit': fit, 'Mintrinsic': Mintrinsic, 'Meigv': Meigv})
@@ -3171,6 +3174,7 @@ def sem_physio_model1_V4(cnums, fintrinsic_base, SAPMresultsname, SAPMparameters
                 Smean = np.mean(Sinput)
                 errmean = np.mean(err_total)
 
+                # the average of every timeseries in Sinput is equal to zero
                 R2list = 1.0 - np.sum((Sinput - fit) ** 2, axis=1) / np.sum(Sinput ** 2, axis=1)
                 R2avg = np.mean(R2list)
                 R2avg_record += [R2avg]
@@ -3186,6 +3190,7 @@ def sem_physio_model1_V4(cnums, fintrinsic_base, SAPMresultsname, SAPMparameters
                     if ssqd_slope > -converging_slope_limit[1]:
                         converging = False
 
+                # the average of every timeseries in Sinput is equal to zero
                 R2total = 1.0 - np.sum((Sinput - fit) ** 2) / np.sum(Sinput ** 2)
 
                 results_record.append({'Sinput': Sinput, 'fit': fit, 'Mintrinsic': Mintrinsic, 'Meigv': Meigv})
@@ -3301,6 +3306,7 @@ def sem_physio_model1_V4(cnums, fintrinsic_base, SAPMresultsname, SAPMparameters
             Smean = np.mean(Sinput)
             errmean = np.mean(err_total)
 
+            # the average of every timeseries in Sinput is equal to zero
             R2list = 1.0 - np.sum((Sinput - fit) ** 2, axis=1) / np.sum(Sinput ** 2, axis=1)
             R2avg = np.mean(R2list)
             R2avg_record += [R2avg]
@@ -3316,6 +3322,7 @@ def sem_physio_model1_V4(cnums, fintrinsic_base, SAPMresultsname, SAPMparameters
                 if ssqd_slope > -converging_slope_limit[2]:
                     converging = False
 
+            # the average of every timeseries in Sinput is equal to zero
             R2total = 1.0 - np.sum((Sinput - fit) ** 2) / np.sum(Sinput ** 2)
 
             results_record.append({'Sinput': Sinput, 'fit': fit, 'Mintrinsic': Mintrinsic, 'Meigv': Meigv})
@@ -3695,6 +3702,7 @@ def sem_physio_model1_V5(cnums, fintrinsic_base, SAPMresultsname, SAPMparameters
         fit, Mintrinsic, Meigv, err = network_eigenvector_method_V4(Sinput, Minput, Mconn, fintrinsic_count,
                                                                     vintrinsic_count, beta_int1, fintrinsic1)
 
+        # the average of every timeseries in Sinput is equal to zero
         R2list = 1.0 - np.sum((Sinput - fit) ** 2, axis=1) / (np.sum(Sinput ** 2, axis=1) + 1.0e-6)
         R2avg = np.mean(R2list)
         R2total = 1.0 - np.sum((Sinput - fit) ** 2) / np.sum(Sinput ** 2)
@@ -4076,7 +4084,7 @@ def sem_physio_model1_pca(cnums, fintrinsic_base, SAPMresultsname, SAPMparameter
         # err = np.sum((Sinput-fit)**2)
         #---------------------------------------------------
 
-
+        # the average of every timeseries in Sinput is equal to zero
         R2list = 1.0 - np.sum((Sinput - fit) ** 2, axis=1) / np.sum(Sinput ** 2, axis=1)
         R2avg = np.mean(R2list)
         R2total = 1.0 - np.sum((Sinput - fit) ** 2) / np.sum(Sinput ** 2)
@@ -4276,6 +4284,7 @@ def run_sapm_stage(nperson, stagenum, nsteps_stage, beta_initial, delta_initial,
             Smean = np.mean(Sinput)
             errmean = np.mean(err_total)
 
+            # the average of every timeseries in Sinput is equal to zero
             R2list = 1.0 - np.sum((Sinput - fit) ** 2, axis=1) / np.sum(Sinput ** 2, axis=1)
             R2avg = np.mean(R2list)
             R2avg_record += [R2avg]
@@ -4291,6 +4300,7 @@ def run_sapm_stage(nperson, stagenum, nsteps_stage, beta_initial, delta_initial,
                 if ssqd_slope > -converging_slope_limit:
                     converging = False
 
+            # the average of every timeseries in Sinput is equal to zero
             R2total = 1.0 - np.sum((Sinput - fit) ** 2) / np.sum(Sinput ** 2)
 
             results_record.append({'Sinput': Sinput, 'fit': fit, 'Mintrinsic': Mintrinsic, 'Meigv': Meigv})
@@ -4512,6 +4522,7 @@ def run_sapm_stage_V2(nperson, stagenum, nsteps_stage, beta_initial, delta_initi
             Smean = np.mean(Sinput)
             errmean = np.mean(err_total)
 
+            # the average of every timeseries in Sinput is equal to zero
             R2list = 1.0 - np.sum((Sinput - fit) ** 2, axis=1) / (np.sum(Sinput ** 2, axis=1) + 1.0e-6)
             R2avg = np.mean(R2list)
             R2avg_record += [R2avg]
@@ -4527,6 +4538,7 @@ def run_sapm_stage_V2(nperson, stagenum, nsteps_stage, beta_initial, delta_initi
                 if ssqd_slope > -converging_slope_limit:
                     converging = False
 
+            # the average of every timeseries in Sinput is equal to zero
             R2total = 1.0 - np.sum((Sinput - fit) ** 2) / np.sum(Sinput ** 2)
 
             results_record.append({'Sinput': Sinput, 'fit': fit, 'Mintrinsic': Mintrinsic, 'Meigv': Meigv})
@@ -4581,6 +4593,7 @@ def betaval_init_shotgun(Lweight, csource, ctarget, Sinput, Minput, Mconn, compo
         #     np.triu(np.abs(np.corrcoef(Mintrinsic[fintrinsic_count:, fintrinsic_count:])))) - vintrinsic_count
         # ssqd += 0.001*latent_cost
 
+        # the average of every timeseries in Sinput is equal to zero
         R2 = 1 - np.sum((Sinput - fit) ** 2) / np.sum(Sinput ** 2)
         search_record.append({'betavals': betavals, 'ssqd': ssqd, 'R2': R2})
 
@@ -5421,6 +5434,7 @@ def sem_physio_correct_for_normalization(SAPMresultsname, SAPMparametersname, ve
         fit_original = Minput @ Sconn
         fit_original1 = Minput @ Meigv @ Mintrinsic
 
+        # the average of every timeseries in Sinput_original is equal to zero
         R2list = 1.0 - np.sum((Sinput_original - fit_original) ** 2, axis=1) / (np.sum(Sinput_original ** 2, axis=1) + 1.0e-10)
         R2avg = np.mean(R2list)
         R2total = 1.0 - np.sum((Sinput_original - fit_original) ** 2) / (np.sum(Sinput_original ** 2) + 1.0e-10)
@@ -7227,7 +7241,7 @@ def display_SAPM_results(window, outputnametag, covariates, covnametag, outputty
 
         Zthresh = stats.norm.ppf(1 - pthresh)
         # Z = arctanh(R)*sqrt(NP-1)
-        Rthresh = np.tanh(Zthresh / np.sqrt(NP - 1))
+        Rthresh = np.tanh(Zthresh / np.sqrt(NP - 3))
         R2thresh = Rthresh ** 2
 
         print('DB regression with continuous covariate values')
@@ -7774,7 +7788,7 @@ def display_SAPM_results(window, outputnametag, covariates, covnametag, outputty
                     Mregression[aa,bb,:] = [b[0,0],b[0,1],R2]
 
         Zthresh = stats.norm.ppf(1 - pthresh)
-        Rthresh = np.tanh(Zthresh / np.sqrt(NP - 1))
+        Rthresh = np.tanh(Zthresh / np.sqrt(NP - 3))
         R2thresh = Rthresh ** 2
 
         print('deltaB regression with delta covariate values')
@@ -7813,7 +7827,7 @@ def display_SAPM_results(window, outputnametag, covariates, covnametag, outputty
                     Mregression[aa, bb, :] = [b[0, 0], b[0, 1], R2]
 
         Zthresh = stats.norm.ppf(1 - pthresh)
-        Rthresh = np.tanh(Zthresh / np.sqrt(NP - 1))
+        Rthresh = np.tanh(Zthresh / np.sqrt(NP - 3))
         R2thresh = Rthresh ** 2
 
         print('deltaD regression with delta covariate values')
@@ -7851,7 +7865,7 @@ def display_SAPM_results(window, outputnametag, covariates, covnametag, outputty
                     Mregression[aa, bb, :] = [b[0, 0], b[0, 1], R2]
 
         Zthresh = stats.norm.ppf(1 - pthresh)
-        Rthresh = np.tanh(Zthresh / np.sqrt(NP - 1))
+        Rthresh = np.tanh(Zthresh / np.sqrt(NP - 3))
         R2thresh = Rthresh ** 2
 
         print('deltaDB regression with delta covariate values')
@@ -8979,6 +8993,7 @@ def check_alternative_latent_DBvals(Sinput, Minput, Mconn, Mintrinsic, fintrinsi
                 Mintrinsic2 = np.linalg.inv(M1.T @ M1) @ M1.T @ Sinput
                 fit2 = Minput2 @ Meigv2 @ Mintrinsic2
 
+            # the average of every timeseries in Sinput is equal to zero
             R2_2 = 1.0 - np.sqrt(np.sum(Sinput - fit2) ** 2) / np.sqrt(np.sum(Sinput ** 2))
             R2avg_2 = np.mean(R2_2)
 
@@ -9228,6 +9243,42 @@ def SAPM_cluster_checkeffect(outputdir, SAPMresultsname, SAPMparametersname, net
         df1.to_excel(writer, sheet_name='cluster_effect')
 
     return outputname
+
+
+def regression_stats_thresholds(NP, p = 0., R2 = 0.):
+    # p = 0.05/35
+    # NP = 24
+
+    if np.abs(p) > 0.:
+        # p to R2
+        Z = stats.norm.ppf(1 - p)
+        R = float(np.tanh(Z / np.sqrt(NP - 3)))
+        R2 = float(R ** 2)
+        return R2
+
+    if np.abs(R2) > 0:
+        # R2 to p
+        Z = np.sign(R2) * np.arctanh(np.sqrt(np.abs(R2))) * np.sqrt(NP - 3)
+        p = float(1.0 - stats.norm.cdf(Z))
+        return p
+
+
+def T_stats_thresholds(NP, p = 0., T = 0.):
+    # p = 0.05/35
+    # NP = 24
+
+    if np.abs(p) > 0.:
+        # p to T
+        T = stats.t.ppf(1 - p, NP - 1)
+        return T
+
+    if np.abs(T) > 0:
+        # T to p
+        p = 1.0 - stats.t.cdf(T,NP-1)
+        return p
+
+
+# Tthresh = stats.t.ppf(1 - pthresh, NP - 1)
 
 
 #
