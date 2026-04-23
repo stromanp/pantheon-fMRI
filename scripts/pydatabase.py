@@ -126,6 +126,73 @@ def get_datanames_by_person(DBname, dbnumlist, prefix, mode = 'dict', separate_c
     return dataname_list, dbnum_list, NP
 
 
+#---------------get_dbnumlists_by_person------------------------------------------
+# function to extract nifti format data file names, according to the participant id
+# this function allows for multiple data sets from each person
+def get_dbnumlists_by_person(DBname, dbnumlist, mode = 'dict', separate_conditions = True):
+    # output mode can be 'dict' for outputs in dictionary form,
+    # or the output can be as a list
+    # BASEdir = os.path.dirname(DBname)
+    #
+    # if "separate_conditions" is True then data from the same person, but different study conditions
+    # will be listed separately, not as one person
+    #
+    xls = pd.ExcelFile(DBname, engine = 'openpyxl')
+    df1 = pd.read_excel(xls, 'datarecord')
+    filename_list = []
+    patientid_list = []
+    studygroup_list = []
+
+    # step through all of the values in dbnumlist before sorting/grouping
+    for nn, dbnum in enumerate(dbnumlist):
+        # dbhome = df1.loc[dbnum, 'datadir']
+        # fname = df1.loc[dbnum, 'niftiname']
+        patientid = df1.loc[dbnum, 'patientid']
+        studygroup = df1.loc[dbnum, 'studygroup']
+
+        # niiname = os.path.join(dbhome, fname)
+        # fullpath, filename = os.path.split(niiname)
+        # prefix_niiname = os.path.join(fullpath, prefix + filename)
+
+        # filename_list.append(prefix_niiname)
+        patientid_list.append(patientid)
+        studygroup_list.append(studygroup)
+
+    combined_list = []
+    if separate_conditions:
+        for nn in range(len(dbnumlist)):
+            tempname = '{}_{}'.format(patientid_list[nn],studygroup_list[nn])
+            combined_list.append(tempname)
+        unique_pid, unique_index, original_index = unique_in_list(combined_list)
+    else:
+        # get the unique patient id's
+        unique_pid, unique_index, original_index = unique_in_list(patientid_list)
+
+    NP = np.size(unique_pid)
+    # get all the information that belongs with each patient (i.e. person)
+    if mode == 'dict':
+        dataname_list = {}
+        dbnum_list = {}
+    else:
+        dataname_list = []
+        dbnum_list = []
+
+    for num, pid in enumerate(unique_pid):
+        # need to list the filenames for every entry where original_index equals num
+        # person_filename_list = [filename_list[x] for x,value in enumerate(original_index) if value == num]
+        person_studygroup_list = [studygroup_list[x] for x,value in enumerate(original_index) if value == num]
+        person_dbnum_list = [studygroup_list[x] for x,value in enumerate(original_index) if value == num]
+        dbnums  = [dbnumlist[x] for x,value in enumerate(original_index) if value == num]
+        if mode == 'dict':
+            # dataname_list[pid] = person_filename_list
+            dbnum_list[pid] = dbnums
+        else:
+            # dataname_list.append(person_filename_list)
+            dbnum_list.append(dbnums)
+
+    return dbnum_list, NP
+
+
 
 #----------------get_dbnumlists_by_keyword------------------------------------------
 # function to find database numbers based on database entry keyword/value pairs

@@ -6907,7 +6907,7 @@ def display_SAPM_results(window, outputnametag, covariates, covnametag, outputty
     # set the group
     # the input 'group' is a list of array indices for which data to use
     g = list(range(NP))
-    if (len(group) == NP) or (len(group) == 0):    # all values were selected for the group
+    if (len(group) == NP) or (len(group) == 0) or not covariates_entered:    # all values were selected for the group
         g1 = g
         g2 = []
     else:

@@ -1197,8 +1197,8 @@ class DBFrame:
                 numvals = vals.astype(float)
 
         if dataformat == 'numeric':
-            avg_vals = np.mean(numvals)
-            std_vals = np.std(numvals)
+            avg_vals = np.nanmean(numvals)
+            std_vals = np.nanstd(numvals)
 
         if datatype == 'discrete':
             count = np.zeros(len(uvals)).astype(int)
@@ -5836,7 +5836,7 @@ class GRPFrame:
             print('fieldname = ',fieldname)
 
             if mode == 'average_per_person':  # average values over entries for the same person
-                filename_list, dbnum_person_list, NP = pydatabase.get_datanames_by_person(DBname, DBnum, prefix, mode='list')
+                filename_list, dbnum_person_list, NP = pydatabase.get_datanames_by_person(DBname, DBnum, prefix, mode='list', separate_conditions = False)
                 fieldvalues = []
                 for nn in range(NP):
                     DBnum_person = dbnum_person_list[nn]
@@ -5869,7 +5869,7 @@ class GRPFrame:
             print('fieldname2 = ',fieldname)
 
             if mode == 'average_per_person':  # average values over entries for the same person
-                filename_list2, dbnum_person_list2, NP2 = pydatabase.get_datanames_by_person(DBname2, DBnum2, prefix, mode='list')
+                filename_list2, dbnum_person_list2, NP2 = pydatabase.get_datanames_by_person(DBname2, DBnum2, prefix, mode='list', separate_conditions = False)
                 fieldvalues2 = []
                 for nn in range(NP2):
                     DBnum_person2 = dbnum_person_list2[nn]
@@ -6434,7 +6434,7 @@ class GRPFrame:
         # load the data----------------------------------------------------------------
         data = np.load(datafile1, allow_pickle=True).flat[0]
 
-        filename_list, dbnum_person_list, NP = pydatabase.get_datanames_by_person(data['DBname'], data['DBnum'], '', mode='list')
+        filename_list, dbnum_person_list, NP = pydatabase.get_datanames_by_person(data['DBname'], data['DBnum'], '', mode='list', separate_conditions = False)
         DBnumlist1 = []
         for x in g1: DBnumlist1 += dbnum_person_list[x][:]
         DBnumlist2 = []
@@ -8803,7 +8803,7 @@ class SAPMFrame:
             print('fieldname = ',fieldname)
 
             if mode == 'average_per_person':  # average values over entries for the same person
-                filename_list, dbnum_person_list, NP = pydatabase.get_datanames_by_person(DBname, DBnum, prefix, mode='list')
+                filename_list, dbnum_person_list, NP = pydatabase.get_datanames_by_person(DBname, DBnum, prefix, mode='list', separate_conditions = False)
                 fieldvalues = []
                 for nn in range(NP):
                     DBnum_person = dbnum_person_list[nn]

@@ -57,8 +57,8 @@ This was done in an effort to not reinvent the wheel.
 # -----------------------------------------------------------------------------------------
 
 import numpy as np
-from dipy.align import affine_registration
-from dipy.align._public import AffineMap
+# from dipy.align import affine_registration
+# from dipy.align._public import AffineMap
 from dipy.align.imaffine import (transform_centers_of_mass,
                                  AffineMap,
                                  MutualInformationMetric,
@@ -67,12 +67,12 @@ from dipy.align.transforms import (TranslationTransform3D,
                                    RigidTransform3D,
                                    AffineTransform3D)
 
-import image_operations_3D as i3d
+# import image_operations_3D as i3d
 import time
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import nibabel as nib
 import os
-import copy
+# import copy
 import pandas as pd
 
 def dipy_compute_twostage_brain_normalization(img1_data, img1_affine, img2_data, img2_affine, ref_data, ref_affine, level_iters = [10000, 1000, 100], sigmas = [3.0, 1.0, 0.0], factors = [4,2,1], nbins=32):
