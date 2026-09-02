@@ -630,7 +630,7 @@ class DBFrame:
             xls = pd.ExcelFile(self.DBname, engine = 'openpyxl')
             df1 = pd.read_excel(xls, 'datarecord')
             del df1['Unnamed: 0']  # get rid of the unwanted header column
-            fieldvalues = df1.loc[:,self.field_var.get()]
+            fieldvalues = df1.loc[self.DBnum, self.field_var.get()]
         else:
             fieldvalues = 'empty'
 
@@ -649,6 +649,7 @@ class DBFrame:
         self.controller = controller
         self.searchkeys = {}
         self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
 
         # create an entry box so that the user can specify the database file to use
         # first make a title for the box, in row 3, column 1 of the grid for the main window
@@ -736,7 +737,7 @@ class DBFrame:
 
         self.DBL4 = tk.Label(self.parent, text = "Keyword:", font = labelfont, highlightbackground = widgetbg)
         self.DBL4.grid(row=4,column=0, sticky='W')
-        # fields = DBFrame.get_DB_fields(self)
+        fields = DBFrame.get_DB_fields(self)
         field_menu = tk.OptionMenu(self.parent, self.field_var, *fields, command = self.DBfieldchoice)
         field_menu.config(bg=bgcol, font = menufont)
         field_menu.grid(row=4, column=1, sticky='EW')
@@ -793,6 +794,10 @@ class DBFrame:
         self.fieldvalue_var = tk.StringVar()
         self.fieldvalue_var.set(fieldvalues[0])
 
+        if len(fieldvalues)>0:
+            self.fieldvalue_var.set(fieldvalues[0])
+        else:
+            self.fieldvalue_var.set('empty')
         fieldvalue_menu = tk.OptionMenu(self.parent, self.fieldvalue_var, *fieldvalues, command = self.DBfieldvaluechoice)
         fieldvalue_menu.config(bg=bgcol, font = menufont)
         fieldvalue_menu.grid(row=4, column=3, sticky='EW')
@@ -1017,6 +1022,7 @@ class DBFrame:
         # first load the settings file so that values can be used later
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         self.DBname = settings['DBname']
+        self.DBnum = settings['DBnum']
 
         # check database file and see how many entries exist
         if os.path.isfile(self.DBname):
@@ -1045,6 +1051,7 @@ class DBFrame:
         self.DBnumsave_text = value_list_for_display
 
         settings['DBnum'] = entered_values
+        self.DBnum = settings['DBnum']
         settings['DBnumstring'] = self.DBnumsave_text
         self.DBnumenter.delete(0,'end')
         self.DBnumenter.insert(0,settings['DBnumstring'])
@@ -1075,6 +1082,25 @@ class DBFrame:
         except:
             print('could not update normalizing region label')
 
+        # update search fields
+        # settings['DBnum'] = entered_values
+        fieldvalues = self.get_DB_field_values()
+        self.fieldvalue_var = tk.StringVar()
+        self.fieldvalue_var.set(fieldvalues[0])
+
+        if len(fieldvalues)>0:
+            self.fieldvalue_var.set(fieldvalues[0])
+        else:
+            self.fieldvalue_var.set('empty')
+        # destroy the old pulldown menu and create a new one with the new choices
+        self.fieldvaluesearch_opt.destroy()  # remove it
+        fieldvalue_menu = tk.OptionMenu(self.parent, self.fieldvalue_var, *fieldvalues, command = self.DBfieldvaluechoice)
+        fieldvalue_menu.config(bg=bgcol, font = menufont)
+        fieldvalue_menu.grid(row=4, column=3, sticky='EW')
+        self.fieldvaluesearch_opt = fieldvalue_menu   # save this way so that values are not cleared
+        fieldvalue_menu_submenu = self.parent.nametowidget(fieldvalue_menu.menuname)
+        fieldvalue_menu_submenu.config(font = dropdownfont)
+
         return self
 
 
@@ -1103,9 +1129,10 @@ class DBFrame:
     def DBrunsearch(self):
         settings = np.load(settingsfile, allow_pickle = True).flat[0]
         last_folder  = settings['last_folder']
+        self.dbnumlist = settings['DBnum']
 
         print('search values are: ',self.searchkeys)
-        dbnumlist = pydatabase.get_dbnumlists_by_keyword(self.DBname, self.searchkeys)
+        dbnumlist = pydatabase.get_dbnumlists_by_keyword(self.DBname, self.searchkeys, self.dbnumlist)
         self.dbnumlist = dbnumlist
 
         # write out the dbnumlist ....
@@ -1143,6 +1170,10 @@ class DBFrame:
         self.field_var.set(value)
         fieldvalues = DBFrame.get_DB_field_values(self)
 
+        if len(fieldvalues)>0:
+            self.fieldvalue_var.set(fieldvalues[0])
+        else:
+            self.fieldvalue_var.set('empty')
         # destroy the old pulldown menu and create a new one with the new choices
         self.fieldvaluesearch_opt.destroy()  # remove it
         fieldvalue_menu = tk.OptionMenu(self.parent, self.fieldvalue_var, *fieldvalues, command = self.DBfieldvaluechoice)
@@ -3217,6 +3248,7 @@ class NCbrainFrame:
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
         self.NCdatabasename = settings['DBname']
         self.NCdatabasenum = settings['DBnum']
+        self.NIbasename = settings['NIbasename']
         # BASEdir = os.path.dirname(self.NCdatabasename)
         xls = pd.ExcelFile(self.NCdatabasename, engine='openpyxl')
         df1 = pd.read_excel(xls, 'datarecord')
@@ -3304,9 +3336,9 @@ class NCbrainFrame:
             niiname = os.path.join(dbhome, fname)
             fullpath, filename = os.path.split(niiname)
             # prefix_niiname = os.path.join(fullpath,self.prefix+filename)
-            # tag = '_s' + str(seriesnumber)
-            # normdataname_full = os.path.join(fullpath, normdatasavename + tag + '.npy')
-            normdataname_full = os.path.join(dbhome, normdataname)
+            tag = '_s' + str(seriesnumber)
+            normdataname_full = os.path.join(fullpath, normdatasavename + tag + '.npy')
+            # normdataname_full = os.path.join(dbhome, normdataname)
 
             # load the nifti data
             # input_datar, affiner = i3d.load_and_scale_nifti(niiname)
@@ -3329,34 +3361,46 @@ class NCbrainFrame:
             input_datar = []  # clear it from memory
 
             # load the intermediate reference scan if it was specified, and it exists
-            try:
-                intermediate_norm_dbref = df1.loc[dbnum, 'norm_bridge_ref']
-                if intermediate_norm_dbref >= 0:
-                    print('...normalizing to a reference first, then to the brain template.')
-                    dbhome = df1.loc[intermediate_norm_dbref, 'datadir']
-                    fname = df1.loc[intermediate_norm_dbref, 'niftiname']
-                    seriesnumber = df1.loc[intermediate_norm_dbref, 'seriesnumber']
-                    norm_bridge_name = os.path.join(dbhome, fname)
+            # try:
+            print('dbnum = {} (original load)'.format(dbnum))
+            intermediate_norm_dbref = df1.loc[dbnum, 'norm_bridge_ref']
+            print('intermediate_norm_dbref = {} (original load)'.format(intermediate_norm_dbref))
+            if intermediate_norm_dbref >= 0:
+                print('...normalizing to a reference first, then to the brain template.')
+                dbhome = df1.loc[intermediate_norm_dbref, 'datadir']
+                fname = df1.loc[intermediate_norm_dbref, 'niftiname']
+                seriesnumber = df1.loc[intermediate_norm_dbref, 'seriesnumber']
 
-                    bridge_data = nib.load(norm_bridge_name)
-                    bridge_affine = bridge_data.affine
-                    bridge_hdr = bridge_data.header
-                    bridge_pixdim = bridge_hdr['pixdim'][1:4]
-                    bridge_dim = bridge_hdr['dim'][1:4]
-                    bridge_img = bridge_data.get_fdata()
-                    bridge_img = bridge_img / np.max(bridge_img)
+                old_fname = '{}{}.nii'.format(self.NIbasename, seriesnumber)
+                new_fname = '{}{}.nii'.format(self.NIbasename, intermediate_norm_dbref)
+                old_subdir = '{}{}'.format('Series',seriesnumber)
+                new_subdir = '{}{}'.format('Series',intermediate_norm_dbref)
+                norm_bridge_name = fname.replace(old_subdir, new_subdir,1)
+                norm_bridge_name = norm_bridge_name.replace(old_fname, new_fname,1)
+                full_bridge_name = os.path.join(dbhome, norm_bridge_name)
 
-                    # resize to brain template resolution
-                    brainres = [2., 2., 2.]
-                    newsize = np.round(bridge_dim * bridge_pixdim / brainres)
-                    bridge_img = i3d.resize_3D_nearest(bridge_img, newsize)
-                    brainres_affine_scale = np.array([[2, 0, 0, 0], [0, 2, 0, 0], [0, 0, 2, 0], [0, 0, 0, 1]])
-                    bridge_affine = bridge_affine @ brainres_affine_scale
-                else:
-                    intermediate_norm_dbref = -1
-            except:
+                bridge_data = nib.load(full_bridge_name)
+                bridge_affine = bridge_data.affine
+                bridge_hdr = bridge_data.header
+                bridge_pixdim = bridge_hdr['pixdim'][1:4]
+                bridge_dim = bridge_hdr['dim'][1:4]
+                bridge_img = bridge_data.get_fdata()
+                bridge_img = bridge_img / np.max(bridge_img)
+
+                # resize to brain template resolution
+                brainres = [2., 2., 2.]
+                newsize = np.round(bridge_dim * bridge_pixdim / brainres)
+                print('bridge_img size = {}'.format(np.shape(bridge_img)))
+                print('newsize  = {}'.format(newsize))
+                bridge_img = i3d.resize_3D_nearest(bridge_img, newsize)
+                brainres_affine_scale = np.array([[2, 0, 0, 0], [0, 2, 0, 0], [0, 0, 2, 0], [0, 0, 0, 1]])
+                bridge_affine = bridge_affine @ brainres_affine_scale
+            else:
                 intermediate_norm_dbref = -1
+            # except:
+            #     intermediate_norm_dbref = -1
 
+            print('intermediate_norm_dbref = {} (2nd check)'.format(intermediate_norm_dbref))
             # run the normalization
             print('starting normalization calculation ....')
             # set the cursor to reflect being busy ...
@@ -3543,15 +3587,19 @@ class NCcheckFrame:
         self.NCdecreaseindex.grid(row=8, column=3)
 
         # button to add image index to the bad list
-        self.NCflagbutton = tk.Button(self.parent, text='Bad Norm.', width=smallbuttonsize, bg=fgcol3, fg=fgletter3, font = widgetfont, command=self.NCflagbad, relief='raised', bd=5, highlightbackground = widgetbg)
+        self.NCflagbutton = tk.Button(self.parent, text='Bad Norm.', width=bigbuttonsize, bg=fgcol3, fg=fgletter3, font = widgetfont, command=self.NCflagbad, relief='raised', bd=5, highlightbackground = widgetbg)
         self.NCflagbutton.grid(row=9, column=2)
         # button to add image index to the bad list
 
-        self.NCclearflagbutton = tk.Button(self.parent, text='Clear Bad list', width=smallbuttonsize, bg=fgcol1, fg=fgletter1, font = widgetfont, command =self.NCclearbad, relief='raised', bd=5, highlightbackground = widgetbg)
+        self.NCclearflagbutton = tk.Button(self.parent, text='Clear Bad list', width=bigbuttonsize, bg=fgcol1, fg=fgletter1, font = widgetfont, command =self.NCclearbad, relief='raised', bd=5, highlightbackground = widgetbg)
         self.NCclearflagbutton.grid(row=3, column=2)
 
-        self.NCsaveflagbutton = tk.Button(self.parent, text='Save Bad List', width=smallbuttonsize, bg=fgcol1, fg=fgletter1, font = widgetfont, command=self.NCsavebadlist, relief='raised', bd=5, highlightbackground = widgetbg)
+        self.NCsaveflagbutton = tk.Button(self.parent, text='Save Bad List', width=bigbuttonsize, bg=fgcol1, fg=fgletter1, font = widgetfont, command=self.NCsavebadlist, relief='raised', bd=5, highlightbackground = widgetbg)
         self.NCsaveflagbutton.grid(row=10, column=2)
+        # button to add image index to the bad list
+
+        self.NCsaveflagbutton = tk.Button(self.parent, text='Save cleaned list', width=bigbuttonsize, bg=fgcol1, fg=fgletter1, font = widgetfont, command=self.NCremovebadlist, relief='raised', bd=5, highlightbackground = widgetbg)
+        self.NCsaveflagbutton.grid(row=11, column=2)
         # button to add image index to the bad list
 
 
@@ -3704,6 +3752,19 @@ class NCcheckFrame:
         filechoice = tkf.asksaveasfilename(title="Save list set as:",
                         filetypes=(("npy files", "*.npy"), ("all files", "*.*")))
         dbnumlist = {'dbnumlist':self.NCbadlist}
+        np.save(filechoice, dbnumlist)
+
+
+
+    def NCremovebadlist(self):
+        # first get the necessary input data
+        filechoice = tkf.asksaveasfilename(title="Save list set as:",
+                        filetypes=(("npy files", "*.npy"), ("all files", "*.*")))
+
+        self.NCdatabasenum = settings['DBnum']
+        NCfilteredlist = [x for x in self.NCdatabasenum if x not in self.NCbadlist]
+
+        dbnumlist = {'dbnumlist':NCfilteredlist}
         np.save(filechoice, dbnumlist)
 
 
@@ -5822,9 +5883,9 @@ class GRPFrame:
     # inputs to search database, and create/save dbnum lists
     def get_DB_field_values(self, mode = 'average_per_person'):
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
-        DBname = settings['DBname']
-        DBnum = settings['DBnum']
-        prefix = settings['CLprefix']
+        DBname = copy.deepcopy(settings['DBname'])
+        DBnum = copy.deepcopy(settings['DBnum'])
+        prefix = copy.deepcopy(settings['CLprefix'])
 
         if os.path.isfile(DBname):
             xls = pd.ExcelFile(DBname, engine = 'openpyxl')
@@ -5848,7 +5909,8 @@ class GRPFrame:
                         # print('characteristic is {} value type ... using the average value for each participant'.format(type(fv1[0])))
                         fieldvalues += [np.mean(fv1)]
             else:
-                fieldvalues = list(df1.loc[DBnum,fieldname])
+                # fieldvalues = list(df1.loc[DBnum,fieldname])
+                fieldvalues = [df1.loc[x,fieldname] for x in DBnum]
         else:
             fieldvalues = 'empty'
         # print('get_DB_field_values: fieldvalues = ',fieldvalues)
@@ -5884,7 +5946,7 @@ class GRPFrame:
                 fieldvalues2 = list(df1.loc[DBnum2,fieldname])
         else:
             fieldvalues2 = 'empty'
-        # print('get_DB_field_values: fieldvalues = ',fieldvalues)
+        print('get_DB_field_values: fieldvalues = ',fieldvalues)
 
         return fieldvalues, fieldvalues2
 

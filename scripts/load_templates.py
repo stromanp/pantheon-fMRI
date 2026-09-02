@@ -805,3 +805,55 @@ def load_brain_template(templatefilename):
     roi_map = template_img > 0.1   # threshold the image at some base level
 
     return template_img, template_affine, roi_map
+
+
+
+
+def get_MNI_coordinates_1mm_templates(voxel_indices, template_name = 'brain'):
+    # template_name, can be 'brain', 'stitched_cord_brain', or 'ccbs'
+    # these are estimates based on matching image coordinates and affine matrices
+    # using the templates as of June 2026
+    workingdir = os.path.dirname(os.path.realpath(__name__))
+    template_folder = os.path.join(workingdir, 'templates')
+
+    matched = False
+    if template_name == 'brain':
+        matched = True
+        template_file = 'brain_template_aligned_with_stitched_PAM50_icbm152_T2_1mm.nii.gz'
+        template_file = os.path.join(template_folder, template_file)
+        posoffset = np.array([0., 0., 0., 0.])
+
+        template_affine = np.array([[-1., 0., 0., 98.],
+                                    [0., 1., 0., -134.],
+                                    [0., 0., 1., -72.],
+                                    [0., 0., 0., 1.]])
+
+    if template_name == 'ccbs':
+        matched = True
+        template_file = 'stitched_PAM50_icbm152_May2020_T2_1mm.nii.gz'
+        template_file = os.path.join(template_folder, template_file)
+        posoffset1 = np.array([ 171.5, -111.5, -251. ,    0. ])
+        posoffset = np.array([171.5, -114.5, -253.5, 0.])
+
+        template_affine = np.array([[-1., 0., 0., 13.],
+                                    [0., 1., 0., -78.],
+                                    [0., 0., 1., -190.5],
+                                    [0., 0., 0., 1.]])
+
+
+    if (template_name == 'stitched_cord_brain') | (not matched):
+        template_file = 'CCBS_template_aligned_with_stitched_PAM50_icbm152_1mm.nii.gz'
+        template_file = os.path.join(template_folder, template_file)
+        posoffset = np.array([0., 0., 0., 0.])
+
+        template_affine = np.array([[-1., 0., 0., 98.],
+                                    [0., 1., 0., -134.],
+                                    [0., 0., 1., -563.5],
+                                    [0., 0., 0., 1.]])
+
+    # real-world coordinates = template_affine @ voxel_indices
+    # need to convert from real-world coordinates to MNI coordinates
+    v = np.array([voxel_indices[0], voxel_indices[1], voxel_indices[2], 1.])
+    MNIcoords = template_affine @ v
+
+    return MNIcoords

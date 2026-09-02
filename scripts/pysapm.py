@@ -93,7 +93,7 @@ from mpl_toolkits import mplot3d
 import random
 import draw_sapm_diagram2 as dsd2
 import copy
-import multiprocessing as mp
+# import multiprocessing as mp
 import matplotlib.patches as mpatches
 from matplotlib.collections import PatchCollection
 import matplotlib
@@ -3513,10 +3513,10 @@ def sem_physio_model1_V5(cnums, fintrinsic_base, SAPMresultsname, SAPMparameters
         if run_whole_group:
             # print('Using group average data, NP = {}'.format(NP_to_run))
             tp = []
-            for pcounter in range(NP_to_run):
+            for pcounter in range(NP):
                 tp += tplist_full[epochnum][pcounter]['tp']
             nruns = np.sum(nruns_per_person)
-            # print('tp = {}'.format(tp))
+            print('Running whole group tp = {}'.format(tp))
         else:
             tp = tplist_full[epochnum][nperson]['tp']
             nruns = nruns_per_person[nperson]
@@ -3574,7 +3574,7 @@ def sem_physio_model1_V5(cnums, fintrinsic_base, SAPMresultsname, SAPMparameters
             ftemp = fintrinsic_base[0,et1:et2]
             fintrinsic1 = np.array(list(ftemp) * nruns)
 
-            print('pysapm 3570: tsize_total = {}   size of fintrinsic1 is {}'.format(tsize_total, np.shape(fintrinsic1)))
+            print('pysapm 3577: tsize_total = {}   size of fintrinsic1 is {}'.format(tsize_total, np.shape(fintrinsic1)))
 
             try:
                 Nfintrinsic = len(fintrinsic_region)
@@ -5908,7 +5908,9 @@ def plot_region_inputs_average(window, target, nametag1, Minput, Sinput_avg, Sin
     #     rtarget = rnamelist.index(target)
 
     m = Minput[regionnum, :]
-    sources = np.where(m != 0)[0]
+    # sources = np.where(m != 0)[0]
+    sources = [beta_list[xx]['pair'][0] for xx in range(len(beta_list)) if (beta_list[xx]['pair'][1] == regionnum)]
+    sources = np.sort(sources)
     # rsources = [beta_list[ss]['pair'][0] for ss in sources]
     nsources = len(sources)
     checkdims = np.shape(Sinput_avg)

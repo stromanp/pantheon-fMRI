@@ -59,13 +59,14 @@ This was done in an effort to not reinvent the wheel.
 import numpy as np
 # from dipy.align import affine_registration
 # from dipy.align._public import AffineMap
-from dipy.align.imaffine import (transform_centers_of_mass,
-                                 AffineMap,
-                                 MutualInformationMetric,
-                                 AffineRegistration)
-from dipy.align.transforms import (TranslationTransform3D,
-                                   RigidTransform3D,
-                                   AffineTransform3D)
+import dipy
+# from dipy.align.imaffine import (transform_centers_of_mass,
+#                                  AffineMap,
+#                                  MutualInformationMetric,
+#                                  AffineRegistration)
+# from dipy.align.transforms import (TranslationTransform3D,
+#                                    RigidTransform3D,
+#                                    AffineTransform3D)
 
 # import image_operations_3D as i3d
 import time
@@ -89,7 +90,7 @@ def dipy_compute_twostage_brain_normalization(img1_data, img1_affine, img2_data,
 
     a1n = a12 @ a2n
 
-    affine = AffineMap(a1n, np.shape(ref_data), ref_affine, np.shape(img1_data), img1_affine)
+    affine = dipy.align.imaffine.AffineMap(a1n, np.shape(ref_data), ref_affine, np.shape(img1_data), img1_affine)
     transformed = affine.transform(img1_data)
 
     print('finished computing two-stage normalization parameters ...{}'.format(time.ctime()))
@@ -128,22 +129,22 @@ def dipy_compute_brain_normalization(img_data, img_affine, ref_data, ref_affine,
 
     # rough normalization based on center of mass
     print('initial rough normalization based on center of mass ...{}'.format(time.ctime()))
-    c_of_mass = transform_centers_of_mass(ref_data, ref_affine,img_data, img_affine)
+    c_of_mass = dipy.align.imaffine.transform_centers_of_mass(ref_data, ref_affine,img_data, img_affine)
     transformed = c_of_mass.transform(img_data)
 
     # refine with affine transformation
     print('affine transformation ...{}'.format(time.ctime()))
     sampling_prop = None
-    metric = MutualInformationMetric(nbins, sampling_prop)
+    metric = dipy.align.imaffine.MutualInformationMetric(nbins, sampling_prop)
 
     # default settings
     # level_iters = [10000, 1000, 100]
     # sigmas = [3.0, 1.0, 0.0]
     # factors = [4, 2, 1]
 
-    affreg = AffineRegistration(metric=metric,level_iters=level_iters,sigmas=sigmas,factors=factors)
+    affreg = dipy.align.imaffine.AffineRegistration(metric=metric,level_iters=level_iters,sigmas=sigmas,factors=factors)
 
-    transform = TranslationTransform3D()
+    transform = dipy.align.transforms.TranslationTransform3D()
     params0 = None
     starting_affine = c_of_mass.affine
     translation = affreg.optimize(ref_data, img_data, transform, params0,
@@ -154,7 +155,7 @@ def dipy_compute_brain_normalization(img_data, img_affine, ref_data, ref_affine,
 
     # refine with rigid transformation
     print('refine with a rigid transformation ...{}'.format(time.ctime()))
-    transform = RigidTransform3D()
+    transform = dipy.align.transforms.RigidTransform3D()
     params0 = None
     starting_affine = translation.affine
     rigid = affreg.optimize(ref_data, img_data, transform, params0,
@@ -164,7 +165,7 @@ def dipy_compute_brain_normalization(img_data, img_affine, ref_data, ref_affine,
 
     # refine with full affine transform
     print('refine again with an affine transformation ...{}'.format(time.ctime()))
-    transform = AffineTransform3D()
+    transform = dipy.align.transforms.AffineTransform3D()
     params0 = None
     starting_affine = rigid.affine
     affine = affreg.optimize(ref_data, img_data, transform, params0,
@@ -215,23 +216,23 @@ def dipy_brain_coregister_onevolume(img_data, ref_data, input_affine, verbose = 
     # steps that normalization because the images are expected to match very well
 
     # rough normalization based on center of mass
-    current_affine = transform_centers_of_mass(ref_data, input_affine, img_data, input_affine)
+    current_affine = dipy.align.imaffine.transform_centers_of_mass(ref_data, input_affine, img_data, input_affine)
     # transformed = current_affine.transform(img_data)
 
     if apply_affine:
         # refine with affine transformation
         print('affine transformation ...{}'.format(time.ctime()))
         sampling_prop = None
-        metric = MutualInformationMetric(nbins, sampling_prop)
+        metric = dipy.align.imaffine.MutualInformationMetric(nbins, sampling_prop)
 
         # set these values to be inputs?
         level_iters = [10000, 1000, 100]
         sigmas = [3.0, 1.0, 0.0]
         factors = [4, 2, 1]
 
-        affreg = AffineRegistration(metric=metric, level_iters=level_iters, sigmas=sigmas, factors=factors)
+        affreg = dipy.align.imaffine.AffineRegistration(metric=metric, level_iters=level_iters, sigmas=sigmas, factors=factors)
 
-        transform = TranslationTransform3D()
+        transform = dipy.align.transforms.TranslationTransform3D()
         params0 = None
         starting_affine = current_affine.affine
         current_affine = affreg.optimize(ref_data, img_data, transform, params0,
@@ -240,7 +241,7 @@ def dipy_brain_coregister_onevolume(img_data, ref_data, input_affine, verbose = 
     if apply_rigid:
         # refine with rigid transformation
         print('refine with a rigid transformation ...{}'.format(time.ctime()))
-        transform = RigidTransform3D()
+        transform = dipy.align.transforms.RigidTransform3D()
         params0 = None
         starting_affine = current_affine.affine
         current_affine = affreg.optimize(ref_data, img_data, transform, params0,

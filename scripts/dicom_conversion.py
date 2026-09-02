@@ -222,25 +222,55 @@ def convert_dicom_folder(databasename, databasenumber, basename = 'Series'):
 
     print('output_file = ',output_file)
     print('dicom_directory_full = ',dicom_directory_full)
-    
-    # still need to check the orientation for both BS/SC data and brain data
-    dicom2nifti.dicom_series_to_nifti(dicom_directory_full, output_file, reorient_nifti=True)
-    # this will put images in the very stupid but "standard" LAS orientation, which is left-handed
-    
-    # now update the database with the new niftiname
-    df1.loc[databasenumber, 'niftiname'] = os.path.join(dicom_directory, niiname)
-    # df1.to_excel(databasename, sheet_name='datarecord')
 
-    # need to delete the existing database sheet before writing the new one
-    workbook = openpyxl.load_workbook(databasename)
-    # std = workbook.get_sheet_by_name('datarecord')
-    # workbook.remove_sheet(std)
-    del workbook['datarecord']
-    workbook.save(databasename)
+    if os.path.isfile(output_file):
+        print('file already exists - not converting again:  {}'.format(output_file))
+    else:
+        # still need to check the orientation for both BS/SC data and brain data
+        dicom2nifti.dicom_series_to_nifti(dicom_directory_full, output_file, reorient_nifti=True)
+        # this will put images in the very stupid but "standard" LAS orientation, which is left-handed
 
-    # write it to the database by appending a sheet to the excel file
-    with pd.ExcelWriter(databasename, engine="openpyxl", mode='a') as writer:
-        df1.to_excel(writer, sheet_name='datarecord')
+        # now update the database with the new niftiname
+        df1.loc[databasenumber, 'niftiname'] = os.path.join(dicom_directory, niiname)
+        # df1.to_excel(databasename, sheet_name='datarecord')
+
+        # need to delete the existing database sheet before writing the new one
+        workbook = openpyxl.load_workbook(databasename)
+        # std = workbook.get_sheet_by_name('datarecord')
+        # workbook.remove_sheet(std)
+        del workbook['datarecord']
+        workbook.save(databasename)
+
+        # write it to the database by appending a sheet to the excel file
+        with pd.ExcelWriter(databasename, engine="openpyxl", mode='a') as writer:
+            df1.to_excel(writer, sheet_name='datarecord')
+
+    # check if there is a reference image for normalization
+    try:
+        ref_seriesnumber = int(float(df1.loc[databasenumber, 'norm_bridge_ref']))  # make sure input cannot be a string
+        ref_niiname = '{}{}.nii'.format(basename, ref_seriesnumber)
+
+        dicom_directory = df1.loc[databasenumber, 'pname']
+        old_dir = 'Series{}'.format(seriesnumber)
+        new_dir = 'Series{}'.format(ref_seriesnumber)
+        ref_dicom_directory = dicom_directory.replace(old_dir, new_dir)
+
+        new_output_file = os.path.join(dbhome, ref_dicom_directory, ref_niiname)
+        ref_dicom_directory_full = os.path.join(dbhome, ref_dicom_directory)
+
+        print('ref output_file = ', new_output_file)
+        print('ref_dicom_directory_full = ', ref_dicom_directory_full)
+
+        if os.path.isfile(new_output_file):
+            print('reference file for normalization has already been converted.')
+        else:
+            print('Converting reference file for normalization.')
+            # still need to check the orientation for both BS/SC data and brain data
+            dicom2nifti.dicom_series_to_nifti(ref_dicom_directory_full, new_output_file, reorient_nifti=True)
+            # this will put images in the very stupid but "standard" LAS orientation, which is left-handed
+    except:
+        print('no reference image for normalization listed ...')
+
 
     return output_file
     

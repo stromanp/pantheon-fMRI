@@ -196,7 +196,7 @@ def get_dbnumlists_by_person(DBname, dbnumlist, mode = 'dict', separate_conditio
 
 #----------------get_dbnumlists_by_keyword------------------------------------------
 # function to find database numbers based on database entry keyword/value pairs
-def get_dbnumlists_by_keyword(DBname, keywordlist):
+def get_dbnumlists_by_keyword(DBname, keywordlist, dbnumfilterlist = []):
     # keyword list is a dicitionary matching database entry values
     # the resulting list will match each of the keyword/value pairs in the database
     # BASEdir = os.path.dirname(DBname)
@@ -216,8 +216,12 @@ def get_dbnumlists_by_keyword(DBname, keywordlist):
             searchresult[bb,aa] = (datarecord.loc[bb,searchfield] == keywordlist[searchfield])
 
     dbnumlist = [num for num, value in enumerate(np.all(searchresult,axis =1)) if value == True]
+    if (len(dbnumfilterlist) > 0):
+        dbnumlist_filtered = [x for x in dbnumlist if x in dbnumfilterlist]
+    else:
+        dbnumlist_filtered = dbnumlist
 
-    return dbnumlist
+    return dbnumlist_filtered
 
 
 
