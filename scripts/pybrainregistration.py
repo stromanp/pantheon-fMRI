@@ -60,6 +60,7 @@ import numpy as np
 # from dipy.align import affine_registration
 # from dipy.align._public import AffineMap
 import dipy
+from dipy.align import affine_registration
 # from dipy.align.imaffine import (transform_centers_of_mass,
 #                                  AffineMap,
 #                                  MutualInformationMetric,
@@ -67,6 +68,8 @@ import dipy
 # from dipy.align.transforms import (TranslationTransform3D,
 #                                    RigidTransform3D,
 #                                    AffineTransform3D)
+
+from dipy.align.imaffine import AffineMap
 
 # import image_operations_3D as i3d
 import time
@@ -76,32 +79,81 @@ import os
 # import copy
 import pandas as pd
 
-def dipy_compute_twostage_brain_normalization(img1_data, img1_affine, img2_data, img2_affine, ref_data, ref_affine, level_iters = [10000, 1000, 100], sigmas = [3.0, 1.0, 0.0], factors = [4,2,1], nbins=32):
-    transformed_1_2, affine_1_2 = dipy_compute_brain_normalization(img1_data, img1_affine, img2_data, img2_affine,
-                                                                   level_iters, sigmas, factors, nbins)
-    transformed_2_ref, affine_2_ref = dipy_compute_brain_normalization(img2_data, img2_affine, ref_data, ref_affine,
-                                                                   level_iters, sigmas, factors, nbins)
+def dipy_compute_twostage_brain_normalization(img1_data, img1_affine, img2_data, img2_affine, ref_data, ref_affine, level_iters = [10000, 1000, 100], sigmas = [3.0, 1.0, 0.0], factors = [4,2,1]):
+    # transformed_1_2, affine_1_2 = dipy_compute_brain_normalization(img1_data, img1_affine, img2_data, img2_affine,
+    #                                                                level_iters, sigmas, factors, nbins)
+    # transformed_2_ref, affine_2_ref = dipy_compute_brain_normalization(img2_data, img2_affine, ref_data, ref_affine,
+    #                                                                level_iters, sigmas, factors, nbins)
     # combine affine_1_2 and affine_2_ref to get affine
     # check_resampled = norm_brain_affine_1_2.transform(input_image)
     # check_resampled = norm_brain_affine_2_norm.transform(check_resampled)
 
-    a12 = affine_1_2.get_affine()
-    a2n = affine_2_ref.get_affine()
+    # a12 = affine_1_2.get_affine()
+    # a2n = affine_2_ref.get_affine()
+    #
+    # a1n = a12 @ a2n
+    #
+    # affine = dipy.align.imaffine.AffineMap(a1n, np.shape(ref_data), ref_affine, np.shape(img1_data), img1_affine)
+    # transformed = affine.transform(img1_data)
 
-    a1n = a12 @ a2n
+    # two-stage mapping---------------------------------------
+    pipeline = ["center_of_mass", "translation", "rigid", "affine"]
+    xformed_img1, xaffine_img1 = affine_registration(
+        img1_data,
+        img2_data,
+        moving_affine=img1_affine,
+        static_affine=img2_affine,
+        nbins=32,
+        metric="MI",
+        pipeline=pipeline,
+        level_iters=level_iters,
+        sigmas=sigmas,
+        factors=factors
+        # starting_affine=starting_affine   # see if this works
+    )
 
-    affine = dipy.align.imaffine.AffineMap(a1n, np.shape(ref_data), ref_affine, np.shape(img1_data), img1_affine)
-    transformed = affine.transform(img1_data)
+    # Create the mapping using the matrix returned by your registration
+    img1_mapping_to_img2 = AffineMap(xaffine_img1,
+                                        domain_grid_shape=img2_data.shape,
+                                        domain_grid2world=img2_affine,
+                                        codomain_grid_shape=img1_data.shape,
+                                        codomain_grid2world=img1_affine
+                                        )
+    img1_to_img2_img = img1_mapping_to_img2.transform(img1_data)
+
+    pipeline = ["center_of_mass", "translation", "rigid", "affine"]
+    xformed_img2, xaffine_img2 = affine_registration(
+        img2_data,
+        ref_data,
+        moving_affine=img2_affine,
+        static_affine=ref_affine,
+        nbins=32,
+        metric="MI",
+        pipeline=pipeline,
+        level_iters=level_iters,
+        sigmas=sigmas,
+        factors=factors
+        # starting_affine=starting_affine   # see if this works
+    )
+
+    # Create the mapping using the matrix returned by your registration
+    img2_mapping_to_ref = AffineMap(xaffine_img2,
+                               domain_grid_shape=ref_data.shape,
+                               domain_grid2world=ref_affine,
+                               codomain_grid_shape=img2_data.shape,
+                               codomain_grid2world=img2_affine
+                               )
+    img2_to_ref_img = img2_mapping_to_ref.transform(img2_data)
+    img1_to_ref_img = img2_mapping_to_ref.transform(img1_to_img2_img)
 
     print('finished computing two-stage normalization parameters ...{}'.format(time.ctime()))
+    print('dipy_compute_twostage_brain_normalization   ....')
 
-    print('dipy_compute_twostage_brain_normalization:   ....')
-    print('   output image data type:  {}'.format(type(transformed)))
-
-    return transformed, affine
+    return img1_to_ref_img, xaffine_img2
 
 
-def dipy_compute_brain_normalization(img_data, img_affine, ref_data, ref_affine, level_iters = [10000, 1000, 100], sigmas = [3.0, 1.0, 0.0], factors = [4,2,1], nbins=32):
+
+def dipy_compute_brain_normalization(img_data, img_affine, ref_data, ref_affine, level_iters = [100, 50, 10], sigmas = [3.0, 1.0, 0.0], factors = [4,2,1]):
     # apply registration/normalization steps in a sequence
     #
     # # To avoid getting stuck at local optima, and to accelerate convergence, dipy uses
@@ -110,7 +162,7 @@ def dipy_compute_brain_normalization(img_data, img_affine, ref_data, ref_affine,
     # # by providing a list of the number of iterations to perform at each resolution.
     # # Default is to specify 3 resolutions and 10000 iterations at the coarsest resolution,
     # # 1000 iterations at medium resolution and 100 at the finest.
-    # level_iters = [10000, 1000, 100]
+    # level_iters = [100, 50, 10]
     #
     # # To compute the Gaussian pyramid, the original image is first smoothed at each
     # # level of the pyramid using a Gaussian kernel with the requested sigma. A good
@@ -128,69 +180,98 @@ def dipy_compute_brain_normalization(img_data, img_affine, ref_data, ref_affine,
     print('   template image data type:  {}'.format(type(ref_data)))
 
     # rough normalization based on center of mass
-    print('initial rough normalization based on center of mass ...{}'.format(time.ctime()))
-    c_of_mass = dipy.align.imaffine.transform_centers_of_mass(ref_data, ref_affine,img_data, img_affine)
-    transformed = c_of_mass.transform(img_data)
+    # print('initial rough normalization based on center of mass ...{}'.format(time.ctime()))
+    # c_of_mass = dipy.align.imaffine.transform_centers_of_mass(ref_data, ref_affine,img_data, img_affine)
+    # transformed = c_of_mass.transform(img_data)
 
     # refine with affine transformation
     print('affine transformation ...{}'.format(time.ctime()))
-    sampling_prop = None
-    metric = dipy.align.imaffine.MutualInformationMetric(nbins, sampling_prop)
+    # sampling_prop = None
+    # metric = dipy.align.imaffine.MutualInformationMetric(nbins, sampling_prop)
 
     # default settings
     # level_iters = [10000, 1000, 100]
     # sigmas = [3.0, 1.0, 0.0]
     # factors = [4, 2, 1]
 
-    affreg = dipy.align.imaffine.AffineRegistration(metric=metric,level_iters=level_iters,sigmas=sigmas,factors=factors)
-
-    transform = dipy.align.transforms.TranslationTransform3D()
-    params0 = None
-    starting_affine = c_of_mass.affine
-    translation = affreg.optimize(ref_data, img_data, transform, params0,
-                                  ref_affine, img_affine, starting_affine=starting_affine)
+    # affreg = dipy.align.imaffine.AffineRegistration(metric=metric,level_iters=level_iters,sigmas=sigmas,factors=factors)
+    #
+    # transform = dipy.align.transforms.TranslationTransform3D()
+    # params0 = None
+    # starting_affine = c_of_mass.affine
+    # translation = affreg.optimize(ref_data, img_data, transform, params0,
+    #                               ref_affine, img_affine, starting_affine=starting_affine)
+    # starting_affine = translation.affine
 
     # look at result
     # transformed = translation.transform(img_data)
 
     # refine with rigid transformation
-    print('refine with a rigid transformation ...{}'.format(time.ctime()))
-    transform = dipy.align.transforms.RigidTransform3D()
-    params0 = None
-    starting_affine = translation.affine
-    rigid = affreg.optimize(ref_data, img_data, transform, params0,
-                            ref_affine, img_affine, starting_affine=starting_affine)
+    # print('refine with a rigid transformation ...{}'.format(time.ctime()))
+    # transform = dipy.align.transforms.RigidTransform3D()
+    # params0 = None
+    # starting_affine = translation.affine
+    # rigid = affreg.optimize(ref_data, img_data, transform, params0,
+    #                         ref_affine, img_affine, starting_affine=starting_affine)
+    #
+    # # transformed = rigid.transform(img_data)
+    #
+    # # refine with full affine transform
+    # print('refine again with an affine transformation ...{}'.format(time.ctime()))
+    # transform = dipy.align.transforms.AffineTransform3D()
+    # params0 = None
+    # starting_affine = rigid.affine
+    # affine = affreg.optimize(ref_data, img_data, transform, params0,
+    #                          ref_affine, img_affine, starting_affine=starting_affine)
 
-    # transformed = rigid.transform(img_data)
-
-    # refine with full affine transform
-    print('refine again with an affine transformation ...{}'.format(time.ctime()))
-    transform = dipy.align.transforms.AffineTransform3D()
-    params0 = None
-    starting_affine = rigid.affine
-    affine = affreg.optimize(ref_data, img_data, transform, params0,
-                             ref_affine, img_affine, starting_affine=starting_affine)
+    # shorter version
+    pipeline = ["center_of_mass", "translation", "rigid", "affine"]
+    # pipeline = ["translation", "rigid", "affine"]
+    # xformed_img, reg_affine = dipy.align.transforms.affine_registration(
+    xformed_img, reg_affine = affine_registration(
+        img_data,
+        ref_data,
+        moving_affine=img_affine,
+        static_affine=ref_affine,
+        nbins=32,
+        metric="MI",
+        pipeline=pipeline,
+        level_iters=level_iters,
+        sigmas=sigmas,
+        factors=factors
+        # starting_affine=starting_affine   # see if this works
+    )
 
     # look at the final result
-    transformed = affine.transform(img_data)
+    # transformed = affine.transform(img_data)
     print('finished computing normalization parameters ...{}'.format(time.ctime()))
 
     print('dipy_compute_brain_normalization:   ....')
-    print('   output image data type:  {}'.format(type(transformed)))
+    print('   output image data type:  {}'.format(type(xformed_img)))
 
-    return transformed, affine
+    return xformed_img, reg_affine
 
 
-def dipy_apply_brain_normalization(input_data, norm_affine, verbose = False):
+def dipy_apply_brain_normalization(norm_affine, input_data, input_affine, ref_data_shape, ref_data_affine, verbose = False):
     xs,ys,zs,ts = np.shape(input_data)
 
     # define a list of tranformation steps
     pipeline = ["center_of_mass", "translation"]
 
+    img_mapping = AffineMap(norm_affine,
+                                        domain_grid_shape=ref_data_shape,
+                                        domain_grid2world=ref_data_affine,
+                                        codomain_grid_shape=[xs,ys,zs],
+                                        codomain_grid2world=input_affine
+                                        )
+    # img1_to_img2_img = img_mapping.transform(img1_data)
+
+
     for tt in range(ts):
         if verbose: print('applying normalization to volume {} of {}'.format(tt+1,ts))
         img_data = input_data[:,:,:,tt]
-        resampled = norm_affine.transform(img_data)
+        # resampled = norm_affine.transform(img_data)
+        resampled = img_mapping.transform(img_data)
         if tt == 0:
             xs,ys,zs = np.shape(resampled)
             output_data = np.zeros((xs,ys,zs,ts))
@@ -312,3 +393,4 @@ def brain_coregistration(niiname, nametag, coregistered_prefix = 'c'):
     np.save(coregdata_name, {'affine_record':affine_record,'motion_record':motion_record})
 
     return output_niiname, Qcheck
+

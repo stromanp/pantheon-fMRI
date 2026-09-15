@@ -3363,18 +3363,18 @@ class NCbrainFrame:
             # load the intermediate reference scan if it was specified, and it exists
             # try:
             print('dbnum = {} (original load)'.format(dbnum))
-            intermediate_norm_dbref = df1.loc[dbnum, 'norm_bridge_ref']
+            intermediate_norm_series_ref = df1.loc[dbnum, 'norm_bridge_ref']
             print('intermediate_norm_dbref = {} (original load)'.format(intermediate_norm_dbref))
             if intermediate_norm_dbref >= 0:
                 print('...normalizing to a reference first, then to the brain template.')
-                dbhome = df1.loc[intermediate_norm_dbref, 'datadir']
-                fname = df1.loc[intermediate_norm_dbref, 'niftiname']
-                seriesnumber = df1.loc[intermediate_norm_dbref, 'seriesnumber']
+                dbhome = df1.loc[dbnum, 'datadir']
+                fname = df1.loc[dbnum, 'niftiname']
+                seriesnumber = df1.loc[dbnum, 'seriesnumber']
 
                 old_fname = '{}{}.nii'.format(self.NIbasename, seriesnumber)
-                new_fname = '{}{}.nii'.format(self.NIbasename, intermediate_norm_dbref)
+                new_fname = '{}{}.nii'.format(self.NIbasename, intermediate_norm_series_ref)
                 old_subdir = '{}{}'.format('Series',seriesnumber)
-                new_subdir = '{}{}'.format('Series',intermediate_norm_dbref)
+                new_subdir = '{}{}'.format('Series',intermediate_norm_series_ref)
                 norm_bridge_name = fname.replace(old_subdir, new_subdir,1)
                 norm_bridge_name = norm_bridge_name.replace(old_fname, new_fname,1)
                 full_bridge_name = os.path.join(dbhome, norm_bridge_name)
@@ -3388,13 +3388,15 @@ class NCbrainFrame:
                 bridge_img = bridge_img / np.max(bridge_img)
 
                 # resize to brain template resolution
-                brainres = [2., 2., 2.]
-                newsize = np.round(bridge_dim * bridge_pixdim / brainres)
-                print('bridge_img size = {}'.format(np.shape(bridge_img)))
-                print('newsize  = {}'.format(newsize))
-                bridge_img = i3d.resize_3D_nearest(bridge_img, newsize)
-                brainres_affine_scale = np.array([[2, 0, 0, 0], [0, 2, 0, 0], [0, 0, 2, 0], [0, 0, 0, 1]])
-                bridge_affine = bridge_affine @ brainres_affine_scale
+                # ... not necessary
+                # brainres = [2., 2., 2.]
+                # newsize = np.round(bridge_dim * bridge_pixdim / brainres)
+                # print('bridge_img size = {}'.format(np.shape(bridge_img)))
+                # print('newsize  = {}'.format(newsize))
+                # bridge_img = i3d.resize_3D_nearest(bridge_img, newsize)
+                # scaling = brainres / bridge_pixdim
+                # brainres_affine_scale = np.array([[scaling[0], 0, 0, 0], [0, scaling[1], 0, 0], [0, 0, scaling[2], 0], [0, 0, 0, 1]])
+                # bridge_affine = bridge_affine @ brainres_affine_scale
             else:
                 intermediate_norm_dbref = -1
             # except:
@@ -3411,16 +3413,17 @@ class NCbrainFrame:
                 print('running two-stage brain normalization ...')
                 norm_brain_img, norm_brain_affine = pybrainregistration.dipy_compute_twostage_brain_normalization(input_image,
                                                     affiner, bridge_img, bridge_affine, ref_data, ref_affine, iters, sigmas,
-                                                    factors, nbins=32)
+                                                    factors)
             else:
                 print('running single-stage brain normalization ...')
                 norm_brain_img, norm_brain_affine = pybrainregistration.dipy_compute_brain_normalization(input_image,
-                                                    affiner, ref_data, ref_affine, iters, sigmas, factors, nbins=32)
+                                                    affiner, ref_data, ref_affine, iters, sigmas, factors)
+
             self.controller.master.config(cursor="")
             self.controller.master.update()
             print('finished normalization calculation ....')
             # save norm_brain_affine for later use...
-            np.save(normdataname_full, {'norm_affine_transformation': norm_brain_affine, 'output_affine':ref_affine})
+            np.save(normdataname_full, {'norm_affine_transformation': norm_brain_affine, 'output_affine':ref_affine, 'ref_size':[np.shape(ref_data)], 'ref_affine':ref_affine})
             self.NCresult = norm_brain_img
 
             # display results-----------------------------------------------------

@@ -2056,3 +2056,4 @@ def py_modify_section_positions(template, img, section_defs, coords, angle, angl
     section_mapping_coords = {'X':Xr,'Y':Yr,'Z':Zr,'Xt':Xtr,'Yt':Ytr,'Zt':Ztr}
 
     return section_mapping_coords, original_section    #, template_section
+

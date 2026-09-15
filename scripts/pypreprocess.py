@@ -788,6 +788,8 @@ def run_preprocessing(settingsfile):
             if normtemplatename == 'brain':
                 norm_brain_affine = normdata['norm_affine_transformation']
                 output_affine = normdata['output_affine']
+                ref_size = normdata['ref_size']
+                ref_affine = normdata['ref_affine']
                 # img_data, img_affine = i3d.load_and_scale_nifti(niiname)   # this function also scales the images to 1mm cubic voxels
 
                 input_img = nib.load(prefix_niiname)
@@ -797,7 +799,9 @@ def run_preprocessing(settingsfile):
 
                 norm_prefix = 'p'
                 print('starting applying normalization ....')
-                norm_brain_data = pybrainregistration.dipy_apply_brain_normalization(img_data, norm_brain_affine, verbose=True)
+                # norm_brain_data = pybrainregistration.dipy_apply_brain_normalization(img_data, norm_brain_affine, verbose=True)
+                norm_brain_data = pybrainregistration.dipy_apply_brain_normalization(norm_brain_affine, img_data, img_affine, ref_size, ref_affine, verbose=False)
+
                 print('finished applying normalization ....')
                 # save the normalized nifti images ...
 
