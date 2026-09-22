@@ -263,7 +263,7 @@ def dipy_compute_brain_normalization(img_data, img_affine, ref_data, ref_affine,
 def dipy_apply_brain_normalization(norm_affine, input_data, input_affine, ref_data_shape, ref_data_affine, verbose = False):
     xs,ys,zs,ts = np.shape(input_data)
 
-    img_mapping = AffineMap(norm_affine, domain_grid_shape=np.array(ref_data_shape), domain_grid2world=ref_data_affine,
+    img_mapping = AffineMap(norm_affine, domain_grid_shape=ref_data_shape, domain_grid2world=ref_data_affine,
                         codomain_grid_shape=[xs,ys,zs], codomain_grid2world=input_affine )
 
     for tt in range(ts):

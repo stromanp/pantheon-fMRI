@@ -2952,7 +2952,7 @@ class NCbrainFrame:
         self.parent = parent
         self.controller = controller
         self.NCresult = []
-        self.intermediate_norm_dbref = -1
+        self.intermediate_norm_series_ref = -1
 
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
         self.normdatasavename = settings['NCsavename']  # default prefix value
@@ -3259,7 +3259,7 @@ class NCbrainFrame:
         factors = self.factors
         braintemplatename = self.braintemplatename
 
-        intermediate_norm_dbref = self.intermediate_norm_dbref   # reference DBnum for an intermediate normalization step
+        intermediate_norm_series_ref = self.intermediate_norm_series_ref   # reference DBnum for an intermediate normalization step
 
         # load the brain template
         workingdir = os.path.dirname(os.path.realpath(__file__))
@@ -3364,8 +3364,8 @@ class NCbrainFrame:
             # try:
             print('dbnum = {} (original load)'.format(dbnum))
             intermediate_norm_series_ref = df1.loc[dbnum, 'norm_bridge_ref']
-            print('intermediate_norm_dbref = {} (original load)'.format(intermediate_norm_dbref))
-            if intermediate_norm_dbref >= 0:
+            print('intermediate_norm_series_ref = {} (original load)'.format(intermediate_norm_series_ref))
+            if intermediate_norm_series_ref >= 0:
                 print('...normalizing to a reference first, then to the brain template.')
                 dbhome = df1.loc[dbnum, 'datadir']
                 fname = df1.loc[dbnum, 'niftiname']
@@ -3398,18 +3398,18 @@ class NCbrainFrame:
                 # brainres_affine_scale = np.array([[scaling[0], 0, 0, 0], [0, scaling[1], 0, 0], [0, 0, scaling[2], 0], [0, 0, 0, 1]])
                 # bridge_affine = bridge_affine @ brainres_affine_scale
             else:
-                intermediate_norm_dbref = -1
+                intermediate_norm_series_ref = -1
             # except:
-            #     intermediate_norm_dbref = -1
+            #     intermediate_norm_series_ref = -1
 
-            print('intermediate_norm_dbref = {} (2nd check)'.format(intermediate_norm_dbref))
+            print('intermediate_norm_series_ref = {} (2nd check)'.format(intermediate_norm_series_ref))
             # run the normalization
             print('starting normalization calculation ....')
             # set the cursor to reflect being busy ...
             self.controller.master.config(cursor="wait")
             self.controller.master.update()
 
-            if intermediate_norm_dbref >= 0:
+            if intermediate_norm_series_ref >= 0:
                 print('running two-stage brain normalization ...')
                 norm_brain_img, norm_brain_affine = pybrainregistration.dipy_compute_twostage_brain_normalization(input_image,
                                                     affiner, bridge_img, bridge_affine, ref_data, ref_affine, iters, sigmas,
@@ -3423,7 +3423,7 @@ class NCbrainFrame:
             self.controller.master.update()
             print('finished normalization calculation ....')
             # save norm_brain_affine for later use...
-            np.save(normdataname_full, {'norm_affine_transformation': norm_brain_affine, 'output_affine':ref_affine, 'ref_size':[np.shape(ref_data)], 'ref_affine':ref_affine})
+            np.save(normdataname_full, {'norm_affine_transformation': norm_brain_affine, 'output_affine':ref_affine, 'ref_size':np.shape(ref_data), 'ref_affine':ref_affine})
             self.NCresult = norm_brain_img
 
             # display results-----------------------------------------------------
@@ -3522,7 +3522,7 @@ class NCcheckFrame:
         self.parent = parent
         self.controller = controller
         self.NCresult = []
-        self.intermediate_norm_dbref = -1
+        self.intermediate_norm_series_ref = -1
 
         settings = np.load(settingsfile, allow_pickle=True).flat[0]
         self.normdatasavename = settings['NCsavename']  # default prefix value
